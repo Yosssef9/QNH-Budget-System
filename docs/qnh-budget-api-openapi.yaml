@@ -1,0 +1,2509 @@
+openapi: 3.0.3
+info:
+  title: QNH Budget System API
+  version: 1.0.0
+  description: |
+    API documentation for QNH Hospital Budget System.
+
+    The Budget System is responsible for expected yearly budgets, approvals,
+    PO linking after CareWare approval, balance calculation, transfers,
+    version history, reports, and audit logs.
+
+    CareWare remains responsible for PO creation, PO approval, and storing PO data.
+
+servers:
+  - url: http://localhost:4000/api
+    description: Local server
+  - url: https://budget-api.qnh.local/api
+    description: Example production server
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Budget Access
+    description: APIs used to check whether the current user can access the Budget System and what permissions they have.
+  - name: Budgets
+    description: APIs for creating, viewing, copying, and managing department budget versions.
+  - name: Budget Items
+    description: APIs for managing budget item rows such as category, type, quantity, unit price, and total amount.
+  - name: Budget Distribution
+    description: APIs for storing planned quantity distribution by month or quarter.
+  - name: Budget Approval
+    description: APIs for submitting, approving, and rejecting department budgets.
+  - name: PO Linking
+    description: APIs for reading approved CareWare PO lines and linking them to approved budget items.
+  - name: Transfers
+    description: APIs for requesting, approving, and rejecting budget transfers between items.
+  - name: Categories
+    description: APIs for managing budget categories and item types.
+  - name: Item Requests
+    description: APIs for requesting new categories or item types when users cannot find them.
+  - name: Reports
+    description: APIs for budget reports, exceeded items, variance, and usage summaries.
+  - name: Roles & Permissions
+    description: APIs for budget roles, user access, and permission overrides.
+  - name: Audit Logs
+    description: APIs for viewing important logged actions in the Budget System.
+
+paths:
+  /budget/access/me:
+    get:
+      tags: [Budget Access]
+      summary: Check current user budget access
+      description: |
+        Returns the current authenticated user's Budget System access, role, department scope,
+        and effective permissions.
+
+        Business rules:
+        - User must exist in the main hospital users table.
+        - User must also exist in `budget_user_roles` with `is_active = true`.
+        - Permission result is calculated using role defaults plus user-specific overrides.
+      operationId: getMyBudgetAccess
+      responses:
+        "200":
+          description: User access information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserBudgetAccess"
+              examples:
+                hodAccess:
+                  value:
+                    userId: 2410
+                    hasAccess: true
+                    role: HOD
+                    departmentId: 10
+                    permissions:
+                      canViewBudget: true
+                      canEditBudget: true
+                      canLinkPo: true
+                      canRequestTransfer: true
+                      canApproveBudget: false
+                      canApproveTransfer: false
+                      canManageUsers: false
+                      canManageCategories: false
+                      canViewReports: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /budgets:
+    get:
+      tags: [Budgets]
+      summary: Get budgets list
+      description: |
+        Retrieves budgets filtered by department, year, and/or status.
+
+        Business rules:
+        - Returns budget versions for history tracking.
+        - A department can have multiple versions for the same year.
+        - Only one active approved budget can exist per department and year.
+      operationId: getBudgets
+      parameters:
+        - $ref: "#/components/parameters/DepartmentId"
+        - $ref: "#/components/parameters/Year"
+        - name: status
+          in: query
+          description: Optional budget status filter.
+          schema:
+            $ref: "#/components/schemas/BudgetStatus"
+      responses:
+        "200":
+          description: Budgets list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Budget"
+              examples:
+                budgets:
+                  value:
+                    - id: 1
+                      departmentId: 10
+                      year: 2026
+                      versionNo: 1
+                      status: REJECTED
+                      copiedFromBudgetId: null
+                      isActive: true
+                      createdAt: "2026-01-01T09:00:00Z"
+                    - id: 2
+                      departmentId: 10
+                      year: 2026
+                      versionNo: 2
+                      status: APPROVED
+                      copiedFromBudgetId: 1
+                      isActive: true
+                      createdAt: "2026-01-05T09:00:00Z"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    post:
+      tags: [Budgets]
+      summary: Create new budget draft
+      description: |
+        Creates a new department budget in DRAFT status.
+
+        Business rules:
+        - New manual budgets start as DRAFT.
+        - Draft budgets are editable.
+        - Approved and rejected budgets are not edited directly.
+        - If copying from history, use the copy endpoint instead.
+      operationId: createBudget
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBudgetRequest"
+            examples:
+              manualBudget:
+                value:
+                  departmentId: 10
+                  year: 2026
+                  creationMethod: MANUAL
+      responses:
+        "201":
+          description: Budget created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Budget"
+              examples:
+                createdBudget:
+                  value:
+                    id: 1
+                    departmentId: 10
+                    year: 2026
+                    versionNo: 1
+                    status: DRAFT
+                    copiedFromBudgetId: null
+                    isActive: true
+                    createdAt: "2026-01-01T09:00:00Z"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /budgets/{budgetId}:
+    get:
+      tags: [Budgets]
+      summary: Get budget details
+      description: |
+        Returns one budget with its items and approval/rejection notes.
+
+        Use this API when opening the Budget View page.
+      operationId: getBudgetById
+      parameters:
+        - $ref: "#/components/parameters/BudgetId"
+      responses:
+        "200":
+          description: Budget details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BudgetDetails"
+              examples:
+                budgetDetails:
+                  value:
+                    id: 2
+                    departmentId: 10
+                    year: 2026
+                    versionNo: 2
+                    status: APPROVED
+                    copiedFromBudgetId: 1
+                    isActive: true
+                    createdAt: "2026-01-05T09:00:00Z"
+                    items:
+                      - id: 101
+                        budgetId: 2
+                        categoryId: 1
+                        categoryName: IT Equipment
+                        typeId: 2
+                        typeName: PC
+                        quantity: 10
+                        unitPrice: 5000
+                        totalAmount: 50000
+                        distributionMethod: ANNUAL
+                        distributionLevel: YEAR
+                        linkedPoAmount: 20000
+                        remainingAmount: 30000
+                        status: NORMAL
+                    notes: []
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /budgets/{budgetId}/submit:
+    post:
+      tags: [Budget Approval]
+      summary: Submit draft budget for approval
+      description: |
+        Submits a draft budget to the approval workflow.
+
+        Flow:
+        DRAFT → PENDING_APPROVAL
+
+        Validation rules:
+        - Budget must be DRAFT.
+        - Budget must contain at least one active item.
+        - Distribution totals must match item quantities.
+        - Budget becomes read-only after submission.
+      operationId: submitBudget
+      parameters:
+        - $ref: "#/components/parameters/BudgetId"
+      responses:
+        "200":
+          description: Budget submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Budget"
+              examples:
+                submitted:
+                  value:
+                    id: 1
+                    departmentId: 10
+                    year: 2026
+                    versionNo: 1
+                    status: PENDING_APPROVAL
+                    copiedFromBudgetId: null
+                    isActive: true
+                    createdAt: "2026-01-01T09:00:00Z"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /budgets/{budgetId}/approve:
+    post:
+      tags: [Budget Approval]
+      summary: Approve pending budget
+      description: |
+        Approves a pending budget.
+
+        Business rules:
+        - Budget must be PENDING_APPROVAL.
+        - Approval locks the budget.
+        - Only one APPROVED active budget can exist per department and year.
+        - Approval notes are optional.
+      operationId: approveBudget
+      parameters:
+        - $ref: "#/components/parameters/BudgetId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApproveBudgetRequest"
+            examples:
+              approveWithNote:
+                value:
+                  generalNote: Budget approved. Please monitor spending during the year.
+                  itemNotes:
+                    - budgetItemId: 101
+                      note: Approved, compare vendor prices before purchase.
+      responses:
+        "200":
+          description: Budget approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Budget"
+              examples:
+                approved:
+                  value:
+                    id: 2
+                    departmentId: 10
+                    year: 2026
+                    versionNo: 2
+                    status: APPROVED
+                    copiedFromBudgetId: 1
+                    isActive: true
+                    createdAt: "2026-01-05T09:00:00Z"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /budgets/{budgetId}/reject:
+    post:
+      tags: [Budget Approval]
+      summary: Reject pending budget
+      description: |
+        Rejects a pending budget and saves rejection notes.
+
+        Business rules:
+        - Budget must be PENDING_APPROVAL.
+        - General rejection note is required.
+        - Item-specific rejection notes are optional.
+        - Rejected budget cannot be edited.
+        - User must create a new version from the rejected budget.
+      operationId: rejectBudget
+      parameters:
+        - $ref: "#/components/parameters/BudgetId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectBudgetRequest"
+            examples:
+              rejectBudget:
+                value:
+                  generalNote: Total budget amount is too high. Please reduce IT equipment cost.
+                  itemNotes:
+                    - budgetItemId: 102
+                      note: Printer quantity is too high compared to last year usage.
+      responses:
+        "200":
+          description: Budget rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Budget"
+              examples:
+                rejected:
+                  value:
+                    id: 1
+                    departmentId: 10
+                    year: 2026
+                    versionNo: 1
+                    status: REJECTED
+                    copiedFromBudgetId: null
+                    isActive: true
+                    createdAt: "2026-01-01T09:00:00Z"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /budgets/{budgetId}/copy:
+    post:
+      tags: [Budgets]
+      summary: Copy budget from history into new draft/version
+      description: |
+        Copies a budget from history into a new DRAFT budget.
+
+        Business rules:
+        - Same year copy creates a new version number.
+        - Different year copy creates version 1 for the new year.
+        - Old budget remains unchanged.
+        - Items are copied with `copiedFromItemId`.
+      operationId: copyBudget
+      parameters:
+        - $ref: "#/components/parameters/BudgetId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CopyBudgetRequest"
+            examples:
+              copyToNextYear:
+                value:
+                  targetYear: 2027
+      responses:
+        "201":
+          description: Copied budget created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Budget"
+              examples:
+                copied:
+                  value:
+                    id: 3
+                    departmentId: 10
+                    year: 2027
+                    versionNo: 1
+                    status: DRAFT
+                    copiedFromBudgetId: 2
+                    isActive: true
+                    createdAt: "2026-12-01T09:00:00Z"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /budgets/{budgetId}/items:
+    get:
+      tags: [Budget Items]
+      summary: Get budget items
+      description: |
+        Returns all active budget items for a budget.
+
+        Used by the Budget View page and budget approval review page.
+      operationId: getBudgetItems
+      parameters:
+        - $ref: "#/components/parameters/BudgetId"
+      responses:
+        "200":
+          description: Budget items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BudgetItem"
+              examples:
+                items:
+                  value:
+                    - id: 101
+                      budgetId: 1
+                      categoryId: 1
+                      categoryName: IT Equipment
+                      typeId: 2
+                      typeName: PC
+                      quantity: 10
+                      unitPrice: 5000
+                      totalAmount: 50000
+                      distributionMethod: ANNUAL
+                      distributionLevel: YEAR
+                      linkedPoAmount: 20000
+                      remainingAmount: 30000
+                      status: NORMAL
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    post:
+      tags: [Budget Items]
+      summary: Add budget item manually
+      description: |
+        Adds a new item to a DRAFT budget.
+
+        Business rules:
+        - Budget must be DRAFT.
+        - Quantity and unit price must be positive.
+        - Total amount can be sent by client or calculated by server.
+        - Distribution method and level must be valid.
+      operationId: createBudgetItem
+      parameters:
+        - $ref: "#/components/parameters/BudgetId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBudgetItemRequest"
+            examples:
+              pcItem:
+                value:
+                  categoryId: 1
+                  typeId: 2
+                  quantity: 50
+                  unitPrice: 5000
+                  totalAmount: 250000
+                  distributionMethod: MONTHLY
+                  distributionLevel: MONTH
+      responses:
+        "201":
+          description: Budget item created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BudgetItem"
+              examples:
+                createdItem:
+                  value:
+                    id: 101
+                    budgetId: 1
+                    categoryId: 1
+                    categoryName: IT Equipment
+                    typeId: 2
+                    typeName: PC
+                    quantity: 50
+                    unitPrice: 5000
+                    totalAmount: 250000
+                    distributionMethod: MONTHLY
+                    distributionLevel: MONTH
+                    linkedPoAmount: 0
+                    remainingAmount: 250000
+                    status: NORMAL
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /budget-items/{itemId}:
+    put:
+      tags: [Budget Items]
+      summary: Update budget item
+      description: |
+        Updates an existing budget item.
+
+        Business rules:
+        - Parent budget must be DRAFT.
+        - Approved, rejected, cancelled, and pending budgets are locked.
+        - If quantity changes, distribution must still match the new quantity.
+      operationId: updateBudgetItem
+      parameters:
+        - $ref: "#/components/parameters/ItemId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBudgetItemRequest"
+            examples:
+              updateQuantity:
+                value:
+                  quantity: 40
+                  unitPrice: 5000
+                  totalAmount: 200000
+                  distributionMethod: QUARTERLY
+                  distributionLevel: QUARTER
+      responses:
+        "200":
+          description: Budget item updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BudgetItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+    delete:
+      tags: [Budget Items]
+      summary: Remove budget item from draft
+      description: |
+        Soft deletes or removes a budget item from a DRAFT budget.
+
+        Business rules:
+        - Parent budget must be DRAFT.
+        - Item cannot be removed from approved budgets.
+      operationId: deleteBudgetItem
+      parameters:
+        - $ref: "#/components/parameters/ItemId"
+      responses:
+        "204":
+          description: Budget item removed
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /budget-items/{itemId}/distribution:
+    get:
+      tags: [Budget Distribution]
+      summary: Get budget item distribution
+      description: |
+        Returns planned quantity distribution rows for a budget item.
+
+        Notes:
+        - ANNUAL distribution usually returns an empty array.
+        - MONTHLY returns MONTH rows.
+        - QUARTERLY returns QUARTER rows.
+        - Calculated amount is returned for display only and is not stored.
+      operationId: getBudgetItemDistribution
+      parameters:
+        - $ref: "#/components/parameters/ItemId"
+      responses:
+        "200":
+          description: Distribution rows
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BudgetItemDistribution"
+              examples:
+                quarterlyDistribution:
+                  value:
+                    - id: 1
+                      budgetItemId: 101
+                      periodType: QUARTER
+                      periodNo: 1
+                      quantity: 13
+                      calculatedAmount: 65000
+                    - id: 2
+                      budgetItemId: 101
+                      periodType: QUARTER
+                      periodNo: 2
+                      quantity: 13
+                      calculatedAmount: 65000
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags: [Budget Distribution]
+      summary: Save budget item distribution
+      description: |
+        Saves distribution of budget item quantity across the year.
+
+        Business rules:
+        - Sum of distribution quantities must equal item quantity.
+        - No negative values.
+        - ANNUAL creates no distribution rows.
+        - MONTHLY auto creates 12 MONTH rows.
+        - QUARTERLY auto creates 4 QUARTER rows.
+        - CUSTOM MONTH uses MONTH rows.
+        - CUSTOM QUARTER uses QUARTER rows.
+        - Amount is not stored; it is calculated as quantity × unit price.
+      operationId: saveBudgetItemDistribution
+      parameters:
+        - $ref: "#/components/parameters/ItemId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveDistributionRequest"
+            examples:
+              customQuarter:
+                value:
+                  distributionMethod: CUSTOM
+                  distributionLevel: QUARTER
+                  rows:
+                    - periodType: QUARTER
+                      periodNo: 1
+                      quantity: 20
+                    - periodType: QUARTER
+                      periodNo: 2
+                      quantity: 30
+      responses:
+        "200":
+          description: Distribution saved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BudgetItemDistribution"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /careware/approved-po-lines:
+    get:
+      tags: [PO Linking]
+      summary: Get approved CareWare PO lines available for linking
+      description: |
+        Reads approved PO lines from CareWare using direct SQL integration.
+
+        Business rules:
+        - Only approved PO lines are returned.
+        - PO lines must belong to the requested department.
+        - PO date should be inside the budget year.
+        - Already linked PO lines can be marked with `isLinked = true`.
+      operationId: getApprovedCareWarePoLines
+      parameters:
+        - $ref: "#/components/parameters/DepartmentId"
+        - $ref: "#/components/parameters/Year"
+        - name: search
+          in: query
+          description: Optional PO number or line description search.
+          schema:
+            type: string
+            example: PO-1001
+      responses:
+        "200":
+          description: Approved PO lines
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CareWarePOLine"
+              examples:
+                poLines:
+                  value:
+                    - poNumber: PO-1001
+                      poLineId: PO-1001-L1
+                      poLineDescription: Dell PC
+                      amount: 20000
+                      quantity: 4
+                      departmentId: 10
+                      poDate: "2026-03-15"
+                      approvalStatus: APPROVED
+                      isLinked: false
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /budget-items/{itemId}/po-links:
+    get:
+      tags: [PO Linking]
+      summary: Get linked PO lines for a budget item
+      description: |
+        Returns all PO lines linked to a budget item.
+
+        Used to show PO usage details inside the Budget View.
+      operationId: getBudgetItemPoLinks
+      parameters:
+        - $ref: "#/components/parameters/ItemId"
+      responses:
+        "200":
+          description: Linked PO lines
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BudgetPOLink"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    post:
+      tags: [PO Linking]
+      summary: Link approved CareWare PO line to budget item
+      description: |
+        Links an approved CareWare PO line to a budget item.
+
+        Business rules:
+        - PO must be approved in CareWare.
+        - PO must belong to the same department.
+        - PO line can be linked only once.
+        - PO line amount must be valid.
+        - Over-budget linking is allowed but the item will be marked EXCEEDED.
+        - Balance is calculated dynamically and is not stored.
+      operationId: linkPoLineToBudgetItem
+      parameters:
+        - $ref: "#/components/parameters/ItemId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePOLinkRequest"
+            examples:
+              linkPcPo:
+                value:
+                  poNumber: PO-1001
+                  poLineId: PO-1001-L1
+                  poLineDescription: Dell PC
+                  amount: 20000
+                  quantity: 4
+      responses:
+        "201":
+          description: PO line linked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BudgetPOLink"
+              examples:
+                linkedPo:
+                  value:
+                    id: 1
+                    budgetItemId: 101
+                    poNumber: PO-1001
+                    poLineId: PO-1001-L1
+                    poLineDescription: Dell PC
+                    amount: 20000
+                    quantity: 4
+                    linkedBy: 2410
+                    linkedAt: "2026-03-15T12:00:00Z"
+                    isActive: true
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /po-links/{poLinkId}:
+    delete:
+      tags: [PO Linking]
+      summary: Unlink PO line
+      description: |
+        Removes an existing PO link.
+
+        Business rules:
+        - Usually allowed only by authorized users.
+        - Action should be audited.
+        - Removing the link recalculates the budget balance dynamically.
+      operationId: unlinkPoLine
+      parameters:
+        - $ref: "#/components/parameters/POLinkId"
+      responses:
+        "204":
+          description: PO link removed
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /transfers:
+    get:
+      tags: [Transfers]
+      summary: Get transfer requests
+      description: |
+        Returns transfer requests filtered by department, year, and/or status.
+
+        Only approved transfers affect balance calculations.
+      operationId: getTransfers
+      parameters:
+        - $ref: "#/components/parameters/DepartmentId"
+        - $ref: "#/components/parameters/Year"
+        - name: status
+          in: query
+          description: Optional transfer status filter.
+          schema:
+            $ref: "#/components/schemas/TransferStatus"
+      responses:
+        "200":
+          description: Transfer requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BudgetTransfer"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    post:
+      tags: [Transfers]
+      summary: Create transfer request
+      description: |
+        Creates a transfer request between budget items.
+
+        Transfer types:
+        - Existing item to existing item.
+        - Existing item to new item.
+
+        Business rules:
+        - Source item must have positive available balance.
+        - Requested amount must not exceed available balance.
+        - Transfer amount must be greater than zero.
+        - Pending transfers do not affect balance.
+        - Transfer affects balance only after approval.
+        - Amount is the source of truth; quantity is derived from unit price.
+      operationId: createTransfer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTransferRequest"
+            examples:
+              transferToExistingItem:
+                value:
+                  fromItemId: 101
+                  toItemId: 102
+                  toCategoryId: null
+                  toTypeId: null
+                  amount: 5000
+                  sourceQuantity: 1
+                  targetQuantity: 5
+                  transferInputType: AMOUNT
+                  reason: Transfer needed to cover approved PO.
+      responses:
+        "201":
+          description: Transfer request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BudgetTransfer"
+              examples:
+                pendingTransfer:
+                  value:
+                    id: 1
+                    fromItemId: 101
+                    toItemId: 102
+                    toCategoryId: null
+                    toTypeId: null
+                    amount: 5000
+                    sourceQuantity: 1
+                    targetQuantity: 5
+                    transferInputType: AMOUNT
+                    status: PENDING_APPROVAL
+                    reason: Transfer needed to cover approved PO.
+                    rejectionNote: null
+                    requestedBy: 2410
+                    requestedAt: "2026-03-20T10:00:00Z"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /transfers/{transferId}/approve:
+    post:
+      tags: [Transfers]
+      summary: Approve transfer request
+      description: |
+        Approves a pending transfer request.
+
+        Business rules:
+        - Transfer must be PENDING_APPROVAL.
+        - Only approved transfers affect budget balance.
+        - Approved transfer updates both source and target calculation results.
+      operationId: approveTransfer
+      parameters:
+        - $ref: "#/components/parameters/TransferId"
+      responses:
+        "200":
+          description: Transfer approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BudgetTransfer"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /transfers/{transferId}/reject:
+    post:
+      tags: [Transfers]
+      summary: Reject transfer request
+      description: |
+        Rejects a pending transfer request.
+
+        Business rules:
+        - Transfer must be PENDING_APPROVAL.
+        - Rejection note is required.
+        - Rejected transfers do not affect balance.
+      operationId: rejectTransfer
+      parameters:
+        - $ref: "#/components/parameters/TransferId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectTransferRequest"
+            examples:
+              rejectTransfer:
+                value:
+                  rejectionNote: Requested transfer exceeds available balance.
+      responses:
+        "200":
+          description: Transfer rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BudgetTransfer"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /categories:
+    get:
+      tags: [Categories]
+      summary: Get budget categories
+      description: |
+        Returns active budget categories used by manual entry and item requests.
+      operationId: getCategories
+      responses:
+        "200":
+          description: Categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BudgetCategory"
+              examples:
+                categories:
+                  value:
+                    - id: 1
+                      name: IT Equipment
+                      isActive: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    post:
+      tags: [Categories]
+      summary: Create budget category
+      description: |
+        Creates a new category.
+
+        Usually used by Admin after reviewing setup requirements or approved item requests.
+      operationId: createCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategoryRequest"
+            examples:
+              createCategory:
+                value:
+                  name: IT Equipment
+      responses:
+        "201":
+          description: Category created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BudgetCategory"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /categories/{categoryId}/types:
+    get:
+      tags: [Categories]
+      summary: Get types/items under category
+      description: |
+        Returns active budget types/items under a selected category.
+      operationId: getCategoryTypes
+      parameters:
+        - $ref: "#/components/parameters/CategoryId"
+      responses:
+        "200":
+          description: Types/items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BudgetType"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    post:
+      tags: [Categories]
+      summary: Create type/item under category
+      description: |
+        Creates a new type/item under a category.
+
+        Usually Admin-only.
+      operationId: createCategoryType
+      parameters:
+        - $ref: "#/components/parameters/CategoryId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTypeRequest"
+            examples:
+              createType:
+                value:
+                  name: PC
+      responses:
+        "201":
+          description: Type created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BudgetType"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /item-requests:
+    get:
+      tags: [Item Requests]
+      summary: Get item/category requests
+      description: |
+        Returns requests submitted by users for missing categories or item types.
+      operationId: getItemRequests
+      parameters:
+        - name: status
+          in: query
+          description: Optional request status filter.
+          schema:
+            $ref: "#/components/schemas/ItemRequestStatus"
+      responses:
+        "200":
+          description: Item requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BudgetItemRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    post:
+      tags: [Item Requests]
+      summary: Request new category/type
+      description: |
+        Allows users to request a missing type/item.
+
+        Business rules:
+        - User cannot directly create categories/types.
+        - Admin reviews and approves/rejects.
+        - Request can create a type under existing category.
+        - Request can create both a new category and new type.
+      operationId: createItemRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateItemRequest"
+            examples:
+              newCategoryAndType:
+                value:
+                  requestedCategoryName: AI Equipment
+                  requestedTypeName: AI Server
+                  existingCategoryId: null
+              existingCategoryNewType:
+                value:
+                  requestedCategoryName: null
+                  requestedTypeName: 3D Printer
+                  existingCategoryId: 1
+      responses:
+        "201":
+          description: Request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BudgetItemRequest"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /item-requests/{requestId}/approve:
+    post:
+      tags: [Item Requests]
+      summary: Approve item/category request
+      description: |
+        Approves a pending item/category request.
+
+        Business rules:
+        - If category exists, create requested type under it.
+        - If category does not exist, create both category and type.
+        - Request status becomes APPROVED.
+      operationId: approveItemRequest
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminNoteRequest"
+            examples:
+              approve:
+                value:
+                  adminNote: Approved and added to category list.
+      responses:
+        "200":
+          description: Request approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BudgetItemRequest"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /item-requests/{requestId}/reject:
+    post:
+      tags: [Item Requests]
+      summary: Reject item/category request
+      description: |
+        Rejects a pending item/category request.
+
+        Business rules:
+        - Admin note is required.
+        - Request status becomes REJECTED.
+      operationId: rejectItemRequest
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminNoteRequest"
+            examples:
+              reject:
+                value:
+                  adminNote: Duplicate item already exists.
+      responses:
+        "200":
+          description: Request rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BudgetItemRequest"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /reports/budget-summary:
+    get:
+      tags: [Reports]
+      summary: Budget summary report
+      description: |
+        Returns budget summary report.
+
+        Calculations:
+        - Approved Budget = Sum approved budget items.
+        - Actual Spending = Sum linked PO amounts.
+        - Variance = Approved Budget - Actual Spending.
+      operationId: getBudgetSummaryReport
+      parameters:
+        - $ref: "#/components/parameters/DepartmentId"
+        - $ref: "#/components/parameters/Year"
+      responses:
+        "200":
+          description: Budget report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BudgetSummaryReport"
+              examples:
+                summary:
+                  value:
+                    departmentId: 10
+                    year: 2026
+                    approvedBudget: 55000
+                    actualSpending: 27000
+                    variance: 28000
+                    items: []
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /reports/exceeded-items:
+    get:
+      tags: [Reports]
+      summary: Get exceeded budget items
+      description: |
+        Returns items where linked PO amount is greater than approved item budget.
+
+        Important:
+        - System allows PO over-budget linking.
+        - Exceeded items are shown for monitoring and reporting.
+      operationId: getExceededItemsReport
+      parameters:
+        - $ref: "#/components/parameters/DepartmentId"
+        - $ref: "#/components/parameters/Year"
+      responses:
+        "200":
+          description: Exceeded items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ExceededBudgetItem"
+              examples:
+                exceededItems:
+                  value:
+                    - budgetItemId: 102
+                      typeName: Printer
+                      approvedBudget: 5000
+                      linkedPoAmount: 7000
+                      remainingAmount: -2000
+                      status: EXCEEDED
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /roles:
+    get:
+      tags: [Roles & Permissions]
+      summary: Get budget roles
+      description: |
+        Returns available Budget System roles.
+
+        Example roles:
+        - HOD
+        - DEPARTMENT_USER
+        - BUDGET_APPROVER
+        - ADMIN
+      operationId: getBudgetRoles
+      responses:
+        "200":
+          description: Roles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BudgetRole"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /user-roles:
+    get:
+      tags: [Roles & Permissions]
+      summary: Get budget user roles
+      description: |
+        Returns users who have Budget System access.
+
+        Users outside this table cannot access the Budget System.
+      operationId: getBudgetUserRoles
+      responses:
+        "200":
+          description: User roles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BudgetUserRole"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    post:
+      tags: [Roles & Permissions]
+      summary: Assign user budget role
+      description: |
+        Assigns a Budget System role to a hospital user.
+
+        Business rules:
+        - User must already exist in the main hospital users table.
+        - Role gives default permissions.
+        - User-specific permission overrides can allow/deny specific actions.
+      operationId: assignBudgetUserRole
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignUserRoleRequest"
+            examples:
+              assignHod:
+                value:
+                  userId: 2410
+                  departmentId: 10
+                  roleId: 1
+                  permissionsOverride:
+                    canViewBudget: true
+                    canEditBudget: true
+                    canLinkPo: true
+                    canRequestTransfer: true
+                    canApproveBudget: false
+                    canApproveTransfer: false
+                    canManageUsers: false
+                    canManageCategories: false
+                    canViewReports: true
+      responses:
+        "201":
+          description: Role assigned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BudgetUserRole"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /audit-logs:
+    get:
+      tags: [Audit Logs]
+      summary: Get audit logs
+      description: |
+        Returns audit log records for important Budget System actions.
+
+        Example actions:
+        - CREATE_BUDGET
+        - SUBMIT_BUDGET
+        - APPROVE_BUDGET
+        - REJECT_BUDGET
+        - LINK_PO
+        - REQUEST_TRANSFER
+        - APPROVE_TRANSFER
+        - ASSIGN_USER_ROLE
+      operationId: getAuditLogs
+      parameters:
+        - name: action
+          in: query
+          description: Optional action filter.
+          schema:
+            type: string
+            example: LINK_PO
+        - name: entity
+          in: query
+          description: Optional entity/table filter.
+          schema:
+            type: string
+            example: budget_po_links
+      responses:
+        "200":
+          description: Audit logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditLog"
+              examples:
+                logs:
+                  value:
+                    - id: 1
+                      userId: 2410
+                      action: LINK_PO
+                      entity: budget_po_links
+                      entityId: 1
+                      oldValue: null
+                      newValue: '{"poNumber":"PO-1001"}'
+                      ipAddress: 10.0.110.28
+                      createdAt: "2026-03-15T12:00:00Z"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Use JWT Bearer token.
+
+        Example:
+        Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6...
+
+  parameters:
+    BudgetId:
+      name: budgetId
+      in: path
+      required: true
+      description: Budget record ID.
+      schema:
+        type: integer
+      example: 1
+
+    ItemId:
+      name: itemId
+      in: path
+      required: true
+      description: Budget item ID.
+      schema:
+        type: integer
+      example: 101
+
+    TransferId:
+      name: transferId
+      in: path
+      required: true
+      description: Transfer request ID.
+      schema:
+        type: integer
+      example: 55
+
+    RequestId:
+      name: requestId
+      in: path
+      required: true
+      description: Item/category request ID.
+      schema:
+        type: integer
+      example: 12
+
+    CategoryId:
+      name: categoryId
+      in: path
+      required: true
+      description: Budget category ID.
+      schema:
+        type: integer
+      example: 1
+
+    POLinkId:
+      name: poLinkId
+      in: path
+      required: true
+      description: Budget PO link ID.
+      schema:
+        type: integer
+      example: 1
+
+    DepartmentId:
+      name: departmentId
+      in: query
+      description: Department ID filter.
+      schema:
+        type: integer
+      example: 10
+
+    Year:
+      name: year
+      in: query
+      description: Budget year filter.
+      schema:
+        type: integer
+      example: 2026
+
+  responses:
+    BadRequest:
+      description: Bad request / validation error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            validationError:
+              value:
+                success: false
+                message: Validation failed.
+                errorCode: VALIDATION_ERROR
+                details:
+                  - field: quantity
+                    message: Quantity must be greater than zero.
+
+    Unauthorized:
+      description: Missing or invalid JWT token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            unauthorized:
+              value:
+                success: false
+                message: Unauthorized. Please login again.
+                errorCode: UNAUTHORIZED
+
+    Forbidden:
+      description: User does not have permission to perform this action
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            forbidden:
+              value:
+                success: false
+                message: Access denied.
+                errorCode: FORBIDDEN
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            notFound:
+              value:
+                success: false
+                message: Resource not found.
+                errorCode: NOT_FOUND
+
+    Conflict:
+      description: Business rule conflict
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            conflict:
+              value:
+                success: false
+                message: Operation conflicts with current resource state.
+                errorCode: BUSINESS_RULE_CONFLICT
+                details:
+                  - field: status
+                    message: Budget must be DRAFT to update items.
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Validation failed.
+        errorCode:
+          type: string
+          example: VALIDATION_ERROR
+        details:
+          type: array
+          nullable: true
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: quantity
+              message:
+                type: string
+                example: Quantity must be greater than zero.
+
+    BudgetStatus:
+      type: string
+      enum: [DRAFT, PENDING_APPROVAL, APPROVED, REJECTED, CANCELLED]
+
+    DistributionMethod:
+      type: string
+      enum: [ANNUAL, QUARTERLY, MONTHLY, CUSTOM]
+
+    DistributionLevel:
+      type: string
+      enum: [YEAR, QUARTER, MONTH]
+
+    PeriodType:
+      type: string
+      enum: [MONTH, QUARTER]
+
+    TransferStatus:
+      type: string
+      enum: [PENDING_APPROVAL, APPROVED, REJECTED]
+
+    TransferInputType:
+      type: string
+      enum: [AMOUNT, TARGET_QUANTITY]
+
+    ItemRequestStatus:
+      type: string
+      enum: [PENDING, APPROVED, REJECTED]
+
+    UserBudgetAccess:
+      type: object
+      properties:
+        userId:
+          type: integer
+          example: 2410
+        hasAccess:
+          type: boolean
+          example: true
+        role:
+          type: string
+          example: HOD
+        departmentId:
+          type: integer
+          nullable: true
+          example: 10
+        permissions:
+          $ref: "#/components/schemas/Permissions"
+
+    Permissions:
+      type: object
+      properties:
+        canViewBudget:
+          type: boolean
+          example: true
+        canEditBudget:
+          type: boolean
+          example: true
+        canLinkPo:
+          type: boolean
+          example: true
+        canRequestTransfer:
+          type: boolean
+          example: true
+        canApproveBudget:
+          type: boolean
+          example: false
+        canApproveTransfer:
+          type: boolean
+          example: false
+        canManageUsers:
+          type: boolean
+          example: false
+        canManageCategories:
+          type: boolean
+          example: false
+        canViewReports:
+          type: boolean
+          example: true
+
+    Budget:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        departmentId:
+          type: integer
+          example: 10
+        year:
+          type: integer
+          example: 2026
+        versionNo:
+          type: integer
+          example: 1
+        status:
+          $ref: "#/components/schemas/BudgetStatus"
+        copiedFromBudgetId:
+          type: integer
+          nullable: true
+          example: null
+        isActive:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-01-01T09:00:00Z"
+
+    BudgetDetails:
+      allOf:
+        - $ref: "#/components/schemas/Budget"
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/BudgetItem"
+            notes:
+              type: array
+              items:
+                $ref: "#/components/schemas/BudgetNote"
+
+    CreateBudgetRequest:
+      type: object
+      required: [departmentId, year]
+      properties:
+        departmentId:
+          type: integer
+          example: 10
+        year:
+          type: integer
+          example: 2026
+        creationMethod:
+          type: string
+          enum: [MANUAL, EXCEL_IMPORT, COPY_FROM_HISTORY]
+          example: MANUAL
+
+    CopyBudgetRequest:
+      type: object
+      required: [targetYear]
+      properties:
+        targetYear:
+          type: integer
+          example: 2027
+
+    CreateBudgetItemRequest:
+      type: object
+      required: [categoryId, typeId, quantity, unitPrice, distributionMethod, distributionLevel]
+      properties:
+        categoryId:
+          type: integer
+          example: 1
+        typeId:
+          type: integer
+          example: 2
+        quantity:
+          type: number
+          example: 50
+        unitPrice:
+          type: number
+          example: 5000
+        totalAmount:
+          type: number
+          example: 250000
+        distributionMethod:
+          $ref: "#/components/schemas/DistributionMethod"
+        distributionLevel:
+          $ref: "#/components/schemas/DistributionLevel"
+
+    UpdateBudgetItemRequest:
+      type: object
+      properties:
+        categoryId:
+          type: integer
+          example: 1
+        typeId:
+          type: integer
+          example: 2
+        quantity:
+          type: number
+          example: 40
+        unitPrice:
+          type: number
+          example: 5000
+        totalAmount:
+          type: number
+          example: 200000
+        distributionMethod:
+          $ref: "#/components/schemas/DistributionMethod"
+        distributionLevel:
+          $ref: "#/components/schemas/DistributionLevel"
+
+    BudgetItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 101
+        budgetId:
+          type: integer
+          example: 1
+        categoryId:
+          type: integer
+          example: 1
+        categoryName:
+          type: string
+          example: IT Equipment
+        typeId:
+          type: integer
+          example: 2
+        typeName:
+          type: string
+          example: PC
+        quantity:
+          type: number
+          example: 50
+        unitPrice:
+          type: number
+          example: 5000
+        totalAmount:
+          type: number
+          example: 250000
+        distributionMethod:
+          $ref: "#/components/schemas/DistributionMethod"
+        distributionLevel:
+          $ref: "#/components/schemas/DistributionLevel"
+        linkedPoAmount:
+          type: number
+          example: 20000
+        remainingAmount:
+          type: number
+          example: 230000
+        status:
+          type: string
+          enum: [NORMAL, EXCEEDED]
+          example: NORMAL
+
+    BudgetItemDistribution:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        budgetItemId:
+          type: integer
+          example: 101
+        periodType:
+          $ref: "#/components/schemas/PeriodType"
+        periodNo:
+          type: integer
+          example: 1
+        quantity:
+          type: number
+          example: 13
+        calculatedAmount:
+          type: number
+          description: Display-only calculated value. Not stored in budget_item_distribution.
+          example: 65000
+
+    SaveDistributionRequest:
+      type: object
+      required: [distributionMethod, distributionLevel]
+      properties:
+        distributionMethod:
+          $ref: "#/components/schemas/DistributionMethod"
+        distributionLevel:
+          $ref: "#/components/schemas/DistributionLevel"
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/DistributionRowRequest"
+
+    DistributionRowRequest:
+      type: object
+      required: [periodType, periodNo, quantity]
+      properties:
+        periodType:
+          $ref: "#/components/schemas/PeriodType"
+        periodNo:
+          type: integer
+          example: 1
+        quantity:
+          type: number
+          example: 13
+
+    ApproveBudgetRequest:
+      type: object
+      properties:
+        generalNote:
+          type: string
+          example: Budget approved. Please monitor spending.
+        itemNotes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItemNoteRequest"
+
+    RejectBudgetRequest:
+      type: object
+      required: [generalNote]
+      properties:
+        generalNote:
+          type: string
+          example: Total budget amount is too high.
+        itemNotes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItemNoteRequest"
+
+    ItemNoteRequest:
+      type: object
+      properties:
+        budgetItemId:
+          type: integer
+          example: 101
+        note:
+          type: string
+          example: Approved.
+
+    BudgetNote:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        budgetId:
+          type: integer
+          example: 1
+        budgetItemId:
+          type: integer
+          nullable: true
+          example: null
+        noteType:
+          type: string
+          enum: [GENERAL_REJECTION, ITEM_REJECTION, GENERAL_APPROVAL, ITEM_APPROVAL]
+          example: GENERAL_APPROVAL
+        note:
+          type: string
+          example: Budget approved.
+        createdBy:
+          type: integer
+          example: 55
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-01-05T09:00:00Z"
+
+    CareWarePOLine:
+      type: object
+      properties:
+        poNumber:
+          type: string
+          example: PO-1001
+        poLineId:
+          type: string
+          example: PO-1001-L1
+        poLineDescription:
+          type: string
+          example: Dell PC
+        amount:
+          type: number
+          example: 20000
+        quantity:
+          type: number
+          example: 4
+        departmentId:
+          type: integer
+          example: 10
+        poDate:
+          type: string
+          format: date
+          example: "2026-03-15"
+        approvalStatus:
+          type: string
+          example: APPROVED
+        isLinked:
+          type: boolean
+          example: false
+
+    CreatePOLinkRequest:
+      type: object
+      required: [poNumber, poLineId, amount]
+      properties:
+        poNumber:
+          type: string
+          example: PO-1001
+        poLineId:
+          type: string
+          example: PO-1001-L1
+        poLineDescription:
+          type: string
+          example: Dell PC
+        amount:
+          type: number
+          example: 20000
+        quantity:
+          type: number
+          nullable: true
+          example: 4
+
+    BudgetPOLink:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        budgetItemId:
+          type: integer
+          example: 101
+        poNumber:
+          type: string
+          example: PO-1001
+        poLineId:
+          type: string
+          example: PO-1001-L1
+        poLineDescription:
+          type: string
+          example: Dell PC
+        amount:
+          type: number
+          example: 20000
+        quantity:
+          type: number
+          nullable: true
+          example: 4
+        linkedBy:
+          type: integer
+          example: 2410
+        linkedAt:
+          type: string
+          format: date-time
+          example: "2026-03-15T12:00:00Z"
+        isActive:
+          type: boolean
+          example: true
+
+    CreateTransferRequest:
+      type: object
+      required: [fromItemId, transferInputType, amount, reason]
+      properties:
+        fromItemId:
+          type: integer
+          example: 101
+        toItemId:
+          type: integer
+          nullable: true
+          example: 102
+        toCategoryId:
+          type: integer
+          nullable: true
+          example: null
+        toTypeId:
+          type: integer
+          nullable: true
+          example: null
+        amount:
+          type: number
+          example: 5000
+        sourceQuantity:
+          type: number
+          nullable: true
+          example: 1
+        targetQuantity:
+          type: number
+          nullable: true
+          example: 2.5
+        transferInputType:
+          $ref: "#/components/schemas/TransferInputType"
+        reason:
+          type: string
+          example: Transfer needed to cover approved PO.
+
+    BudgetTransfer:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        fromItemId:
+          type: integer
+          example: 101
+        toItemId:
+          type: integer
+          nullable: true
+          example: 102
+        toCategoryId:
+          type: integer
+          nullable: true
+          example: null
+        toTypeId:
+          type: integer
+          nullable: true
+          example: null
+        amount:
+          type: number
+          example: 5000
+        sourceQuantity:
+          type: number
+          nullable: true
+          example: 1
+        targetQuantity:
+          type: number
+          nullable: true
+          example: 2.5
+        transferInputType:
+          $ref: "#/components/schemas/TransferInputType"
+        status:
+          $ref: "#/components/schemas/TransferStatus"
+        reason:
+          type: string
+          example: Transfer needed to cover approved PO.
+        rejectionNote:
+          type: string
+          nullable: true
+          example: null
+        requestedBy:
+          type: integer
+          example: 2410
+        requestedAt:
+          type: string
+          format: date-time
+          example: "2026-03-20T10:00:00Z"
+
+    RejectTransferRequest:
+      type: object
+      required: [rejectionNote]
+      properties:
+        rejectionNote:
+          type: string
+          example: Requested transfer exceeds available balance.
+
+    CreateCategoryRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: IT Equipment
+
+    CreateTypeRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: PC
+
+    BudgetCategory:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: IT Equipment
+        isActive:
+          type: boolean
+          example: true
+
+    BudgetType:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 2
+        categoryId:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: PC
+        isActive:
+          type: boolean
+          example: true
+
+    CreateItemRequest:
+      type: object
+      required: [requestedTypeName]
+      properties:
+        requestedCategoryName:
+          type: string
+          nullable: true
+          example: AI Equipment
+        requestedTypeName:
+          type: string
+          example: AI Server
+        existingCategoryId:
+          type: integer
+          nullable: true
+          example: null
+
+    AdminNoteRequest:
+      type: object
+      properties:
+        adminNote:
+          type: string
+          example: Approved and added to category list.
+
+    BudgetItemRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        requestedCategoryName:
+          type: string
+          nullable: true
+          example: AI Equipment
+        requestedTypeName:
+          type: string
+          example: AI Server
+        existingCategoryId:
+          type: integer
+          nullable: true
+          example: null
+        status:
+          $ref: "#/components/schemas/ItemRequestStatus"
+        adminNote:
+          type: string
+          nullable: true
+          example: null
+        requestedBy:
+          type: integer
+          example: 2410
+        reviewedBy:
+          type: integer
+          nullable: true
+          example: null
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+
+    BudgetSummaryReport:
+      type: object
+      properties:
+        departmentId:
+          type: integer
+          example: 10
+        year:
+          type: integer
+          example: 2026
+        approvedBudget:
+          type: number
+          example: 55000
+        actualSpending:
+          type: number
+          example: 27000
+        variance:
+          type: number
+          example: 28000
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/BudgetItem"
+
+    ExceededBudgetItem:
+      type: object
+      properties:
+        budgetItemId:
+          type: integer
+          example: 102
+        typeName:
+          type: string
+          example: Printer
+        approvedBudget:
+          type: number
+          example: 5000
+        linkedPoAmount:
+          type: number
+          example: 7000
+        remainingAmount:
+          type: number
+          example: -2000
+        status:
+          type: string
+          example: EXCEEDED
+
+    BudgetRole:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          enum: [HOD, DEPARTMENT_USER, BUDGET_APPROVER, ADMIN]
+          example: HOD
+        description:
+          type: string
+          example: Head of Department budget owner.
+
+    AssignUserRoleRequest:
+      type: object
+      required: [userId, roleId]
+      properties:
+        userId:
+          type: integer
+          example: 2410
+        departmentId:
+          type: integer
+          nullable: true
+          example: 10
+        roleId:
+          type: integer
+          example: 1
+        permissionsOverride:
+          $ref: "#/components/schemas/Permissions"
+
+    BudgetUserRole:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        userId:
+          type: integer
+          example: 2410
+        departmentId:
+          type: integer
+          nullable: true
+          example: 10
+        roleId:
+          type: integer
+          example: 1
+        permissionsOverride:
+          $ref: "#/components/schemas/Permissions"
+        isActive:
+          type: boolean
+          example: true
+
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        userId:
+          type: integer
+          nullable: true
+          example: 2410
+        action:
+          type: string
+          example: LINK_PO
+        entity:
+          type: string
+          example: budget_po_links
+        entityId:
+          type: integer
+          nullable: true
+          example: 1
+        oldValue:
+          type: string
+          nullable: true
+          example: null
+        newValue:
+          type: string
+          nullable: true
+          example: '{"poNumber":"PO-1001"}'
+        ipAddress:
+          type: string
+          nullable: true
+          example: 10.0.110.28
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-03-15T12:00:00Z"

@@ -1610,6 +1610,7 @@ budget_item_distribution (
  FOREIGN KEY (budget_item_id) REFERENCES budget_items(id)
 )
 
+UNIQUE (budget_item_id, period_type, period_no)
 
 ALTER TABLE budget_item_distribution
 ADD CONSTRAINT CK_period_valid
@@ -1724,6 +1725,8 @@ budget_categories (
  name VARCHAR(200) NOT NULL,
  is_active BIT DEFAULT 1,
  created_at DATETIME DEFAULT GETDATE()
+
+ UNIQUE (name)
 )
 ```
 
@@ -1740,6 +1743,8 @@ budget_types (
  created_at DATETIME DEFAULT GETDATE(),
 
  FOREIGN KEY (category_id) REFERENCES budget_categories(id)
+
+ UNIQUE (category_id, name)
 )
 ```
 
@@ -1785,7 +1790,9 @@ budget_po_links (
  po_number VARCHAR(100) NOT NULL,
  po_line_id VARCHAR(100) NOT NULL,
  po_line_description NVARCHAR(500) NULL,
-
+po_date DATE NULL,
+department_id INT NULL,
+careware_status VARCHAR(50) NULL
  amount DECIMAL(18,2) NOT NULL,
  quantity DECIMAL(18,2) NULL,
 
@@ -1868,7 +1875,8 @@ budget_audit_logs (
 
  old_value NVARCHAR(MAX) NULL,
  new_value NVARCHAR(MAX) NULL,
-
+request_id VARCHAR(100) NULL,
+user_agent NVARCHAR(500) NULL
  ip_address VARCHAR(100) NULL,
  created_at DATETIME DEFAULT GETDATE()
 )

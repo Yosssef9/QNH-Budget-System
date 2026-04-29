@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #1562a0;
+  --color-primary-dark: #124f82;
+
+  --color-bg: #f5f7fb;
+  --color-surface: #ffffff;
+  --color-border: #d9e2ec;
+  --color-text: #0f172a;
+  --color-muted: #64748b;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Inter", "Cairo", system-ui, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+* {
+  box-sizing: border-box;
+}

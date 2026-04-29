@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "nodemon server.js",
     "generate-token": "node scripts/generatePortalToken.js",
+    "test:email": "node scripts/testEmail.js",
     "start": "node server.js"
   },
   "keywords": [],
@@ -24,6 +25,7 @@
     "moment": "^2.30.1",
     "mssql": "^12.5.0",
     "multer": "^2.1.1",
+    "nodemailer": "^8.0.7",
     "rate-limiter-flexible": "^11.0.1",
     "uuid": "^14.0.0",
     "winston": "^3.19.0",

@@ -11,7 +11,8 @@ export function AuthProvider({ children }) {
   async function bootstrapAuth() {
     try {
       const response = await api.get("/auth/me");
-
+      console.log("response data", response.data);
+      console.log("import.meta.env.VITE_API_BASE_URL", import.meta.env.VITE_API_BASE_URL);
       setUser(response.data.user);
       setBudgetAccess(response.data.budgetAccess);
     } catch {
@@ -42,7 +43,7 @@ export function AuthProvider({ children }) {
       logout,
       refreshAuth: bootstrapAuth,
     }),
-    [user, budgetAccess, loading]
+    [user, budgetAccess, loading],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

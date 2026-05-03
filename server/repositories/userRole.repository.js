@@ -19,7 +19,8 @@ export async function getBudgetAccessByUserId(userId) {
         COALESCE(bur.can_approve_transfer, brp.can_approve_transfer) AS can_approve_transfer,
         COALESCE(bur.can_manage_users, brp.can_manage_users) AS can_manage_users,
         COALESCE(bur.can_manage_categories, brp.can_manage_categories) AS can_manage_categories,
-        COALESCE(bur.can_view_reports, brp.can_view_reports) AS can_view_reports
+        COALESCE(bur.can_view_reports, brp.can_view_reports) AS can_view_reports,
+        COALESCE(bur.can_manage_financial_years, brp.can_manage_financial_years) AS can_manage_financial_years
 
       FROM BS_budget_user_roles bur
       LEFT JOIN BS_departments d
@@ -46,6 +47,7 @@ export async function getBudgetAccessByUserId(userId) {
     can_manage_users: false,
     can_manage_categories: false,
     can_view_reports: false,
+    can_manage_financial_years: false,
   };
 
   const roles = [];

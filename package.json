@@ -1,0 +1,7 @@
+{
+  "name": "project-zipper",
+  "version": "1.0.0",
+  "scripts": {
+    "zip": "powershell -ExecutionPolicy Bypass -File zip-project.ps1"
+  }
+}

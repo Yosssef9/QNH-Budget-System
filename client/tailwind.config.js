@@ -5,8 +5,16 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Inter", "Cairo", "system-ui", "sans-serif"],
-        arabic: ["Cairo", "Inter", "sans-serif"],
+        sans: [
+          "Inter",
+          "Cairo",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "system-ui",
+          "sans-serif",
+        ],
+        arabic: ["Cairo", "Inter", "system-ui", "sans-serif"],
       },
 
       colors: {
@@ -24,12 +32,12 @@ export default {
         },
 
         enterprise: {
-          bg: "#f5f7fb",
+          bg: "#f8fafc",
           surface: "#ffffff",
-          border: "#d9e2ec",
-          muted: "#64748b",
-          text: "#0f172a",
-          soft: "#f8fafc",
+          border: "#e5edf5",
+          muted: "#94a3b8",
+          text: "#334155",
+          soft: "#f9fbfd",
         },
 
         success: {
@@ -57,14 +65,20 @@ export default {
         },
       },
 
+      letterSpacing: {
+        tight: "-0.01em",
+        normal: "0",
+        wide: "0.02em",
+      },
+
       boxShadow: {
-        card: "0 10px 30px rgba(15, 23, 42, 0.06)",
-        soft: "0 8px 20px rgba(15, 23, 42, 0.05)",
+        card: "0 6px 18px rgba(15, 23, 42, 0.035)",
+        soft: "0 3px 10px rgba(15, 23, 42, 0.03)",
       },
 
       borderRadius: {
-        card: "18px",
-        panel: "22px",
+        card: "14px",
+        panel: "18px",
       },
     },
   },

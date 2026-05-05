@@ -6,20 +6,20 @@ import { poolPromise, sql } from "../config/db.js";
 export async function getBudgetByIdRepo(budgetId) {
   const pool = await poolPromise;
 
-  const result = await pool
-    .request()
-    .input("budgetId", sql.Int, budgetId)
+  const result = await pool.request().input("budgetId", sql.Int, budgetId)
     .query(`
       SELECT 
         b.id,
         b.status,
         b.department_id,
         b.financial_year_id,
+        fy.year AS financial_year,
         fy.status AS financial_year_status
       FROM BS_budgets b
       JOIN BS_financial_years fy
         ON fy.id = b.financial_year_id
       WHERE b.id = @budgetId
+        AND b.is_active = 1
     `);
 
   return result.recordset[0] || null;
@@ -28,22 +28,34 @@ export async function getBudgetByIdRepo(budgetId) {
 /**
  * Validate category & type relation
  */
-export async function validateCategoryTypeRepo(categoryId, typeId) {
+export async function validateTypeExistsRepo(typeId) {
   const pool = await poolPromise;
 
-  const result = await pool
-    .request()
-    .input("categoryId", sql.Int, categoryId)
-    .input("typeId", sql.Int, typeId)
-    .query(`
+  const result = await pool.request().input("typeId", sql.Int, typeId).query(`
       SELECT TOP 1 id
       FROM BS_budget_types
       WHERE id = @typeId
-        AND category_id = @categoryId
         AND is_active = 1
     `);
 
   return !!result.recordset[0];
+}
+
+export async function getExistingBudgetItemTypeRepo(budgetId, typeId) {
+  const pool = await poolPromise;
+
+  const result = await pool
+    .request()
+    .input("budgetId", sql.Int, budgetId)
+    .input("typeId", sql.Int, typeId).query(`
+      SELECT TOP 1 id
+      FROM BS_budget_items
+      WHERE budget_id = @budgetId
+        AND type_id = @typeId
+        AND is_active = 1
+    `);
+
+  return result.recordset[0] || null;
 }
 
 /**
@@ -51,12 +63,12 @@ export async function validateCategoryTypeRepo(categoryId, typeId) {
  */
 export async function createBudgetItemRepo({
   budgetId,
-  categoryId,
   typeId,
   quantity,
   unitPrice,
   totalAmount,
-  expenseType,
+  distributionMethod,
+  distributionLevel,
   createdBy,
 }) {
   const pool = await poolPromise;
@@ -64,33 +76,32 @@ export async function createBudgetItemRepo({
   const result = await pool
     .request()
     .input("budgetId", sql.Int, budgetId)
-    .input("categoryId", sql.Int, categoryId)
     .input("typeId", sql.Int, typeId)
     .input("quantity", sql.Decimal(18, 2), quantity)
     .input("unitPrice", sql.Decimal(18, 2), unitPrice)
     .input("totalAmount", sql.Decimal(18, 2), totalAmount)
-    .input("expenseType", sql.VarChar(20), expenseType)
-    .input("createdBy", sql.Int, createdBy)
-    .query(`
+    .input("distributionMethod", sql.VarChar(50), distributionMethod)
+    .input("distributionLevel", sql.VarChar(50), distributionLevel)
+    .input("createdBy", sql.Int, createdBy).query(`
       INSERT INTO BS_budget_items (
         budget_id,
-        category_id,
         type_id,
         quantity,
         unit_price,
         total_amount,
-        expense_type,
+        distribution_method,
+        distribution_level,
         created_by
       )
       OUTPUT INSERTED.*
       VALUES (
         @budgetId,
-        @categoryId,
         @typeId,
         @quantity,
         @unitPrice,
         @totalAmount,
-        @expenseType,
+        @distributionMethod,
+        @distributionLevel,
         @createdBy
       )
     `);
@@ -132,4 +143,41 @@ export async function insertDistributionRepo(itemId, distributionRows) {
     )
     VALUES ${values}
   `);
+}
+
+export async function getBudgetItemsByBudgetIdRepo(budgetId) {
+  const pool = await poolPromise;
+
+  const result = await pool.request().input("budgetId", sql.Int, budgetId)
+    .query(`
+      SELECT
+        bi.id,
+        bi.budget_id,
+     t.category_id,
+c.name AS category_name,
+        bi.type_id,
+        t.name AS type_name,
+        t.expense_type,
+        bi.quantity,
+        bi.unit_price,
+        bi.total_amount,
+        bi.distribution_method,
+        bi.distribution_level,
+
+        d.period_type,
+        d.period_no,
+        d.quantity AS distribution_quantity
+      FROM BS_budget_items bi
+     INNER JOIN BS_budget_types t
+  ON t.id = bi.type_id
+INNER JOIN BS_budget_categories c
+  ON c.id = t.category_id
+      LEFT JOIN BS_budget_item_distribution d
+        ON d.budget_item_id = bi.id
+      WHERE bi.budget_id = @budgetId
+        AND bi.is_active = 1
+      ORDER BY bi.id ASC, d.period_no ASC
+    `);
+
+  return result.recordset;
 }

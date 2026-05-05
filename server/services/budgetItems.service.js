@@ -1,9 +1,11 @@
 import { ApiError } from "../utils/apiError.js";
 import {
   getBudgetByIdRepo,
-  validateCategoryTypeRepo,
+  validateTypeExistsRepo,
+  getExistingBudgetItemTypeRepo,
   createBudgetItemRepo,
   insertDistributionRepo,
+  getBudgetItemsByBudgetIdRepo,
 } from "../repositories/budgetItems.repository.js";
 
 import {
@@ -18,11 +20,9 @@ export async function createBudgetItemService({
   budgetAccess,
 }) {
   const {
-    category_id,
     type_id,
     quantity,
     unit_price,
-    expense_type,
     distribution_method,
     distribution_level,
     distribution,
@@ -40,7 +40,7 @@ export async function createBudgetItemService({
     throw new ApiError(
       400,
       "Cannot modify budget in closed financial year",
-      "FINANCIAL_YEAR_CLOSED"
+      "FINANCIAL_YEAR_CLOSED",
     );
   }
 
@@ -49,40 +49,42 @@ export async function createBudgetItemService({
     throw new ApiError(
       400,
       "Budget cannot be modified in current status",
-      "INVALID_BUDGET_STATUS"
+      "INVALID_BUDGET_STATUS",
     );
   }
 
   // 4. Permission check
   const isGlobal =
-    budgetAccess.is_global_admin ||
-    budgetAccess.can_approve_budget;
+    budgetAccess.isGlobalAdmin === true ||
+    budgetAccess.permissions?.can_approve_budget === true;
 
-  const userDepartmentId = budgetAccess.departments?.[0]?.department_id;
+  const userDepartmentId = budgetAccess.department?.id || null;
 
   if (!isGlobal && budget.department_id !== userDepartmentId) {
     throw new ApiError(
       403,
       "You cannot modify this department budget",
-      "FORBIDDEN"
+      "FORBIDDEN",
     );
   }
 
   // 5. Validate category-type
-  const isValidType = await validateCategoryTypeRepo(
-    category_id,
-    type_id
-  );
+  const isValidType = await validateTypeExistsRepo(type_id);
 
   if (!isValidType) {
+    throw new ApiError(400, "Invalid item/type", "INVALID_TYPE");
+  }
+  // 6. Prevent duplicate type in same budget
+  const existingItem = await getExistingBudgetItemTypeRepo(budgetId, type_id);
+
+  if (existingItem) {
     throw new ApiError(
-      400,
-      "Invalid category/type combination",
-      "INVALID_CATEGORY_TYPE"
+      409,
+      "This item/type already exists in this budget",
+      "DUPLICATE_BUDGET_ITEM_TYPE",
     );
   }
-
-  // 6. Calculate total
+  //  Calculate total
   const totalAmount = calculateTotalAmount(quantity, unit_price);
 
   // 7. Validate distribution
@@ -96,12 +98,12 @@ export async function createBudgetItemService({
   // 8. Insert item
   const item = await createBudgetItemRepo({
     budgetId,
-    categoryId: category_id,
     typeId: type_id,
     quantity,
     unitPrice: unit_price,
     totalAmount,
-    expenseType: expense_type,
+    distributionMethod: distribution_method,
+    distributionLevel: distribution_level,
     createdBy: user.userId,
   });
 
@@ -111,5 +113,63 @@ export async function createBudgetItemService({
   return {
     item,
     distribution: distributionRows,
+  };
+}
+
+export async function getBudgetItemsService({ budgetId, budgetAccess }) {
+  const budget = await getBudgetByIdRepo(budgetId);
+
+  if (!budget) {
+    throw new ApiError(404, "Budget not found", "BUDGET_NOT_FOUND");
+  }
+
+  const isGlobal =
+    budgetAccess.isGlobalAdmin === true ||
+    budgetAccess.permissions?.can_approve_budget === true;
+
+  const userDepartmentId = budgetAccess.department?.id || null;
+
+  if (!isGlobal && budget.department_id !== userDepartmentId) {
+    throw new ApiError(
+      403,
+      "You cannot view this department budget",
+      "FORBIDDEN",
+    );
+  }
+
+  const rows = await getBudgetItemsByBudgetIdRepo(budgetId);
+
+  const itemsMap = new Map();
+
+  for (const row of rows) {
+    if (!itemsMap.has(row.id)) {
+      itemsMap.set(row.id, {
+        id: row.id,
+        budget_id: row.budget_id,
+        category_id: row.category_id,
+        category_name: row.category_name,
+        type_id: row.type_id,
+        type_name: row.type_name,
+        expense_type: row.expense_type,
+        quantity: Number(row.quantity || 0),
+        unit_price: Number(row.unit_price || 0),
+        total_amount: Number(row.total_amount || 0),
+        distribution_method: row.distribution_method,
+        distribution_level: row.distribution_level,
+        distribution: [],
+      });
+    }
+
+    if (row.period_no) {
+      itemsMap.get(row.id).distribution.push({
+        period_type: row.period_type,
+        period_no: row.period_no,
+        quantity: Number(row.distribution_quantity || 0),
+      });
+    }
+  }
+
+  return {
+    items: Array.from(itemsMap.values()),
   };
 }

@@ -3,9 +3,12 @@ import DashboardLayout from "../layouts/DashboardLayout";
 import DashboardPage from "../pages/DashboardPage";
 import LoginRequiredPage from "../pages/LoginRequiredPage";
 import RequireAuth from "../context/RequireAuth";
+import RequirePermission from "../context/RequirePermission";
 import BudgetAccessManagementPage from "../pages/BudgetAccessManagementPage";
 import CreateBudgetManualPage from "../pages/CreateBudgetManualPage";
 import BudgetsPage from "../pages/BudgetsPage";
+import FinancialYearsPage from "../pages/FinancialYearsPage";
+
 const router = createBrowserRouter([
   {
     path: "/",
@@ -21,16 +24,36 @@ const router = createBrowserRouter([
       },
       {
         path: "admin/users",
-        element: <BudgetAccessManagementPage />,
+        element: (
+          <RequirePermission permission="can_manage_users">
+            <BudgetAccessManagementPage />
+          </RequirePermission>
+        ),
       },
-     {
-  path: "budgets",
-  element: <BudgetsPage />,
-},
-{
-  path: "budgets/create",
-  element: <CreateBudgetManualPage />,
-},
+      {
+        path: "budgets",
+        element: (
+          <RequirePermission permission="can_view_budget">
+            <BudgetsPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: "budgets/create",
+        element: (
+          <RequirePermission permission="can_edit_budget">
+            <CreateBudgetManualPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: "financial-years",
+        element: (
+          <RequirePermission permission="can_manage_financial_years">
+            <FinancialYearsPage />
+          </RequirePermission>
+        ),
+      },
     ],
   },
   {

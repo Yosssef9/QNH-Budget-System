@@ -1,90 +1,68 @@
 import { ApiError } from "../utils/apiError.js";
 
-const allowedExpenseTypes = ["OPEX", "CAPEX"];
-const allowedDistributionMethods = ["ANNUAL", "MONTHLY", "QUARTERLY", "CUSTOM"];
-const allowedDistributionLevels = ["YEAR", "MONTH", "QUARTER"];
+const allowedMethods = ["MONTHLY", "QUARTERLY", "ANNUAL", "CUSTOM"];
+const allowedLevels = ["MONTH", "QUARTER", "YEAR"];
 
-export function validateCreateBudgetItem(body) {
-  const {
-    category_id,
-    type_id,
-    quantity,
-    unit_price,
-    expense_type,
-    distribution_method,
-    distribution_level,
-    distribution,
-  } = body;
+function positiveInt(value, fieldName) {
+  const numberValue = Number(value);
 
-  if (!category_id) {
-    throw new ApiError(400, "category_id is required", "VALIDATION_ERROR");
-  }
-
-  if (!type_id) {
-    throw new ApiError(400, "type_id is required", "VALIDATION_ERROR");
-  }
-
-  if (quantity === undefined || quantity === null) {
-    throw new ApiError(400, "quantity is required", "VALIDATION_ERROR");
-  }
-
-  if (Number(quantity) < 0) {
-    throw new ApiError(400, "quantity cannot be negative", "VALIDATION_ERROR");
-  }
-
-  if (unit_price === undefined || unit_price === null) {
-    throw new ApiError(400, "unit_price is required", "VALIDATION_ERROR");
-  }
-
-  if (Number(unit_price) < 0) {
-    throw new ApiError(400, "unit_price cannot be negative", "VALIDATION_ERROR");
-  }
-
-  if (!expense_type || !allowedExpenseTypes.includes(expense_type)) {
+  if (!Number.isInteger(numberValue) || numberValue <= 0) {
     throw new ApiError(
       400,
-      "expense_type must be OPEX or CAPEX",
-      "VALIDATION_ERROR"
+      `${fieldName} must be a positive number`,
+      "VALIDATION_ERROR",
     );
   }
 
-  if (
-    !distribution_method ||
-    !allowedDistributionMethods.includes(distribution_method)
-  ) {
-    throw new ApiError(
-      400,
-      "Invalid distribution_method",
-      "VALIDATION_ERROR"
-    );
-  }
-
-  if (
-    !distribution_level ||
-    !allowedDistributionLevels.includes(distribution_level)
-  ) {
-    throw new ApiError(
-      400,
-      "Invalid distribution_level",
-      "VALIDATION_ERROR"
-    );
-  }
-
-  if (distribution !== undefined && !Array.isArray(distribution)) {
-    throw new ApiError(
-      400,
-      "distribution must be an array",
-      "VALIDATION_ERROR"
-    );
-  }
+  return numberValue;
 }
 
-export function validateBudgetIdParam(params) {
-  const budgetId = Number(params.budgetId);
+function nonNegativeNumber(value, fieldName) {
+  const numberValue = Number(value);
 
-  if (!Number.isInteger(budgetId) || budgetId <= 0) {
-    throw new ApiError(400, "Invalid budget id", "VALIDATION_ERROR");
+  if (!Number.isFinite(numberValue) || numberValue < 0) {
+    throw new ApiError(
+      400,
+      `${fieldName} must be a valid non-negative number`,
+      "VALIDATION_ERROR",
+    );
   }
 
-  return budgetId;
+  return numberValue;
+}
+
+export function validateBudgetIdParam(params = {}) {
+  return positiveInt(params.budgetId, "budgetId");
+}
+
+export function validateCreateBudgetItem(body = {}) {
+  positiveInt(body.type_id, "type_id");
+  nonNegativeNumber(body.quantity, "quantity");
+  nonNegativeNumber(body.unit_price, "unit_price");
+
+  if (Number(body.quantity) <= 0) {
+    throw new ApiError(
+      400,
+      "quantity must be greater than zero",
+      "VALIDATION_ERROR",
+    );
+  }
+
+  if (Number(body.unit_price) <= 0) {
+    throw new ApiError(
+      400,
+      "unit_price must be greater than zero",
+      "VALIDATION_ERROR",
+    );
+  }
+
+  if (!allowedMethods.includes(body.distribution_method)) {
+    throw new ApiError(400, "Invalid distribution_method", "VALIDATION_ERROR");
+  }
+
+  if (!allowedLevels.includes(body.distribution_level)) {
+    throw new ApiError(400, "Invalid distribution_level", "VALIDATION_ERROR");
+  }
+
+  return true;
 }

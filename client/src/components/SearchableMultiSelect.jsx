@@ -168,17 +168,26 @@ export default function SearchableMultiSelect({
 
     const updatePosition = () => {
       const rect = wrapperRef.current.getBoundingClientRect();
-      const dropdownHeight = 300; // approx
 
+      const dropdownHeight = Math.min(
+        dropdownRef.current?.offsetHeight || 300,
+        300,
+      );
+
+      const gap = 8;
       const spaceBelow = window.innerHeight - rect.bottom;
-      const openUp = spaceBelow < dropdownHeight;
+      const spaceAbove = rect.top;
+
+      const openUp = spaceBelow < dropdownHeight && spaceAbove > spaceBelow;
 
       setDropdownStyle({
         position: "fixed",
-        top: openUp ? rect.top - dropdownHeight - 8 : rect.bottom + 8,
+        top: openUp
+          ? Math.max(gap, rect.top - dropdownHeight - gap)
+          : rect.bottom + gap,
         left: rect.left,
         width: rect.width,
-        zIndex: 15,
+        zIndex: 9999,
       });
     };
     updatePosition();

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import toast from "react-hot-toast";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ChevronRight,
@@ -11,82 +12,10 @@ import {
   AlertCircle,
 } from "lucide-react";
 import SearchableMultiSelect from "../components/SearchableMultiSelect";
-const months = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
 
-const categories = ["IT Equipment", "IT Software", "IT Services"];
-const itemsByCategory = {
-  "IT Equipment": ["PC (Desktop)", "Printer", "Scanner"],
-  "IT Software": ["Software License", "Antivirus", "Cloud Subscription"],
-  "IT Services": ["Service Hours", "Maintenance", "Support Contract"],
-};
-
-const methodOptions = [
-  { value: "MONTHLY", label: "Monthly" },
-  { value: "QUARTERLY", label: "Quarterly" },
-  { value: "CUSTOM_MONTHLY", label: "Custom Monthly" },
-  { value: "CUSTOM_QUARTERLY", label: "Custom Quarterly" },
-  { value: "ANNUAL", label: "Annual" },
-];
-
-const initialRows = [
-  createRow(1, "IT Equipment", "PC (Desktop)", "MONTHLY", 50, 5000),
-  createRow(2, "IT Equipment", "Printer", "QUARTERLY", 20, 1000),
-  createRow(
-    3,
-    "IT Equipment",
-    "Scanner",
-    "CUSTOM_QUARTERLY",
-    10,
-    3000,
-    [],
-    [2, 2, 3, 3],
-  ),
-  createRow(4, "IT Software", "Software License", "ANNUAL", 1, 100000),
-  createRow(
-    5,
-    "IT Services",
-    "Service Hours",
-    "CUSTOM_MONTHLY",
-    100,
-    200,
-    [8, 9, 8, 8, 9, 8, 8, 8, 8, 8, 8, 8],
-  ),
-];
-
-function createRow(
-  id,
-  category = "IT Equipment",
-  item = "PC (Desktop)",
-  method = "MONTHLY",
-  quantity = 0,
-  unitPrice = 0,
-  monthly = [],
-  quarterly = [],
-) {
-  return {
-    id,
-    category,
-    item,
-    method,
-    quantity,
-    unitPrice,
-    monthly,
-    quarterly,
-  };
-}
+import { useCreateBudgetManual } from "../hooks/budgets/useCreateBudgetManual";
+import { MONTHS as months } from "../constants/months.constants";
+import { BUDGET_METHOD_OPTIONS as methodOptions } from "../constants/budgetMethodOptions.constants";
 
 function formatNumber(value) {
   return Number(value || 0).toLocaleString();
@@ -94,6 +23,42 @@ function formatNumber(value) {
 
 function formatSAR(value) {
   return `${formatNumber(value)} ر.س`;
+}
+
+function getApiDistributionMethod(method) {
+  if (method === "CUSTOM_MONTHLY" || method === "CUSTOM_QUARTERLY") {
+    return "CUSTOM";
+  }
+
+  return method;
+}
+
+function getApiDistributionLevel(method) {
+  if (method === "MONTHLY" || method === "CUSTOM_MONTHLY") return "MONTH";
+  if (method === "QUARTERLY" || method === "CUSTOM_QUARTERLY") return "QUARTER";
+  return "YEAR";
+}
+
+function getApiDistributionRows(row) {
+  if (row.method === "ANNUAL") return [];
+
+  if (row.method === "MONTHLY" || row.method === "CUSTOM_MONTHLY") {
+    return getMonthlyDistribution(row)
+      .map((quantity, index) => ({
+        period_type: "MONTH",
+        period_no: index + 1,
+        quantity,
+      }))
+      .filter((period) => toNumber(period.quantity) > 0);
+  }
+
+  return getQuarterlyDistribution(row)
+    .map((quantity, index) => ({
+      period_type: "QUARTER",
+      period_no: index + 1,
+      quantity,
+    }))
+    .filter((period) => toNumber(period.quantity) > 0);
 }
 function toNumber(value) {
   const num = Number(value);
@@ -204,7 +169,20 @@ function MethodBadge({ method }) {
 }
 
 export default function CreateBudgetManualPage() {
-  const [rows, setRows] = useState(initialRows);
+  const {
+    currentBudget,
+    rows,
+    setRows,
+    categories,
+    typesByCategory,
+    openYear,
+    loadingSetup,
+    saving,
+    updateRow,
+    addItem,
+    deleteItem,
+    saveDraft,
+  } = useCreateBudgetManual();
   const [summaryView, setSummaryView] = useState("QUARTER");
   function getMonthlyAmountForSummary(row, monthIndex) {
     const unitPrice = toNumber(row.unitPrice);
@@ -256,7 +234,7 @@ export default function CreateBudgetManualPage() {
       const hasValidNumbers =
         toNumber(row.quantity) > 0 && toNumber(row.unitPrice) > 0;
 
-      if (!hasValidNumbers) return false;
+      if (!row.category || !row.item || !hasValidNumbers) return false;
 
       if (row.method === "ANNUAL") return true;
 
@@ -265,22 +243,6 @@ export default function CreateBudgetManualPage() {
 
     return { totalQuantity, totalAmount, quarterTotals, monthTotals, isValid };
   }, [rows]);
-
-  function updateRow(id, field, value) {
-    setRows((prev) =>
-      prev.map((row) => {
-        if (row.id !== id) return row;
-
-        const next = { ...row, [field]: value };
-
-        if (field === "category") {
-          next.item = itemsByCategory[value]?.[0] || "";
-        }
-
-        return next;
-      }),
-    );
-  }
 
   function updateMonthly(id, index, value) {
     setRows((prev) =>
@@ -324,25 +286,84 @@ export default function CreateBudgetManualPage() {
     );
   }
 
-  function addItem() {
-    setRows((prev) => [
-      createRow(Date.now(), "IT Equipment", "PC (Desktop)", "MONTHLY", 0, 0),
-      ...prev,
-    ]);
+  function validateRowsDetailed(rows) {
+    const usedTypes = new Set();
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNumber = i + 1;
+      if (row.item) {
+        const key = String(row.item);
+
+        if (usedTypes.has(key)) {
+          return `Row ${rowNumber}: This item/type is already added in this budget`;
+        }
+
+        usedTypes.add(key);
+      }
+      if (!row.category) {
+        return `Row ${rowNumber}: Please select category`;
+      }
+
+      if (!row.item) {
+        return `Row ${rowNumber}: Please select item/type`;
+      }
+
+      if (toNumber(row.quantity) <= 0) {
+        return `Row ${rowNumber}: Quantity must be greater than 0`;
+      }
+
+      if (toNumber(row.unitPrice) <= 0) {
+        return `Row ${rowNumber}: Unit price must be greater than 0`;
+      }
+
+      if (row.method !== "ANNUAL") {
+        const distributed = getDistributedQuantity(row);
+
+        if (distributed !== toNumber(row.quantity)) {
+          return `Row ${rowNumber}: Distribution does not match total quantity`;
+        }
+      }
+    }
+
+    return null; // valid
+  }
+  async function handleSaveDraft() {
+    const validationError = validateRowsDetailed(rows);
+
+    if (validationError) {
+      toast.error(validationError, { duration: 3500 });
+      return;
+    }
+
+    await saveDraft(
+      rows.map((row) => ({
+        type_id: Number(row.item),
+        quantity: toNumber(row.quantity),
+        unit_price: toNumber(row.unitPrice),
+        distribution_method: getApiDistributionMethod(row.method),
+        distribution_level: getApiDistributionLevel(row.method),
+        distribution: getApiDistributionRows(row),
+      })),
+    );
   }
 
-  function deleteItem(id) {
-    setRows((prev) => prev.filter((row) => row.id !== id));
+  function getSelectedType(row) {
+    const types = typesByCategory[row.category];
+
+    if (!Array.isArray(types)) return null;
+
+    return types.find((type) => Number(type.id) === Number(row.item));
   }
 
+  const validationError = validateRowsDetailed(rows);
   return (
     <div className="space-y-5 p-6 text-slate-800">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold text-primary-700">
-            <span>Budgetssadsda</span>
+            <span>Budgets</span>
             <ChevronRight size={16} />
-            <span className="text-slate-700">Create Budget (Manual Entry)</span>
+            <span className="text-slate-700">Create Budget </span>
           </div>
 
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900">
@@ -355,13 +376,18 @@ export default function CreateBudgetManualPage() {
             Cancel
           </button>
 
-          <button className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:scale-[1.02]">
+          <button
+            type="button"
+            onClick={handleSaveDraft}
+            disabled={!summary.isValid || saving || loadingSetup}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
+          >
             <Save size={17} />
-            Save Draft
+            {saving ? "Saving..." : "Save Draft"}
           </button>
 
           <button
-            disabled={!summary.isValid}
+            disabled={!summary.isValid || saving || loadingSetup}
             className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 hover:scale-[1.02]"
           >
             <Send size={17} />
@@ -374,8 +400,16 @@ export default function CreateBudgetManualPage() {
         <h2 className="text-lg font-bold text-blue-600">Budget Information</h2>
 
         <div className="mt-4 grid gap-5 border-t border-slate-200 pt-4 md:grid-cols-5">
-          <Info label="Department:" value="Information Technology (IT)" />
-          <Info label="Budget Year:" value="2026" />
+          <Info
+            label="Department:"
+            value={currentBudget?.department_name || "Loading..."}
+          />
+          <Info
+            label="Budget Year:"
+            value={
+              currentBudget?.financial_year || openYear?.year || "No OPEN year"
+            }
+          />{" "}
           <Info
             label="Status:"
             value={
@@ -384,8 +418,18 @@ export default function CreateBudgetManualPage() {
               </span>
             }
           />
-          <Info label="Created By:" value="John Doe" />
-          <Info label="Created Date:" value="May 15, 2025" />
+          <Info
+            label="Created By:"
+            value={currentBudget?.created_by_name || "Not available"}
+          />
+          <Info
+            label="Created Date:"
+            value={
+              currentBudget?.created_at
+                ? new Date(currentBudget.created_at).toLocaleDateString()
+                : "Not available"
+            }
+          />{" "}
         </div>
       </section>
 
@@ -410,9 +454,9 @@ export default function CreateBudgetManualPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="max-h-[65vh] overflow-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
           <table className="min-w-[1800px] border-collapse text-sm">
-            <thead>
+            <thead className="sticky top-0 z-20 bg-white">
               <tr className="text-slate-700">
                 <th rowSpan="2" className="border border-slate-200 px-3 py-4">
                   #
@@ -493,7 +537,8 @@ export default function CreateBudgetManualPage() {
                     toNumber(row.unitPrice) > 0 &&
                     (row.method === "ANNUAL" ||
                       distributedQuantity === toNumber(row.quantity));
-
+                  const selectedType = getSelectedType(row);
+                  console.log("SELECTED TYPE:", selectedType);
                   return (
                     <motion.tr
                       key={row.id}
@@ -518,10 +563,7 @@ export default function CreateBudgetManualPage() {
                           multiple={false}
                           disableClear
                           value={row.category}
-                          options={categories.map((category) => ({
-                            id: category,
-                            name: category,
-                          }))}
+                          options={categories}
                           placeholder="Category"
                           searchPlaceholder="Search category..."
                           maxVisibleBadges={1}
@@ -539,12 +581,7 @@ export default function CreateBudgetManualPage() {
                           multiple={false}
                           disableClear
                           value={row.item}
-                          options={(itemsByCategory[row.category] || []).map(
-                            (item) => ({
-                              id: item,
-                              name: item,
-                            }),
-                          )}
+                          options={typesByCategory[row.category] || []}
                           placeholder="Item / Type"
                           searchPlaceholder="Search item..."
                           maxVisibleBadges={1}
@@ -554,6 +591,21 @@ export default function CreateBudgetManualPage() {
                             updateRow(row.id, "item", e.target.value)
                           }
                         />
+
+                        {selectedType?.expense_type && (
+                          <div className="mt-2 flex justify-center">
+                            {" "}
+                            <span
+                              className={`inline-flex rounded-md px-2 py-1 text-[11px] font-bold ${
+                                selectedType.expense_type === "CAPEX"
+                                  ? "bg-blue-50 text-blue-700"
+                                  : "bg-emerald-50 text-emerald-700"
+                              }`}
+                            >
+                              {selectedType.expense_type}
+                            </span>
+                          </div>
+                        )}
                       </td>
                       <td className="border border-slate-200 px-3 py-4 align-middle">
                         <div className="flex flex-col items-center justify-center gap-2">
@@ -582,7 +634,7 @@ export default function CreateBudgetManualPage() {
                         <input
                           type="number"
                           min="0"
-                          value={row.quantity}
+                          value={row.quantity === 0 ? "" : row.quantity}
                           onChange={(e) =>
                             updateRow(
                               row.id,
@@ -611,7 +663,7 @@ export default function CreateBudgetManualPage() {
                         <input
                           type="number"
                           min="0"
-                          value={row.unitPrice}
+                          value={row.unitPrice === 0 ? "" : row.unitPrice}
                           onChange={(e) =>
                             updateRow(
                               row.id,
@@ -650,7 +702,7 @@ export default function CreateBudgetManualPage() {
                             <input
                               type="number"
                               min="0"
-                              value={qty}
+                              value={qty === 0 ? "" : qty}
                               disabled={row.method === "MONTHLY"}
                               onChange={(e) =>
                                 updateMonthly(row.id, index, e.target.value)
@@ -674,7 +726,7 @@ export default function CreateBudgetManualPage() {
                             <input
                               type="number"
                               min="0"
-                              value={qty}
+                              value={qty === 0 ? "" : qty}
                               disabled={row.method === "QUARTERLY"}
                               onChange={(e) =>
                                 updateQuarterly(row.id, index, e.target.value)
@@ -750,11 +802,11 @@ export default function CreateBudgetManualPage() {
             <div>
               <h3 className="font-bold text-slate-900">Validation</h3>
               <p
-                className={`mt-1 text-sm font-semibold ${summary.isValid ? "text-emerald-600" : "text-red-500"}`}
+                className={`mt-1 text-sm font-semibold ${
+                  validationError ? "text-red-500" : "text-emerald-600"
+                }`}
               >
-                {summary.isValid
-                  ? "All quantities match total quantities."
-                  : "Some distributed quantities do not match total quantity."}
+                {validationError || "All quantities match total quantities."}
               </p>
             </div>
           </div>

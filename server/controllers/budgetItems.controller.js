@@ -1,7 +1,10 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 
-import { createBudgetItemService } from "../services/budgetItems.service.js";
+import {
+  createBudgetItemService,
+  getBudgetItemsService,
+} from "../services/budgetItems.service.js";
 
 import {
   validateBudgetIdParam,
@@ -24,6 +27,22 @@ export const createBudgetItem = asyncHandler(async (req, res) => {
     new ApiResponse({
       message: "Budget item created successfully",
       data: result,
-    })
+    }),
   );
 });
+
+export async function getBudgetItems(req, res, next) {
+  try {
+    const result = await getBudgetItemsService({
+      budgetId: Number(req.params.budgetId),
+      budgetAccess: req.budgetAccess,
+    });
+
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}

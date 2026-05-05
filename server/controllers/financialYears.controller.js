@@ -1,23 +1,66 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/apiResponse.js";
-import { startFinancialYearService } from "../services/financialYears.service.js";
-import { validateStartFinancialYear } from "../validators/financialYears.validator.js";
+import {
+  getFinancialYearsService,
+  getOpenFinancialYearService,
+  createFinancialYearService,
+  closeFinancialYearService,
+} from "../services/financialYears.service.js";
+import {
+  validateCreateFinancialYear,
+  validateFinancialYearId,
+} from "../validators/financialYears.validator.js";
 
-export const startFinancialYear = asyncHandler(async (req, res) => {
-  // 1. validate request
-  validateStartFinancialYear(req.body);
+export const getFinancialYears = asyncHandler(async (req, res) => {
+  const years = await getFinancialYearsService();
 
-  // 2. call service
-  const result = await startFinancialYearService({
-    year: req.body.year,
+  return res.json(
+    new ApiResponse({
+      message: "Financial years fetched successfully",
+      data: years,
+    }),
+  );
+});
+
+export const getOpenFinancialYear = asyncHandler(async (req, res) => {
+  const openYear = await getOpenFinancialYearService();
+
+  return res.json(
+    new ApiResponse({
+      message: "Open financial year fetched successfully",
+      data: openYear,
+    }),
+  );
+});
+
+export const createFinancialYear = asyncHandler(async (req, res) => {
+  const body = validateCreateFinancialYear(req.body);
+
+  const financialYear = await createFinancialYearService({
+    year: body.year,
     startedBy: req.user.userId,
   });
 
-  // 3. return response
   return res.status(201).json(
     new ApiResponse({
-      message: `Financial year ${req.body.year} started successfully`,
-      data: result,
-    })
+      message: `Financial year ${body.year} opened successfully`,
+      data: financialYear,
+    }),
+  );
+});
+
+export const closeFinancialYear = asyncHandler(async (req, res) => {
+  const id = validateFinancialYearId(req.params.id);
+
+  const financialYear = await closeFinancialYearService({
+    id,
+    closedBy: req.user.userId,
+  });
+
+  return res.json(
+    new ApiResponse({
+      message: `Financial year ${financialYear.year} closed successfully`,
+      data: financialYear,
+    }),
   );
 });

@@ -1,41 +1,39 @@
 import { ApiError } from "../utils/apiError.js";
 
-export function validateStartFinancialYear(body) {
-  const { year } = body;
+function toYear(value) {
+  const year = Number(value);
 
-  // Required
-  if (!year) {
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) {
     throw new ApiError(
       400,
-      "Year is required",
-      "VALIDATION_ERROR"
+      "Year must be an integer between 2000 and 2100",
+      "VALIDATION_ERROR",
     );
   }
 
-  // Must be number
-  if (typeof year !== "number") {
+  return year;
+}
+
+export function validateCreateFinancialYear(body = {}) {
+  if (body.year === undefined || body.year === null || body.year === "") {
+    throw new ApiError(400, "Year is required", "VALIDATION_ERROR");
+  }
+
+  return {
+    year: toYear(body.year),
+  };
+}
+
+export function validateFinancialYearId(value) {
+  const id = Number(value);
+
+  if (!Number.isInteger(id) || id <= 0) {
     throw new ApiError(
       400,
-      "Year must be a number",
-      "VALIDATION_ERROR"
+      "Financial year id must be a positive integer",
+      "VALIDATION_ERROR",
     );
   }
 
-  // Integer check
-  if (!Number.isInteger(year)) {
-    throw new ApiError(
-      400,
-      "Year must be an integer",
-      "VALIDATION_ERROR"
-    );
-  }
-
-  // Range validation
-  if (year < 2000 || year > 2100) {
-    throw new ApiError(
-      400,
-      "Year must be between 2000 and 2100",
-      "VALIDATION_ERROR"
-    );
-  }
+  return id;
 }

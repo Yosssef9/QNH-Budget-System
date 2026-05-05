@@ -1,154 +1,3 @@
-// import { useState } from "react";
-// import { NavLink, Outlet } from "react-router-dom";
-// import {
-//   LayoutDashboard,
-//   CalendarDays,
-//   Wallet,
-//   CheckCircle2,
-//   Settings,
-//   BarChart3,
-// } from "lucide-react";
-// import { useAuth } from "../context/AuthContext";
-
-// function getNavItems(budgetAccess) {
-//   return [
-//     { label: "Dashboard", path: "/", icon: LayoutDashboard, show: true },
-//     {
-//       label: "Financial Years",
-//       path: "/financial-years",
-//       icon: CalendarDays,
-//       show: budgetAccess?.can_manage_financial_years,
-//     },
-//     {
-//       label: "Budgets",
-//       path: "/budgets",
-//       icon: Wallet,
-//       show: budgetAccess?.can_view_budget,
-//     },
-//     {
-//       label: "Approvals",
-//       path: "/approvals",
-//       icon: CheckCircle2,
-//       show: budgetAccess?.can_approve_budget,
-//     },
-//     {
-//       label: "Admin",
-//       path: "/admin/users",
-//       icon: Settings,
-//       show: budgetAccess?.can_manage_users,
-//     },
-//     {
-//       label: "Reports",
-//       path: "/reports",
-//       icon: BarChart3,
-//       show: budgetAccess?.can_view_reports,
-//     },
-//   ].filter((item) => item.show);
-// }
-
-// export default function DashboardLayout() {
-//   const { user, budgetAccess } = useAuth();
-//   const [sidebarOpen, setSidebarOpen] = useState(false);
-//   console.log("DashboardLayout budgetAccess", budgetAccess);
-//   const navItems = getNavItems(budgetAccess);
-//   const sidebarWidth = sidebarOpen ? "w-[280px]" : "w-[86px]";
-//   const contentPadding = sidebarOpen ? "pl-[280px]" : "pl-[86px]";
-
-//   return (
-//     <div className="min-h-screen bg-enterprise-bg font-sans text-enterprise-text">
-//       <aside
-//         onClick={() => setSidebarOpen((prev) => !prev)}
-//         className={[
-//           "fixed inset-y-0 left-0 z-30 cursor-e-resize border-r border-enterprise-border bg-white transition-all duration-300 ease-in-out",
-//           sidebarWidth,
-//         ].join(" ")}
-//       >
-//         <div className="flex h-[72px] items-center justify-center border-b border-enterprise-border px-4">
-//           {" "}
-//           {sidebarOpen ? (
-//             <img
-//               src="/images/fullLogo.png"
-//               alt="Qassim National Hospital"
-//               className="h-auto max-h-[64px] w-full object-contain"
-//             />
-//           ) : (
-//             <img
-//               src="/images/logo.png"
-//               alt="QNH Logo"
-//               className="h-12 w-12 object-contain"
-//             />
-//           )}
-//         </div>
-
-//         <nav className="space-y-1 p-4">
-//           {navItems.map((item) => {
-//             const Icon = item.icon;
-
-//             return (
-//               <NavLink
-//                 key={item.path}
-//                 to={item.path}
-//                 onClick={(e) => e.stopPropagation()}
-//                 end={item.path === "/"}
-//                 title={!sidebarOpen ? item.label : undefined}
-//                 className={({ isActive }) =>
-//                   [
-//                     "flex items-center rounded-xl py-3 text-sm font-medium transition-colors duration-200",
-//                     sidebarOpen ? "gap-3 px-4" : "justify-center px-0",
-//                     isActive
-//                       ? "bg-primary-50 text-primary-700"
-//                       : "text-enterprise-muted hover:bg-slate-50 hover:text-primary-700",
-//                   ].join(" ")
-//                 }
-//               >
-//                 <Icon size={19} className="shrink-0" />
-
-//                 <span
-//                   className={[
-//                     "whitespace-nowrap tracking-normal transition-all duration-300",
-//                     sidebarOpen
-//                       ? "w-auto opacity-100"
-//                       : "w-0 overflow-hidden opacity-0",
-//                   ].join(" ")}
-//                 >
-//                   {item.label}
-//                 </span>
-//               </NavLink>
-//             );
-//           })}
-//         </nav>
-//       </aside>
-
-//       <div
-//         className={[
-//           "min-h-screen transition-all duration-300 ease-in-out",
-//           contentPadding,
-//         ].join(" ")}
-//       >
-//         <header className="sticky top-0 z-20 flex h-[72px] items-center justify-between border-b border-enterprise-border bg-white/90 px-8 backdrop-blur">
-//           <div>
-//             <h1 className="text-lg font-medium tracking-tight text-enterprise-text">
-//               Budget System
-//             </h1>
-
-//             <p className="mt-0.5 text-xs font-normal text-enterprise-muted">
-//               Manage yearly department budgets and approvals
-//             </p>
-//           </div>
-
-//           <div className="rounded-full border border-enterprise-border bg-enterprise-soft px-4 py-2 text-sm font-medium text-enterprise-text">
-//             {user?.userName || "User"}
-//           </div>
-//         </header>
-
-//         <main className="p-8">
-//           <Outlet />
-//         </main>
-//       </div>
-//     </div>
-//   );
-// }
-
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import {
@@ -163,37 +12,39 @@ import {
 import { useAuth } from "../context/AuthContext";
 
 function getNavItems(budgetAccess) {
+  const permissions = budgetAccess?.permissions || {};
+
   return [
     { label: "Dashboard", path: "/", icon: LayoutDashboard, show: true },
     {
       label: "Financial Years",
       path: "/financial-years",
       icon: CalendarDays,
-      show: budgetAccess?.can_manage_financial_years,
+      show: permissions.can_manage_financial_years,
     },
     {
       label: "Budgets",
       path: "/budgets",
       icon: Wallet,
-      show: budgetAccess?.can_view_budget,
+      show: permissions.can_view_budget,
     },
     {
       label: "Approvals",
       path: "/approvals",
       icon: CheckCircle2,
-      show: budgetAccess?.can_approve_budget,
+      show: permissions.can_approve_budget,
     },
     {
       label: "Manage Users",
       path: "/admin/users",
       icon: Settings,
-      show: budgetAccess?.can_manage_users,
+      show: permissions.can_manage_users,
     },
     {
       label: "Reports",
       path: "/reports",
       icon: BarChart3,
-      show: budgetAccess?.can_view_reports,
+      show: permissions.can_view_reports,
     },
   ].filter((item) => item.show);
 }

@@ -17,6 +17,7 @@ import budgetAccessRolesRoutes from "./routes/budgetAccessRoles.routes.js";
 import financialYearsRoutes from "./routes/financialYears.routes.js";
 import budgetsRoutes from "./routes/budgets.routes.js";
 import budgetItemsRoutes from "./routes/budgetItems.routes.js";
+import categoryRoutes from "./routes/category.routes.js";
 
 import { errorHandler } from "./middleware/error.middleware.js";
 import { logger } from "./utils/logger.js";
@@ -69,6 +70,7 @@ app.use("/api/admin/budget-access/roles", budgetAccessRolesRoutes);
 app.use("/api/financial-years", financialYearsRoutes);
 app.use("/api/budgets", budgetsRoutes);
 app.use("/api/budgets", budgetItemsRoutes);
+app.use("/api/categories", categoryRoutes);
 
 // 404
 app.use((req, res, next) => {

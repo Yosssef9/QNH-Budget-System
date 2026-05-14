@@ -17,8 +17,8 @@ import budgetAccessRolesRoutes from "./routes/budgetAccessRoles.routes.js";
 import financialYearsRoutes from "./routes/financialYears.routes.js";
 import budgetsRoutes from "./routes/budgets.routes.js";
 import budgetItemsRoutes from "./routes/budgetItems.routes.js";
+import budgetApprovalRoutes from "./routes/budgetApproval.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
-
 import { errorHandler } from "./middleware/error.middleware.js";
 import { logger } from "./utils/logger.js";
 import { ApiError } from "./utils/apiError.js";
@@ -71,7 +71,7 @@ app.use("/api/financial-years", financialYearsRoutes);
 app.use("/api/budgets", budgetsRoutes);
 app.use("/api/budgets", budgetItemsRoutes);
 app.use("/api/categories", categoryRoutes);
-
+app.use("/api/budget-approval", budgetApprovalRoutes);
 // 404
 app.use((req, res, next) => {
   next(new ApiError(404, "Route not found", "NOT_FOUND"));

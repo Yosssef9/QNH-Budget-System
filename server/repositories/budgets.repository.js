@@ -195,3 +195,58 @@ export async function createBudgetRepo({
 
   return result.recordset[0];
 }
+
+export async function getBudgetForSubmitRepo(budgetId) {
+  const pool = await poolPromise;
+
+  const result = await pool.request().input("budgetId", sql.BigInt, budgetId)
+    .query(`
+      SELECT TOP 1
+        id,
+        department_id,
+        financial_year_id,
+        status,
+        is_active
+      FROM BS_budgets
+      WHERE id = @budgetId
+        AND is_active = 1
+    `);
+
+  return result.recordset[0] || null;
+}
+
+export async function countActiveBudgetItemsRepo(budgetId) {
+  const pool = await poolPromise;
+
+  const result = await pool.request().input("budgetId", sql.BigInt, budgetId)
+    .query(`
+      SELECT COUNT(*) AS count
+      FROM BS_budget_items
+      WHERE budget_id = @budgetId
+        AND is_active = 1
+    `);
+
+  return result.recordset[0]?.count || 0;
+}
+
+export async function submitBudgetRepo({ budgetId, submittedBy }) {
+  const pool = await poolPromise;
+
+  const result = await pool
+    .request()
+    .input("budgetId", sql.BigInt, budgetId)
+    .input("submittedBy", sql.Int, submittedBy).query(`
+      UPDATE BS_budgets
+      SET
+        status = 'PENDING_APPROVAL',
+        submitted_by = @submittedBy,
+        submitted_at = GETDATE(),
+        updated_at = GETDATE()
+      OUTPUT INSERTED.*
+      WHERE id = @budgetId
+        AND status IN ('DRAFT', 'RETURNED')
+        AND is_active = 1
+    `);
+
+  return result.recordset[0] || null;
+}

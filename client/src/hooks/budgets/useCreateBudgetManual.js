@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
-  createBudgetItem,
+  replaceBudgetItems,
+  deleteBudgetItem,
   getBudgetItems,
   getCategories,
   getCurrentBudget,
@@ -8,8 +9,22 @@ import {
 } from "../../api/budget.api";
 import { getOpenFinancialYear } from "../../api/financialYears.api";
 import { toastPromise } from "../../helpers/toast.helper";
+
 import { createRow, mapBudgetItemToRow } from "../../helpers/budgetRows.helper";
+import toast from "react-hot-toast";
 const LOCAL_DRAFT_KEY = "create_budget_manual_draft_rows";
+
+function getRowSnapshot(row) {
+  return JSON.stringify({
+    category: row.category,
+    item: row.item,
+    method: row.method,
+    quantity: row.quantity,
+    unitPrice: row.unitPrice,
+    monthly: row.monthly,
+    quarterly: row.quarterly,
+  });
+}
 
 export function useCreateBudgetManual() {
   const [currentBudget, setCurrentBudget] = useState(null);
@@ -48,20 +63,59 @@ export function useCreateBudgetManual() {
           ? await getBudgetItems(budgetResult.id)
           : [];
 
-        const savedLocalRows = localStorage.getItem(LOCAL_DRAFT_KEY);
+        const budgetStatus = budgetResult?.status || "DRAFT";
+        const budgetDraftKey = budgetResult?.id
+          ? `${LOCAL_DRAFT_KEY}_${budgetResult.id}`
+          : LOCAL_DRAFT_KEY;
+
+        const savedLocalRows = localStorage.getItem(budgetDraftKey);
+
+        if (budgetStatus === "RETURNED") {
+          localStorage.removeItem(budgetDraftKey);
+
+          if (budgetItems.length > 0) {
+            setRows(budgetItems.map(mapBudgetItemToRow));
+          } else {
+            setRows([]);
+          }
+
+          return;
+        }
+
+        if (
+          ["PENDING_APPROVAL", "APPROVED", "CANCELLED"].includes(budgetStatus)
+        ) {
+          localStorage.removeItem(budgetDraftKey);
+          setRows(budgetItems.map(mapBudgetItemToRow));
+          return;
+        }
 
         if (savedLocalRows) {
           try {
-            setRows(JSON.parse(savedLocalRows));
+            const parsedRows = JSON.parse(savedLocalRows);
+
+            if (Array.isArray(parsedRows) && parsedRows.length > 0) {
+              setRows(parsedRows);
+            } else if (budgetItems.length > 0) {
+              localStorage.removeItem(budgetDraftKey);
+              setRows(budgetItems.map(mapBudgetItemToRow));
+            } else {
+              localStorage.removeItem(budgetDraftKey);
+              setRows([]);
+            }
           } catch {
-            localStorage.removeItem(LOCAL_DRAFT_KEY);
+            localStorage.removeItem(budgetDraftKey);
+
+            if (budgetItems.length > 0) {
+              setRows(budgetItems.map(mapBudgetItemToRow));
+            } else {
+              setRows([]);
+            }
           }
         } else if (budgetItems.length > 0) {
           setRows(budgetItems.map(mapBudgetItemToRow));
-        } else if (categoryResult.length > 0) {
-          setRows([
-            createRow(Date.now(), categoryResult[0].id, "", "MONTHLY", 0, 0),
-          ]);
+        } else {
+          setRows([]);
         }
       } finally {
         if (!ignore) setLoadingSetup(false);
@@ -76,9 +130,20 @@ export function useCreateBudgetManual() {
   }, []);
   useEffect(() => {
     if (loadingSetup) return;
+    if (!currentBudget?.id) return;
 
-    localStorage.setItem(LOCAL_DRAFT_KEY, JSON.stringify(rows));
-  }, [rows, loadingSetup]);
+    const budgetStatus = currentBudget?.status || "DRAFT";
+
+    if (["PENDING_APPROVAL", "APPROVED", "CANCELLED"].includes(budgetStatus)) {
+      localStorage.removeItem(`${LOCAL_DRAFT_KEY}_${currentBudget.id}`);
+      return;
+    }
+
+    localStorage.setItem(
+      `${LOCAL_DRAFT_KEY}_${currentBudget.id}`,
+      JSON.stringify(rows),
+    );
+  }, [rows, loadingSetup, currentBudget]);
   useEffect(() => {
     const categoryIds = [
       ...new Set(rows.map((row) => row.category).filter(Boolean)),
@@ -130,7 +195,12 @@ export function useCreateBudgetManual() {
           next.item = "";
         }
 
-        return next;
+        const nextSnapshot = getRowSnapshot(next);
+
+        return {
+          ...next,
+          isSaved: row.savedSnapshot === nextSnapshot,
+        };
       }),
     );
   }
@@ -142,8 +212,36 @@ export function useCreateBudgetManual() {
     ]);
   }
 
-  function deleteItem(id) {
+  async function deleteItem(id) {
+    const rowToDelete = rows.find((row) => row.id === id);
+    if (!rowToDelete) return;
+
+    const previousRows = rows;
+
+    // Optimistic UI delete
     setRows((prev) => prev.filter((row) => row.id !== id));
+
+    // New unsaved row → no API call
+    if (!rowToDelete.isSaved) {
+      return;
+    }
+
+    if (!currentBudget?.id) {
+      setRows(previousRows);
+      toast.error("Current budget was not loaded");
+      return;
+    }
+
+    try {
+      await toastPromise(deleteBudgetItem(currentBudget.id, id), {
+        loading: "Deleting item...",
+        success: "Item deleted successfully",
+        error: "Failed to delete item",
+      });
+    } catch (error) {
+      // Rollback on failure
+      setRows(previousRows);
+    }
   }
 
   async function saveDraft(payloadRows) {
@@ -156,16 +254,15 @@ export function useCreateBudgetManual() {
         throw new Error("Current draft budget was not loaded");
       }
 
-      await toastPromise(
-        Promise.all(
-          payloadRows.map((payload) => createBudgetItem(budgetId, payload)),
-        ),
-        {
-          loading: "Saving budget draft...",
-          success: "Budget draft saved successfully",
-          error: "Failed to save budget",
-        },
-      );
+      await toastPromise(replaceBudgetItems(budgetId, payloadRows), {
+        loading: "Saving budget draft...",
+        success: "Budget draft saved successfully",
+        error: "Failed to save budget",
+      });
+      const savedItems = await getBudgetItems(budgetId);
+
+      setRows(savedItems.map(mapBudgetItemToRow));
+
       localStorage.removeItem(LOCAL_DRAFT_KEY);
     } finally {
       setSaving(false);

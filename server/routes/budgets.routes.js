@@ -3,40 +3,63 @@ import {
   createBudget,
   getMyBudgets,
   getCurrentBudget,
+  submitBudget,
+  getBudgetReviewFeedback,
 } from "../controllers/budgets.controller.js";
 
 import { verifyPortalJwt } from "../middleware/verifyPortalJwt.middleware.js";
 import { verifyBudgetAccess } from "../middleware/verifyBudgetAccess.middleware.js";
 import { requirePermission } from "../middleware/permission.middleware.js";
-import { getBudgetItems } from "../controllers/budgetItems.controller.js";
 
+import {
+  getBudgetItems,
+  deleteBudgetItem,
+  replaceBudgetItems,
+} from "../controllers/budgetItems.controller.js";
 const router = express.Router();
 
-router.get(
-  "/current",
-  verifyPortalJwt,
-  verifyBudgetAccess,
-  requirePermission("can_edit_budget"),
-  getCurrentBudget,
-);
-// Create or return editable draft budget for department/year
-router.post(
-  "/",
-  verifyPortalJwt,
-  verifyBudgetAccess,
-  requirePermission("can_edit_budget"),
-  createBudget,
-);
+// ✅ Apply common middleware ONCE
+router.use(verifyPortalJwt, verifyBudgetAccess);
 
-// Get my budgets (HOD / Admin / Approver)
-router.get("/my", verifyPortalJwt, verifyBudgetAccess, getMyBudgets);
+// ---------------- ROUTES ----------------
+router.get("/current", requirePermission("can_edit_budget"), getCurrentBudget);
+
+router.post("/", requirePermission("can_edit_budget"), createBudget);
+
+router.get("/my", getMyBudgets);
+
+router.get(
+  "/:budgetId/review-feedback",
+  requirePermission("can_view_budget"),
+  getBudgetReviewFeedback,
+);
+router.get(
+  "/:budgetId/review-feedback",
+  requirePermission("can_view_budget"),
+  getBudgetReviewFeedback,
+);
 
 router.get(
   "/:budgetId/items",
-  verifyPortalJwt,
-  verifyBudgetAccess,
   requirePermission("can_view_budget"),
   getBudgetItems,
 );
 
+router.delete(
+  "/:budgetId/items/:itemId",
+  requirePermission("can_edit_budget"),
+  deleteBudgetItem,
+);
+
+router.put(
+  "/:budgetId/items",
+  requirePermission("can_edit_budget"),
+  replaceBudgetItems,
+);
+
+router.patch(
+  "/:budgetId/submit",
+  requirePermission("can_edit_budget"),
+  submitBudget,
+);
 export default router;

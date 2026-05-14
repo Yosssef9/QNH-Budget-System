@@ -37,9 +37,7 @@ function getStats(budgetAccess) {
         can(budgetAccess, "can_approve_budget") ||
         can(budgetAccess, "can_manage_users")
           ? "All Departments"
-          : budgetAccess?.department_name ||
-            budgetAccess?.departments?.[0]?.department_name ||
-            "My Department",
+          : budgetAccess?.department?.name || "My Department",
 
       description:
         can(budgetAccess, "can_approve_budget") ||
@@ -135,14 +133,14 @@ function getQuickActions(budgetAccess) {
     {
       title: "Approve Budgets",
       description: "Approve or return submitted budgets.",
-      path: "/approvals",
+      path: "/budget-approval",
       icon: ShieldCheck,
       show: can(budgetAccess, "can_approve_budget"),
     },
     {
       title: "Approve Transfers",
       description: "Approve or reject transfer requests.",
-      path: "/approvals",
+      path: "/budget-approval",
       icon: Repeat2,
       show: can(budgetAccess, "can_approve_transfer"),
     },

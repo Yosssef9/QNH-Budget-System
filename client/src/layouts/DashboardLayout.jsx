@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -10,7 +10,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-
+import { useUnsavedChanges } from "../context/UnsavedChangesContext";
 function getNavItems(budgetAccess) {
   const permissions = budgetAccess?.permissions || {};
 
@@ -30,7 +30,7 @@ function getNavItems(budgetAccess) {
     },
     {
       label: "Approvals",
-      path: "/approvals",
+path: "/budget-approval",
       icon: CheckCircle2,
       show: permissions.can_approve_budget,
     },
@@ -52,7 +52,8 @@ function getNavItems(budgetAccess) {
 export default function DashboardLayout() {
   const { user, budgetAccess } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
+  const location = useLocation();
+  const { safeNavigate } = useUnsavedChanges();
   const navItems = getNavItems(budgetAccess);
   const sidebarWidth = sidebarOpen ? "w-[280px]" : "w-[86px]";
   const contentPadding = sidebarOpen ? "pl-[280px]" : "pl-[86px]";
@@ -87,23 +88,24 @@ export default function DashboardLayout() {
         <nav className="space-y-1.5 p-4">
           {navItems.map((item) => {
             const Icon = item.icon;
-
+            const isActive =
+              item.path === "/"
+                ? location.pathname === "/"
+                : location.pathname.startsWith(item.path);
             return (
-              <NavLink
+              <button
                 key={item.path}
-                to={item.path}
-                end={item.path === "/"}
+                type="button"
+                onClick={() => safeNavigate(item.path)}
                 title={!sidebarOpen ? item.label : undefined}
-                className={({ isActive }) =>
-                  [
-                    "group relative flex items-center rounded-2xl py-3 text-sm font-medium",
-                    "transition-all duration-200",
-                    sidebarOpen ? "gap-3 px-4" : "justify-center px-0",
-                    isActive
-                      ? "bg-primary-50 text-primary-700 shadow-soft"
-                      : "text-enterprise-muted hover:bg-enterprise-soft hover:text-primary-700",
-                  ].join(" ")
-                }
+                className={[
+                  "group relative flex w-full items-center rounded-2xl py-3 text-sm font-medium",
+                  "transition-all duration-200",
+                  sidebarOpen ? "gap-3 px-4" : "justify-center px-0",
+                  isActive
+                    ? "bg-primary-50 text-primary-700 shadow-soft"
+                    : "text-enterprise-muted hover:bg-enterprise-soft hover:text-primary-700",
+                ].join(" ")}
               >
                 <Icon
                   size={20}
@@ -127,7 +129,7 @@ export default function DashboardLayout() {
                     className="ml-auto opacity-0 transition-all duration-200 group-hover:translate-x-0.5 group-hover:opacity-100"
                   />
                 )}
-              </NavLink>
+              </button>
             );
           })}
         </nav>

@@ -35,3 +35,56 @@ export async function getBudgetItems(budgetId) {
   const response = await api.get(`/budgets/${budgetId}/items`);
   return response.data?.items || [];
 }
+
+export async function deleteBudgetItem(budgetId, itemId) {
+  const response = await api.delete(`/budgets/${budgetId}/items/${itemId}`);
+  return response.data;
+}
+
+export async function replaceBudgetItems(budgetId, items) {
+  const response = await api.put(`/budgets/${budgetId}/items`, {
+    items,
+  });
+
+  return response.data?.data;
+}
+
+export async function submitBudget(budgetId) {
+  const response = await api.patch(`/budgets/${budgetId}/submit`);
+  return response.data?.data;
+}
+
+export async function getPendingApprovals() {
+  const response = await api.get("/budget-approval/pending");
+  return response.data?.data || [];
+}
+
+export async function getBudgetReview(budgetId) {
+  const response = await api.get(`/budget-approval/${budgetId}`);
+  return response.data?.data;
+}
+
+export async function approveBudget(budgetId, payload) {
+  const response = await api.patch(
+    `/budget-approval/${budgetId}/approve`,
+    payload,
+  );
+  return response.data?.data;
+}
+
+export async function returnBudget(budgetId, payload) {
+  const response = await api.patch(
+    `/budget-approval/${budgetId}/return`,
+    payload,
+  );
+  return response.data?.data;
+}
+
+export async function getBudgetReviewFeedback(budgetId) {
+  const response = await api.get(`/budgets/${budgetId}/review-feedback`);
+  return response.data?.data || { generalNotes: [], itemNotes: [] };
+}
+export async function getBudgetComparison() {
+  const response = await api.get("/budget-approval/comparison");
+  return response.data?.data || [];
+}

@@ -5,8 +5,9 @@ import {
   createBudgetService,
   getMyBudgetsService,
   getCurrentBudgetService,
+  submitBudgetService,
 } from "../services/budgets.service.js";
-
+import { getBudgetReviewFeedbackService } from "../services/budgetReviewFeedback.service.js";
 export async function getCurrentBudget(req, res, next) {
   try {
     const result = await getCurrentBudgetService({
@@ -48,6 +49,34 @@ export const createBudget = asyncHandler(async (req, res) => {
         ? "Editable budget already exists"
         : "Budget draft created successfully",
       data: result,
+    }),
+  );
+});
+
+export const submitBudget = asyncHandler(async (req, res) => {
+  const result = await submitBudgetService({
+    budgetId: Number(req.params.budgetId),
+    user: req.user,
+    budgetAccess: req.budgetAccess,
+  });
+
+  return res.json(
+    new ApiResponse({
+      message: "Budget submitted for approval successfully",
+      data: result,
+    }),
+  );
+});
+export const getBudgetReviewFeedback = asyncHandler(async (req, res) => {
+  const data = await getBudgetReviewFeedbackService({
+    budgetId: Number(req.params.budgetId),
+    budgetAccess: req.budgetAccess,
+  });
+
+  return res.json(
+    new ApiResponse({
+      message: "Budget review feedback fetched successfully",
+      data,
     }),
   );
 });

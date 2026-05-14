@@ -4,6 +4,8 @@ import { ApiResponse } from "../utils/apiResponse.js";
 import {
   createBudgetItemService,
   getBudgetItemsService,
+  deleteBudgetItemService,
+  replaceBudgetItemsService,
 } from "../services/budgetItems.service.js";
 
 import {
@@ -41,6 +43,44 @@ export async function getBudgetItems(req, res, next) {
     res.json({
       success: true,
       ...result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteBudgetItem(req, res, next) {
+  try {
+    const { budgetId, itemId } = req.params;
+
+    await deleteBudgetItemService({
+      budgetId: Number(budgetId),
+      itemId: Number(itemId),
+      user: req.user,
+    });
+
+    res.json({
+      success: true,
+      message: "Budget item deleted successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+export async function replaceBudgetItems(req, res, next) {
+  try {
+    const { budgetId } = req.params;
+
+    const result = await replaceBudgetItemsService({
+      budgetId: Number(budgetId),
+      items: req.body.items || [],
+      user: req.user,
+    });
+
+    res.json({
+      success: true,
+      message: "Budget items replaced successfully",
+      data: result,
     });
   } catch (error) {
     next(error);

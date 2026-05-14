@@ -1,8 +1,3 @@
-export function toNumber(value) {
-  const num = Number(value);
-  return Number.isFinite(num) ? num : 0;
-}
-
 export function createRow(
   id,
   category = "",
@@ -22,6 +17,7 @@ export function createRow(
     unitPrice,
     monthly,
     quarterly,
+    isSaved: false,
   };
 }
 
@@ -47,7 +43,7 @@ export function mapBudgetItemToRow(item) {
     }
   }
 
-  return createRow(
+  const row = createRow(
     item.id,
     item.category_id,
     item.type_id,
@@ -57,4 +53,18 @@ export function mapBudgetItemToRow(item) {
     monthly,
     quarterly,
   );
+
+  return {
+    ...row,
+    isSaved: true,
+    savedSnapshot: JSON.stringify({
+      category: row.category,
+      item: row.item,
+      method: row.method,
+      quantity: row.quantity,
+      unitPrice: row.unitPrice,
+      monthly: row.monthly,
+      quarterly: row.quarterly,
+    }),
+  };
 }

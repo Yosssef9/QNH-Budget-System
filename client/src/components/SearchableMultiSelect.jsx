@@ -211,40 +211,41 @@ export default function SearchableMultiSelect({
           disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
         }`}
       >
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+        <div className="flex items-center justify-between gap-3 text-center">
+          <div className="flex min-w-0 flex-1 items-center justify-center">
+            {" "}
             {selectedOptions.length > 0 ? (
-              <>
-                {selectedOptions.slice(0, maxVisibleBadges).map((item) => {
-                  const itemValue = optionValue(item);
+              multiple ? (
+                <>
+                  {selectedOptions.slice(0, maxVisibleBadges).map((item) => {
+                    const itemValue = optionValue(item);
 
-                  return (
-                    <span
-                      key={itemValue}
-                      className="inline-flex max-w-full items-center gap-1 rounded-full border border-enterprise-border bg-enterprise-soft px-2.5 py-1 text-xs font-medium text-enterprise-text"
-                    >
-                      <span className="truncate">{optionLabel(item)}</span>
+                    return (
+                      <span
+                        key={itemValue}
+                        className="inline-flex max-w-full items-center gap-1 rounded-full border border-enterprise-border bg-enterprise-soft px-2.5 py-1 text-xs font-medium text-enterprise-text"
+                      >
+                        <span className="truncate">{optionLabel(item)}</span>
 
-                      {!disableClear && (
-                        <span
-                          onClick={(e) => handleRemove(itemValue, e)}
-                          className="cursor-pointer rounded-full p-[1px] hover:bg-primary-50"
-                        >
-                          <X className="h-3 w-3" />
-                        </span>
-                      )}
-                    </span>
-                  );
-                })}
-
-                {selectedOptions.length > maxVisibleBadges && (
-                  <span className="rounded-full bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-700">
-                    +{selectedOptions.length - maxVisibleBadges} more
-                  </span>
-                )}
-              </>
+                        {!disableClear && (
+                          <span
+                            onClick={(e) => handleRemove(itemValue, e)}
+                            className="cursor-pointer rounded-full p-[1px] hover:bg-primary-50"
+                          >
+                            <X className="h-3 w-3" />
+                          </span>
+                        )}
+                      </span>
+                    );
+                  })}
+                </>
+              ) : (
+                <span className="w-full text-center font-semibold text-slate-700">
+                  {optionLabel(selectedOptions[0])}
+                </span>
+              )
             ) : (
-              <span className="truncate text-enterprise-muted">
+              <span className="w-full text-center text-enterprise-muted">
                 {placeholder}
               </span>
             )}

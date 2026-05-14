@@ -1,0 +1,103 @@
+import { ChevronRight, Home } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+
+const routeLabels = {
+  "/": "Dashboard",
+
+  "/budgets": "Budgets",
+  "/budgets/entry": "Budget Entry",
+  "/budgets/import": "Import Excel",
+  "/budgets/history": "Budget History",
+  "/budgets/returned": "Returned Budgets",
+
+  "/approvals": "Approvals",
+  "/approvals/budgets": "Budget Approvals",
+  "/approvals/transfers": "Transfer Approvals",
+
+  "/transfers": "Transfers",
+  "/transfers/request": "Request Transfer",
+  "/transfers/history": "Transfer History",
+
+  "/reports": "Reports",
+
+  "/admin/users": "Users & Roles",
+  "/financial-years": "Financial Years",
+};
+
+function buildBreadcrumbs(pathname) {
+  if (pathname === "/") {
+    return [{ label: "Dashboard", path: "/" }];
+  }
+
+  const parts = pathname.split("/").filter(Boolean);
+
+  const crumbs = [
+    {
+      label: "Dashboard",
+      path: "/",
+    },
+  ];
+
+  let currentPath = "";
+
+  parts.forEach((part) => {
+    currentPath += `/${part}`;
+
+    crumbs.push({
+      label:
+        routeLabels[currentPath] ||
+        part
+          .replaceAll("-", " ")
+          .replace(/\b\w/g, (char) => char.toUpperCase()),
+      path: currentPath,
+    });
+  });
+
+  return crumbs;
+}
+
+export default function Breadcrumbs({ items }) {
+  const location = useLocation();
+
+  const breadcrumbs = items || buildBreadcrumbs(location.pathname);
+
+  if (!breadcrumbs.length) return null;
+
+  return (
+    <nav
+      aria-label="Breadcrumb"
+      className="mb-4 flex flex-wrap items-center gap-1 text-sm"
+    >
+      {breadcrumbs.map((item, index) => {
+        const isFirst = index === 0;
+        const isLast = index === breadcrumbs.length - 1;
+
+        return (
+          <div
+            key={item.path || item.label}
+            className="flex items-center gap-1"
+          >
+            {index > 0 && (
+              <ChevronRight size={15} className="text-enterprise-muted" />
+            )}
+
+            {isLast ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5 font-semibold text-primary-700">
+                {isFirst && <Home size={14} />}
+                {item.label}
+              </span>
+            ) : (
+              <Link
+                to={item.path}
+                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium text-enterprise-muted transition hover:bg-enterprise-soft hover:text-primary-700"
+              >
+                {isFirst && <Home size={14} />}
+                {item.label}
+              </Link>
+            )}
+          </div>
+        );
+      })}
+    </nav>
+  );
+}

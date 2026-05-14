@@ -36,7 +36,7 @@ export async function findFinancialYearByYear(year) {
         closed_by,
         closed_at
       FROM BS_financial_years
-      WHERE year = @year
+    WHERE financial_year_id = @financialYearId
     `);
 
   return result.recordset[0] || null;
@@ -136,7 +136,7 @@ export async function countNotApprovedBudgetsForYearRepo(year) {
   const result = await pool.request().input("year", sql.Int, year).query(`
       SELECT COUNT(*) AS count
       FROM BS_budgets
-      WHERE year = @year
+    WHERE financial_year_id = @financialYearId
         AND is_active = 1
         AND status <> 'APPROVED'
     `);

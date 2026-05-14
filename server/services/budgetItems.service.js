@@ -6,6 +6,8 @@ import {
   createBudgetItemRepo,
   insertDistributionRepo,
   getBudgetItemsByBudgetIdRepo,
+  deleteBudgetItemRepo,
+  replaceBudgetItemsRepo,
 } from "../repositories/budgetItems.repository.js";
 
 import {
@@ -172,4 +174,36 @@ export async function getBudgetItemsService({ budgetId, budgetAccess }) {
   return {
     items: Array.from(itemsMap.values()),
   };
+}
+
+export async function deleteBudgetItemService({ budgetId, itemId, user }) {
+  if (!budgetId || !itemId) {
+    throw new ApiError(400, "Invalid budget item delete request");
+  }
+
+  const deleted = await deleteBudgetItemRepo({
+    budgetId,
+    itemId,
+  });
+
+  if (!deleted) {
+    throw new ApiError(404, "Budget item not found");
+  }
+
+  return true;
+}
+export async function replaceBudgetItemsService({ budgetId, items, user }) {
+  if (!budgetId) {
+    throw new ApiError(400, "Invalid budget id");
+  }
+
+  if (!Array.isArray(items)) {
+    throw new ApiError(400, "Items must be an array");
+  }
+
+  return await replaceBudgetItemsRepo({
+    budgetId,
+    items,
+    createdBy: user?.userCode || user?.userId || null,
+  });
 }

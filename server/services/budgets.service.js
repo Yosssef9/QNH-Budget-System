@@ -6,6 +6,9 @@ import {
   findBudgetByDepartmentAndYearRepo,
   createBudgetRepo,
   getCurrentBudgetRepo,
+  getBudgetForSubmitRepo,
+  countActiveBudgetItemsRepo,
+  submitBudgetRepo,
 } from "../repositories/budgets.repository.js";
 
 export async function getCurrentBudgetService({ budgetAccess }) {
@@ -157,4 +160,46 @@ export async function createBudgetService({ body, user, budgetAccess }) {
     financialYear,
     alreadyExists: false,
   };
+}
+
+
+export async function submitBudgetService({ budgetId, user, budgetAccess }) {
+  const budget = await getBudgetForSubmitRepo(budgetId);
+
+  if (!budget) {
+    throw new ApiError(404, "Budget not found", "BUDGET_NOT_FOUND");
+  }
+
+  if (!["DRAFT", "RETURNED"].includes(budget.status)) {
+    throw new ApiError(
+      400,
+      "Only draft or returned budgets can be submitted",
+      "INVALID_BUDGET_STATUS",
+    );
+  }
+
+  const canSeeAll =
+    budgetAccess.isGlobalAdmin === true ||
+    budgetAccess.permissions?.can_approve_budget === true;
+
+  const userDepartmentId = budgetAccess.department?.id || null;
+
+  if (!canSeeAll && budget.department_id !== userDepartmentId) {
+    throw new ApiError(403, "You cannot submit this budget", "FORBIDDEN");
+  }
+
+  const itemsCount = await countActiveBudgetItemsRepo(budgetId);
+
+  if (itemsCount === 0) {
+    throw new ApiError(
+      400,
+      "Cannot submit budget without items",
+      "BUDGET_HAS_NO_ITEMS",
+    );
+  }
+
+  return await submitBudgetRepo({
+    budgetId,
+    submittedBy: user.userId,
+  });
 }

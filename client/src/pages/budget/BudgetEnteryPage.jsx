@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -11,102 +11,36 @@ import {
   CheckCircle2,
   AlertCircle,
 } from "lucide-react";
-import SearchableMultiSelect from "../components/SearchableMultiSelect";
+import SearchableMultiSelect from "../../components/SearchableMultiSelect";
+import ConfirmModal from "../../components/ConfirmModal";
+import Breadcrumbs from "../../components/Breadcrumbs";
+import { useCreateBudgetManual } from "../../hooks/budgets/useCreateBudgetManual";
+import BudgetReviewFeedback from "../../components/budgets/BudgetReviewFeedback";
+import { useBudgetReviewFeedback } from "../../hooks/budgets/useBudgetReviewFeedback";
+import { MONTHS as months } from "../../constants/months.constants";
+import { BUDGET_METHOD_OPTIONS as methodOptions } from "../../constants/budgetMethodOptions.constants";
+import { useUnsavedChanges } from "../../context/UnsavedChangesContext";
+import { formatNumber, formatSAR } from "../../utils/formatters";
+import { toNumber } from "../../utils/number";
+import {
+  getMonthlyDistribution,
+  getQuarterlyDistribution,
+  getDistributedQuantity,
+  getQuarterAmount,
+  normalizeArray,
+} from "../../helpers/budgetCalculations.helper";
+import { scrollToBudgetItemRow } from "../../helpers/budgetReviewNavigation.helper";
+import {
+  getApiDistributionMethod,
+  getApiDistributionLevel,
+  getApiDistributionRows,
+} from "../../helpers/budgetPayload.helper";
 
-import { useCreateBudgetManual } from "../hooks/budgets/useCreateBudgetManual";
-import { MONTHS as months } from "../constants/months.constants";
-import { BUDGET_METHOD_OPTIONS as methodOptions } from "../constants/budgetMethodOptions.constants";
-
-function formatNumber(value) {
-  return Number(value || 0).toLocaleString();
-}
-
-function formatSAR(value) {
-  return `${formatNumber(value)} ر.س`;
-}
-
-function getApiDistributionMethod(method) {
-  if (method === "CUSTOM_MONTHLY" || method === "CUSTOM_QUARTERLY") {
-    return "CUSTOM";
-  }
-
-  return method;
-}
-
-function getApiDistributionLevel(method) {
-  if (method === "MONTHLY" || method === "CUSTOM_MONTHLY") return "MONTH";
-  if (method === "QUARTERLY" || method === "CUSTOM_QUARTERLY") return "QUARTER";
-  return "YEAR";
-}
-
-function getApiDistributionRows(row) {
-  if (row.method === "ANNUAL") return [];
-
-  if (row.method === "MONTHLY" || row.method === "CUSTOM_MONTHLY") {
-    return getMonthlyDistribution(row)
-      .map((quantity, index) => ({
-        period_type: "MONTH",
-        period_no: index + 1,
-        quantity,
-      }))
-      .filter((period) => toNumber(period.quantity) > 0);
-  }
-
-  return getQuarterlyDistribution(row)
-    .map((quantity, index) => ({
-      period_type: "QUARTER",
-      period_no: index + 1,
-      quantity,
-    }))
-    .filter((period) => toNumber(period.quantity) > 0);
-}
-function toNumber(value) {
-  const num = Number(value);
-  return Number.isFinite(num) ? num : 0;
-}
-
-function distributeWholeNumber(total, periods) {
-  const qty = Math.max(0, Math.floor(toNumber(total)));
-  const base = Math.floor(qty / periods);
-  const remainder = qty % periods;
-
-  return Array.from({ length: periods }, (_, index) =>
-    index < remainder ? base + 1 : base,
-  );
-}
-
-function getMonthlyDistribution(row) {
-  if (row.method === "MONTHLY") return distributeWholeNumber(row.quantity, 12);
-  if (row.method === "CUSTOM_MONTHLY") return normalizeArray(row.monthly, 12);
-  return [];
-}
-
-function getQuarterlyDistribution(row) {
-  if (row.method === "QUARTERLY") return distributeWholeNumber(row.quantity, 4);
-  if (row.method === "CUSTOM_QUARTERLY")
-    return normalizeArray(row.quarterly, 4);
-  return [];
-}
-
-function normalizeArray(arr, length) {
-  return Array.from({ length }, (_, index) => toNumber(arr?.[index]));
-}
-
-function getDistributedQuantity(row) {
-  if (row.method === "ANNUAL") return toNumber(row.quantity);
-
-  if (row.method === "MONTHLY" || row.method === "CUSTOM_MONTHLY") {
-    return getMonthlyDistribution(row).reduce(
-      (sum, value) => sum + toNumber(value),
-      0,
-    );
-  }
-
-  return getQuarterlyDistribution(row).reduce(
-    (sum, value) => sum + toNumber(value),
-    0,
-  );
-}
+import {
+  getDuplicateTypeRowIds,
+  validateRowsDetailed,
+} from "../../helpers/budgetValidation.helper";
+import { useSubmitBudget } from "../../hooks/budgets/useSubmitBudget";
 
 function getMethodBase(method) {
   if (method === "CUSTOM_MONTHLY" || method === "CUSTOM_QUARTERLY")
@@ -120,25 +54,6 @@ function getMethodNote(method) {
   if (method === "CUSTOM_MONTHLY") return "Monthly";
   if (method === "CUSTOM_QUARTERLY") return "Quarter";
   return "";
-}
-
-function getQuarterAmount(row, quarterIndex) {
-  const unitPrice = toNumber(row.unitPrice);
-
-  if (row.method === "ANNUAL") {
-    return quarterIndex === 0 ? toNumber(row.quantity) * unitPrice : 0;
-  }
-
-  if (row.method === "MONTHLY" || row.method === "CUSTOM_MONTHLY") {
-    const monthly = getMonthlyDistribution(row);
-    const start = quarterIndex * 3;
-    return monthly
-      .slice(start, start + 3)
-      .reduce((sum, qty) => sum + qty * unitPrice, 0);
-  }
-
-  const quarterly = getQuarterlyDistribution(row);
-  return toNumber(quarterly[quarterIndex]) * unitPrice;
 }
 
 function MethodBadge({ method }) {
@@ -168,7 +83,7 @@ function MethodBadge({ method }) {
   );
 }
 
-export default function CreateBudgetManualPage() {
+export default function BudgetEnteryPage() {
   const {
     currentBudget,
     rows,
@@ -183,8 +98,51 @@ export default function CreateBudgetManualPage() {
     deleteItem,
     saveDraft,
   } = useCreateBudgetManual();
+  const submitBudgetMutation = useSubmitBudget();
   const [summaryView, setSummaryView] = useState("QUARTER");
+  const hasUnsavedChanges = useMemo(
+    () => rows.some((row) => !row.isSaved),
+    [rows],
+  );
+  const { setHasUnsavedChanges } = useUnsavedChanges();
+  useEffect(() => {
+    setHasUnsavedChanges(hasUnsavedChanges);
+
+    return () => {
+      setHasUnsavedChanges(false);
+    };
+  }, [hasUnsavedChanges, setHasUnsavedChanges]);
+  const [deleteRowId, setDeleteRowId] = useState(null);
+  const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
+  const [localBudgetStatus, setLocalBudgetStatus] = useState(null);
+  const budgetStatus = localBudgetStatus || currentBudget?.status || "DRAFT";
+  const isBudgetLocked = ["PENDING_APPROVAL", "APPROVED", "CANCELLED"].includes(
+    budgetStatus,
+  );
+  const { data: reviewFeedback } = useBudgetReviewFeedback(
+    currentBudget?.id,
+    budgetStatus === "RETURNED",
+  );
+
+  const returnedItemNotes = reviewFeedback?.itemNotes || [];
+
+  const returnedItemNotesByItemId = useMemo(() => {
+    const map = new Map();
+
+    returnedItemNotes.forEach((note) => {
+      if (!note.budget_item_id) return;
+
+      if (!map.has(Number(note.budget_item_id))) {
+        map.set(Number(note.budget_item_id), []);
+      }
+
+      map.get(Number(note.budget_item_id)).push(note);
+    });
+
+    return map;
+  }, [returnedItemNotes]);
   function getMonthlyAmountForSummary(row, monthIndex) {
+    // notremoved
     const unitPrice = toNumber(row.unitPrice);
 
     if (row.method === "ANNUAL") {
@@ -208,6 +166,40 @@ export default function CreateBudgetManualPage() {
     }
 
     return 0;
+  }
+  async function handleSubmitBudget() {
+    if (isBudgetLocked) {
+      toast.error("This budget cannot be submitted");
+      return;
+    }
+    if (rows.length === 0) {
+      toast.error("Please add at least one budget item before submitting");
+      return;
+    }
+    try {
+      if (!currentBudget?.id) {
+        toast.error("No budget found");
+        return;
+      }
+
+      if (validationError) {
+        toast.error(validationError, { duration: 3500 });
+        return;
+      }
+
+      if (hasUnsavedChanges) {
+        const saveSuccess = await handleSaveDraft();
+
+        if (!saveSuccess) return;
+      }
+
+      await submitBudgetMutation.mutateAsync(currentBudget.id);
+      setLocalBudgetStatus("PENDING_APPROVAL");
+      setHasUnsavedChanges(false);
+      toast.success("Budget submitted for approval");
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to submit budget");
+    }
   }
   const summary = useMemo(() => {
     const totalQuantity = rows.reduce(
@@ -245,6 +237,7 @@ export default function CreateBudgetManualPage() {
   }, [rows]);
 
   function updateMonthly(id, index, value) {
+    // notremoved
     setRows((prev) =>
       prev.map((row) => {
         if (row.id !== id) return row;
@@ -266,6 +259,7 @@ export default function CreateBudgetManualPage() {
   }
 
   function updateQuarterly(id, index, value) {
+    // notremoved
     setRows((prev) =>
       prev.map((row) => {
         if (row.id !== id) return row;
@@ -286,68 +280,45 @@ export default function CreateBudgetManualPage() {
     );
   }
 
-  function validateRowsDetailed(rows) {
-    const usedTypes = new Set();
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      const rowNumber = i + 1;
-      if (row.item) {
-        const key = String(row.item);
-
-        if (usedTypes.has(key)) {
-          return `Row ${rowNumber}: This item/type is already added in this budget`;
-        }
-
-        usedTypes.add(key);
-      }
-      if (!row.category) {
-        return `Row ${rowNumber}: Please select category`;
-      }
-
-      if (!row.item) {
-        return `Row ${rowNumber}: Please select item/type`;
-      }
-
-      if (toNumber(row.quantity) <= 0) {
-        return `Row ${rowNumber}: Quantity must be greater than 0`;
-      }
-
-      if (toNumber(row.unitPrice) <= 0) {
-        return `Row ${rowNumber}: Unit price must be greater than 0`;
-      }
-
-      if (row.method !== "ANNUAL") {
-        const distributed = getDistributedQuantity(row);
-
-        if (distributed !== toNumber(row.quantity)) {
-          return `Row ${rowNumber}: Distribution does not match total quantity`;
-        }
-      }
-    }
-
-    return null; // valid
-  }
   async function handleSaveDraft() {
-    const validationError = validateRowsDetailed(rows);
+    try {
+      if (isBudgetLocked) {
+        toast.error("This budget is read-only");
+        return false;
+      }
 
-    if (validationError) {
-      toast.error(validationError, { duration: 3500 });
-      return;
+      if (rows.length === 0) {
+        toast.error("Please add at least one budget item before saving");
+        return false;
+      }
+
+      const validationError = validateRowsDetailed(rows);
+
+      if (validationError) {
+        toast.error(validationError, { duration: 3500 });
+        return false;
+      }
+
+      await saveDraft(
+        rows.map((row) => ({
+          type_id: Number(row.item),
+          quantity: toNumber(row.quantity),
+          unit_price: toNumber(row.unitPrice),
+          distribution_method: getApiDistributionMethod(row.method),
+          distribution_level: getApiDistributionLevel(row.method),
+          distribution: getApiDistributionRows(row),
+        })),
+      );
+
+      return true;
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to save budget");
+      return false;
     }
-
-    await saveDraft(
-      rows.map((row) => ({
-        type_id: Number(row.item),
-        quantity: toNumber(row.quantity),
-        unit_price: toNumber(row.unitPrice),
-        distribution_method: getApiDistributionMethod(row.method),
-        distribution_level: getApiDistributionLevel(row.method),
-        distribution: getApiDistributionRows(row),
-      })),
-    );
   }
 
   function getSelectedType(row) {
+    // notremoved
     const types = typesByCategory[row.category];
 
     if (!Array.isArray(types)) return null;
@@ -356,30 +327,32 @@ export default function CreateBudgetManualPage() {
   }
 
   const validationError = validateRowsDetailed(rows);
+  const duplicateTypeRowIds = useMemo(
+    () => getDuplicateTypeRowIds(rows),
+    [rows],
+  );
   return (
     <div className="space-y-5 p-6 text-slate-800">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
-          <div className="flex items-center gap-2 text-sm font-semibold text-primary-700">
-            <span>Budgets</span>
-            <ChevronRight size={16} />
-            <span className="text-slate-700">Create Budget </span>
-          </div>
+          <Breadcrumbs />
 
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900">
-            Create Budget - Manual Entry
+            Enter Budget Items - Manual Entry
           </h1>
         </div>
 
         <div className="flex gap-3">
-          <button className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:scale-[1.02]">
+          {/* <button className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:scale-[1.02]">
             Cancel
-          </button>
+          </button> */}
 
           <button
             type="button"
             onClick={handleSaveDraft}
-            disabled={!summary.isValid || saving || loadingSetup}
+            disabled={
+              isBudgetLocked || !!validationError || saving || loadingSetup
+            }
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Save size={17} />
@@ -387,15 +360,52 @@ export default function CreateBudgetManualPage() {
           </button>
 
           <button
-            disabled={!summary.isValid || saving || loadingSetup}
+            type="button"
+            onClick={() => setConfirmSubmitOpen(true)}
+            disabled={
+              isBudgetLocked ||
+              !!validationError ||
+              saving ||
+              loadingSetup ||
+              submitBudgetMutation.isPending
+            }
             className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 hover:scale-[1.02]"
           >
             <Send size={17} />
-            Submit for Approval
+            {submitBudgetMutation.isPending
+              ? "Submitting..."
+              : "Submit for Approval"}
           </button>
         </div>
       </div>
-
+      {!loadingSetup && rows.length > 0 && (
+        <div
+          className={`rounded-xl border px-4 py-3 text-sm font-semibold flex items-center gap-2 mt-2
+      ${
+        hasUnsavedChanges
+          ? "border-amber-200 bg-amber-50 text-amber-700"
+          : "border-emerald-200 bg-emerald-50 text-emerald-700"
+      }
+    `}
+        >
+          {hasUnsavedChanges ? (
+            <>
+              <AlertCircle size={16} />
+              You have unsaved changes
+            </>
+          ) : (
+            <>
+              <CheckCircle2 size={16} />
+              All changes are saved
+            </>
+          )}
+        </div>
+      )}
+      {isBudgetLocked && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
+          This budget is {budgetStatus}. It is read-only and cannot be edited.
+        </div>
+      )}
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-bold text-blue-600">Budget Information</h2>
 
@@ -413,8 +423,20 @@ export default function CreateBudgetManualPage() {
           <Info
             label="Status:"
             value={
-              <span className="rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-600">
-                DRAFT
+              <span
+                className={`rounded-md px-2 py-1 text-xs font-bold ${
+                  budgetStatus === "DRAFT"
+                    ? "bg-blue-50 text-blue-600"
+                    : budgetStatus === "RETURNED"
+                      ? "bg-red-50 text-red-600"
+                      : budgetStatus === "PENDING_APPROVAL"
+                        ? "bg-amber-50 text-amber-700"
+                        : budgetStatus === "APPROVED"
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-slate-50 text-slate-600"
+                }`}
+              >
+                {budgetStatus}
               </span>
             }
           />
@@ -432,22 +454,39 @@ export default function CreateBudgetManualPage() {
           />{" "}
         </div>
       </section>
-
+      {budgetStatus === "RETURNED" && currentBudget?.id && (
+        <BudgetReviewFeedback
+          budgetId={currentBudget.id}
+          onItemNoteClick={scrollToBudgetItemRow}
+        />
+      )}
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-900">Budget Items</h2>
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">Budget Items</h2>
 
+            {budgetStatus === "RETURNED" && returnedItemNotes.length > 0 && (
+              <p className="mt-1 text-sm font-semibold text-amber-700">
+                {returnedItemNotes.length} item note(s) from approver need
+                review.
+              </p>
+            )}
+          </div>
           <div className="flex gap-3">
             <button
               type="button"
               onClick={addItem}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm"
+              disabled={isBudgetLocked}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Plus size={17} />
               Add Item
             </button>
 
-            <button className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm">
+            <button
+              disabled={isBudgetLocked}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+            >
               <Upload size={17} />
               Import from Excel
             </button>
@@ -455,28 +494,46 @@ export default function CreateBudgetManualPage() {
         </div>
 
         <div className="max-h-[65vh] overflow-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <table className="min-w-[1800px] border-collapse text-sm">
+          <table className="min-w-[1800px] table-fixed border-collapse text-sm">
             <thead className="sticky top-0 z-20 bg-white">
               <tr className="text-slate-700">
                 <th rowSpan="2" className="border border-slate-200 px-3 py-4">
                   #
                 </th>
-                <th rowSpan="2" className="border border-slate-200 px-4 py-4">
+                <th
+                  rowSpan="2"
+                  className="w-[220px] border border-slate-200 px-4 py-4"
+                >
                   Category
                 </th>
-                <th rowSpan="2" className="border border-slate-200 px-4 py-4">
+                <th
+                  rowSpan="2"
+                  className="w-[260px] border border-slate-200 px-4 py-4"
+                >
                   Item / Type
                 </th>
-                <th rowSpan="2" className="border border-slate-200 px-4 py-4">
+                <th
+                  rowSpan="2"
+                  className="w-[180px] border border-slate-200 px-4 py-4"
+                >
                   Method
                 </th>
-                <th rowSpan="2" className="border border-slate-200 px-4 py-4">
+                <th
+                  rowSpan="2"
+                  className="w-[120px] border border-slate-200 px-4 py-4"
+                >
                   Total Quantity
                 </th>
-                <th rowSpan="2" className="border border-slate-200 px-4 py-4">
+                <th
+                  rowSpan="2"
+                  className="w-[120px] border border-slate-200 px-4 py-4"
+                >
                   Unit Price
                 </th>
-                <th rowSpan="2" className="border border-slate-200 px-4 py-4">
+                <th
+                  rowSpan="2"
+                  className="w-[150px] border border-slate-200 px-4 py-4"
+                >
                   Total Amount
                 </th>
                 <th
@@ -538,9 +595,14 @@ export default function CreateBudgetManualPage() {
                     (row.method === "ANNUAL" ||
                       distributedQuantity === toNumber(row.quantity));
                   const selectedType = getSelectedType(row);
+                  const isDuplicateTypeRow = duplicateTypeRowIds.has(row.id);
+                  const rowReturnNotes =
+                    returnedItemNotesByItemId.get(Number(row.id)) || [];
+                  const hasReturnNotes = rowReturnNotes.length > 0;
                   console.log("SELECTED TYPE:", selectedType);
                   return (
                     <motion.tr
+                      id={`budget-item-row-${row.id}`}
                       key={row.id}
                       layout
                       initial={{ opacity: 0, y: 10 }}
@@ -548,50 +610,72 @@ export default function CreateBudgetManualPage() {
                       exit={{ opacity: 0, scale: 0.98 }}
                       transition={{ duration: 0.18 }}
                       className={
-                        !isRowValid
-                          ? "bg-red-50 border-l-4 border-red-500 shadow-[0_0_0_1px_rgba(239,68,68,0.3)]"
-                          : ""
+                        hasReturnNotes
+                          ? "bg-amber-50 border-l-4 border-amber-500 shadow-[0_0_0_1px_rgba(245,158,11,0.25)]"
+                          : !isRowValid || isDuplicateTypeRow
+                            ? "bg-red-50 border-l-4 border-red-500 shadow-[0_0_0_1px_rgba(239,68,68,0.3)]"
+                            : ""
                       }
                     >
-                      <td className="border border-slate-200 px-3 py-4 text-center font-semibold text-slate-600">
-                        {rowIndex + 1}
+                      <td className="truncate border border-slate-200 px-3 py-4 text-center font-semibold text-slate-600">
+                        <div className="flex flex-col items-center gap-1">
+                          <span>{rowIndex + 1}</span>
+
+                          {!row.isSaved && (
+                            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                              Unsaved
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="w-[220px] border border-slate-200 px-3 py-4">
+                        <div className="w-full min-w-[200px]">
+                          <SearchableMultiSelect
+                            disabled={isBudgetLocked}
+                            name="category"
+                            multiple={false}
+                            disableClear
+                            value={row.category}
+                            options={categories}
+                            placeholder="Category"
+                            searchPlaceholder="Search category..."
+                            maxVisibleBadges={1}
+                            getOptionValue={(option) => option.id}
+                            getOptionLabel={(option) => option.name}
+                            onChange={(e) =>
+                              updateRow(row.id, "category", e.target.value)
+                            }
+                          />
+                        </div>
                       </td>
 
-                      <td className="border border-slate-200 px-3 py-4">
-                        <SearchableMultiSelect
-                          name="category"
-                          multiple={false}
-                          disableClear
-                          value={row.category}
-                          options={categories}
-                          placeholder="Category"
-                          searchPlaceholder="Search category..."
-                          maxVisibleBadges={1}
-                          getOptionValue={(option) => option.id}
-                          getOptionLabel={(option) => option.name}
-                          onChange={(e) =>
-                            updateRow(row.id, "category", e.target.value)
-                          }
-                        />
-                      </td>
-
-                      <td className="border border-slate-200 px-3 py-4">
-                        <SearchableMultiSelect
-                          name="item"
-                          multiple={false}
-                          disableClear
-                          value={row.item}
-                          options={typesByCategory[row.category] || []}
-                          placeholder="Item / Type"
-                          searchPlaceholder="Search item..."
-                          maxVisibleBadges={1}
-                          getOptionValue={(option) => option.id}
-                          getOptionLabel={(option) => option.name}
-                          onChange={(e) =>
-                            updateRow(row.id, "item", e.target.value)
-                          }
-                        />
-
+                      <td className="w-[260px] border border-slate-200 px-3 py-4">
+                        <div className="w-full min-w-[200px]">
+                          <SearchableMultiSelect
+                            disabled={isBudgetLocked}
+                            name="item"
+                            multiple={false}
+                            disableClear
+                            value={row.item}
+                            options={typesByCategory[row.category] || []}
+                            placeholder="Item / Type"
+                            searchPlaceholder="Search item..."
+                            maxVisibleBadges={1}
+                            getOptionValue={(option) => option.id}
+                            getOptionLabel={(option) => option.name}
+                            onChange={(e) =>
+                              updateRow(row.id, "item", e.target.value)
+                            }
+                          />
+                        </div>
+                        {isDuplicateTypeRow && (
+                          <div className="mt-1 flex justify-center">
+                            <span className="flex items-center gap-1 text-xs font-semibold text-red-500">
+                              <AlertCircle size={12} />
+                              Duplicate item
+                            </span>
+                          </div>
+                        )}
                         {selectedType?.expense_type && (
                           <div className="mt-2 flex justify-center">
                             {" "}
@@ -606,11 +690,24 @@ export default function CreateBudgetManualPage() {
                             </span>
                           </div>
                         )}
+                        {hasReturnNotes && (
+                          <div className="mt-2 space-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                            {rowReturnNotes.map((note) => (
+                              <div key={note.id}>
+                                <span className="font-bold">
+                                  Approver note:
+                                </span>{" "}
+                                {note.note}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </td>
-                      <td className="border border-slate-200 px-3 py-4 align-middle">
+                      <td className="w-[180px] border border-slate-200 px-3 py-4 align-middle">
                         <div className="flex flex-col items-center justify-center gap-2">
-                          <div className="w-full">
+                          <div className="w-full min-w-[200px]">
                             <SearchableMultiSelect
+                              disabled={isBudgetLocked}
                               name="method"
                               multiple={false}
                               disableClear
@@ -633,6 +730,7 @@ export default function CreateBudgetManualPage() {
                       <td className="border border-slate-200 px-3 py-4 text-center">
                         <input
                           type="number"
+                          disabled={isBudgetLocked}
                           min="0"
                           value={row.quantity === 0 ? "" : row.quantity}
                           onChange={(e) =>
@@ -649,7 +747,7 @@ export default function CreateBudgetManualPage() {
                               toNumber(e.target.value),
                             )
                           }
-                          className={`h-9 w-20 rounded-md border text-center text-xs font-semibold transition-all duration-200
+                          className={`h-9 w-20 rounded-md border text-center text-xs font-semibold transition-all duration-200 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed
   ${
     row.quantity <= 0
       ? "border-red-400 bg-red-50 text-red-600"
@@ -662,6 +760,7 @@ export default function CreateBudgetManualPage() {
                       <td className="border border-slate-200 px-3 py-4 text-center">
                         <input
                           type="number"
+                          disabled={isBudgetLocked}
                           min="0"
                           value={row.unitPrice === 0 ? "" : row.unitPrice}
                           onChange={(e) =>
@@ -678,7 +777,7 @@ export default function CreateBudgetManualPage() {
                               toNumber(e.target.value),
                             )
                           }
-                          className={`h-9 w-20 rounded-md border text-center text-xs font-semibold transition-all duration-200
+                          className={`h-9 w-20 rounded-md border text-center text-xs font-semibold transition-all duration-200 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed
   ${
     row.unitPrice <= 0
       ? "border-red-400 bg-red-50 text-red-600"
@@ -688,7 +787,7 @@ export default function CreateBudgetManualPage() {
                         />
                       </td>
 
-                      <td className="border border-slate-200 px-3 py-4 text-center font-bold text-blue-600">
+                      <td className="truncate border border-slate-200 px-3 py-4 text-center font-bold text-blue-600">
                         {formatSAR(totalAmount)}
                       </td>
 
@@ -703,11 +802,13 @@ export default function CreateBudgetManualPage() {
                               type="number"
                               min="0"
                               value={qty === 0 ? "" : qty}
-                              disabled={row.method === "MONTHLY"}
+                              disabled={
+                                isBudgetLocked || row.method === "MONTHLY"
+                              }
                               onChange={(e) =>
                                 updateMonthly(row.id, index, e.target.value)
                               }
-                              className="mx-auto h-8 w-16 rounded-md border border-slate-200 bg-slate-50 text-center text-xs font-semibold text-slate-700 disabled:bg-slate-100 transition-all duration-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                              className="mx-auto h-8 w-16 rounded-md border border-slate-200 bg-slate-50 text-center text-xs font-semibold text-slate-700 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed transition-all duration-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                             />
                             <p className="mt-1 text-[11px] font-semibold text-slate-500">
                               {formatSAR(qty * toNumber(row.unitPrice))}
@@ -727,11 +828,13 @@ export default function CreateBudgetManualPage() {
                               type="number"
                               min="0"
                               value={qty === 0 ? "" : qty}
-                              disabled={row.method === "QUARTERLY"}
+                              disabled={
+                                isBudgetLocked || row.method === "QUARTERLY"
+                              }
                               onChange={(e) =>
                                 updateQuarterly(row.id, index, e.target.value)
                               }
-                              className="mx-auto h-8 w-28 rounded-md border border-slate-200 bg-slate-50 text-center text-xs font-semibold text-slate-700 disabled:bg-slate-100 transition-all duration-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                              className="mx-auto h-8 w-28 rounded-md border border-slate-200 bg-slate-50 text-center text-xs font-semibold text-slate-700 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed transition-all duration-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                             />
                             <p className="mt-1 text-[11px] font-semibold text-slate-500">
                               {formatSAR(qty * toNumber(row.unitPrice))}
@@ -764,8 +867,9 @@ export default function CreateBudgetManualPage() {
                       <td className="border border-slate-200 px-3 py-4 text-center">
                         <button
                           type="button"
-                          onClick={() => deleteItem(row.id)}
-                          className="rounded-lg bg-red-50 p-2 text-red-500 transition-all duration-200 hover:scale-[1.02]"
+                          disabled={isBudgetLocked}
+                          onClick={() => setDeleteRowId(row.id)}
+                          className="rounded-lg bg-red-50 p-2 text-red-500 transition-all duration-200 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           <Trash2 size={17} />
                         </button>
@@ -793,10 +897,10 @@ export default function CreateBudgetManualPage() {
       <section className="grid gap-4 xl:grid-cols-[380px_1fr]">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-4">
-            {summary.isValid ? (
-              <CheckCircle2 className="text-emerald-600" size={34} />
-            ) : (
+            {validationError ? (
               <AlertCircle className="text-red-500" size={34} />
+            ) : (
+              <CheckCircle2 className="text-emerald-600" size={34} />
             )}
 
             <div>
@@ -806,7 +910,7 @@ export default function CreateBudgetManualPage() {
                   validationError ? "text-red-500" : "text-emerald-600"
                 }`}
               >
-                {validationError || "All quantities match total quantities."}
+                {validationError || "All items are valid and ready to save."}
               </p>
             </div>
           </div>
@@ -999,6 +1103,31 @@ export default function CreateBudgetManualPage() {
           color="text-violet-600 bg-violet-50"
         />
       </section>
+      <ConfirmModal
+        open={deleteRowId !== null}
+        danger
+        title="Delete budget item?"
+        message="This item will be removed from the table. If it already exists in the database, it will also be deleted permanently."
+        confirmText="Delete"
+        loading={saving}
+        onCancel={() => setDeleteRowId(null)}
+        onConfirm={async () => {
+          await deleteItem(deleteRowId);
+          setDeleteRowId(null);
+        }}
+      />
+      <ConfirmModal
+        open={confirmSubmitOpen}
+        title="Submit budget for approval?"
+        message="Are you sure you want to submit this budget? After submission, the budget will become PENDING_APPROVAL and cannot be edited unless the approver returns it."
+        confirmText="Submit Budget"
+        loading={submitBudgetMutation.isPending}
+        onCancel={() => setConfirmSubmitOpen(false)}
+        onConfirm={async () => {
+          setConfirmSubmitOpen(false);
+          await handleSubmitBudget();
+        }}
+      />
     </div>
   );
 }
@@ -1007,7 +1136,9 @@ function Info({ label, value }) {
   return (
     <div>
       <p className="text-sm font-bold text-slate-800">{label}</p>
-      <div className="mt-2 text-sm font-medium text-slate-600">{value}</div>
+      <div className="mt-2 text-sm font-medium text-slate-600 truncate">
+        {value}
+      </div>
     </div>
   );
 }

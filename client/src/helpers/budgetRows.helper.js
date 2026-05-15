@@ -7,6 +7,7 @@ export function createRow(
   unitPrice = 0,
   monthly = [],
   quarterly = [],
+  isNew = true,
 ) {
   return {
     id,
@@ -18,6 +19,7 @@ export function createRow(
     monthly,
     quarterly,
     isSaved: false,
+    isNew,
   };
 }
 
@@ -52,11 +54,13 @@ export function mapBudgetItemToRow(item) {
     Number(item.unit_price || 0),
     monthly,
     quarterly,
+    false,
   );
 
   return {
     ...row,
     isSaved: true,
+    isNew: false,
     savedSnapshot: JSON.stringify({
       category: row.category,
       item: row.item,

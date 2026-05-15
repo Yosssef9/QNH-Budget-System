@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import toast from "react-hot-toast";
 import {
@@ -17,27 +17,82 @@ import {
   useBudgetReview,
   usePendingBudgetApprovals,
   useReturnBudget,
+  useApprovedBudgetApprovals,
 } from "../../hooks/budgets/useBudgetApproval";
-import { formatSAR } from "../../utils/formatters";
+import BudgetApprovalSidebar from "../../components/budgets/BudgetApprovalSidebar";
 import ReadonlyBudgetGrid from "./ReadonlyBudgetGrid";
 import BudgetComparison from "./BudgetComparison";
 import ApprovalReviewFeedbackPanel from "./ApprovalReviewFeedbackPanel";
 import { scrollToBudgetItemRow } from "../../helpers/budgetReviewNavigation.helper";
-
+import {
+  getBudgetStatusLabel,
+  getBudgetStatusStyle,
+} from "../../theme/statusStyles";
 export default function BudgetApprovalPage() {
   const [activeTab, setActiveTab] = useState("REVIEW");
   const [isPendingPanelOpen, setIsPendingPanelOpen] = useState(true);
+  const [isApprovedPanelOpen, setIsApprovedPanelOpen] = useState(true);
+  const [pendingSearch, setPendingSearch] = useState("");
+  const [approvedSearch, setApprovedSearch] = useState("");
   const [selectedBudgetId, setSelectedBudgetId] = useState(null);
   const [generalNote, setGeneralNote] = useState("");
   const [itemNotes, setItemNotes] = useState({});
   const [actionType, setActionType] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
+  const [selectedApprovedBudgetId, setSelectedApprovedBudgetId] =
+    useState(null);
+  const {
+    data: approvedBudgets = [],
+    isLoading: loadingApproved,
+    isError: approvedError,
+  } = useApprovedBudgetApprovals();
+  const filteredApprovedBudgets = useMemo(() => {
+    const search = approvedSearch.trim().toLowerCase();
+
+    if (!search) return approvedBudgets;
+
+    return approvedBudgets.filter((budget) =>
+      [
+        budget.department_name,
+        budget.financial_year,
+        budget.items_count,
+        budget.total_amount,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(search),
+    );
+  }, [approvedBudgets, approvedSearch]);
+  const {
+    data: approvedReviewData,
+    isLoading: loadingApprovedReview,
+    isError: approvedReviewError,
+  } = useBudgetReview(selectedApprovedBudgetId);
+
+  const approvedBudget = approvedReviewData?.budget;
+  const approvedItems = approvedReviewData?.items || [];
   const {
     data: pendingBudgets = [],
     isLoading: loadingPending,
     isError: pendingError,
   } = usePendingBudgetApprovals();
+  const filteredPendingBudgets = useMemo(() => {
+    const search = pendingSearch.trim().toLowerCase();
 
+    if (!search) return pendingBudgets;
+
+    return pendingBudgets.filter((budget) =>
+      [
+        budget.department_name,
+        budget.financial_year,
+        budget.items_count,
+        budget.total_amount,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(search),
+    );
+  }, [pendingBudgets, pendingSearch]);
   const {
     data: reviewData,
     isLoading: loadingReview,
@@ -57,6 +112,7 @@ export default function BudgetApprovalPage() {
     setGeneralNote("");
     setItemNotes({});
     setActionType(null);
+    setIsPendingPanelOpen(true);
   }
 
   function handleSelectBudget(budgetId) {
@@ -163,14 +219,25 @@ export default function BudgetApprovalPage() {
             onClick={() => setActiveTab("REVIEW")}
             className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition ${
               activeTab === "REVIEW"
-                ? "bg-white text-blue-600 shadow-sm"
+                ? "bg-white text-amber-600 shadow-sm"
                 : "text-slate-500 hover:text-slate-700"
             }`}
           >
             <Eye size={16} />
             Pending Review
           </button>
-
+          <button
+            type="button"
+            onClick={() => setActiveTab("APPROVED")}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition ${
+              activeTab === "APPROVED"
+                ? "bg-white text-emerald-600 shadow-sm"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <CheckCircle2 size={16} />
+            Approved Budgets
+          </button>
           <button
             type="button"
             onClick={() => setActiveTab("COMPARISON")}
@@ -185,119 +252,153 @@ export default function BudgetApprovalPage() {
           </button>
         </div>
       </div>
+      {activeTab === "APPROVED" && (
+        <div
+          className={[
+            "grid min-w-0 gap-6 transition-all duration-300 ease-in-out",
+            isApprovedPanelOpen
+              ? "xl:grid-cols-[380px_minmax(0,1fr)]"
+              : "xl:grid-cols-[0px_minmax(0,1fr)]",
+          ].join(" ")}
+        >
+          {" "}
+          <BudgetApprovalSidebar
+            title="Approved Budgets"
+            description="View approved budgets in read-only mode."
+            searchValue={approvedSearch}
+            onSearchChange={setApprovedSearch}
+            searchPlaceholder="Search approved budgets..."
+            budgets={filteredApprovedBudgets}
+            loading={loadingApproved}
+            error={approvedError}
+            selectedBudgetId={selectedApprovedBudgetId}
+            onSelectBudget={setSelectedApprovedBudgetId}
+            statusLabel={getBudgetStatusLabel("APPROVED")}
+            statusColorClasses={getBudgetStatusStyle("APPROVED").badge}
+            activeCardClasses={getBudgetStatusStyle("APPROVED").activeCard}
+            inactiveCardClasses={getBudgetStatusStyle("APPROVED").inactiveCard}
+            footerText="View approved budget"
+          />
+          <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 p-4">
+              <button
+                type="button"
+                onClick={() => setIsApprovedPanelOpen((prev) => !prev)}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 shadow-sm transition hover:bg-slate-50"
+              >
+                {isApprovedPanelOpen ? (
+                  <>
+                    <PanelLeftClose size={17} />
+                    Hide Approved List
+                  </>
+                ) : (
+                  <>
+                    <PanelLeftOpen size={17} />
+                    Show Approved List
+                  </>
+                )}
+              </button>
+            </div>
+            {!selectedApprovedBudgetId && (
+              <div className="flex min-h-[520px] items-center justify-center p-8">
+                <div className="max-w-md text-center">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-50 text-emerald-700">
+                    <CheckCircle2 size={28} />
+                  </div>
+                  <h2 className="mt-5 text-xl font-bold text-slate-900">
+                    Select approved budget
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    Choose an approved budget from the left side to view it in
+                    read-only mode.
+                  </p>
+                </div>
+              </div>
+            )}
 
+            {selectedApprovedBudgetId && loadingApprovedReview && (
+              <div className="flex min-h-[520px] items-center justify-center text-slate-500">
+                <Loader2 className="mr-2 animate-spin" size={20} />
+                Loading approved budget...
+              </div>
+            )}
+
+            {selectedApprovedBudgetId && approvedReviewError && (
+              <div className="p-6">
+                <div className="rounded-2xl bg-red-50 p-4 text-sm font-medium text-red-700">
+                  Failed to load approved budget.
+                </div>
+              </div>
+            )}
+
+            {approvedBudget && !loadingApprovedReview && (
+              <div className="space-y-6 p-6">
+                <ReadonlyBudgetGrid
+                  budget={approvedBudget}
+                  items={approvedItems}
+                  showNotes={false}
+                />
+              </div>
+            )}
+          </section>
+        </div>
+      )}
       {activeTab === "COMPARISON" && <BudgetComparison />}
 
       {activeTab === "REVIEW" && (
-        <motion.div
-          layout
-          className="grid min-w-0 gap-6 xl:grid-cols-[auto_minmax(0,1fr)]"
-          transition={{ duration: 0.28, ease: "easeInOut" }}
+        <div
+          className={[
+            "grid min-w-0 gap-6 transition-all duration-300 ease-in-out",
+            isPendingPanelOpen
+              ? "xl:grid-cols-[380px_minmax(0,1fr)]"
+              : "xl:grid-cols-[0px_minmax(0,1fr)]",
+          ].join(" ")}
         >
-          <AnimatePresence initial={false}>
-            {isPendingPanelOpen && (
-              <motion.section
-                key="pending-budget-sidebar"
-                layout
-                initial={{ width: 0, opacity: 0, x: -18 }}
-                animate={{ width: 380, opacity: 1, x: 0 }}
-                exit={{ width: 0, opacity: 0, x: -18 }}
-                transition={{ duration: 0.28, ease: "easeInOut" }}
-                className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
-              >
-                <div className="border-b border-slate-200 p-5">
-                  <h2 className="text-lg font-bold text-slate-900">
-                    Pending Budgets
-                  </h2>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Select a budget to review.
-                  </p>
-                </div>
-
-                <div className="max-h-[720px] overflow-y-auto p-4">
-                  {loadingPending && (
-                    <div className="flex items-center justify-center py-16 text-slate-500">
-                      <Loader2 className="mr-2 animate-spin" size={18} />
-                      Loading pending budgets...
-                    </div>
-                  )}
-
-                  {pendingError && (
-                    <div className="rounded-2xl bg-red-50 p-4 text-sm font-medium text-red-700">
-                      Failed to load pending budgets.
-                    </div>
-                  )}
-
-                  {!loadingPending && pendingBudgets.length === 0 && (
-                    <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
-                      No pending budgets found.
-                    </div>
-                  )}
-
-                  <div className="space-y-3">
-                    {pendingBudgets.map((budget) => {
-                      const active = selectedBudgetId === budget.id;
-
-                      return (
-                        <button
-                          key={budget.id}
-                          type="button"
-                          onClick={() => handleSelectBudget(budget.id)}
-                          className={[
-                            "w-full rounded-2xl border p-4 text-left transition-all",
-                            active
-                              ? "border-blue-300 bg-blue-50 shadow-sm"
-                              : "border-slate-200 bg-white hover:border-blue-200 hover:bg-slate-50",
-                          ].join(" ")}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <h3 className="font-bold text-slate-900">
-                                {budget.department_name}
-                              </h3>
-                              <p className="mt-1 text-xs text-slate-500">
-                                Financial Year {budget.financial_year}
-                              </p>
-                            </div>
-
-                            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
-                              Pending
-                            </span>
-                          </div>
-
-                          <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
-                            <div className="rounded-xl bg-slate-50 p-3">
-                              <p className="text-slate-500">Items</p>
-                              <p className="mt-1 font-bold text-slate-900">
-                                {budget.items_count}
-                              </p>
-                            </div>
-
-                            <div className="rounded-xl bg-slate-50 p-3">
-                              <p className="text-slate-500">Total</p>
-                              <p className="mt-1 font-bold text-slate-900">
-                                {formatSAR(budget.total_amount)}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="mt-4 flex items-center gap-2 text-xs font-semibold text-blue-700">
-                            <Eye size={14} />
-                            Review budget
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </motion.section>
-            )}
-          </AnimatePresence>
+          <BudgetApprovalSidebar
+            title="Pending Budgets"
+            description="Select a budget to review."
+            searchValue={pendingSearch}
+            onSearchChange={setPendingSearch}
+            searchPlaceholder="Search pending budgets..."
+            budgets={filteredPendingBudgets}
+            loading={loadingPending}
+            error={pendingError}
+            selectedBudgetId={selectedBudgetId}
+            onSelectBudget={handleSelectBudget}
+            statusLabel={getBudgetStatusLabel("PENDING_APPROVAL")}
+            statusColorClasses={getBudgetStatusStyle("PENDING_APPROVAL").badge}
+            activeCardClasses={
+              getBudgetStatusStyle("PENDING_APPROVAL").activeCard
+            }
+            inactiveCardClasses={
+              getBudgetStatusStyle("PENDING_APPROVAL").inactiveCard
+            }
+            footerText="Review budget"
+          />
           <motion.section
             layout
             transition={{ duration: 0.28, ease: "easeInOut" }}
             className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
           >
+            <div className="border-b border-slate-200 p-4">
+              <button
+                type="button"
+                onClick={() => setIsPendingPanelOpen((prev) => !prev)}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 shadow-sm transition hover:bg-slate-50"
+              >
+                {isPendingPanelOpen ? (
+                  <>
+                    <PanelLeftClose size={17} />
+                    Hide Pending List
+                  </>
+                ) : (
+                  <>
+                    <PanelLeftOpen size={17} />
+                    Show Pending List
+                  </>
+                )}
+              </button>
+            </div>
             {!selectedBudgetId && (
               <div className="flex min-h-[520px] items-center justify-center p-8">
                 <div className="max-w-md text-center">
@@ -332,25 +433,6 @@ export default function BudgetApprovalPage() {
 
             {selectedBudget && !loadingReview && (
               <div className="space-y-6 p-6">
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setIsPendingPanelOpen((prev) => !prev)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 shadow-sm transition hover:bg-slate-50"
-                  >
-                    {isPendingPanelOpen ? (
-                      <>
-                        <PanelLeftClose size={17} />
-                        Hide Pending List
-                      </>
-                    ) : (
-                      <>
-                        <PanelLeftOpen size={17} />
-                        Show Pending List
-                      </>
-                    )}
-                  </button>
-                </div>
                 <ApprovalReviewFeedbackPanel
                   budgetId={selectedBudgetId}
                   onItemNoteClick={scrollToBudgetItemRow}
@@ -415,7 +497,7 @@ export default function BudgetApprovalPage() {
               </div>
             )}
           </motion.section>
-        </motion.div>
+        </div>
       )}
       <ConfirmModal
         open={confirmAction === "APPROVE"}

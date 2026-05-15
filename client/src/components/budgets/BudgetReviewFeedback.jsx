@@ -11,9 +11,9 @@ import {
 import { useBudgetReviewFeedback } from "../../hooks/budgets/useBudgetReviewFeedback";
 
 export default function BudgetReviewFeedback({ budgetId, onItemNoteClick }) {
-  const [isOpen, setIsOpen] = useState(true);
-  const [isGeneralOpen, setIsGeneralOpen] = useState(true);
-  const [isItemsOpen, setIsItemsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isGeneralOpen, setIsGeneralOpen] = useState(false);
+  const [isItemsOpen, setIsItemsOpen] = useState(false);
 
   const { data, isLoading, isError } = useBudgetReviewFeedback(budgetId);
 
@@ -117,7 +117,7 @@ export default function BudgetReviewFeedback({ budgetId, onItemNoteClick }) {
                               <p className="mt-2 text-xs font-medium text-slate-500">
                                 By {note.created_by_name || "Approver"} ·{" "}
                                 {note.created_at
-                                  ? new Date(note.created_at).toLocaleString()
+                                  ? formatDateTime(note.created_at)
                                   : ""}
                               </p>
                             </div>
@@ -194,7 +194,7 @@ export default function BudgetReviewFeedback({ budgetId, onItemNoteClick }) {
                                 <p className="mt-3 text-xs font-medium text-slate-500">
                                   By {note.created_by_name || "Approver"} ·{" "}
                                   {note.created_at
-                                    ? new Date(note.created_at).toLocaleString()
+                                    ?formatDateTime(note.created_at)
                                     : ""}
                                 </p>
                               </button>

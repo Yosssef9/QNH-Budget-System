@@ -193,3 +193,43 @@ export async function getBudgetComparisonRepo() {
 
   return result.recordset;
 }
+export async function getApprovedBudgetsRepo() {
+  const pool = await poolPromise;
+
+  const result = await pool.request().query(`
+    SELECT
+      b.id,
+      b.department_id,
+      d.name AS department_name,
+      b.financial_year_id,
+      fy.year AS financial_year,
+      b.status,
+      b.approved_by,
+      u.USER_NAME AS approved_by_name,
+      b.approved_at,
+      COUNT(bi.id) AS items_count,
+      ISNULL(SUM(bi.total_amount), 0) AS total_amount
+    FROM BS_budgets b
+    INNER JOIN BS_departments d ON d.id = b.department_id
+    INNER JOIN BS_financial_years fy ON fy.id = b.financial_year_id
+    LEFT JOIN users u ON u.USER_ID = b.approved_by
+    LEFT JOIN BS_budget_items bi
+      ON bi.budget_id = b.id
+     AND bi.is_active = 1
+    WHERE b.status = 'APPROVED'
+      AND b.is_active = 1
+    GROUP BY
+      b.id,
+      b.department_id,
+      d.name,
+      b.financial_year_id,
+      fy.year,
+      b.status,
+      b.approved_by,
+      u.USER_NAME,
+      b.approved_at
+    ORDER BY b.approved_at DESC
+  `);
+
+  return result.recordset;
+}

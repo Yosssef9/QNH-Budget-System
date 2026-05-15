@@ -4,6 +4,7 @@ export default function ConfirmModal({
   open,
   title = "Are you sure?",
   message,
+  children,
   confirmText = "Confirm",
   cancelText = "Cancel",
   loading = false,
@@ -15,7 +16,7 @@ export default function ConfirmModal({
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+      <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
             <div
@@ -28,6 +29,7 @@ export default function ConfirmModal({
 
             <div>
               <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+
               {message && (
                 <p className="mt-2 text-sm font-medium text-slate-600">
                   {message}
@@ -45,6 +47,8 @@ export default function ConfirmModal({
             <X size={18} />
           </button>
         </div>
+
+        {children && <div className="mt-5">{children}</div>}
 
         <div className="mt-6 flex justify-end gap-3">
           <button

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BarChart3,
   Building2,
@@ -8,11 +8,15 @@ import {
   PackageSearch,
   Search,
 } from "lucide-react";
-
+import {
+  getBudgetStatusLabel,
+  getBudgetStatusStyle,
+} from "../../theme/statusStyles";
+import CurrencyText from "../../components/CurrencyText";
 import { useBudgetComparison } from "../../hooks/budgets/useBudgetApproval";
-import { formatNumber, formatSAR } from "../../utils/formatters";
+import { formatNumber } from "../../utils/formatters";
 import { toNumber } from "../../utils/number";
-
+import SearchableMultiSelect from "../../components/SearchableMultiSelect";
 const ALL = "ALL";
 
 function uniqueOptions(rows, key, labelKey = key) {
@@ -35,14 +39,15 @@ export default function BudgetComparison() {
 
   const [filters, setFilters] = useState({
     financialYear: ALL,
-    departmentId: ALL,
-    status: ALL,
-    categoryId: ALL,
-    typeId: ALL,
-    expenseType: ALL,
+    statuses: [],
+    departmentIds: [],
+    categoryIds: [],
+    typeIds: [],
+    expenseTypes: [],
     search: "",
   });
-
+  const [detailedPage, setDetailedPage] = useState(1);
+  const [detailedPageSize, setDetailedPageSize] = useState(25);
   const options = useMemo(() => {
     return {
       years: uniqueOptions(data, "financial_year"),
@@ -66,34 +71,36 @@ export default function BudgetComparison() {
       }
 
       if (
-        filters.departmentId !== ALL &&
-        String(row.department_id) !== filters.departmentId
+        filters.departmentIds.length > 0 &&
+        !filters.departmentIds.includes(String(row.department_id))
       ) {
-        return false;
-      }
-
-      if (filters.status !== ALL && String(row.status) !== filters.status) {
         return false;
       }
 
       if (
-        filters.categoryId !== ALL &&
-        String(row.category_id) !== filters.categoryId
+        filters.statuses.length > 0 &&
+        !filters.statuses.includes(String(row.status))
       ) {
         return false;
       }
-
-      if (filters.typeId !== ALL && String(row.type_id) !== filters.typeId) {
-        return false;
-      }
-
       if (
-        filters.expenseType !== ALL &&
-        String(row.expense_type) !== filters.expenseType
+        filters.categoryIds.length > 0 &&
+        !filters.categoryIds.includes(String(row.category_id))
       ) {
         return false;
       }
-
+      if (
+        filters.typeIds.length > 0 &&
+        !filters.typeIds.includes(String(row.type_id))
+      ) {
+        return false;
+      }
+      if (
+        filters.expenseTypes.length > 0 &&
+        !filters.expenseTypes.includes(String(row.expense_type))
+      ) {
+        return false;
+      }
       if (search) {
         const text = [
           row.department_name,
@@ -112,7 +119,32 @@ export default function BudgetComparison() {
       return true;
     });
   }, [data, filters]);
+  const detailedTotalPages = useMemo(() => {
+    return Math.max(1, Math.ceil(filteredRows.length / detailedPageSize));
+  }, [filteredRows.length, detailedPageSize]);
 
+  useEffect(() => {
+    setDetailedPage(1);
+  }, [filters, detailedPageSize]);
+
+  useEffect(() => {
+    if (detailedPage > detailedTotalPages) {
+      setDetailedPage(detailedTotalPages);
+    }
+  }, [detailedPage, detailedTotalPages]);
+
+  const paginatedDetailedRows = useMemo(() => {
+    const start = (detailedPage - 1) * detailedPageSize;
+    return filteredRows.slice(start, start + detailedPageSize);
+  }, [filteredRows, detailedPage, detailedPageSize]);
+
+  const detailedStartRow =
+    filteredRows.length === 0 ? 0 : (detailedPage - 1) * detailedPageSize + 1;
+
+  const detailedEndRow = Math.min(
+    detailedPage * detailedPageSize,
+    filteredRows.length,
+  );
   const summary = useMemo(() => {
     const budgetIds = new Set(filteredRows.map((row) => row.budget_id));
     const departments = new Set(filteredRows.map((row) => row.department_id));
@@ -178,7 +210,44 @@ export default function BudgetComparison() {
       }))
       .sort((a, b) => b.totalAmount - a.totalAmount);
   }, [filteredRows]);
+  const departmentsInView = useMemo(() => {
+    const map = new Map();
 
+    filteredRows.forEach((row) => {
+      map.set(String(row.department_id), {
+        id: row.department_id,
+        name: row.department_name,
+      });
+    });
+
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [filteredRows]);
+
+  const itemDepartmentMatrix = useMemo(() => {
+    return groupedByItem.map((item) => {
+      const departmentMap = new Map();
+
+      item.rows.forEach((row) => {
+        const key = String(row.department_id);
+
+        if (!departmentMap.has(key)) {
+          departmentMap.set(key, {
+            quantity: 0,
+            amount: 0,
+          });
+        }
+
+        const cell = departmentMap.get(key);
+        cell.quantity += toNumber(row.quantity);
+        cell.amount += toNumber(row.total_amount);
+      });
+
+      return {
+        ...item,
+        departmentMap,
+      };
+    });
+  }, [groupedByItem]);
   function updateFilter(name, value) {
     setFilters((prev) => ({
       ...prev,
@@ -189,11 +258,11 @@ export default function BudgetComparison() {
   function resetFilters() {
     setFilters({
       financialYear: ALL,
-      departmentId: ALL,
-      status: ALL,
-      categoryId: ALL,
-      typeId: ALL,
-      expenseType: ALL,
+      statuses: [],
+      departmentIds: [],
+      categoryIds: [],
+      typeIds: [],
+      expenseTypes: [],
       search: "",
     });
   }
@@ -236,7 +305,7 @@ export default function BudgetComparison() {
         <SummaryCard
           icon={<CalendarDays size={22} />}
           label="Total Amount"
-          value={formatSAR(summary.totalAmount)}
+          value={<CurrencyText value={summary.totalAmount} />}
         />
       </section>
 
@@ -269,35 +338,35 @@ export default function BudgetComparison() {
             options={options.years}
             onChange={(value) => updateFilter("financialYear", value)}
           />
-          <SelectFilter
+          <MultiSelectFilter
             label="Department"
-            value={filters.departmentId}
+            values={filters.departmentIds}
             options={options.departments}
-            onChange={(value) => updateFilter("departmentId", value)}
+            onChange={(values) => updateFilter("departmentIds", values)}
           />
-          <SelectFilter
+          <MultiSelectFilter
             label="Status"
-            value={filters.status}
+            values={filters.statuses}
             options={options.statuses}
-            onChange={(value) => updateFilter("status", value)}
+            onChange={(values) => updateFilter("statuses", values)}
           />
-          <SelectFilter
+          <MultiSelectFilter
             label="Category"
-            value={filters.categoryId}
+            values={filters.categoryIds}
             options={options.categories}
-            onChange={(value) => updateFilter("categoryId", value)}
+            onChange={(values) => updateFilter("categoryIds", values)}
           />
-          <SelectFilter
+          <MultiSelectFilter
             label="Item"
-            value={filters.typeId}
+            values={filters.typeIds}
             options={options.types}
-            onChange={(value) => updateFilter("typeId", value)}
+            onChange={(values) => updateFilter("typeIds", values)}
           />
-          <SelectFilter
+          <MultiSelectFilter
             label="Expense"
-            value={filters.expenseType}
+            values={filters.expenseTypes}
             options={options.expenseTypes}
-            onChange={(value) => updateFilter("expenseType", value)}
+            onChange={(values) => updateFilter("expenseTypes", values)}
           />
         </div>
 
@@ -323,9 +392,9 @@ export default function BudgetComparison() {
           </p>
         </div>
 
-        <div className="overflow-auto">
+        <div className="enterprise-scrollbar max-h-[75vh] overflow-auto scroll-smooth">
           <table className="min-w-[1200px] w-full border-collapse text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="sticky top-0 z-20 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 shadow-sm">
               <tr>
                 <th className="border border-slate-200 px-4 py-3 text-left">
                   Item
@@ -373,19 +442,19 @@ export default function BudgetComparison() {
                     {formatNumber(item.totalQuantity)}
                   </td>
                   <td className="border border-slate-200 px-4 py-3 text-right">
-                    {formatSAR(item.avgUnitPrice)}
+                    <CurrencyText value={item.avgUnitPrice} />
                   </td>
                   <td className="border border-slate-200 px-4 py-3 text-right font-bold text-blue-600">
-                    {formatSAR(item.totalAmount)}
+                    <CurrencyText value={item.totalAmount} />
                   </td>
                   <td className="border border-slate-200 px-4 py-3">
                     <div className="flex flex-wrap gap-1">
                       {item.statuses.map((status) => (
                         <span
                           key={status}
-                          className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-600"
+                          className={`rounded-full border px-2 py-1 text-[11px] font-bold ${getBudgetStatusStyle(status).badge}`}
                         >
-                          {status}
+                          {getBudgetStatusLabel(status)}
                         </span>
                       ))}
                     </div>
@@ -407,7 +476,101 @@ export default function BudgetComparison() {
           </table>
         </div>
       </section>
+      <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 p-5">
+          <h2 className="text-lg font-bold text-slate-900">
+            Department Comparison Matrix
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Compare each item quantity and amount across departments.
+          </p>
+        </div>
 
+        <div className="enterprise-scrollbar max-h-[75vh] overflow-auto scroll-smooth">
+          <table className="min-w-[1400px] w-full border-collapse text-sm">
+            <thead className="sticky top-0 z-20 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 shadow-sm">
+              <tr>
+                <th className="sticky left-0 z-10 border border-slate-200 bg-slate-50 px-4 py-3 text-left">
+                  Item
+                </th>
+
+                <th className="border border-slate-200 px-4 py-3 text-right">
+                  Overall Qty
+                </th>
+
+                <th className="border border-slate-200 px-4 py-3 text-right">
+                  Overall Amount
+                </th>
+
+                {departmentsInView.map((department) => (
+                  <th
+                    key={department.id}
+                    className="border border-slate-200 px-4 py-3 text-center"
+                  >
+                    {department.name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+
+            <tbody>
+              {itemDepartmentMatrix.map((item) => (
+                <tr key={item.type_id} className="hover:bg-slate-50">
+                  <td className="sticky left-0 z-10 border border-slate-200 bg-white px-4 py-3">
+                    <p className="font-bold text-slate-900">{item.type_name}</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                      {item.category_name} · {item.expense_type}
+                    </p>
+                  </td>
+
+                  <td className="border border-slate-200 px-4 py-3 text-right font-bold">
+                    {formatNumber(item.totalQuantity)}
+                  </td>
+
+                  <td className="border border-slate-200 px-4 py-3 text-right font-bold text-blue-600">
+                    <CurrencyText value={item.totalAmount} />
+                  </td>
+
+                  {departmentsInView.map((department) => {
+                    const cell = item.departmentMap.get(String(department.id));
+
+                    return (
+                      <td
+                        key={department.id}
+                        className="border border-slate-200 px-4 py-3 text-center"
+                      >
+                        {cell ? (
+                          <div>
+                            <p className="font-bold text-slate-900">
+                              Qty: {formatNumber(cell.quantity)}
+                            </p>
+                            <p className="mt-1 text-xs font-bold text-blue-600">
+                              <CurrencyText value={cell.amount} />
+                            </p>
+                          </div>
+                        ) : (
+                          <span className="text-slate-300">—</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+
+              {itemDepartmentMatrix.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={3 + departmentsInView.length}
+                    className="border border-slate-200 px-4 py-10 text-center font-semibold text-slate-500"
+                  >
+                    No comparison results.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
       <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 p-5">
           <h2 className="text-lg font-bold text-slate-900">
@@ -415,9 +578,9 @@ export default function BudgetComparison() {
           </h2>
         </div>
 
-        <div className="overflow-auto">
+        <div className="enterprise-scrollbar max-h-[75vh] overflow-auto scroll-smooth">
           <table className="min-w-[1300px] w-full border-collapse text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="sticky top-0 z-20 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 shadow-sm">
               <tr>
                 <th className="border border-slate-200 px-4 py-3 text-left">
                   Department
@@ -447,7 +610,7 @@ export default function BudgetComparison() {
             </thead>
 
             <tbody>
-              {filteredRows.map((row, index) => (
+              {paginatedDetailedRows.map((row, index) => (
                 <tr
                   key={`${row.budget_id}-${row.type_id}-${index}`}
                   className="hover:bg-slate-50"
@@ -459,8 +622,10 @@ export default function BudgetComparison() {
                     {row.financial_year}
                   </td>
                   <td className="border border-slate-200 px-4 py-3">
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-600">
-                      {row.status}
+                    <span
+                      className={`rounded-full border px-2 py-1 text-[11px] font-bold ${getBudgetStatusStyle(row.status).badge}`}
+                    >
+                      {getBudgetStatusLabel(row.status)}
                     </span>
                   </td>
                   <td className="border border-slate-200 px-4 py-3">
@@ -473,10 +638,10 @@ export default function BudgetComparison() {
                     {formatNumber(row.quantity)}
                   </td>
                   <td className="border border-slate-200 px-4 py-3 text-right">
-                    {formatSAR(row.unit_price)}
+                    <CurrencyText value={row.unit_price} />
                   </td>
                   <td className="border border-slate-200 px-4 py-3 text-right font-bold text-blue-600">
-                    {formatSAR(row.total_amount)}
+                    <CurrencyText value={row.total_amount} />
                   </td>
                 </tr>
               ))}
@@ -494,31 +659,105 @@ export default function BudgetComparison() {
             </tbody>
           </table>
         </div>
+        <div className="flex flex-col gap-4 border-t border-slate-200 p-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="text-sm font-semibold text-slate-500">
+            Showing <span className="text-slate-900">{detailedStartRow}</span>
+            {" - "}
+            <span className="text-slate-900">{detailedEndRow}</span>
+            {" of "}
+            <span className="text-slate-900">{filteredRows.length}</span>
+            {" rows"}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {[25, 50, 100].map((size) => (
+              <button
+                key={size}
+                type="button"
+                onClick={() => setDetailedPageSize(size)}
+                className={[
+                  "rounded-xl border px-3 py-2 text-xs font-bold transition",
+                  detailedPageSize === size
+                    ? "border-blue-200 bg-blue-50 text-blue-700"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                ].join(" ")}
+              >
+                {size}
+              </button>
+            ))}
+
+            <button
+              type="button"
+              onClick={() => setDetailedPage((page) => Math.max(1, page - 1))}
+              disabled={detailedPage <= 1}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Previous
+            </button>
+
+            <span className="rounded-xl bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700">
+              Page {detailedPage} / {detailedTotalPages}
+            </span>
+
+            <button
+              type="button"
+              onClick={() =>
+                setDetailedPage((page) =>
+                  Math.min(detailedTotalPages, page + 1),
+                )
+              }
+              disabled={detailedPage >= detailedTotalPages}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        </div>
       </section>
     </div>
   );
 }
 
 function SelectFilter({ label, value, options, onChange }) {
+  const selectOptions = [{ value: ALL, label: "All" }, ...options];
+
   return (
     <label className="block">
       <span className="text-xs font-bold text-slate-600">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
-      >
-        <option value={ALL}>All</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+
+      <div className="mt-1">
+        <SearchableMultiSelect
+          multiple={false}
+          disableClear
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          options={selectOptions}
+          placeholder={`Select ${label}`}
+          searchPlaceholder={`Search ${label.toLowerCase()}...`}
+        />
+      </div>
     </label>
   );
 }
+function MultiSelectFilter({ label, values, options, onChange }) {
+  return (
+    <label className="block">
+      <span className="text-xs font-bold text-slate-600">{label}</span>
 
+      <div className="mt-1">
+        <SearchableMultiSelect
+          multiple
+          values={values}
+          onChange={(e) => onChange(e.target.value)}
+          options={options}
+          placeholder={`All ${label}`}
+          searchPlaceholder={`Search ${label.toLowerCase()}...`}
+          maxVisibleBadges={2}
+        />
+      </div>
+    </label>
+  );
+}
 function SummaryCard({ icon, label, value }) {
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">

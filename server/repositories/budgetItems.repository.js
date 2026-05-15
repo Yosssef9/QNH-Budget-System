@@ -190,23 +190,19 @@ export async function deleteBudgetItemRepo({ budgetId, itemId }) {
   try {
     await transaction.begin();
 
-    const request1 = new sql.Request(transaction);
-
-    // Delete distributions first because they depend on item_id
-    await request1.input("itemId", sql.Int, itemId).query(`
-        DELETE FROM BS_budget_item_distribution
-        WHERE budget_item_id = @itemId
-      `);
-
     const request2 = new sql.Request(transaction);
 
     const result = await request2
       .input("budgetId", sql.Int, budgetId)
       .input("itemId", sql.Int, itemId).query(`
-        DELETE FROM BS_budget_items
-        WHERE id = @itemId
-          AND budget_id = @budgetId
-      `);
+    UPDATE BS_budget_items
+    SET
+      is_active = 0,
+      updated_at = GETDATE()
+    WHERE id = @itemId
+      AND budget_id = @budgetId
+      AND is_active = 1
+  `);
 
     await transaction.commit();
 
@@ -216,7 +212,6 @@ export async function deleteBudgetItemRepo({ budgetId, itemId }) {
     throw error;
   }
 }
-
 export async function replaceBudgetItemsRepo({ budgetId, items, createdBy }) {
   const pool = await poolPromise;
   const transaction = new sql.Transaction(pool);
@@ -224,63 +219,135 @@ export async function replaceBudgetItemsRepo({ budgetId, items, createdBy }) {
   try {
     await transaction.begin();
 
-    // 1. Delete old distributions
-    await new sql.Request(transaction).input("budgetId", sql.Int, budgetId)
-      .query(`
-        DELETE d
-        FROM BS_budget_item_distribution d
-        INNER JOIN BS_budget_items i
-          ON i.id = d.budget_item_id
-        WHERE i.budget_id = @budgetId
-      `);
+    const normalizedItems = items.map((item) => ({
+      id: item.id ? Number(item.id) : null,
+      type_id: Number(item.type_id),
+      quantity: Number(item.quantity || 0),
+      unit_price: Number(item.unit_price || 0),
+      distribution_method: item.distribution_method,
+      distribution_level: item.distribution_level,
+      distribution: item.distribution || [],
+    }));
 
-    // 2. Delete old items
-    await new sql.Request(transaction).input("budgetId", sql.Int, budgetId)
-      .query(`
-        DELETE FROM BS_budget_items
+    const duplicateTypes = normalizedItems
+      .map((item) => item.type_id)
+      .filter((typeId, index, arr) => arr.indexOf(typeId) !== index);
+
+    if (duplicateTypes.length > 0) {
+      throw new Error("Duplicate item/type found in budget items");
+    }
+
+    const existingResult = await new sql.Request(transaction).input(
+      "budgetId",
+      sql.Int,
+      budgetId,
+    ).query(`
+        SELECT id
+        FROM BS_budget_items
         WHERE budget_id = @budgetId
+          AND is_active = 1
       `);
 
-    // 3. Insert new items
-    for (const item of items) {
-      const totalAmount =
-        Number(item.quantity || 0) * Number(item.unit_price || 0);
+    const existingIds = existingResult.recordset.map((row) => Number(row.id));
+    const sentExistingIds = normalizedItems
+      .filter((item) => item.id && existingIds.includes(Number(item.id)))
+      .map((item) => Number(item.id));
 
-      const itemResult = await new sql.Request(transaction)
-        .input("budgetId", sql.Int, budgetId)
-        .input("typeId", sql.Int, Number(item.type_id))
-        .input("quantity", sql.Decimal(18, 2), Number(item.quantity || 0))
-        .input("unitPrice", sql.Decimal(18, 2), Number(item.unit_price || 0))
-        .input("totalAmount", sql.Decimal(18, 2), totalAmount)
-        .input("distributionMethod", sql.VarChar(30), item.distribution_method)
-        .input("distributionLevel", sql.VarChar(30), item.distribution_level)
-        .input("createdBy", sql.VarChar(50), createdBy).query(`
-          INSERT INTO BS_budget_items (
-            budget_id,
-            type_id,
-            quantity,
-            unit_price,
-            total_amount,
-            distribution_method,
-            distribution_level,
-            created_by
+    const idsToSoftDelete = existingIds.filter(
+      (id) => !sentExistingIds.includes(id),
+    );
+
+    for (const itemId of idsToSoftDelete) {
+      await new sql.Request(transaction).input("itemId", sql.Int, itemId)
+        .query(`
+          UPDATE BS_budget_items
+          SET
+            is_active = 0,
+            updated_at = GETDATE()
+          WHERE id = @itemId
+        `);
+    }
+
+    for (const item of normalizedItems) {
+      const totalAmount = item.quantity * item.unit_price;
+      let budgetItemId = item.id;
+
+      if (item.id && existingIds.includes(Number(item.id))) {
+        await new sql.Request(transaction)
+          .input("itemId", sql.Int, item.id)
+          .input("typeId", sql.Int, item.type_id)
+          .input("quantity", sql.Decimal(18, 2), item.quantity)
+          .input("unitPrice", sql.Decimal(18, 2), item.unit_price)
+          .input("totalAmount", sql.Decimal(18, 2), totalAmount)
+          .input(
+            "distributionMethod",
+            sql.VarChar(30),
+            item.distribution_method,
           )
-          OUTPUT INSERTED.id
-          VALUES (
-            @budgetId,
-            @typeId,
-            @quantity,
-            @unitPrice,
-            @totalAmount,
-            @distributionMethod,
-            @distributionLevel,
-            @createdBy
+          .input("distributionLevel", sql.VarChar(30), item.distribution_level)
+          .query(`
+            UPDATE BS_budget_items
+            SET
+              type_id = @typeId,
+              quantity = @quantity,
+              unit_price = @unitPrice,
+              total_amount = @totalAmount,
+              distribution_method = @distributionMethod,
+              distribution_level = @distributionLevel,
+              updated_at = GETDATE()
+            WHERE id = @itemId
+              AND is_active = 1
+          `);
+      } else {
+        const itemResult = await new sql.Request(transaction)
+          .input("budgetId", sql.Int, budgetId)
+          .input("typeId", sql.Int, item.type_id)
+          .input("quantity", sql.Decimal(18, 2), item.quantity)
+          .input("unitPrice", sql.Decimal(18, 2), item.unit_price)
+          .input("totalAmount", sql.Decimal(18, 2), totalAmount)
+          .input(
+            "distributionMethod",
+            sql.VarChar(30),
+            item.distribution_method,
           )
+          .input("distributionLevel", sql.VarChar(30), item.distribution_level)
+          .input("createdBy", sql.VarChar(50), createdBy).query(`
+            INSERT INTO BS_budget_items (
+              budget_id,
+              type_id,
+              quantity,
+              unit_price,
+              total_amount,
+              distribution_method,
+              distribution_level,
+              created_by
+            )
+            OUTPUT INSERTED.id
+            VALUES (
+              @budgetId,
+              @typeId,
+              @quantity,
+              @unitPrice,
+              @totalAmount,
+              @distributionMethod,
+              @distributionLevel,
+              @createdBy
+            )
+          `);
+
+        budgetItemId = itemResult.recordset[0].id;
+      }
+
+      await new sql.Request(transaction).input(
+        "budgetItemId",
+        sql.Int,
+        budgetItemId,
+      ).query(`
+          DELETE FROM BS_budget_item_distribution
+          WHERE budget_item_id = @budgetItemId
         `);
 
-      const budgetItemId = itemResult.recordset[0].id;
-
-      for (const period of item.distribution || []) {
+      for (const period of item.distribution) {
         await new sql.Request(transaction)
           .input("budgetItemId", sql.Int, budgetItemId)
           .input("periodType", sql.VarChar(20), period.period_type)

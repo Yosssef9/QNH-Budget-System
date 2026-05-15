@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import {
   Plus,
@@ -23,7 +22,7 @@ const budgetActions = [
     primary: true,
   },
   {
-    title: "Create Budget",
+    title: "Budget Entry",
     description: "Enter budget items manually for the open financial year.",
     path: "/budgets/entry",
     icon: Plus,
@@ -97,7 +96,7 @@ export default function BudgetsPage() {
             </h1>
 
             <p className="mt-3 max-w-3xl text-sm leading-6 text-enterprise-muted">
-              Choose what you want to do inside the Budgets module: create a
+              Choose what you want to do inside the Budgets module: enter a
               budget, import Excel, copy from history, continue drafts, review
               returned budgets, or open budget history.
             </p>
@@ -109,7 +108,7 @@ export default function BudgetsPage() {
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary-600 px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-700"
             >
               <Plus size={18} />
-              Create Budget
+              Budget Entery
             </Link>
           )}
         </div>

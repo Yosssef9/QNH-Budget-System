@@ -88,3 +88,7 @@ export async function getBudgetComparison() {
   const response = await api.get("/budget-approval/comparison");
   return response.data?.data || [];
 }
+export async function getApprovedApprovals() {
+  const response = await api.get("/budget-approval/approved");
+  return response.data?.data || [];
+}

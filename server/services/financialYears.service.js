@@ -71,13 +71,13 @@ export async function closeFinancialYearService({ id, closedBy }) {
   }
 
   const notApprovedCount = await countNotApprovedBudgetsForYearRepo(
-    financialYear.year,
+    financialYear.id,
   );
 
   if (notApprovedCount > 0) {
     throw new ApiError(
       400,
-      "Cannot close financial year while there are budgets not approved",
+      `Cannot close financial year. There are ${notApprovedCount} active budget(s) not approved yet.`,
       "FINANCIAL_YEAR_HAS_NOT_APPROVED_BUDGETS",
       { notApprovedCount },
     );

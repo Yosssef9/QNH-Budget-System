@@ -9,6 +9,7 @@ import {
   getBudgetComparison,
   approveBudget,
   returnBudget,
+  getApprovedBudgets,
 } from "../controllers/budgetApproval.controller.js";
 
 const router = express.Router();
@@ -18,8 +19,8 @@ router.use(requirePermission("can_approve_budget"));
 
 router.get("/pending", getPendingBudgets);
 router.get("/comparison", getBudgetComparison);
+router.get("/approved", getApprovedBudgets);
 router.get("/:budgetId", getBudgetReview);
 router.patch("/:budgetId/approve", approveBudget);
 router.patch("/:budgetId/return", returnBudget);
-
 export default router;

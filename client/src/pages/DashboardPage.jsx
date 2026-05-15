@@ -110,7 +110,7 @@ function getQuickActions(budgetAccess) {
       show: can(budgetAccess, "can_view_budget"),
     },
     {
-      title: "Create / Edit Budget",
+      title: "Enter / Edit Budget",
       description: "Enter, import, copy, and submit budgets.",
       path: "/budgets",
       icon: FileSpreadsheet,
@@ -154,7 +154,7 @@ function getQuickActions(budgetAccess) {
     {
       title: "Manage Categories",
       description: "Control categories, types, and item requests.",
-      path: "/admin/categories",
+      path: "/admin/budget-setup",
       icon: Tags,
       show: can(budgetAccess, "can_manage_categories"),
     },

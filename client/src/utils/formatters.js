@@ -3,5 +3,10 @@ export function formatNumber(value) {
 }
 
 export function formatSAR(value) {
-  return `${formatNumber(value)} ر.س`;
+  const number = Number(value || 0);
+
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: Number.isInteger(number) ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(number);
 }

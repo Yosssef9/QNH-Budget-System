@@ -52,7 +52,7 @@ export async function getCurrentBudgetService({ budgetAccess }) {
   if (!budget) {
     throw new ApiError(
       404,
-      "No draft budget found for your department in the open financial year",
+      "No budget found for your department in the open financial year",
       "CURRENT_BUDGET_NOT_FOUND",
     );
   }
@@ -161,7 +161,6 @@ export async function createBudgetService({ body, user, budgetAccess }) {
     alreadyExists: false,
   };
 }
-
 
 export async function submitBudgetService({ budgetId, user, budgetAccess }) {
   const budget = await getBudgetForSubmitRepo(budgetId);

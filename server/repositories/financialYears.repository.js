@@ -27,17 +27,17 @@ export async function findFinancialYearByYear(year) {
   const pool = await poolPromise;
 
   const result = await pool.request().input("year", sql.Int, year).query(`
-      SELECT TOP 1
-        id,
-        year,
-        status,
-        started_by,
-        started_at,
-        closed_by,
-        closed_at
-      FROM BS_financial_years
-    WHERE financial_year_id = @financialYearId
-    `);
+    SELECT TOP 1
+      id,
+      year,
+      status,
+      started_by,
+      started_at,
+      closed_by,
+      closed_at
+    FROM BS_financial_years
+    WHERE year = @year
+  `);
 
   return result.recordset[0] || null;
 }
@@ -130,13 +130,15 @@ export async function closeFinancialYearRepo({ id, closedBy }) {
   return result.recordset[0] || null;
 }
 
-export async function countNotApprovedBudgetsForYearRepo(year) {
+export async function countNotApprovedBudgetsForYearRepo(financialYearId) {
   const pool = await poolPromise;
 
-  const result = await pool.request().input("year", sql.Int, year).query(`
+  const result = await pool
+    .request()
+    .input("financialYearId", sql.Int, financialYearId).query(`
       SELECT COUNT(*) AS count
       FROM BS_budgets
-    WHERE financial_year_id = @financialYearId
+      WHERE financial_year_id = @financialYearId
         AND is_active = 1
         AND status <> 'APPROVED'
     `);

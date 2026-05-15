@@ -6,6 +6,7 @@ import {
   useCreateFinancialYear,
   useFinancialYears,
 } from "../hooks/financial-years/useFinancialYears";
+import { formatDateTime } from "../utils/dateFormatters";
 
 function getErrorMessage(error, fallback) {
   return error?.response?.data?.message || fallback;
@@ -147,17 +148,13 @@ export default function FinancialYearsPage() {
                     {item.started_by_name || item.started_by || "-"}
                   </td>
                   <td className="px-4 py-4 text-slate-600">
-                    {item.started_at
-                      ? new Date(item.started_at).toLocaleString()
-                      : "-"}
+                    {item.started_at ? formatDateTime(item.started_at) : "-"}
                   </td>
                   <td className="px-4 py-4 text-slate-600">
                     {item.closed_by_name || item.closed_by || "-"}
                   </td>
                   <td className="px-4 py-4 text-slate-600">
-                    {item.closed_at
-                      ? new Date(item.closed_at).toLocaleString()
-                      : "-"}
+                    {item.closed_at ? formatDateTime(item.closed_at) : "-"}
                   </td>
                   <td className="px-4 py-4 text-right">
                     {item.status === "OPEN" ? (

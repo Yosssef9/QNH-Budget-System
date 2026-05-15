@@ -179,3 +179,203 @@ export async function reactivateTypeRepo(typeId, expenseType) {
 
   return result.recordset[0];
 }
+export async function findTypeByIdRepo(typeId) {
+  const pool = await poolPromise;
+
+  const result = await pool.request().input("typeId", sql.Int, typeId).query(`
+    SELECT TOP 1
+      id,
+      category_id,
+      name,
+      expense_type,
+      is_active
+    FROM BS_budget_types
+    WHERE id = @typeId
+      AND is_active = 1
+  `);
+
+  return result.recordset[0] || null;
+}
+
+export async function updateCategoryRepo({ categoryId, name }) {
+  const pool = await poolPromise;
+
+  const result = await pool
+    .request()
+    .input("categoryId", sql.Int, categoryId)
+    .input("name", sql.NVarChar(200), name).query(`
+      UPDATE BS_budget_categories
+      SET name = @name
+      OUTPUT
+        INSERTED.id,
+        INSERTED.name,
+        INSERTED.is_active,
+        INSERTED.created_at
+      WHERE id = @categoryId
+        AND is_active = 1
+    `);
+
+  return result.recordset[0];
+}
+
+export async function updateTypeRepo({
+  typeId,
+  categoryId,
+  name,
+  expenseType,
+}) {
+  const pool = await poolPromise;
+
+  const result = await pool
+    .request()
+    .input("typeId", sql.Int, typeId)
+    .input("categoryId", sql.Int, categoryId)
+    .input("name", sql.NVarChar(200), name)
+    .input("expenseType", sql.VarChar(10), expenseType).query(`
+      UPDATE BS_budget_types
+      SET
+        category_id = @categoryId,
+        name = @name,
+        expense_type = @expenseType
+      OUTPUT
+        INSERTED.id,
+        INSERTED.category_id,
+        INSERTED.name,
+        INSERTED.expense_type,
+        INSERTED.is_active,
+        INSERTED.created_at
+      WHERE id = @typeId
+        AND is_active = 1
+    `);
+
+  return result.recordset[0];
+}
+
+export async function getCategoryUsageRepo(categoryId) {
+  const pool = await poolPromise;
+
+  const result = await pool.request().input("categoryId", sql.Int, categoryId)
+    .query(`
+      SELECT
+        b.id AS budget_id,
+        d.name AS department_name,
+        fy.year AS financial_year,
+        b.status,
+        COUNT(bi.id) AS items_count,
+        ISNULL(SUM(bi.total_amount), 0) AS total_amount
+      FROM BS_budget_items bi
+      INNER JOIN BS_budget_types t
+        ON t.id = bi.type_id
+      INNER JOIN BS_budgets b
+        ON b.id = bi.budget_id
+       AND b.is_active = 1
+      INNER JOIN BS_departments d
+        ON d.id = b.department_id
+      INNER JOIN BS_financial_years fy
+        ON fy.id = b.financial_year_id
+      WHERE t.category_id = @categoryId
+        AND bi.is_active = 1
+      GROUP BY
+        b.id,
+        d.name,
+        fy.year,
+        b.status
+      ORDER BY fy.year DESC, d.name ASC
+    `);
+
+  return result.recordset;
+}
+
+export async function getTypeUsageRepo(typeId) {
+  const pool = await poolPromise;
+
+  const result = await pool.request().input("typeId", sql.Int, typeId).query(`
+    SELECT
+      b.id AS budget_id,
+      d.name AS department_name,
+      fy.year AS financial_year,
+      b.status,
+      COUNT(bi.id) AS items_count,
+      ISNULL(SUM(bi.total_amount), 0) AS total_amount
+    FROM BS_budget_items bi
+    INNER JOIN BS_budgets b
+      ON b.id = bi.budget_id
+     AND b.is_active = 1
+    INNER JOIN BS_departments d
+      ON d.id = b.department_id
+    INNER JOIN BS_financial_years fy
+      ON fy.id = b.financial_year_id
+    WHERE bi.type_id = @typeId
+      AND bi.is_active = 1
+    GROUP BY
+      b.id,
+      d.name,
+      fy.year,
+      b.status
+    ORDER BY fy.year DESC, d.name ASC
+  `);
+
+  return result.recordset;
+}
+
+export async function deleteCategoryRepo(categoryId) {
+  const pool = await poolPromise;
+
+  const transaction = new sql.Transaction(pool);
+
+  try {
+    await transaction.begin();
+
+    await new sql.Request(transaction).input("categoryId", sql.Int, categoryId)
+      .query(`
+        UPDATE BS_budget_types
+        SET is_active = 0
+        WHERE category_id = @categoryId
+      `);
+
+    const result = await new sql.Request(transaction).input(
+      "categoryId",
+      sql.Int,
+      categoryId,
+    ).query(`
+        UPDATE BS_budget_categories
+        SET is_active = 0
+        OUTPUT
+          INSERTED.id,
+          INSERTED.name,
+          INSERTED.is_active
+        WHERE id = @categoryId
+          AND is_active = 1
+      `);
+
+    await transaction.commit();
+
+    return result.recordset[0];
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+}
+
+export async function deleteTypeRepo({ categoryId, typeId }) {
+  const pool = await poolPromise;
+
+  const result = await pool
+    .request()
+    .input("categoryId", sql.Int, categoryId)
+    .input("typeId", sql.Int, typeId).query(`
+      UPDATE BS_budget_types
+      SET is_active = 0
+      OUTPUT
+        INSERTED.id,
+        INSERTED.category_id,
+        INSERTED.name,
+        INSERTED.expense_type,
+        INSERTED.is_active
+      WHERE id = @typeId
+        AND category_id = @categoryId
+        AND is_active = 1
+    `);
+
+  return result.recordset[0];
+}

@@ -3,9 +3,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, AlertCircle } from "lucide-react";
 
 import { MONTHS as months } from "../../constants/months.constants";
-import { formatNumber, formatSAR } from "../../utils/formatters";
+import { formatNumber } from "../../utils/formatters";
+import CurrencyText from "../../components/CurrencyText";
 import { toNumber } from "../../utils/number";
 
+import {
+  getBudgetStatusLabel,
+  getBudgetStatusStyle,
+} from "../../theme/statusStyles";
+import { formatDateTime } from "../../utils/dateFormatters";
 function getMethodBase(method) {
   if (method === "CUSTOM_MONTHLY" || method === "CUSTOM_QUARTERLY") {
     return "CUSTOM";
@@ -95,8 +101,12 @@ export default function ReadonlyBudgetGrid({
           <Info
             label="Status:"
             value={
-              <span className="rounded-md bg-amber-50 px-2 py-1 text-xs font-bold text-amber-700">
-                {budget?.status || "-"}
+              <span
+                className={`rounded-md border px-2 py-1 text-xs font-bold ${
+                  getBudgetStatusStyle(budget?.status).badge
+                }`}
+              >
+                {getBudgetStatusLabel(budget?.status)}
               </span>
             }
           />
@@ -104,7 +114,7 @@ export default function ReadonlyBudgetGrid({
             label="Submitted At:"
             value={
               budget?.submitted_at
-                ? new Date(budget.submitted_at).toLocaleString()
+                ?formatDateTime(budget.submitted_at)
                 : "-"
             }
           />
@@ -112,7 +122,7 @@ export default function ReadonlyBudgetGrid({
             label="Created Date:"
             value={
               budget?.created_at
-                ? new Date(budget.created_at).toLocaleDateString()
+                ?formatDateTime(budget.created_at)
                 : "-"
             }
           />
@@ -126,7 +136,7 @@ export default function ReadonlyBudgetGrid({
           </h2>
 
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-blue-600 shadow-sm">
-            {formatSAR(summary.totalAmount)}
+            <CurrencyText value={summary.totalAmount} />
           </div>
         </div>
 
@@ -219,11 +229,11 @@ export default function ReadonlyBudgetGrid({
                     </td>
 
                     <td className="border border-slate-200 px-3 py-4 text-center">
-                      {formatSAR(item.unit_price)}
+                      <CurrencyText value={item.unit_price} />
                     </td>
 
                     <td className="border border-slate-200 px-3 py-4 text-center font-bold text-blue-600">
-                      {formatSAR(item.total_amount)}
+                      <CurrencyText value={item.total_amount} />
                     </td>
 
                     {showNotes && (
@@ -310,7 +320,7 @@ export default function ReadonlyBudgetGrid({
             />
             <Summary
               label="Total Amount"
-              value={formatSAR(summary.totalAmount)}
+              value={<CurrencyText value={summary.totalAmount} />}
               blue
             />
           </div>

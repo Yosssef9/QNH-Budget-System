@@ -68,3 +68,16 @@ export function validateCategoryId(value) {
 
   return categoryId;
 }
+export function validateTypeId(value) {
+  const typeId = Number(value);
+
+  if (!Number.isInteger(typeId) || typeId <= 0) {
+    throw new ApiError(
+      400,
+      "typeId must be a positive number",
+      "VALIDATION_ERROR",
+    );
+  }
+
+  return typeId;
+}

@@ -10,6 +10,8 @@ dotenv.config();
 //   isAdmin: true,
 // };
 
+// HOD Billing
+
 const payload = {
   userId: 823,
   userCode: "4126",
@@ -17,8 +19,35 @@ const payload = {
   isAdmin: true,
 };
 
+// HOD Laboratory
+
+// const payload = {
+//   userId: 772,
+//   userCode: "4140",
+//   userName: "Abdulaziz Matar Mohammed Alharbi",
+//   isAdmin: true,
+// };
+
+// HOD Patient Safety
+
+// const payload = {
+//   userId: 957,
+//   userCode: "6170",
+//   userName: "Lama Alharbi",
+//   isAdmin: true,
+// };
+
+// HOD Laundry
+
+// const payload = {
+//   userId: 467,
+//   userCode: "2024",
+//   userName: " Mansour Ahmad Saqer Alotibi",
+//   isAdmin: true,
+// };
+
 const token = jwt.sign(payload, process.env.PORTAL_JWT_SECRET, {
-  expiresIn: "1d",
+  expiresIn: "7d",
 });
 
 console.log("\nBearer Token:\n");

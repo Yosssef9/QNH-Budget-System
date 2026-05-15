@@ -38,7 +38,7 @@ export async function getCurrentBudgetRepo({ departmentId, financialYearId }) {
       WHERE b.department_id = @departmentId
         AND b.financial_year_id = @financialYearId
         AND b.is_active = 1
-        AND b.status IN ('DRAFT', 'RETURNED')
+     AND b.status IN ('DRAFT', 'RETURNED', 'PENDING_APPROVAL', 'APPROVED')
       ORDER BY b.id DESC
     `);
 

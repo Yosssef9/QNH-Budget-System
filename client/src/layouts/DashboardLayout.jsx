@@ -8,6 +8,7 @@ import {
   Settings,
   BarChart3,
   ChevronRight,
+  Tags,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useUnsavedChanges } from "../context/UnsavedChangesContext";
@@ -30,7 +31,7 @@ function getNavItems(budgetAccess) {
     },
     {
       label: "Approvals",
-path: "/budget-approval",
+      path: "/budget-approval",
       icon: CheckCircle2,
       show: permissions.can_approve_budget,
     },
@@ -39,6 +40,12 @@ path: "/budget-approval",
       path: "/admin/users",
       icon: Settings,
       show: permissions.can_manage_users,
+    },
+    {
+      label: "Budget Setup",
+      path: "/admin/budget-setup",
+      icon: Tags,
+      show: permissions.can_manage_categories,
     },
     {
       label: "Reports",

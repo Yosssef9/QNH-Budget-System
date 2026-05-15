@@ -7,6 +7,7 @@ import {
   approveBudgetRepo,
   returnBudgetRepo,
   getBudgetComparisonRepo,
+  getApprovedBudgetsRepo,
 } from "../repositories/budgetApproval.repository.js";
 
 import { insertBudgetNoteRepo } from "../repositories/budgetNote.repository.js";
@@ -124,7 +125,9 @@ export async function returnBudgetService({ budgetId, body, user }) {
   return returned;
 }
 
-
 export async function getBudgetComparisonService() {
   return await getBudgetComparisonRepo();
+}
+export async function getApprovedBudgetsService() {
+  return await getApprovedBudgetsRepo();
 }

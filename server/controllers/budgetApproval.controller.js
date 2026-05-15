@@ -7,6 +7,7 @@ import {
   approveBudgetService,
   returnBudgetService,
   getBudgetComparisonService,
+  getApprovedBudgetsService,
 } from "../services/budgetApproval.service.js";
 
 export const getPendingBudgets = asyncHandler(async (req, res) => {
@@ -61,13 +62,22 @@ export const returnBudget = asyncHandler(async (req, res) => {
   );
 });
 
-
 export const getBudgetComparison = asyncHandler(async (req, res) => {
   const data = await getBudgetComparisonService();
 
   res.json(
     new ApiResponse({
       message: "Budget comparison fetched successfully",
+      data,
+    }),
+  );
+});
+export const getApprovedBudgets = asyncHandler(async (req, res) => {
+  const data = await getApprovedBudgetsService();
+
+  res.json(
+    new ApiResponse({
+      message: "Approved budgets fetched successfully",
       data,
     }),
   );

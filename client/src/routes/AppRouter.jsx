@@ -1,5 +1,6 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { UnsavedChangesProvider } from "../context/UnsavedChangesContext";
+import ErrorPage from "../pages/ErrorPage";
 import DashboardLayout from "../layouts/DashboardLayout";
 import DashboardPage from "../pages/DashboardPage";
 import LoginRequiredPage from "../pages/LoginRequiredPage";
@@ -11,6 +12,12 @@ import BudgetsPage from "../pages/BudgetsPage";
 import FinancialYearsPage from "../pages/FinancialYearsPage";
 import BudgetApprovalPage from "../pages/budget-approval/BudgetApprovalPage";
 import BudgetSetupPage from "../pages/BudgetSetupPage";
+import AuditLogsPage from "../pages/AuditLogsPage";
+import ReportsPage from "../pages/ReportsPage";
+import TransferPage from "../pages/TransferPage";
+import MyBudgetsPage from "../pages/budget/MyBudgetsPage";
+import BudgetViewPage from "../pages/budget/BudgetViewPage";
+
 const router = createBrowserRouter([
   {
     path: "/",
@@ -21,6 +28,7 @@ const router = createBrowserRouter([
         </UnsavedChangesProvider>
       </RequireAuth>
     ),
+    errorElement: <ErrorPage />,
     children: [
       {
         index: true,
@@ -51,6 +59,22 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: "budgets/my",
+        element: (
+          <RequirePermission permission="can_edit_budget">
+            <MyBudgetsPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: "budgets/view/:budgetId",
+        element: (
+          <RequirePermission permission="can_view_budget">
+            <BudgetViewPage />
+          </RequirePermission>
+        ),
+      },
+      {
         path: "financial-years",
         element: (
           <RequirePermission permission="can_manage_financial_years">
@@ -74,11 +98,40 @@ const router = createBrowserRouter([
           </RequirePermission>
         ),
       },
+      {
+        path: "admin/audit-logs",
+        element: (
+          <RequirePermission permission="can_manage_users">
+            <AuditLogsPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: "transfers",
+        element: (
+          <RequirePermission permission="can_request_transfer">
+            <TransferPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: "reports",
+        element: (
+          <RequirePermission permission="can_view_reports">
+            <ReportsPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: "*",
+        element: <ErrorPage />,
+      },
     ],
   },
   {
     path: "/login-required",
     element: <LoginRequiredPage />,
+    errorElement: <ErrorPage />,
   },
 ]);
 

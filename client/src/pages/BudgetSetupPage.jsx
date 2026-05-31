@@ -20,7 +20,7 @@ import {
   XCircle,
   ChevronDown,
 } from "lucide-react";
-formatDateTime
+
 import ConfirmModal from "../components/ConfirmModal";
 import SearchableMultiSelect from "../components/SearchableMultiSelect";
 import {
@@ -300,7 +300,7 @@ export default function BudgetSetupPage() {
         type: "DELETE_CATEGORY",
         target: category,
         usage,
-        title: "Delete category?",
+        title: "Deactivate category?",
         message: buildUsageMessage("delete", category.name, usage),
         danger: true,
       });
@@ -344,7 +344,7 @@ export default function BudgetSetupPage() {
         type: "DELETE_TYPE",
         target: item,
         usage,
-        title: "Delete item/type?",
+        title: "Deactivate item/type?",
         message: buildUsageMessage("delete", item.name, usage),
         danger: true,
       });
@@ -373,7 +373,7 @@ export default function BudgetSetupPage() {
     if (confirmAction.type === "DELETE_CATEGORY") {
       try {
         await deleteCategoryMutation.mutateAsync(confirmAction.target.id);
-        toast.success("Category deleted successfully");
+        toast.success("Category deactivated successfully");
 
         if (String(selectedCategoryId) === String(confirmAction.target.id)) {
           setSelectedCategoryId("");
@@ -396,7 +396,7 @@ export default function BudgetSetupPage() {
           typeId: confirmAction.target.id,
         });
 
-        toast.success("Item/type deleted successfully");
+        toast.success("Item/type deactivated successfully");
         setConfirmAction(null);
       } catch (error) {
         toast.error(
@@ -682,9 +682,7 @@ export default function BudgetSetupPage() {
                                       </p>
                                       <p className="mt-1 font-semibold text-slate-900">
                                         {request.created_at
-                                          ?formatDateTime(
-                                              request.created_at,
-                                            )
+                                          ? formatDateTime(request.created_at)
                                           : "-"}
                                       </p>
                                     </div>
@@ -1029,7 +1027,7 @@ export default function BudgetSetupPage() {
                       disabled={
                         createTypeMutation.isPending || !selectedCategoryId
                       }
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-60"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:opacity-60"
                     >
                       {createTypeMutation.isPending ? (
                         <Loader2 className="animate-spin" size={18} />

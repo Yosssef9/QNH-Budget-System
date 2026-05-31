@@ -77,7 +77,7 @@ export async function createCategoryRepo({ name }) {
         INSERTED.name,
         INSERTED.is_active,
         INSERTED.created_at
-      VALUES (@name, 1, GETDATE())
+      VALUES (@name, 1, GETUTCDATE())
     `);
 
   return result.recordset[0];
@@ -149,7 +149,7 @@ export async function createTypeRepo({ categoryId, name, expenseType }) {
         @name,
         @expenseType,
         1,
-        GETDATE()
+        GETUTCDATE()
       )
     `);
 

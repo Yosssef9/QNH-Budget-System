@@ -31,7 +31,7 @@ export async function getItemRequestsRepo(status) {
       r.reviewed_by,
       reviewer.USER_NAME AS reviewed_by_name,
       r.reviewed_at,
-      r.created_at
+    created_at
     FROM BS_budget_item_requests r
     LEFT JOIN BS_budget_categories c
       ON c.id = r.existing_category_id
@@ -88,7 +88,7 @@ export async function createItemRequestRepo({
         @requestedTypeName,
         @requestedBy,
         'PENDING',
-        GETDATE()
+        GETUTCDATE()
       )
     `);
 
@@ -125,7 +125,7 @@ export async function approveItemRequestRepo({
         status = 'APPROVED',
         admin_note = @adminNote,
         reviewed_by = @reviewedBy,
-        reviewed_at = GETDATE()
+        reviewed_at = GETUTCDATE()
       OUTPUT INSERTED.*
       WHERE id = @requestId
     `);
@@ -150,7 +150,7 @@ export async function approveItemRequestManualRepo({
         status = 'APPROVED',
         admin_note = @adminNote,
         reviewed_by = @reviewedBy,
-        reviewed_at = GETDATE()
+        reviewed_at = GETUTCDATE()
       OUTPUT INSERTED.*
       WHERE id = @requestId
     `);
@@ -175,10 +175,72 @@ export async function rejectItemRequestRepo({
         status = 'REJECTED',
         admin_note = @adminNote,
         reviewed_by = @reviewedBy,
-        reviewed_at = GETDATE()
+        reviewed_at = GETUTCDATE()
       OUTPUT INSERTED.*
       WHERE id = @requestId
     `);
 
   return result.recordset[0];
+}
+export async function getDashboardItemRequestsRepo({ userId, budgetAccess }) {
+  const pool = await poolPromise;
+
+  const canManageCategories =
+    budgetAccess?.permissions?.can_manage_categories ||
+    budgetAccess?.permissions?.can_manage_users;
+
+  const departmentId = budgetAccess?.department?.id || null;
+
+  const result = await pool
+    .request()
+    .input("userId", sql.Int, userId)
+    .input("departmentId", sql.Int, departmentId)
+    .input("canManageCategories", sql.Bit, canManageCategories ? 1 : 0).query(`
+      SELECT
+        r.id,
+        r.requested_category_name,
+        r.requested_type_name,
+        r.existing_category_id,
+        c.name AS existing_category_name,
+        r.status,
+        r.admin_note,
+    created_at
+        r.reviewed_at,
+        u.USER_NAME AS requested_by_name,
+        d.name AS requested_department_name
+      FROM BS_budget_item_requests r
+      LEFT JOIN BS_budget_categories c
+        ON c.id = r.existing_category_id
+      LEFT JOIN users u
+        ON u.USER_ID = r.requested_by
+      OUTER APPLY (
+        SELECT TOP 1 department_id
+        FROM BS_budget_user_roles bur
+        WHERE bur.user_id = r.requested_by
+          AND bur.is_active = 1
+          AND bur.department_id IS NOT NULL
+        ORDER BY bur.id DESC
+      ) bur
+      LEFT JOIN BS_departments d
+        ON d.id = bur.department_id
+      WHERE
+        (
+          @canManageCategories = 1
+          AND r.status = 'PENDING'
+        )
+        OR
+        (
+          @canManageCategories = 0
+          AND (
+            r.requested_by = @userId
+            OR bur.department_id = @departmentId
+          )
+        )
+      ORDER BY r.created_at DESC, r.id DESC;
+    `);
+
+  return {
+    mode: canManageCategories ? "ADMIN_PENDING" : "HOD_MY_REQUESTS",
+    requests: result.recordset || [],
+  };
 }

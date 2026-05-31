@@ -6,6 +6,7 @@ import {
   getItemRequestsRepo,
   rejectItemRequestRepo,
   approveItemRequestManualRepo,
+  getDashboardItemRequestsRepo,
 } from "../repositories/itemRequest.repository.js";
 import {
   createCategoryService,
@@ -112,4 +113,7 @@ export async function approveItemRequestManualService({
     adminNote,
     reviewedBy,
   });
+}
+export async function getDashboardItemRequestsService({ userId, budgetAccess }) {
+  return await getDashboardItemRequestsRepo({ userId, budgetAccess });
 }

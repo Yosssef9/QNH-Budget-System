@@ -9,6 +9,7 @@ import {
   getBudgetForSubmitRepo,
   countActiveBudgetItemsRepo,
   submitBudgetRepo,
+  getBudgetByIdRepo,
 } from "../repositories/budgets.repository.js";
 
 export async function getCurrentBudgetService({ budgetAccess }) {
@@ -134,7 +135,9 @@ export async function createBudgetService({ body, user, budgetAccess }) {
   });
 
   if (existingBudget) {
-    if (["DRAFT", "RETURNED"].includes(existingBudget.status)) {
+    const isEditableStatus = ["DRAFT", "RETURNED"];
+
+    if (isEditableStatus.includes(existingBudget.status)) {
       return {
         budget: existingBudget,
         financialYear,
@@ -167,6 +170,13 @@ export async function submitBudgetService({ budgetId, user, budgetAccess }) {
 
   if (!budget) {
     throw new ApiError(404, "Budget not found", "BUDGET_NOT_FOUND");
+  }
+  if (budget.financial_year_status !== "OPEN") {
+    throw new ApiError(
+      400,
+      "Budget submission is only allowed while financial year is OPEN",
+      "FINANCIAL_YEAR_NOT_OPEN",
+    );
   }
 
   if (!["DRAFT", "RETURNED"].includes(budget.status)) {
@@ -201,4 +211,13 @@ export async function submitBudgetService({ budgetId, user, budgetAccess }) {
     budgetId,
     submittedBy: user.userId,
   });
+}
+export async function getBudgetDetailsService(budgetId) {
+  const budget = await getBudgetByIdRepo(budgetId);
+
+  if (!budget) {
+    throw new ApiError(404, "Budget not found");
+  }
+
+  return budget;
 }

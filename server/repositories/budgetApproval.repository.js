@@ -52,6 +52,7 @@ export async function getBudgetHeaderRepo(budgetId) {
         d.name AS department_name,
         b.financial_year_id,
         fy.year AS financial_year,
+        fy.status AS financial_year_status,
         b.status,
         b.created_by,
         b.created_at,
@@ -113,10 +114,10 @@ export async function approveBudgetRepo({ budgetId, approvedBy }) {
       SET
         status = 'APPROVED',
         approved_by = @approvedBy,
-        approved_at = GETDATE(),
+        approved_at = GETUTCDATE(),
         returned_by = NULL,
         returned_at = NULL,
-        updated_at = GETDATE()
+        updated_at = GETUTCDATE()
       OUTPUT INSERTED.*
       WHERE id = @budgetId
         AND status = 'PENDING_APPROVAL'
@@ -137,8 +138,8 @@ export async function returnBudgetRepo({ budgetId, returnedBy }) {
       SET
         status = 'RETURNED',
         returned_by = @returnedBy,
-        returned_at = GETDATE(),
-        updated_at = GETDATE()
+        returned_at = GETUTCDATE(),
+        updated_at = GETUTCDATE()
       OUTPUT INSERTED.*
       WHERE id = @budgetId
         AND status = 'PENDING_APPROVAL'

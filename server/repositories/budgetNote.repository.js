@@ -49,7 +49,7 @@ export async function getBudgetNotesRepo(budgetId) {
         n.note,
         n.created_by,
         u.USER_NAME AS created_by_name,
-        n.created_at
+      created_at
       FROM BS_budget_notes n
       LEFT JOIN users u ON u.USER_ID = n.created_by
       WHERE n.budget_id = @budgetId

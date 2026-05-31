@@ -4,6 +4,7 @@ import {
   createFinancialYear,
   getFinancialYears,
   getOpenFinancialYear,
+  preCloseFinancialYear,
 } from "../../api/financialYears.api";
 
 export function useFinancialYears() {
@@ -38,6 +39,18 @@ export function useCloseFinancialYear() {
 
   return useMutation({
     mutationFn: closeFinancialYear,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["financial-years"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-years", "open"] });
+      queryClient.invalidateQueries({ queryKey: ["budgets"] });
+    },
+  });
+}
+export function usePreCloseFinancialYear() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: preCloseFinancialYear,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["financial-years"] });
       queryClient.invalidateQueries({ queryKey: ["financial-years", "open"] });

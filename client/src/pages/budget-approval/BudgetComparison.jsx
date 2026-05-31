@@ -13,6 +13,14 @@ import {
   getBudgetStatusStyle,
 } from "../../theme/statusStyles";
 import CurrencyText from "../../components/CurrencyText";
+import BudgetComparisonInsights from "./BudgetComparisonInsights";
+import {
+  exportBudgetComparisonCsv,
+  getDepartmentRanking,
+  getDuplicateDepartmentItems,
+  getTopCostItems,
+  getUnitPriceVarianceItems,
+} from "../../helpers/budgetComparisonAnalytics.helper";
 import { useBudgetComparison } from "../../hooks/budgets/useBudgetApproval";
 import { formatNumber } from "../../utils/formatters";
 import { toNumber } from "../../utils/number";
@@ -58,7 +66,19 @@ export default function BudgetComparison() {
       expenseTypes: uniqueOptions(data, "expense_type"),
     };
   }, [data]);
+  const itemOptions = useMemo(() => {
+    if (filters.categoryIds.length === 0) {
+      return options.types;
+    }
 
+    const selectedCategoryIds = new Set(filters.categoryIds);
+
+    return uniqueOptions(
+      data.filter((row) => selectedCategoryIds.has(String(row.category_id))),
+      "type_id",
+      "type_name",
+    );
+  }, [data, filters.categoryIds, options.types]);
   const filteredRows = useMemo(() => {
     const search = filters.search.trim().toLowerCase();
 
@@ -132,7 +152,24 @@ export default function BudgetComparison() {
       setDetailedPage(detailedTotalPages);
     }
   }, [detailedPage, detailedTotalPages]);
+  useEffect(() => {
+    if (filters.categoryIds.length === 0) return;
 
+    const allowedTypeIds = new Set(
+      itemOptions.map((item) => String(item.value)),
+    );
+
+    const validTypeIds = filters.typeIds.filter((typeId) =>
+      allowedTypeIds.has(String(typeId)),
+    );
+
+    if (validTypeIds.length !== filters.typeIds.length) {
+      setFilters((prev) => ({
+        ...prev,
+        typeIds: validTypeIds,
+      }));
+    }
+  }, [filters.categoryIds, filters.typeIds, itemOptions]);
   const paginatedDetailedRows = useMemo(() => {
     const start = (detailedPage - 1) * detailedPageSize;
     return filteredRows.slice(start, start + detailedPageSize);
@@ -248,6 +285,26 @@ export default function BudgetComparison() {
       };
     });
   }, [groupedByItem]);
+
+  const topCostItems = useMemo(
+    () => getTopCostItems(groupedByItem, 10),
+    [groupedByItem],
+  );
+
+  const duplicateItems = useMemo(
+    () => getDuplicateDepartmentItems(groupedByItem),
+    [groupedByItem],
+  );
+
+  const varianceItems = useMemo(
+    () => getUnitPriceVarianceItems(groupedByItem),
+    [groupedByItem],
+  );
+
+  const departmentRanking = useMemo(
+    () => getDepartmentRanking(filteredRows),
+    [filteredRows],
+  );
   function updateFilter(name, value) {
     setFilters((prev) => ({
       ...prev,
@@ -266,7 +323,19 @@ export default function BudgetComparison() {
       search: "",
     });
   }
+  function filterByItem(typeId) {
+    setFilters((prev) => ({
+      ...prev,
+      typeIds: [String(typeId)],
+    }));
+  }
 
+  function filterByDepartment(departmentId) {
+    setFilters((prev) => ({
+      ...prev,
+      departmentIds: [String(departmentId)],
+    }));
+  }
   if (isLoading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center rounded-3xl border border-slate-200 bg-white text-slate-500">
@@ -308,7 +377,15 @@ export default function BudgetComparison() {
           value={<CurrencyText value={summary.totalAmount} />}
         />
       </section>
-
+      <BudgetComparisonInsights
+        topCostItems={topCostItems}
+        duplicateItems={duplicateItems}
+        varianceItems={varianceItems}
+        departmentRanking={departmentRanking}
+        onExport={() => exportBudgetComparisonCsv(filteredRows)}
+        onFilterItem={filterByItem}
+        onFilterDepartment={filterByDepartment}
+      />
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <div>
@@ -359,7 +436,7 @@ export default function BudgetComparison() {
           <MultiSelectFilter
             label="Item"
             values={filters.typeIds}
-            options={options.types}
+            options={itemOptions}
             onChange={(values) => updateFilter("typeIds", values)}
           />
           <MultiSelectFilter

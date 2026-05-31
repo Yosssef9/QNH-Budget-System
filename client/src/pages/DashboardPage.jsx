@@ -1,339 +1,203 @@
-import {
-  CalendarDays,
-  Clock3,
-  CheckCircle2,
-  AlertTriangle,
-  Wallet,
-  Users,
-  BarChart3,
-  Building2,
-  FileSpreadsheet,
-  Link2,
-  Repeat2,
-  ShieldCheck,
-  Tags,
-} from "lucide-react";
-import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { can, getUserRoleLabel } from "../helpers/permissions";
-
-function getStats(budgetAccess) {
-  return [
-    {
-      title: "Current Financial Year",
-      value: "2027",
-      description: "Open for budget entry",
-      icon: CalendarDays,
-      show: true,
-    },
-    {
-      title:
-        can(budgetAccess, "can_approve_budget") ||
-        can(budgetAccess, "can_manage_users")
-          ? "Budget Scope"
-          : "My Department",
-
-      value:
-        can(budgetAccess, "can_approve_budget") ||
-        can(budgetAccess, "can_manage_users")
-          ? "All Departments"
-          : budgetAccess?.department?.name || "My Department",
-
-      description:
-        can(budgetAccess, "can_approve_budget") ||
-        can(budgetAccess, "can_manage_users")
-          ? "You can view budgets for all departments"
-          : "You can view only your department budget",
-
-      icon: Building2,
-      show: true,
-    },
-    {
-      title: "Draft / Returned Budgets",
-      value: "0",
-      description: "Budgets that need editing or resubmission",
-      icon: Wallet,
-      show: can(budgetAccess, "can_edit_budget"),
-    },
-    {
-      title: "Pending Budget Approvals",
-      value: "0",
-      description: "Budgets waiting for your decision",
-      icon: Clock3,
-      show: can(budgetAccess, "can_approve_budget"),
-    },
-    {
-      title: "Pending Transfer Approvals",
-      value: "0",
-      description: "Transfer requests waiting review",
-      icon: Repeat2,
-      show: can(budgetAccess, "can_approve_transfer"),
-    },
-    {
-      title: "Approved Budgets",
-      value: "0",
-      description: "Approved active department budgets",
-      icon: CheckCircle2,
-      show: can(budgetAccess, "can_view_budget"),
-    },
-    {
-      title: "Exceeded Items",
-      value: "0",
-      description: "Items with negative remaining balance",
-      icon: AlertTriangle,
-      show: can(budgetAccess, "can_view_reports"),
-    },
-    {
-      title: "System Users",
-      value: "0",
-      description: "Users with Budget System access",
-      icon: Users,
-      show: can(budgetAccess, "can_manage_users"),
-    },
-  ].filter((item) => item.show);
-}
-
-function getQuickActions(budgetAccess) {
-  return [
-    {
-      title: "Manage Financial Years",
-      description: "Create and control active budget years.",
-      path: "/financial-years",
-      icon: CalendarDays,
-      show: can(budgetAccess, "can_manage_financial_years"),
-    },
-    {
-      title: "View Budgets",
-      description: "Review assigned department budgets.",
-      path: "/budgets",
-      icon: Wallet,
-      show: can(budgetAccess, "can_view_budget"),
-    },
-    {
-      title: "Enter / Edit Budget",
-      description: "Enter, import, copy, and submit budgets.",
-      path: "/budgets",
-      icon: FileSpreadsheet,
-      show: can(budgetAccess, "can_edit_budget"),
-    },
-    {
-      title: "Link Approved PO",
-      description: "Connect approved CareWare PO lines to budget items.",
-      path: "/budgets",
-      icon: Link2,
-      show: can(budgetAccess, "can_link_po"),
-    },
-    {
-      title: "Request Transfer",
-      description: "Move balance between existing or new budget items.",
-      path: "/budgets",
-      icon: Repeat2,
-      show: can(budgetAccess, "can_request_transfer"),
-    },
-    {
-      title: "Approve Budgets",
-      description: "Approve or return submitted budgets.",
-      path: "/budget-approval",
-      icon: ShieldCheck,
-      show: can(budgetAccess, "can_approve_budget"),
-    },
-    {
-      title: "Approve Transfers",
-      description: "Approve or reject transfer requests.",
-      path: "/budget-approval",
-      icon: Repeat2,
-      show: can(budgetAccess, "can_approve_transfer"),
-    },
-    {
-      title: "Manage Users",
-      description: "Assign roles and override permissions.",
-      path: "/admin/users",
-      icon: Users,
-      show: can(budgetAccess, "can_manage_users"),
-    },
-    {
-      title: "Manage Categories",
-      description: "Control categories, types, and item requests.",
-      path: "/admin/budget-setup",
-      icon: Tags,
-      show: can(budgetAccess, "can_manage_categories"),
-    },
-    {
-      title: "Reports",
-      description: "Track usage, variance, transfers, and exceeded items.",
-      path: "/reports",
-      icon: BarChart3,
-      show: can(budgetAccess, "can_view_reports"),
-    },
-  ].filter((item) => item.show);
-}
-
-function getWorkPanels(budgetAccess) {
-  return [
-    {
-      title: "Budget Workspace",
-      description: "No draft, returned, or active budgets to show yet.",
-      show:
-        can(budgetAccess, "can_view_budget") ||
-        can(budgetAccess, "can_edit_budget"),
-    },
-    {
-      title: "PO Linking",
-      description:
-        "Approved CareWare PO lines ready for linking will appear here.",
-      show: can(budgetAccess, "can_link_po"),
-    },
-    {
-      title: "My Transfer Requests",
-      description:
-        "Your pending, approved, and rejected transfer requests will appear here.",
-      show: can(budgetAccess, "can_request_transfer"),
-    },
-    {
-      title: "Approval Queue",
-      description:
-        "Budgets and transfers waiting for your approval will appear here.",
-      show:
-        can(budgetAccess, "can_approve_budget") ||
-        can(budgetAccess, "can_approve_transfer"),
-    },
-    {
-      title: "Admin Overview",
-      description:
-        "User access, roles, categories, and item requests will appear here.",
-      show:
-        can(budgetAccess, "can_manage_users") ||
-        can(budgetAccess, "can_manage_categories"),
-    },
-    {
-      title: "Reports Overview",
-      description:
-        "Exceeded items, variance, PO usage, and transfer reports will appear here.",
-      show: can(budgetAccess, "can_view_reports"),
-    },
-  ].filter((item) => item.show);
-}
+import { getUserRoleLabel } from "../helpers/permissions";
+import { useDashboardData } from "../hooks/dashboard/useDashboardData";
+import { getDashboardStatsCards } from "../config/dashboardCards.config";
+import {
+  getQuickActions,
+  getWorkPanels,
+} from "../config/dashboardActions.config";
+import DashboardStatCard from "../components/dashboard/DashboardStatCard";
+import DashboardQuickActionCard from "../components/dashboard/DashboardQuickActionCard";
+import CollapsibleSection from "../components/CollapsibleSection";
+import { useNavigate } from "react-router-dom";
+import { formatDate } from "../utils/dateFormatters";
 
 export default function DashboardPage() {
   const { user, budgetAccess } = useAuth();
-
-  const stats = getStats(budgetAccess);
-  const quickActions = getQuickActions(budgetAccess);
-  const workPanels = getWorkPanels(budgetAccess);
+  const navigate = useNavigate();
   const roleLabel = getUserRoleLabel(budgetAccess);
 
+  const dashboardData = useDashboardData();
+  const stats = getDashboardStatsCards(budgetAccess, dashboardData);
+  const quickActions = getQuickActions(budgetAccess);
+  const workPanels = getWorkPanels(budgetAccess);
+
+  const itemRequestPanel = dashboardData.dashboardItemRequests;
+  const itemRequests = itemRequestPanel?.requests || [];
+  const pendingCount = itemRequests.filter(
+    (item) => item.status === "PENDING",
+  ).length;
   return (
     <div className="space-y-8 font-sans">
-      <section className="rounded-panel border border-enterprise-border bg-white p-6 shadow-card">
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-2xl">
-            <p className="text-sm font-medium tracking-wide text-primary-700">
+            <p className="text-sm font-semibold tracking-wide text-blue-700">
               Budget Dashboard
             </p>
 
-            <h2 className="mt-2 text-2xl font-medium tracking-tight text-enterprise-text">
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
               Welcome, {user?.userName || "User"}
             </h2>
 
-            <p className="mt-3 text-sm leading-6 text-enterprise-muted">
+            <p className="mt-3 text-sm font-medium leading-6 text-slate-500">
               Your dashboard changes automatically based on your role and
               department scope.
             </p>
           </div>
 
-          <div className="rounded-2xl border border-enterprise-border bg-enterprise-soft px-5 py-4">
-            <p className="text-xs text-enterprise-muted">Current Access</p>
-            <p className="mt-1 text-sm font-medium text-enterprise-text">
-              {roleLabel}
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+            <p className="text-xs font-semibold text-slate-500">
+              Current Access
             </p>
+            <p className="mt-1 text-sm font-bold text-slate-900">{roleLabel}</p>
           </div>
         </div>
       </section>
 
       <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        {stats.map((item) => {
-          const Icon = item.icon;
-
-          return (
-            <div
-              key={item.title}
-              className="rounded-card border border-enterprise-border bg-white p-5 shadow-soft"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm text-enterprise-muted">{item.title}</p>
-
-                  <div className="mt-3 text-2xl font-semibold tracking-tight text-enterprise-text">
-                    {item.value}
-                  </div>
-                </div>
-
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
-                  <Icon size={22} />
-                </div>
-              </div>
-
-              <p className="mt-4 text-sm leading-6 text-enterprise-muted">
-                {item.description}
-              </p>
-            </div>
-          );
-        })}
+        {stats.map((item) => (
+          <DashboardStatCard key={item.title} item={item} />
+        ))}
       </section>
 
       {quickActions.length > 0 && (
-        <section className="rounded-card border border-enterprise-border bg-white p-6 shadow-card">
-          <h3 className="text-lg font-medium tracking-tight text-enterprise-text">
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-bold tracking-tight text-slate-900">
             Quick Actions
           </h3>
 
           <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {quickActions.map((action) => {
-              const Icon = action.icon;
-
-              return (
-                <Link
-                  key={action.title}
-                  to={action.path}
-                  className="group rounded-xl border border-enterprise-border bg-enterprise-soft p-5 transition hover:border-primary-200 hover:bg-primary-50"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-primary-700 shadow-soft">
-                      <Icon size={20} />
-                    </div>
-
-                    <div>
-                      <h4 className="text-sm font-medium text-enterprise-text group-hover:text-primary-700">
-                        {action.title}
-                      </h4>
-
-                      <p className="mt-1 text-sm leading-6 text-enterprise-muted">
-                        {action.description}
-                      </p>
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
+            {quickActions.map((action) => (
+              <DashboardQuickActionCard key={action.title} action={action} />
+            ))}
           </div>
         </section>
       )}
 
-      <section className="grid gap-6 xl:grid-cols-2">
-        {workPanels.map((panel) => (
-          <div
-            key={panel.title}
-            className="rounded-card border border-enterprise-border bg-white p-6 shadow-card"
-          >
-            <h3 className="text-lg font-medium tracking-tight text-enterprise-text">
-              {panel.title}
-            </h3>
+      <section className="grid items-start gap-6 xl:grid-cols-2">
+        {workPanels.map((panel) => {
+          const isItemRequestPanel = panel.title.includes(
+            "Item / Category Requests",
+          );
 
-            <div className="mt-5 rounded-xl border border-dashed border-enterprise-border bg-enterprise-soft p-8 text-center text-sm text-enterprise-muted">
-              {panel.description}
-            </div>
-          </div>
-        ))}
+          return (
+            <CollapsibleSection
+              key={panel.title}
+              title={panel.title}
+              description={panel.description}
+              defaultOpen
+              className="rounded-3xl border-slate-200 bg-white shadow-sm"
+              headerClassName="bg-white"
+              bodyClassName="bg-white"
+              titleClassName="text-slate-900"
+              descriptionClassName="text-slate-500"
+              badgeClassName="bg-slate-50 text-slate-600"
+              openText="Hide"
+              closedText="Show"
+              action={
+                isItemRequestPanel && pendingCount > 0 ? (
+                  <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                    <div className="h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse" />
+
+                    <span className="text-xs font-bold text-amber-700">
+                      {pendingCount} Pending Request
+                      {pendingCount > 1 ? "s" : ""}
+                    </span>
+                  </div>
+                ) : null
+              }
+            >
+              {isItemRequestPanel ? (
+                <div className="enterprise-scrollbar max-h-[420px] space-y-3 overflow-y-auto scroll-smooth pr-2">
+                  {itemRequests.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm font-semibold text-slate-500">
+                      {itemRequestPanel?.mode === "ADMIN_PENDING"
+                        ? "No pending item/category requests."
+                        : "No item/category requests found."}
+                    </div>
+                  ) : (
+                    itemRequests.map((item) => (
+                      <div
+                        key={item.id}
+                        onClick={() => {
+                          if (itemRequestPanel?.mode === "ADMIN_PENDING") {
+                            navigate("/admin/budget-setup");
+                          }
+                        }}
+                        className={`rounded-2xl border border-slate-200 bg-slate-50 p-4 transition-all ${
+                          itemRequestPanel?.mode === "ADMIN_PENDING"
+                            ? "cursor-pointer hover:border-blue-300 hover:bg-blue-50 hover:shadow-md"
+                            : ""
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-bold text-slate-900">
+                              {item.requested_type_name}
+                            </p>
+
+                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                              Category:{" "}
+                              {item.existing_category_name ||
+                                item.requested_category_name ||
+                                "-"}
+                            </p>
+
+                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                              Department:{" "}
+                              {item.requested_department_name || "-"}
+                            </p>
+
+                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                              Requested By: {item.requested_by_name || "-"}
+                            </p>
+                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                              Requested At:{" "}
+                              {item.created_at
+                                ?   formatDate(item.created_at)
+                                : "-"}
+                            </p>
+                          </div>
+
+                          <span
+                            className={`rounded-full border px-3 py-1 text-xs font-bold ${
+                              item.status === "APPROVED"
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                : item.status === "REJECTED"
+                                  ? "border-red-200 bg-red-50 text-red-700"
+                                  : "border-amber-200 bg-amber-50 text-amber-700"
+                            }`}
+                          >
+                            {item.status}
+                          </span>
+                        </div>
+
+                        {item.admin_note && (
+                          <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+                            <p className="text-xs font-bold text-slate-900">
+                              Admin Note
+                            </p>
+
+                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                              {item.admin_note}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : (
+                <div className="enterprise-scrollbar max-h-[420px] overflow-y-auto scroll-smooth pr-2">
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm font-semibold text-slate-500">
+                    {panel.description}
+                  </div>
+                </div>
+              )}
+            </CollapsibleSection>
+          );
+        })}
       </section>
     </div>
   );

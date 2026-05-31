@@ -1,5 +1,6 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/apiResponse.js";
+import { auditLog } from "../utils/audit.js";
 import {
   getBudgetAccessAssignmentsService,
   createBudgetAccessAssignmentService,
@@ -30,7 +31,17 @@ export const createBudgetAccessAssignment = asyncHandler(async (req, res) => {
     ...req.body,
     created_by: req.user.userId,
   });
-
+  await auditLog(req, {
+    action: "UPDATE_USER_ACCESS",
+    entityName:
+      data.user_name ||
+      data.userName ||
+      `Access Assignment #${data.id || req.params.id}`,
+    entityType: "USER_ACCESS",
+    entityId: String(data.id),
+    description: `Granted ${data.role_name} access to ${data.user_name}`,
+    newValues: data,
+  });
   return res.status(201).json(
     new ApiResponse({
       message: "Budget access assignment created successfully",
@@ -46,7 +57,17 @@ export const updateBudgetAccessAssignment = asyncHandler(async (req, res) => {
     Number(req.params.id),
     req.body,
   );
-
+  await auditLog(req, {
+    action: "UPDATE_USER_ACCESS",
+    entityName:
+      data.user_name ||
+      data.userName ||
+      `Access Assignment #${data.id || req.params.id}`,
+    entityType: "USER_ACCESS",
+    entityId: String(req.params.id),
+    description: `Updated permissions for ${data.user_name}`,
+    newValues: data,
+  });
   return res.status(200).json(
     new ApiResponse({
       message: "User role updated successfully",
@@ -63,7 +84,19 @@ export const updateBudgetAccessAssignmentStatus = asyncHandler(
       Number(req.params.id),
       req.body.is_active,
     );
-
+    await auditLog(req, {
+      action: "UPDATE_USER_ACCESS",
+      entityName:
+        data.user_name ||
+        data.userName ||
+        `Access Assignment #${data.id || req.params.id}`,
+      entityType: "USER_ACCESS",
+      entityId: String(req.params.id),
+      description: `${data.user_name} access was ${
+        data.is_active ? "activated" : "deactivated"
+      }`,
+      newValues: data,
+    });
     return res.status(200).json(
       new ApiResponse({
         message: "User role status updated successfully",

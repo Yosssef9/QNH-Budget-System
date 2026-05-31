@@ -13,7 +13,7 @@ export async function getBudgetReviewFeedbackRepo(budgetId) {
         n.note,
         n.created_by,
         u.USER_NAME AS created_by_name,
-        n.created_at,
+      created_at,
         bi.type_id,
         t.name AS type_name,
         c.name AS category_name

@@ -1,11 +1,13 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/apiResponse.js";
+import { auditLog } from "../utils/audit.js";
 import {
   approveItemRequestService,
   createItemRequestService,
   getItemRequestsService,
   rejectItemRequestService,
   approveItemRequestManualService,
+  getDashboardItemRequestsService,
 } from "../services/itemRequest.service.js";
 import {
   validateCreateItemRequest,
@@ -33,7 +35,15 @@ export const createItemRequest = asyncHandler(async (req, res) => {
     ...payload,
     requestedBy: req.user.userId,
   });
-
+  await auditLog(req, {
+    action: "REQUEST_ITEM",
+    entityName:
+      request.requested_type_name || request.type_name || "Item Request",
+    entityType: "ITEM_REQUEST",
+    entityId: String(request.id),
+    description: `Requested new budget item "${request.requested_type_name}"`,
+    newValues: request,
+  });
   return res.status(201).json(
     new ApiResponse({
       message: "Item request submitted successfully",
@@ -51,7 +61,15 @@ export const approveItemRequest = asyncHandler(async (req, res) => {
     adminNote: payload.adminNote,
     reviewedBy: req.user.userId,
   });
-
+  await auditLog(req, {
+    action: "APPROVE_ITEM_REQUEST",
+    entityName:
+      request.requested_type_name || request.type_name || "Item Request",
+    entityType: "ITEM_REQUEST",
+    entityId: String(requestId),
+    description: `Approved item request "${request.requested_type_name}"`,
+    newValues: request,
+  });
   return res.json(
     new ApiResponse({
       message: "Item request approved successfully",
@@ -69,7 +87,15 @@ export const rejectItemRequest = asyncHandler(async (req, res) => {
     adminNote: payload.adminNote,
     reviewedBy: req.user.userId,
   });
-
+  await auditLog(req, {
+    action: "REJECT_ITEM_REQUEST",
+    entityName:
+      request.requested_type_name || request.type_name || "Item Request",
+    entityType: "ITEM_REQUEST",
+    entityId: String(requestId),
+    description: `Rejected item request "${request.requested_type_name}"`,
+    newValues: request,
+  });
   return res.json(
     new ApiResponse({
       message: "Item request rejected successfully",
@@ -86,11 +112,32 @@ export const approveItemRequestManual = asyncHandler(async (req, res) => {
     adminNote: payload.adminNote,
     reviewedBy: req.user.userId,
   });
-
+  await auditLog(req, {
+    action: "APPROVE_ITEM_REQUEST",
+    entityName:
+      request.requested_type_name || request.type_name || "Item Request",
+    entityType: "ITEM_REQUEST",
+    entityId: String(requestId),
+  description: `Manually approved item request "${request.requested_type_name}"`,
+    newValues: request,
+  });
   return res.json(
     new ApiResponse({
       message: "Item request approved successfully",
       data: request,
+    }),
+  );
+});
+export const getDashboardItemRequests = asyncHandler(async (req, res) => {
+  const data = await getDashboardItemRequestsService({
+    userId: req.user.userId,
+    budgetAccess: req.budgetAccess,
+  });
+
+  return res.json(
+    new ApiResponse({
+      message: "Dashboard item requests fetched successfully",
+      data,
     }),
   );
 });

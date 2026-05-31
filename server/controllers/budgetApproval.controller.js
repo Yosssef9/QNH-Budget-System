@@ -1,6 +1,6 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/apiResponse.js";
-
+import { auditLog } from "../utils/audit.js";
 import {
   getPendingBudgetsService,
   getBudgetReviewService,
@@ -38,7 +38,18 @@ export const approveBudget = asyncHandler(async (req, res) => {
     body: req.body,
     user: req.user,
   });
-
+  await auditLog(req, {
+    action: "APPROVE_BUDGET",
+    entityName: `${data?.department_name || "Department"} Budget`,
+    entityType: "BUDGET",
+    entityId: String(req.params.budgetId),
+    description: `Approved ${data?.department_name || "Department"} budget`,
+    newValues: {
+      status: "APPROVED",
+      generalNote: req.body?.generalNote || null,
+      itemNotesCount: req.body?.itemNotes?.length || 0,
+    },
+  });
   res.json(
     new ApiResponse({
       message: "Budget approved successfully",
@@ -53,7 +64,20 @@ export const returnBudget = asyncHandler(async (req, res) => {
     body: req.body,
     user: req.user,
   });
-
+  await auditLog(req, {
+    action: "RETURN_BUDGET",
+    entityName: `${data?.department_name || "Department"} Budget`,
+    entityType: "BUDGET",
+    entityId: String(req.params.budgetId),
+    description: `Returned ${
+      data?.department_name || "Department"
+    } budget for revision`,
+    newValues: {
+      status: "RETURNED",
+      generalNote: req.body?.generalNote || null,
+      itemNotesCount: req.body?.itemNotes?.length || 0,
+    },
+  });
   res.json(
     new ApiResponse({
       message: "Budget returned successfully",

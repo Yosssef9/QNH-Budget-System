@@ -11,7 +11,9 @@ import {
 } from "lucide-react";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { useAuth } from "../context/AuthContext";
-
+import { useNavigate } from "react-router-dom";
+import { getCurrentFinancialYear } from "../api/financialYears.api";
+import toast from "react-hot-toast";
 const budgetActions = [
   {
     title: "My Budgets",
@@ -72,6 +74,31 @@ function hasPermission(permissions, permission) {
 
 export default function BudgetsPage() {
   const { budgetAccess } = useAuth();
+  const navigate = useNavigate();
+
+  const handleBudgetEntryClick = async () => {
+    try {
+      const year = await getCurrentFinancialYear();
+
+      if (year?.status === "PRE_CLOSING") {
+        toast.error(
+          "Budget Entry is locked. The financial year is in Pre-Closing status.",
+        );
+        return;
+      }
+
+      if (year?.status === "CLOSED") {
+        toast.error(
+          "Budget Entry is locked. The financial year has been closed.",
+        );
+        return;
+      }
+
+      navigate("/budgets/entry");
+    } catch {
+      toast.error("Unable to verify financial year status.");
+    }
+  };
   const permissions = budgetAccess?.permissions || budgetAccess || {};
 
   const visibleActions = budgetActions.filter((action) =>
@@ -103,13 +130,13 @@ export default function BudgetsPage() {
           </div>
 
           {hasPermission(permissions, "can_edit_budget") && (
-            <Link
-              to="/budgets/entry"
+            <button
+              onClick={handleBudgetEntryClick}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary-600 px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-700"
             >
               <Plus size={18} />
               Budget Entery
-            </Link>
+            </button>
           )}
         </div>
       </section>
@@ -119,10 +146,24 @@ export default function BudgetsPage() {
           const Icon = action.icon;
 
           return (
-            <Link
+            <div
               key={action.title}
-              to={action.path}
+              onClick={() => {
+                const restrictedPaths = [
+                  "/budgets/entry",
+                  "/budgets/import",
+                  "/budgets/copy-history",
+                ];
+
+                if (restrictedPaths.includes(action.path)) {
+                  handleBudgetEntryClick();
+                  return;
+                }
+
+                navigate(action.path);
+              }}
               className={[
+                "cursor-pointer",
                 "group rounded-2xl border bg-white p-5 shadow-card transition-all duration-200",
                 "hover:-translate-y-1 hover:border-primary-200 hover:shadow-lg",
                 action.primary
@@ -155,7 +196,7 @@ export default function BudgetsPage() {
               <p className="mt-2 text-sm leading-6 text-enterprise-muted">
                 {action.description}
               </p>
-            </Link>
+            </div>
           );
         })}
       </section>

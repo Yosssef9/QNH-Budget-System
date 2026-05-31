@@ -5,6 +5,8 @@ import {
   getCurrentBudget,
   submitBudget,
   getBudgetReviewFeedback,
+  getBudgetTimeline,
+  getBudgetDetails,
 } from "../controllers/budgets.controller.js";
 
 import { verifyPortalJwt } from "../middleware/verifyPortalJwt.middleware.js";
@@ -33,11 +35,6 @@ router.get(
   requirePermission("can_view_budget"),
   getBudgetReviewFeedback,
 );
-router.get(
-  "/:budgetId/review-feedback",
-  requirePermission("can_view_budget"),
-  getBudgetReviewFeedback,
-);
 
 router.get(
   "/:budgetId/items",
@@ -61,5 +58,15 @@ router.patch(
   "/:budgetId/submit",
   requirePermission("can_edit_budget"),
   submitBudget,
+);
+router.get(
+  "/:budgetId/timeline",
+  requirePermission("can_view_budget"),
+  getBudgetTimeline,
+);
+router.get(
+  "/:budgetId",
+  requirePermission("can_view_budget"),
+  getBudgetDetails,
 );
 export default router;

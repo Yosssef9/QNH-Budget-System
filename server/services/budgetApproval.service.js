@@ -37,7 +37,13 @@ export async function approveBudgetService({ budgetId, body, user }) {
   if (!budget) {
     throw new ApiError(404, "Budget not found", "BUDGET_NOT_FOUND");
   }
-
+  if (budget.financial_year_status !== "OPEN") {
+    throw new ApiError(
+      400,
+      "Budget approval is only allowed while financial year is OPEN",
+      "FINANCIAL_YEAR_NOT_OPEN",
+    );
+  }
   if (budget.status !== "PENDING_APPROVAL") {
     throw new ApiError(
       400,
@@ -46,10 +52,12 @@ export async function approveBudgetService({ budgetId, body, user }) {
     );
   }
 
-  const approved = await approveBudgetRepo({
+  await approveBudgetRepo({
     budgetId,
     approvedBy: user.userId,
   });
+
+  const approved = await getBudgetHeaderRepo(budgetId);
 
   if (body?.generalNote?.trim()) {
     await insertBudgetNoteRepo({
@@ -88,7 +96,13 @@ export async function returnBudgetService({ budgetId, body, user }) {
   if (!budget) {
     throw new ApiError(404, "Budget not found", "BUDGET_NOT_FOUND");
   }
-
+  if (budget.financial_year_status !== "OPEN") {
+    throw new ApiError(
+      400,
+      "Budget return is only allowed while financial year is OPEN",
+      "FINANCIAL_YEAR_NOT_OPEN",
+    );
+  }
   if (budget.status !== "PENDING_APPROVAL") {
     throw new ApiError(
       400,
@@ -97,11 +111,12 @@ export async function returnBudgetService({ budgetId, body, user }) {
     );
   }
 
-  const returned = await returnBudgetRepo({
+  await returnBudgetRepo({
     budgetId,
     returnedBy: user.userId,
   });
 
+  const returned = await getBudgetHeaderRepo(budgetId);
   await insertBudgetNoteRepo({
     budgetId,
     budgetItemId: null,

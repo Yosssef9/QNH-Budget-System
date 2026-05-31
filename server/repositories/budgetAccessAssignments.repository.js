@@ -25,7 +25,7 @@ export async function getBudgetAccessAssignmentsRepo() {
   bur.can_manage_users,
   bur.can_manage_categories,
   bur.can_view_reports,
-
+  bur.can_manage_financial_years,
   bur.is_active,
   bur.created_by,
   bur.created_at,
@@ -98,7 +98,11 @@ export async function createBudgetAccessAssignmentRepo(payload) {
     .input("can_manage_users", sql.Bit, payload.can_manage_users)
     .input("can_manage_categories", sql.Bit, payload.can_manage_categories)
     .input("can_view_reports", sql.Bit, payload.can_view_reports)
-
+    .input(
+      "can_manage_financial_years",
+      sql.Bit,
+      payload.can_manage_financial_years,
+    )
     .input("created_by", sql.Int, payload.created_by).query(`
       INSERT INTO BS_budget_user_roles (
         user_id,
@@ -114,7 +118,7 @@ export async function createBudgetAccessAssignmentRepo(payload) {
         can_manage_users,
         can_manage_categories,
         can_view_reports,
-
+ can_manage_financial_years,
         created_by
       )
       OUTPUT INSERTED.*
@@ -132,7 +136,7 @@ export async function createBudgetAccessAssignmentRepo(payload) {
         @can_manage_users,
         @can_manage_categories,
         @can_view_reports,
-
+@can_manage_financial_years,
         @created_by
       )
     `);
@@ -157,7 +161,11 @@ export async function updateBudgetAccessAssignmentRepo(id, payload) {
     .input("can_approve_transfer", sql.Bit, payload.can_approve_transfer)
     .input("can_manage_users", sql.Bit, payload.can_manage_users)
     .input("can_manage_categories", sql.Bit, payload.can_manage_categories)
-    .input("can_view_reports", sql.Bit, payload.can_view_reports).query(`
+    .input("can_view_reports", sql.Bit, payload.can_view_reports) .input(
+      "can_manage_financial_years",
+      sql.Bit,
+      payload.can_manage_financial_years,
+    ).query(`
       UPDATE BS_budget_user_roles
       SET
         department_id = @department_id,
@@ -172,8 +180,8 @@ export async function updateBudgetAccessAssignmentRepo(id, payload) {
         can_manage_users = @can_manage_users,
         can_manage_categories = @can_manage_categories,
         can_view_reports = @can_view_reports,
-
-        updated_at = GETDATE()
+can_manage_financial_years = @can_manage_financial_years,
+        updated_at = GETUTCDATE()
       OUTPUT INSERTED.*
       WHERE id = @id
     `);
@@ -191,7 +199,7 @@ export async function updateBudgetAccessAssignmentStatusRepo(id, isActive) {
       UPDATE BS_budget_user_roles
       SET
         is_active = @is_active,
-        updated_at = GETDATE()
+        updated_at = GETUTCDATE()
       OUTPUT INSERTED.*
       WHERE id = @id
     `);

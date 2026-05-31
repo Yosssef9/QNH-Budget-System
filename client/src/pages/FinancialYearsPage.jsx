@@ -1,24 +1,31 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { CalendarDays, LockKeyhole, Plus } from "lucide-react";
+import { CalendarDays, CheckCircle2, LockKeyhole, Plus } from "lucide-react";
 import {
   useCloseFinancialYear,
   useCreateFinancialYear,
   useFinancialYears,
+  usePreCloseFinancialYear,
 } from "../hooks/financial-years/useFinancialYears";
 import { formatDateTime } from "../utils/dateFormatters";
-
+import ConfirmModal from "../components/ConfirmModal";
 function getErrorMessage(error, fallback) {
   return error?.response?.data?.message || fallback;
 }
 
 export default function FinancialYearsPage() {
   const [year, setYear] = useState(new Date().getFullYear() + 1);
+  const [selectedYear, setSelectedYear] = useState(null);
+
+  const [showPreCloseModal, setShowPreCloseModal] = useState(false);
+  const [showCloseModal, setShowCloseModal] = useState(false);
   const { data: years = [], isLoading } = useFinancialYears();
   const createMutation = useCreateFinancialYear();
   const closeMutation = useCloseFinancialYear();
-
-  const hasOpenYear = years.some((item) => item.status === "OPEN");
+  const preCloseMutation = usePreCloseFinancialYear();
+  const hasActiveYear = years.some((item) =>
+    ["OPEN", "PRE_CLOSING"].includes(item.status),
+  );
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -47,7 +54,21 @@ export default function FinancialYearsPage() {
       });
     }
   }
+  async function handlePreClose(id) {
+    const toastId = toast.loading("Moving financial year to pre-closing...");
 
+    try {
+      await preCloseMutation.mutateAsync(id);
+      toast.success("Financial year moved to pre-closing successfully", {
+        id: toastId,
+      });
+    } catch (error) {
+      toast.error(
+        getErrorMessage(error, "Failed to move financial year to pre-closing"),
+        { id: toastId },
+      );
+    }
+  }
   return (
     <div className="space-y-6 p-6 text-slate-800">
       <div>
@@ -63,7 +84,7 @@ export default function FinancialYearsPage() {
         </h1>
         <p className="mt-2 text-sm font-medium text-slate-500">
           Only users with can_manage_financial_years can open and close years.
-          Only one year can be OPEN at a time.
+          Only one year can be OPEN or PRE-CLOSING at a time.
         </p>
       </div>
 
@@ -87,7 +108,7 @@ export default function FinancialYearsPage() {
 
         <button
           type="submit"
-          disabled={hasOpenYear || createMutation.isPending}
+          disabled={hasActiveYear || createMutation.isPending}
           className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Plus size={17} />
@@ -103,6 +124,8 @@ export default function FinancialYearsPage() {
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Started By</th>
               <th className="px-4 py-3">Started At</th>
+              <th className="px-4 py-3">Pre-Closed By</th>
+              <th className="px-4 py-3">Pre-Closed At</th>
               <th className="px-4 py-3">Closed By</th>
               <th className="px-4 py-3">Closed At</th>
               <th className="px-4 py-3 text-right">Action</th>
@@ -112,7 +135,7 @@ export default function FinancialYearsPage() {
             {isLoading ? (
               <tr>
                 <td
-                  colSpan="7"
+                  colSpan="9"
                   className="px-4 py-8 text-center font-semibold text-slate-500"
                 >
                   Loading financial years...
@@ -121,7 +144,7 @@ export default function FinancialYearsPage() {
             ) : years.length === 0 ? (
               <tr>
                 <td
-                  colSpan="7"
+                  colSpan="9"
                   className="px-4 py-8 text-center font-semibold text-slate-500"
                 >
                   No financial years yet.
@@ -138,10 +161,14 @@ export default function FinancialYearsPage() {
                       className={`rounded-md px-2 py-1 text-xs font-bold ${
                         item.status === "OPEN"
                           ? "bg-emerald-50 text-emerald-700"
-                          : "bg-slate-100 text-slate-600"
+                          : item.status === "PRE_CLOSING"
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-slate-100 text-slate-600"
                       }`}
                     >
-                      {item.status}
+                      {item.status === "PRE_CLOSING"
+                        ? "PRE-CLOSING"
+                        : item.status}
                     </span>
                   </td>
                   <td className="px-4 py-4 text-slate-600">
@@ -149,6 +176,15 @@ export default function FinancialYearsPage() {
                   </td>
                   <td className="px-4 py-4 text-slate-600">
                     {item.started_at ? formatDateTime(item.started_at) : "-"}
+                  </td>
+                  <td className="px-4 py-4 text-slate-600">
+                    {item.pre_closed_by_name || item.pre_closed_by || "-"}
+                  </td>
+
+                  <td className="px-4 py-4 text-slate-600">
+                    {item.pre_closed_at
+                      ? formatDateTime(item.pre_closed_at)
+                      : "-"}
                   </td>
                   <td className="px-4 py-4 text-slate-600">
                     {item.closed_by_name || item.closed_by || "-"}
@@ -160,7 +196,23 @@ export default function FinancialYearsPage() {
                     {item.status === "OPEN" ? (
                       <button
                         type="button"
-                        onClick={() => handleClose(item.id)}
+                        onClick={() => {
+                          setSelectedYear(item);
+                          setShowPreCloseModal(true);
+                        }}
+                        disabled={preCloseMutation.isPending}
+                        className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-700 disabled:opacity-50"
+                      >
+                        <CheckCircle2 size={15} />
+                        Pre-Close
+                      </button>
+                    ) : item.status === "PRE_CLOSING" ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedYear(item);
+                          setShowCloseModal(true);
+                        }}
                         disabled={closeMutation.isPending}
                         className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-700 disabled:opacity-50"
                       >
@@ -179,6 +231,82 @@ export default function FinancialYearsPage() {
           </tbody>
         </table>
       </div>
+      <ConfirmModal
+        open={showPreCloseModal}
+        title={`Pre-Close Financial Year ${selectedYear?.year || ""}`}
+        confirmText="Pre-Close Year"
+        loading={preCloseMutation.isPending}
+        onCancel={() => {
+          setShowPreCloseModal(false);
+          setSelectedYear(null);
+        }}
+        onConfirm={async () => {
+          try {
+            await handlePreClose(selectedYear.id);
+
+            setShowPreCloseModal(false);
+            setSelectedYear(null);
+          } catch {}
+        }}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            Are you sure you want to move this financial year to PRE-CLOSING?
+          </p>
+
+          <ul className="list-disc space-y-2 pl-5 text-sm text-slate-700">
+            <li>No new budgets can be created.</li>
+            <li>All department budgets should already be approved.</li>
+            <li>Transfers can still be created and completed.</li>
+            <li>PO linking can still be completed.</li>
+          </ul>
+
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <p className="text-sm font-medium text-amber-700">
+              Ensure all department budgets have been reviewed before
+              continuing.
+            </p>
+          </div>
+        </div>
+      </ConfirmModal>
+      <ConfirmModal
+        open={showCloseModal}
+        title={`Close Financial Year ${selectedYear?.year || ""}`}
+        danger
+        confirmText="Close Year"
+        loading={closeMutation.isPending}
+        onCancel={() => {
+          setShowCloseModal(false);
+          setSelectedYear(null);
+        }}
+        onConfirm={async () => {
+          try {
+            await handleClose(selectedYear.id);
+
+            setShowCloseModal(false);
+            setSelectedYear(null);
+          } catch {}
+        }}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            Are you sure you want to close this financial year?
+          </p>
+
+          <ul className="list-disc space-y-2 pl-5 text-sm text-slate-700">
+            <li>The financial year will become read-only.</li>
+            <li>Budgets cannot be modified.</li>
+            <li>Transfers cannot be created.</li>
+            <li>PO links cannot be changed.</li>
+          </ul>
+
+          <div className="rounded-xl border border-red-200 bg-red-50 p-3">
+            <p className="text-sm font-medium text-red-700">
+              This action should only be performed after final review.
+            </p>
+          </div>
+        </div>
+      </ConfirmModal>
     </div>
   );
 }

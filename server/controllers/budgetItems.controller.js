@@ -1,6 +1,6 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/apiResponse.js";
-
+import { auditLog } from "../utils/audit.js";
 import {
   createBudgetItemService,
   getBudgetItemsService,
@@ -57,6 +57,7 @@ export async function deleteBudgetItem(req, res, next) {
       budgetId: Number(budgetId),
       itemId: Number(itemId),
       user: req.user,
+      budgetAccess: req.budgetAccess,
     });
 
     res.json({
@@ -75,6 +76,19 @@ export async function replaceBudgetItems(req, res, next) {
       budgetId: Number(budgetId),
       items: req.body.items || [],
       user: req.user,
+      budgetAccess: req.budgetAccess,
+    });
+    await auditLog(req, {
+      action: "SAVE_BUDGET",
+      entityName: `${
+        req.budgetAccess?.department?.name || "Department"
+      } Budget`,
+      entityType: "BUDGET",
+      entityId: String(budgetId),
+      description: `Saved budget draft`,
+      newValues: {
+        itemsCount: req.body.items?.length || 0,
+      },
     });
 
     res.json({

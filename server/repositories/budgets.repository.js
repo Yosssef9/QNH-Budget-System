@@ -201,15 +201,18 @@ export async function getBudgetForSubmitRepo(budgetId) {
 
   const result = await pool.request().input("budgetId", sql.BigInt, budgetId)
     .query(`
-      SELECT TOP 1
-        id,
-        department_id,
-        financial_year_id,
-        status,
-        is_active
-      FROM BS_budgets
-      WHERE id = @budgetId
-        AND is_active = 1
+     SELECT TOP 1
+  b.id,
+  b.department_id,
+  b.financial_year_id,
+  fy.status AS financial_year_status,
+  b.status,
+  b.is_active
+FROM BS_budgets b
+INNER JOIN BS_financial_years fy
+  ON fy.id = b.financial_year_id
+WHERE b.id = @budgetId
+  AND b.is_active = 1
     `);
 
   return result.recordset[0] || null;
@@ -240,8 +243,8 @@ export async function submitBudgetRepo({ budgetId, submittedBy }) {
       SET
         status = 'PENDING_APPROVAL',
         submitted_by = @submittedBy,
-        submitted_at = GETDATE(),
-        updated_at = GETDATE()
+        submitted_at = GETUTCDATE(),
+        updated_at = GETUTCDATE()
       OUTPUT INSERTED.*
       WHERE id = @budgetId
         AND status IN ('DRAFT', 'RETURNED')
@@ -249,4 +252,58 @@ export async function submitBudgetRepo({ budgetId, submittedBy }) {
     `);
 
   return result.recordset[0] || null;
+}
+export async function getBudgetByIdRepo(budgetId) {
+  const pool = await poolPromise;
+
+  const budgetResult = await pool.request().input("budgetId", sql.Int, budgetId)
+    .query(`
+      SELECT TOP 1
+        b.*,
+        d.name AS department_name,
+        fy.year AS financial_year,
+        fy.status AS financial_year_status
+      FROM BS_budgets b
+      LEFT JOIN BS_departments d
+        ON d.id = b.department_id
+      LEFT JOIN BS_financial_years fy
+        ON fy.id = b.financial_year_id
+      WHERE b.id = @budgetId
+        AND b.is_active = 1
+    `);
+
+  const budget = budgetResult.recordset[0] || null;
+
+  if (!budget) {
+    return null;
+  }
+
+  const itemsResult = await pool.request().input("budgetId", sql.Int, budgetId)
+    .query(`
+      SELECT
+        bi.id,
+        bi.budget_id,
+        bi.type_id,
+        bt.name AS type_name,
+        bt.category_id,
+        bc.name AS category_name,
+        bt.expense_type,
+        bi.quantity,
+        bi.unit_price,
+        bi.total_amount,
+        bi.distribution_method,
+        bi.distribution_level
+      FROM BS_budget_items bi
+      LEFT JOIN BS_budget_types bt
+        ON bt.id = bi.type_id
+      LEFT JOIN BS_budget_categories bc
+        ON bc.id = bt.category_id
+      WHERE bi.budget_id = @budgetId
+        AND bi.is_active = 1
+      ORDER BY bc.name, bt.name
+    `);
+
+  budget.items = itemsResult.recordset;
+
+  return budget;
 }

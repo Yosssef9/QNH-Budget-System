@@ -4,6 +4,8 @@ import {
   getOpenFinancialYear,
   createFinancialYear,
   closeFinancialYear,
+  preCloseFinancialYear,
+  getCurrentFinancialYear,
 } from "../controllers/financialYears.controller.js";
 
 import { verifyPortalJwt } from "../middleware/verifyPortalJwt.middleware.js";
@@ -19,7 +21,12 @@ router.get(
   requirePermission("can_manage_financial_years"),
   getFinancialYears,
 );
-
+router.get(
+  "/current",
+  verifyPortalJwt,
+  verifyBudgetAccess,
+  getCurrentFinancialYear,
+);
 router.get("/open", verifyPortalJwt, verifyBudgetAccess, getOpenFinancialYear);
 
 router.post(
@@ -29,7 +36,13 @@ router.post(
   requirePermission("can_manage_financial_years"),
   createFinancialYear,
 );
-
+router.patch(
+  "/:id/pre-close",
+  verifyPortalJwt,
+  verifyBudgetAccess,
+  requirePermission("can_manage_financial_years"),
+  preCloseFinancialYear,
+);
 router.patch(
   "/:id/close",
   verifyPortalJwt,

@@ -59,6 +59,12 @@ export function mapBudgetItemToRow(item) {
 
   return {
     ...row,
+    categoryName: item.category_name,
+    typeName: item.type_name,
+    categoryIsActive:
+      item.category_is_active === true || item.category_is_active === 1,
+    typeIsActive: item.type_is_active === true || item.type_is_active === 1,
+    expenseType: item.expense_type,
     isSaved: true,
     isNew: false,
     savedSnapshot: JSON.stringify({

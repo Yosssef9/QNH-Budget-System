@@ -19,3 +19,11 @@ export async function closeFinancialYear(id) {
   const response = await api.patch(`/financial-years/${id}/close`);
   return response.data?.data;
 }
+export async function preCloseFinancialYear(id) {
+  const response = await api.patch(`/financial-years/${id}/pre-close`);
+  return response.data?.data;
+}
+export async function getCurrentFinancialYear() {
+  const response = await api.get("/financial-years/current");
+  return response.data?.data || null;
+}

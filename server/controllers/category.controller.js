@@ -1,5 +1,6 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/apiResponse.js";
+import { auditLog } from "../utils/audit.js";
 import {
   createCategoryService,
   createTypeService,
@@ -44,7 +45,14 @@ export const getTypesByCategory = asyncHandler(async (req, res) => {
 export const createCategory = asyncHandler(async (req, res) => {
   const payload = validateCreateCategory(req.body);
   const category = await createCategoryService(payload);
-
+  await auditLog(req, {
+    action: "CREATE_CATEGORY",
+    entityName: category.name,
+    entityType: "BUDGET_CATEGORY",
+    entityId: String(category.id),
+    description: `Created budget category "${category.name}"`,
+    newValues: category,
+  });
   return res.status(201).json(
     new ApiResponse({
       message: "Category created successfully",
@@ -62,7 +70,14 @@ export const createType = asyncHandler(async (req, res) => {
     name: payload.name,
     expenseType: payload.expense_type,
   });
-
+  await auditLog(req, {
+    action: "CREATE_TYPE",
+    entityName: type.name,
+    entityType: "BUDGET_TYPE",
+    entityId: String(type.id),
+    description: `Created budget type "${type.name}"`,
+    newValues: type,
+  });
   return res.status(201).json(
     new ApiResponse({
       message: "Type created successfully",
@@ -79,7 +94,14 @@ export const updateCategory = asyncHandler(async (req, res) => {
     categoryId,
     name: payload.name,
   });
-
+  await auditLog(req, {
+    action: "UPDATE_CATEGORY",
+    entityName: category.name,
+    entityType: "BUDGET_CATEGORY",
+    entityId: String(categoryId),
+    description: `Updated budget category "${category.name}"`,
+    newValues: category,
+  });
   return res.json(
     new ApiResponse({
       message: "Category updated successfully",
@@ -99,7 +121,14 @@ export const updateType = asyncHandler(async (req, res) => {
     name: payload.name,
     expenseType: payload.expense_type,
   });
-
+  await auditLog(req, {
+    action: "UPDATE_TYPE",
+    entityName: type.name,
+    entityType: "BUDGET_TYPE",
+    entityId: String(typeId),
+    description: `Updated budget type "${type.name}"`,
+    newValues: type,
+  });
   return res.json(
     new ApiResponse({
       message: "Type updated successfully",
@@ -138,23 +167,40 @@ export const deleteCategory = asyncHandler(async (req, res) => {
   const categoryId = validateCategoryId(req.params.categoryId);
   const category = await deleteCategoryService(categoryId);
 
+  await auditLog(req, {
+    action: "DEACTIVATE_CATEGORY",
+    entityName: category.name,
+    entityType: "BUDGET_CATEGORY",
+    entityId: String(category.id),
+    description: `Deactivated budget category "${category.name}"`,
+    newValues: category,
+  });
+
   return res.json(
     new ApiResponse({
-      message: "Category deleted successfully",
+      message: "Category deactivated successfully",
       data: category,
     }),
   );
 });
-
 export const deleteType = asyncHandler(async (req, res) => {
   const categoryId = validateCategoryId(req.params.categoryId);
   const typeId = validateTypeId(req.params.typeId);
 
   const type = await deleteTypeService({ categoryId, typeId });
 
+  await auditLog(req, {
+    action: "DEACTIVATE_TYPE",
+    entityName: type.name,
+    entityType: "BUDGET_TYPE",
+    entityId: String(type.id),
+    description: `Deactivated budget type "${type.name}"`,
+    newValues: type,
+  });
+
   return res.json(
     new ApiResponse({
-      message: "Type deleted successfully",
+      message: "Item/type deactivated successfully",
       data: type,
     }),
   );

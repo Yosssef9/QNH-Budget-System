@@ -109,7 +109,19 @@ export async function updateTypeService({
   if (!type) {
     throw new ApiError(404, "Type not found", "TYPE_NOT_FOUND");
   }
+  const usage = await getTypeUsageRepo(typeId);
 
+  if (
+    usage.length > 0 &&
+    String(type.expense_type).toUpperCase() !==
+      String(expenseType).toUpperCase()
+  ) {
+    throw new ApiError(
+      409,
+      "This type is already used in budgets. You can rename it, but you cannot change its expense type.",
+      "USED_TYPE_EXPENSE_TYPE_LOCKED",
+    );
+  }
   const existing = await findTypeByNameInCategoryRepo(categoryId, name);
 
   if (existing && Number(existing.id) !== Number(typeId)) {

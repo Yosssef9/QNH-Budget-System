@@ -10,6 +10,7 @@ import {
   BarChart3,
   PanelLeftClose,
   PanelLeftOpen,
+  PanelRightOpen,
 } from "lucide-react";
 import ConfirmModal from "../../components/ConfirmModal";
 import {
@@ -28,6 +29,7 @@ import {
   getBudgetStatusLabel,
   getBudgetStatusStyle,
 } from "../../theme/statusStyles";
+import BudgetTimeline from "../../components/BudgetTimeline";
 export default function BudgetApprovalPage() {
   const [activeTab, setActiveTab] = useState("REVIEW");
   const [isPendingPanelOpen, setIsPendingPanelOpen] = useState(true);
@@ -39,6 +41,7 @@ export default function BudgetApprovalPage() {
   const [itemNotes, setItemNotes] = useState({});
   const [actionType, setActionType] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
+  const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [selectedApprovedBudgetId, setSelectedApprovedBudgetId] =
     useState(null);
   const {
@@ -432,68 +435,103 @@ export default function BudgetApprovalPage() {
             )}
 
             {selectedBudget && !loadingReview && (
-              <div className="space-y-6 p-6">
-                <ApprovalReviewFeedbackPanel
-                  budgetId={selectedBudgetId}
-                  onItemNoteClick={scrollToBudgetItemRow}
-                />
-                <ReadonlyBudgetGrid
-                  budget={selectedBudget}
-                  items={items}
-                  showNotes
-                  itemNotes={itemNotes}
-                  onItemNoteChange={handleItemNoteChange}
-                />
-
-                <div>
-                  <label className="text-sm font-bold text-slate-900">
-                    General Note
-                  </label>
-                  <textarea
-                    value={generalNote}
-                    onChange={(e) => setGeneralNote(e.target.value)}
-                    rows={4}
-                    placeholder="Required when returning. Optional when approving."
-                    className="mt-2 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+              <div
+                className={`grid gap-6 p-6 transition-all duration-300 ${
+                  isTimelineOpen
+                    ? "xl:grid-cols-[minmax(0,1fr)_380px]"
+                    : "grid-cols-1"
+                }`}
+              >
+                <div className="min-w-0 space-y-6">
+                  <ApprovalReviewFeedbackPanel
+                    budgetId={selectedBudgetId}
+                    onItemNoteClick={scrollToBudgetItemRow}
                   />
+                  <ReadonlyBudgetGrid
+                    budget={selectedBudget}
+                    items={items}
+                    showNotes
+                    itemNotes={itemNotes}
+                    onItemNoteChange={handleItemNoteChange}
+                  />
+
+                  <div>
+                    <label className="text-sm font-bold text-slate-900">
+                      General Note
+                    </label>
+                    <textarea
+                      value={generalNote}
+                      onChange={(e) => setGeneralNote(e.target.value)}
+                      rows={4}
+                      placeholder="Required when returning. Optional when approving."
+                      className="mt-2 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                    />
+                  </div>
+
+                  <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!generalNote.trim()) {
+                          toast.error("General return note is required");
+                          return;
+                        }
+
+                        setConfirmAction("RETURN");
+                      }}
+                      disabled={isSubmitting}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isSubmitting && actionType === "RETURN" ? (
+                        <Loader2 className="animate-spin" size={18} />
+                      ) : (
+                        <RotateCcw size={18} />
+                      )}
+                      Return with Notes
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setConfirmAction("APPROVE")}
+                      disabled={isSubmitting}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isSubmitting && actionType === "APPROVE" ? (
+                        <Loader2 className="animate-spin" size={18} />
+                      ) : (
+                        <CheckCircle2 size={18} />
+                      )}
+                      Approve Budget
+                    </button>
+                  </div>
                 </div>
 
-                <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:justify-end">
+                {isTimelineOpen && (
+                  <div className="hidden xl:block xl:sticky xl:top-6 h-[calc(100vh-120px)]">
+                    <BudgetTimeline
+                      budgetId={selectedBudgetId}
+                      isOpen={isTimelineOpen}
+                      onToggle={() => setIsTimelineOpen((prev) => !prev)}
+                    />
+                  </div>
+                )}
+                {!isTimelineOpen && (
                   <button
                     type="button"
-                    onClick={() => {
-                      if (!generalNote.trim()) {
-                        toast.error("General return note is required");
-                        return;
-                      }
-
-                      setConfirmAction("RETURN");
-                    }}
-                    disabled={isSubmitting}
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    onClick={() => setIsTimelineOpen(true)}
+                    className="
+      fixed bottom-6 right-6 z-40
+      flex items-center gap-2
+      rounded-2xl border border-slate-200
+      bg-white px-4 py-3 shadow-xl
+      transition hover:scale-105
+    "
                   >
-                    {isSubmitting && actionType === "RETURN" ? (
-                      <Loader2 className="animate-spin" size={18} />
-                    ) : (
-                      <RotateCcw size={18} />
-                    )}
-                    Return with Notes
-                  </button>
+                    <PanelRightOpen size={18} />
 
-                  <button
-                    type="button"
-                    onClick={() => setConfirmAction("APPROVE")}
-                    disabled={isSubmitting}
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isSubmitting && actionType === "APPROVE" ? (
-                      <Loader2 className="animate-spin" size={18} />
-                    ) : (
-                      <CheckCircle2 size={18} />
-                    )}
-                    Approve Budget
+                    <span className="text-sm font-semibold">Timeline</span>
                   </button>
-                </div>
+                )}
               </div>
             )}
           </motion.section>

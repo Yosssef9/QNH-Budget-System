@@ -92,3 +92,29 @@ export async function getApprovedApprovals() {
   const response = await api.get("/budget-approval/approved");
   return response.data?.data || [];
 }
+export async function getDashboardStats() {
+  const response = await api.get("/dashboard/stats");
+  return response.data?.data;
+}
+export async function getAuditLogs(params = {}) {
+  const response = await api.get("/audit-logs", { params });
+  return response.data?.data;
+}
+export async function getDashboardItemRequests() {
+  const response = await api.get("/item-requests/dashboard");
+  return response.data?.data || { mode: null, requests: [] };
+}
+export async function getAuditLogUsers() {
+  const response = await api.get("/audit-logs/users");
+  return response.data?.data || [];
+}
+export async function getBudgetTimeline(budgetId) {
+  const response = await api.get(`/budgets/${budgetId}/timeline`);
+
+  return response.data?.data || [];
+}
+export async function getBudgetDetails(budgetId) {
+  const response = await api.get(`/budgets/${budgetId}`);
+
+  return response.data?.data;
+}

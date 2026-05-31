@@ -31,9 +31,9 @@ export default function ConfirmModal({
               <h3 className="text-lg font-bold text-slate-900">{title}</h3>
 
               {message && (
-                <p className="mt-2 text-sm font-medium text-slate-600">
+                <div className="mt-2 text-sm font-medium text-slate-600">
                   {message}
-                </p>
+                </div>
               )}
             </div>
           </div>

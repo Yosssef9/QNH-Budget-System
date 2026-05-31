@@ -37,7 +37,6 @@ export async function getBudgetAccessByUserId(userId) {
   `);
 
   const row = result.recordset[0];
-
   if (!row) return null;
 
   const isGlobalAdmin = row.role_name === "ADMIN" && row.department_id === null;

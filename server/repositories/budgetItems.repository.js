@@ -150,14 +150,16 @@ export async function getBudgetItemsByBudgetIdRepo(budgetId) {
 
   const result = await pool.request().input("budgetId", sql.Int, budgetId)
     .query(`
-      SELECT
-        bi.id,
-        bi.budget_id,
-     t.category_id,
-c.name AS category_name,
-        bi.type_id,
-        t.name AS type_name,
-        t.expense_type,
+SELECT
+  bi.id,
+  bi.budget_id,
+  t.category_id,
+  c.name AS category_name,
+  c.is_active AS category_is_active,
+  bi.type_id,
+  t.name AS type_name,
+  t.is_active AS type_is_active,
+  t.expense_type,
         bi.quantity,
         bi.unit_price,
         bi.total_amount,
@@ -198,7 +200,7 @@ export async function deleteBudgetItemRepo({ budgetId, itemId }) {
     UPDATE BS_budget_items
     SET
       is_active = 0,
-      updated_at = GETDATE()
+      updated_at = GETUTCDATE()
     WHERE id = @itemId
       AND budget_id = @budgetId
       AND is_active = 1
@@ -242,13 +244,21 @@ export async function replaceBudgetItemsRepo({ budgetId, items, createdBy }) {
       sql.Int,
       budgetId,
     ).query(`
-        SELECT id
-        FROM BS_budget_items
-        WHERE budget_id = @budgetId
-          AND is_active = 1
+       SELECT
+  id,
+  type_id
+FROM BS_budget_items
+WHERE budget_id = @budgetId
+  AND is_active = 1
       `);
 
     const existingIds = existingResult.recordset.map((row) => Number(row.id));
+    const existingTypeByItemId = new Map(
+      existingResult.recordset.map((row) => [
+        Number(row.id),
+        Number(row.type_id),
+      ]),
+    );
     const sentExistingIds = normalizedItems
       .filter((item) => item.id && existingIds.includes(Number(item.id)))
       .map((item) => Number(item.id));
@@ -263,12 +273,41 @@ export async function replaceBudgetItemsRepo({ budgetId, items, createdBy }) {
           UPDATE BS_budget_items
           SET
             is_active = 0,
-            updated_at = GETDATE()
+            updated_at = GETUTCDATE()
           WHERE id = @itemId
         `);
     }
 
     for (const item of normalizedItems) {
+      const existingTypeId = item.id
+        ? existingTypeByItemId.get(Number(item.id))
+        : null;
+
+      const isNewItem = !item.id || !existingIds.includes(Number(item.id));
+
+      const typeChanged =
+        !isNewItem && Number(existingTypeId) !== Number(item.type_id);
+
+      if (isNewItem || typeChanged) {
+        const activeTypeAndCategoryResult = await new sql.Request(
+          transaction,
+        ).input("typeId", sql.Int, item.type_id).query(`
+      SELECT TOP 1
+        t.id
+      FROM BS_budget_types t
+      INNER JOIN BS_budget_categories c
+        ON c.id = t.category_id
+      WHERE t.id = @typeId
+        AND t.is_active = 1
+        AND c.is_active = 1
+    `);
+
+        if (!activeTypeAndCategoryResult.recordset[0]) {
+          throw new Error(
+            "Inactive category or item/type cannot be selected for new budget rows",
+          );
+        }
+      }
       const totalAmount = item.quantity * item.unit_price;
       let budgetItemId = item.id;
 
@@ -294,7 +333,7 @@ export async function replaceBudgetItemsRepo({ budgetId, items, createdBy }) {
               total_amount = @totalAmount,
               distribution_method = @distributionMethod,
               distribution_level = @distributionLevel,
-              updated_at = GETDATE()
+              updated_at = GETUTCDATE()
             WHERE id = @itemId
               AND is_active = 1
           `);
@@ -311,7 +350,7 @@ export async function replaceBudgetItemsRepo({ budgetId, items, createdBy }) {
             item.distribution_method,
           )
           .input("distributionLevel", sql.VarChar(30), item.distribution_level)
-          .input("createdBy", sql.VarChar(50), createdBy).query(`
+          .input("createdBy", sql.Int, Number(createdBy)).query(`
             INSERT INTO BS_budget_items (
               budget_id,
               type_id,

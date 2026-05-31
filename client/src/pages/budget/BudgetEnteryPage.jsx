@@ -43,14 +43,14 @@ import {
   getApiDistributionLevel,
   getApiDistributionRows,
 } from "../../helpers/budgetPayload.helper";
-
+import { useNavigate } from "react-router-dom";
 import {
   getDuplicateTypeRowIds,
   validateRowsDetailed,
 } from "../../helpers/budgetValidation.helper";
 import { useSubmitBudget } from "../../hooks/budgets/useSubmitBudget";
 import { formatDateTime } from "../../utils/dateFormatters";
-
+const BUDGET_ITEMS_PAGE_SIZE = 25;
 function getMethodBase(method) {
   if (method === "CUSTOM_MONTHLY" || method === "CUSTOM_QUARTERLY")
     return "CUSTOM";
@@ -107,8 +107,64 @@ export default function BudgetEnteryPage() {
     deleteItem,
     saveDraft,
   } = useCreateBudgetManual();
+  useEffect(() => {
+    if (loadingSetup) return;
+
+    if (openYear?.status === "PRE_CLOSING") {
+      toast.error(
+        "Budget Entry is locked. The financial year is in Pre-Closing status.",
+      );
+    }
+
+    if (openYear?.status === "CLOSED") {
+      toast.error(
+        "Budget Entry is locked. The financial year has been closed.",
+      );
+    }
+  }, [openYear, loadingSetup]);
+  if (openYear?.status === "PRE_CLOSING") {
+    return (
+      <div className="p-6">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center">
+          <h2 className="text-2xl font-bold text-amber-700">
+            Budget Entry Locked
+          </h2>
+
+          <p className="mt-3 text-amber-600">
+            The financial year is in Pre-Closing status.
+          </p>
+
+          <p className="mt-2 text-slate-600">
+            Budget creation and editing are no longer allowed. Please use
+            Transfers and PO Linking.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (openYear?.status === "CLOSED") {
+    return (
+      <div className="p-6">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
+          <h2 className="text-2xl font-bold text-red-700">
+            Budget Entry Locked
+          </h2>
+
+          <p className="mt-3 text-red-600">
+            The financial year has been closed.
+          </p>
+
+          <p className="mt-2 text-slate-600">
+            Budget changes are no longer allowed.
+          </p>
+        </div>
+      </div>
+    );
+  }
   const submitBudgetMutation = useSubmitBudget();
   const [summaryView, setSummaryView] = useState("QUARTER");
+  const [budgetItemsPage, setBudgetItemsPage] = useState(1);
   const hasUnsavedChanges = useMemo(
     () => rows.some((row) => !row.isSaved),
     [rows],
@@ -363,6 +419,20 @@ export default function BudgetEnteryPage() {
     () => getDuplicateTypeRowIds(rows),
     [rows],
   );
+  const totalBudgetItemsPages = useMemo(() => {
+    return Math.max(1, Math.ceil(rows.length / BUDGET_ITEMS_PAGE_SIZE));
+  }, [rows.length]);
+
+  useEffect(() => {
+    if (budgetItemsPage > totalBudgetItemsPages) {
+      setBudgetItemsPage(totalBudgetItemsPages);
+    }
+  }, [budgetItemsPage, totalBudgetItemsPages]);
+
+  const paginatedRows = useMemo(() => {
+    const start = (budgetItemsPage - 1) * BUDGET_ITEMS_PAGE_SIZE;
+    return rows.slice(start, start + BUDGET_ITEMS_PAGE_SIZE);
+  }, [rows, budgetItemsPage]);
   return (
     <div className="space-y-5 p-6 text-slate-800">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -611,7 +681,7 @@ export default function BudgetEnteryPage() {
             </thead>
 
             <tbody>
-              {rows.map((row, rowIndex) => {
+              {paginatedRows.map((row, rowIndex) => {
                 const totalAmount =
                   toNumber(row.quantity) * toNumber(row.unitPrice);
                 const monthly = getMonthlyDistribution(row);
@@ -646,8 +716,11 @@ export default function BudgetEnteryPage() {
                   >
                     <td className="truncate border border-slate-200 px-3 py-4 text-center font-semibold text-slate-600">
                       <div className="flex flex-col items-center gap-1">
-                        <span>{rowIndex + 1}</span>
-
+                        <span>
+                          {(budgetItemsPage - 1) * BUDGET_ITEMS_PAGE_SIZE +
+                            rowIndex +
+                            1}
+                        </span>
                         {!row.isSaved && (
                           <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
                             Unsaved
@@ -700,6 +773,13 @@ export default function BudgetEnteryPage() {
                           <span className="flex items-center gap-1 text-xs font-semibold text-red-500">
                             <AlertCircle size={12} />
                             Duplicate item
+                          </span>
+                        </div>
+                      )}
+                      {selectedType?.isExistingInactive && (
+                        <div className="mt-1 flex justify-center">
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500">
+                            Inactive — existing item only
                           </span>
                         </div>
                       )}
@@ -920,6 +1000,56 @@ export default function BudgetEnteryPage() {
             </tbody>
           </table>
         </div>
+        {rows.length > BUDGET_ITEMS_PAGE_SIZE && (
+          <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-semibold text-slate-500">
+              Showing{" "}
+              <span className="text-slate-900">
+                {(budgetItemsPage - 1) * BUDGET_ITEMS_PAGE_SIZE + 1}
+              </span>
+              {" - "}
+              <span className="text-slate-900">
+                {Math.min(
+                  budgetItemsPage * BUDGET_ITEMS_PAGE_SIZE,
+                  rows.length,
+                )}
+              </span>
+              {" of "}
+              <span className="text-slate-900">{rows.length}</span>
+              {" items"}
+            </p>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setBudgetItemsPage((page) => Math.max(1, page - 1))
+                }
+                disabled={budgetItemsPage <= 1}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Previous
+              </button>
+
+              <span className="rounded-xl bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700">
+                Page {budgetItemsPage} / {totalBudgetItemsPages}
+              </span>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setBudgetItemsPage((page) =>
+                    Math.min(totalBudgetItemsPages, page + 1),
+                  )
+                }
+                disabled={budgetItemsPage >= totalBudgetItemsPages}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[380px_1fr]">

@@ -10,7 +10,7 @@ const routeLabels = {
   "/budgets/import": "Import Excel",
   "/budgets/history": "Budget History",
   "/budgets/returned": "Returned Budgets",
-
+  "/budgets/my": "My Budgets",
   "/budget-approval": "Budget Approvals",
 
   "/transfers": "Transfers",
@@ -19,8 +19,8 @@ const routeLabels = {
 
   "/reports": "Reports",
 
-  "/admin/users": "Users & Roles",
-  "/admin/budget-setup": "Budget Setup",
+  "/admin/users": "User Access",
+  "/admin/budget-setup": "Budget Configuration",
   "/financial-years": "Financial Years",
 };
 

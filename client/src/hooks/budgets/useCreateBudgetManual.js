@@ -7,7 +7,7 @@ import {
   getCurrentBudget,
   getTypesByCategory,
 } from "../../api/budget.api";
-import { getOpenFinancialYear } from "../../api/financialYears.api";
+import { getCurrentFinancialYear } from "../../api/financialYears.api";
 import { toastPromise } from "../../helpers/toast.helper";
 import { createRow, mapBudgetItemToRow } from "../../helpers/budgetRows.helper";
 import toast from "react-hot-toast";
@@ -58,7 +58,85 @@ export function useCreateBudgetManual() {
   const [openYear, setOpenYear] = useState(null);
   const [loadingSetup, setLoadingSetup] = useState(true);
   const [saving, setSaving] = useState(false);
+  function mergeExistingBudgetCategories(budgetItems) {
+    setCategories((prev) => {
+      const merged = [...prev];
 
+      for (const item of budgetItems) {
+        if (!item.category_id) continue;
+
+        const alreadyExists = merged.some(
+          (category) => Number(category.id) === Number(item.category_id),
+        );
+
+        if (!alreadyExists) {
+          merged.push({
+            id: item.category_id,
+            name:
+              item.category_is_active === true || item.category_is_active === 1
+                ? item.category_name
+                : `${item.category_name} (Inactive)`,
+
+            is_active: item.category_is_active,
+
+            isExistingInactive: !(
+              item.category_is_active === true || item.category_is_active === 1
+            ),
+          });
+        }
+      }
+
+      return merged;
+    });
+  }
+  function mergeExistingBudgetTypes(budgetItems) {
+    const grouped = {};
+
+    for (const item of budgetItems) {
+      if (!item.category_id || !item.type_id) continue;
+
+      const categoryId = String(item.category_id);
+
+      if (!grouped[categoryId]) grouped[categoryId] = [];
+
+      grouped[categoryId].push({
+        id: item.type_id,
+        category_id: item.category_id,
+        name:
+          item.type_is_active === true || item.type_is_active === 1
+            ? item.type_name
+            : `${item.type_name} (Inactive)`,
+        expense_type: item.expense_type,
+        is_active: item.type_is_active,
+        isExistingInactive: !(
+          item.type_is_active === true || item.type_is_active === 1
+        ),
+      });
+    }
+
+    setTypesByCategory((prev) => {
+      const next = { ...prev };
+
+      for (const [categoryId, existingTypes] of Object.entries(grouped)) {
+        const current = next[categoryId] || [];
+        const merged = [...current];
+
+        for (const existingType of existingTypes) {
+          const alreadyExists = merged.some(
+            (type) => Number(type.id) === Number(existingType.id),
+          );
+
+          if (!alreadyExists) {
+            merged.push(existingType);
+          }
+        }
+
+        next[categoryId] = merged;
+      }
+
+      return next;
+    });
+  }
   useEffect(() => {
     let ignore = false;
 
@@ -67,7 +145,7 @@ export function useCreateBudgetManual() {
         const [budgetResult, yearResult, categoryResult] = await toastPromise(
           Promise.all([
             getCurrentBudget(),
-            getOpenFinancialYear(),
+            getCurrentFinancialYear(),
             getCategories(),
           ]),
           {
@@ -104,6 +182,8 @@ export function useCreateBudgetManual() {
         ) {
           localStorage.removeItem(budgetDraftKey);
           setRows(budgetItems.map(mapBudgetItemToRow));
+          mergeExistingBudgetTypes(budgetItems);
+          mergeExistingBudgetCategories(budgetItems);
           return;
         }
 
@@ -115,6 +195,8 @@ export function useCreateBudgetManual() {
         }
 
         setRows(budgetItems.map(mapBudgetItemToRow));
+        mergeExistingBudgetTypes(budgetItems);
+        mergeExistingBudgetCategories(budgetItems);
       } finally {
         if (!ignore) setLoadingSetup(false);
       }
@@ -258,6 +340,10 @@ export function useCreateBudgetManual() {
       const savedItems = await getBudgetItems(budgetId);
 
       setRows(savedItems.map(mapBudgetItemToRow));
+
+      mergeExistingBudgetTypes(savedItems);
+      mergeExistingBudgetCategories(savedItems);
+
       localStorage.removeItem(getBudgetDraftKey(budgetId));
     } finally {
       setSaving(false);

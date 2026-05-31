@@ -1,30 +1,39 @@
+// src/utils/dateFormatters.js
+
+const SAUDI_TIMEZONE = "Asia/Riyadh";
+
 export function formatDateTime(value) {
   if (!value) return "-";
 
-  return new Date(value).toLocaleString("en-US", {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: SAUDI_TIMEZONE,
+    day: "2-digit",
+    month: "short",
     year: "numeric",
-    month: "numeric",
-    day: "numeric",
-    hour: "numeric",
+    hour: "2-digit",
     minute: "2-digit",
-  });
+    hour12: false,
+  }).format(new Date(value));
 }
 
 export function formatDate(value) {
   if (!value) return "-";
 
-  return new Date(value).toLocaleDateString("en-US", {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: SAUDI_TIMEZONE,
+    day: "2-digit",
+    month: "short",
     year: "numeric",
-    month: "numeric",
-    day: "numeric",
-  });
+  }).format(new Date(value));
 }
 
 export function formatTime(value) {
   if (!value) return "-";
 
-  return new Date(value).toLocaleTimeString("en-US", {
-    hour: "numeric",
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: SAUDI_TIMEZONE,
+    hour: "2-digit",
     minute: "2-digit",
-  });
+    hour12: false,
+  }).format(new Date(value));
 }

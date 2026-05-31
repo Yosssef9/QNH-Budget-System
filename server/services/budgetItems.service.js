@@ -14,6 +14,7 @@ import {
   calculateTotalAmount,
   validateDistribution,
 } from "../helpers/distribution.helper.js";
+import { validateBudgetModifyPermission } from "../helpers/validateBudgetModifyPermission.js";
 
 export async function createBudgetItemService({
   budgetId,
@@ -150,6 +151,8 @@ export async function getBudgetItemsService({ budgetId, budgetAccess }) {
         budget_id: row.budget_id,
         category_id: row.category_id,
         category_name: row.category_name,
+        category_is_active: row.category_is_active,
+        type_is_active: row.type_is_active,
         type_id: row.type_id,
         type_name: row.type_name,
         expense_type: row.expense_type,
@@ -176,34 +179,71 @@ export async function getBudgetItemsService({ budgetId, budgetAccess }) {
   };
 }
 
-export async function deleteBudgetItemService({ budgetId, itemId, user }) {
-  if (!budgetId || !itemId) {
-    throw new ApiError(400, "Invalid budget item delete request");
+export async function deleteBudgetItemService({
+  budgetId,
+  itemId,
+  user,
+  budgetAccess,
+}) {
+  const budget = await getBudgetByIdRepo(budgetId);
+
+  if (!budget) {
+    throw new ApiError(404, "Budget not found", "BUDGET_NOT_FOUND");
   }
 
-  const deleted = await deleteBudgetItemRepo({
-    budgetId,
-    itemId,
-  });
-
-  if (!deleted) {
-    throw new ApiError(404, "Budget item not found");
+  if (budget.financial_year_status !== "OPEN") {
+    throw new ApiError(
+      400,
+      "Cannot modify budget items unless financial year is OPEN",
+      "FINANCIAL_YEAR_NOT_OPEN",
+    );
   }
 
-  return true;
+  if (!["DRAFT", "RETURNED"].includes(budget.status)) {
+    throw new ApiError(
+      400,
+      "Budget items can only be deleted while budget is DRAFT or RETURNED",
+      "INVALID_BUDGET_STATUS",
+    );
+  }
+
+  validateBudgetModifyPermission({ budget, budgetAccess });
+
+  return await deleteBudgetItemRepo({ budgetId, itemId });
 }
-export async function replaceBudgetItemsService({ budgetId, items, user }) {
-  if (!budgetId) {
-    throw new ApiError(400, "Invalid budget id");
+export async function replaceBudgetItemsService({
+  budgetId,
+  items,
+  user,
+  budgetAccess,
+}) {
+  const budget = await getBudgetByIdRepo(budgetId);
+
+  if (!budget) {
+    throw new ApiError(404, "Budget not found", "BUDGET_NOT_FOUND");
   }
 
-  if (!Array.isArray(items)) {
-    throw new ApiError(400, "Items must be an array");
+  if (budget.financial_year_status !== "OPEN") {
+    throw new ApiError(
+      400,
+      "Cannot save budget items unless financial year is OPEN",
+      "FINANCIAL_YEAR_NOT_OPEN",
+    );
   }
+
+  if (!["DRAFT", "RETURNED"].includes(budget.status)) {
+    throw new ApiError(
+      400,
+      "Budget items can only be saved while budget is DRAFT or RETURNED",
+      "INVALID_BUDGET_STATUS",
+    );
+  }
+
+  validateBudgetModifyPermission({ budget, budgetAccess });
 
   return await replaceBudgetItemsRepo({
     budgetId,
     items,
-    createdBy: user?.userCode || user?.userId || null,
+    createdBy: user.userId,
   });
 }

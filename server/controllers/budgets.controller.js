@@ -6,8 +6,11 @@ import {
   getMyBudgetsService,
   getCurrentBudgetService,
   submitBudgetService,
+  getBudgetDetailsService,
 } from "../services/budgets.service.js";
 import { getBudgetReviewFeedbackService } from "../services/budgetReviewFeedback.service.js";
+import { getBudgetTimelineService } from "../services/budgetTimeline.service.js";
+import { auditLog } from "../utils/audit.js";
 export async function getCurrentBudget(req, res, next) {
   try {
     const result = await getCurrentBudgetService({
@@ -42,7 +45,21 @@ export const createBudget = asyncHandler(async (req, res) => {
     user: req.user,
     budgetAccess: req.budgetAccess,
   });
-
+  if (!result.alreadyExists) {
+    await auditLog(req, {
+      action: "CREATE_BUDGET",
+      entityName: `${req.budgetAccess?.department?.name || "Department"} Budget`,
+      entityType: "BUDGET",
+      entityId: String(result.budget.id),
+      description: `Created ${
+        req.budgetAccess?.department?.name || "Department"
+      } budget for FY ${result.financialYear.year}`,
+      newValues: {
+        status: "DRAFT",
+        financialYear: result.financialYear?.year,
+      },
+    });
+  }
   return res.status(result.alreadyExists ? 200 : 201).json(
     new ApiResponse({
       message: result.alreadyExists
@@ -59,7 +76,18 @@ export const submitBudget = asyncHandler(async (req, res) => {
     user: req.user,
     budgetAccess: req.budgetAccess,
   });
-
+  await auditLog(req, {
+    action: "SUBMIT_BUDGET",
+    entityName: `${req.budgetAccess?.department?.name || "Department"} Budget`,
+    entityType: "BUDGET",
+    entityId: String(req.params.budgetId),
+    description: `Submitted ${
+      req.budgetAccess?.department?.name || "Department"
+    } budget for approval`,
+    newValues: {
+      status: "PENDING_APPROVAL",
+    },
+  });
   return res.json(
     new ApiResponse({
       message: "Budget submitted for approval successfully",
@@ -76,6 +104,28 @@ export const getBudgetReviewFeedback = asyncHandler(async (req, res) => {
   return res.json(
     new ApiResponse({
       message: "Budget review feedback fetched successfully",
+      data,
+    }),
+  );
+});
+export const getBudgetTimeline = asyncHandler(async (req, res) => {
+  const budgetId = Number(req.params.budgetId);
+
+  const timeline = await getBudgetTimelineService(budgetId);
+
+  return res.json(
+    new ApiResponse({
+      message: "Budget timeline fetched successfully",
+      data: timeline,
+    }),
+  );
+});
+export const getBudgetDetails = asyncHandler(async (req, res) => {
+  const data = await getBudgetDetailsService(Number(req.params.budgetId));
+
+  res.json(
+    new ApiResponse({
+      message: "Budget fetched successfully",
       data,
     }),
   );

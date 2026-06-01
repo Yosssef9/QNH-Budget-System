@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Breadcrumbs from "../../components/Breadcrumbs";
 import CurrencyText from "../../components/CurrencyText";
 import { getMyBudgets } from "../../api/budget.api";
@@ -8,13 +8,13 @@ import {
   getBudgetStatusLabel,
   getBudgetStatusStyle,
 } from "../../theme/statusStyles";
-
+import { Eye } from "lucide-react";
 export default function MyBudgetsPage() {
   const { data = [], isLoading } = useQuery({
     queryKey: ["my-budgets"],
     queryFn: getMyBudgets,
   });
-
+  const navigate = useNavigate();
   return (
     <div className="space-y-6 p-6">
       <Breadcrumbs />
@@ -36,7 +36,7 @@ export default function MyBudgetsPage() {
               <th className="p-4 text-left">Items</th>
               <th className="p-4 text-left">Total Amount</th>
               <th className="p-4 text-left">Created</th>
-              <th className="p-4 text-left">Action</th>
+              <th className="p-4 text-left">Actions</th>
             </tr>
           </thead>
 
@@ -55,7 +55,16 @@ export default function MyBudgetsPage() {
               </tr>
             ) : (
               data.map((budget) => (
-                <tr key={budget.id} className="border-t border-slate-200">
+                <tr
+                  key={budget.id}
+                  onClick={() => navigate(`/budgets/view/${budget.id}`)}
+                  className="
+    cursor-pointer
+    border-t border-slate-200
+    transition
+    hover:bg-slate-50
+  "
+                >
                   <td className="p-4 font-semibold">{budget.financial_year}</td>
 
                   <td className="p-4">{budget.department_name}</td>
@@ -79,12 +88,25 @@ export default function MyBudgetsPage() {
                   <td className="p-4">{formatDateTime(budget.created_at)}</td>
 
                   <td className="p-4">
-                    <Link
-                      to={`/budgets/view/${budget.id}`}
-                      className="text-primary-600 font-semibold"
-                    >
-                      View
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        to={`/budgets/view/${budget.id}`}
+                        className="
+        inline-flex items-center gap-2
+        rounded-lg
+        border border-primary-200
+        bg-primary-50
+        px-3 py-2
+        text-sm font-semibold
+        text-primary-700
+        transition-all
+        hover:bg-primary-100
+      "
+                      >
+                        <Eye size={16} />
+                        View Budget
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))

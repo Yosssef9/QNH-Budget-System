@@ -1,14 +1,15 @@
 import Breadcrumbs from "../../components/Breadcrumbs";
-import CurrencyText from "../../components/CurrencyText";
-import { useBudgetView } from "../../hooks/budgets/useBudgetView";
-import {
-  getBudgetStatusLabel,
-  getBudgetStatusStyle,
-} from "../../theme/statusStyles";
+import BudgetCompactSummaryPanel from "../../components/budgets/shared/BudgetCompactSummaryPanel";
+import BudgetHeaderCard from "../../components/budgets/shared/BudgetHeaderCard";
+import BudgetItemsTable from "../../components/budgets/shared/BudgetItemsTable";
 
+import { useBudgetView } from "../../hooks/budgets/useBudgetView";
+import useBudgetTotals from "../../hooks/budgets/useBudgetTotals";
 export default function BudgetViewPage() {
   const { data, isLoading } = useBudgetView();
+  const budget = data;
 
+  const { totalQuantity, totalAmount } = useBudgetTotals(budget?.items || []);
   if (isLoading) {
     return <div className="p-6">Loading...</div>;
   }
@@ -16,8 +17,6 @@ export default function BudgetViewPage() {
   if (!data) {
     return <div className="p-6">Budget not found</div>;
   }
-
-  const budget = data;
 
   return (
     <div className="space-y-6 p-6">
@@ -45,74 +44,20 @@ export default function BudgetViewPage() {
         </p>
       </div>
 
-      <section className="rounded-2xl border bg-white p-6">
-        <div className="grid gap-4 md:grid-cols-5">
-          <Info label="Department" value={budget.department_name} />
-
-          <Info label="Financial Year" value={budget.financial_year} />
-
-          <Info label="Created By" value={budget.created_by_name} />
-
-          <Info label="Items" value={budget.items?.length || 0} />
-
-          <Info
-            label="Status"
-            value={
-              <span
-                className={`rounded-md px-2 py-1 text-xs font-bold ${
-                  getBudgetStatusStyle(budget.status).badge
-                }`}
-              >
-                {getBudgetStatusLabel(budget.status)}
-              </span>
-            }
-          />
-        </div>
-      </section>
-
+      <BudgetHeaderCard
+        currentBudget={budget}
+        openYear={{
+          year: budget.financial_year,
+        }}
+        budgetStatus={budget.status}
+      />
       <section className="rounded-2xl border bg-white overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50">
-            <tr>
-              <th className="p-4 text-left">Item</th>
-
-              <th className="p-4 text-left">Quantity</th>
-
-              <th className="p-4 text-left">Unit Price</th>
-
-              <th className="p-4 text-left">Total</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {(budget.items || []).map((item) => (
-              <tr key={item.id} className="border-t">
-                <td className="p-4">{item.type_name}</td>
-
-                <td className="p-4">{item.quantity}</td>
-
-                <td className="p-4">
-                  <CurrencyText value={item.unit_price} />
-                </td>
-
-                <td className="p-4 font-semibold text-blue-600">
-                  <CurrencyText value={item.quantity * item.unit_price} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <BudgetCompactSummaryPanel
+          totalQuantity={totalQuantity}
+          totalAmount={totalAmount}
+        />
+        <BudgetItemsTable items={budget?.items} readOnly />
       </section>
-    </div>
-  );
-}
-
-function Info({ label, value }) {
-  return (
-    <div>
-      <p className="text-sm font-bold text-slate-700">{label}</p>
-
-      <div className="mt-2">{value}</div>
     </div>
   );
 }

@@ -9,6 +9,8 @@ import {
 } from "../hooks/financial-years/useFinancialYears";
 import { formatDateTime } from "../utils/dateFormatters";
 import ConfirmModal from "../components/ConfirmModal";
+import Breadcrumbs from "../components/Breadcrumbs";
+
 function getErrorMessage(error, fallback) {
   return error?.response?.data?.message || fallback;
 }
@@ -72,19 +74,25 @@ export default function FinancialYearsPage() {
   return (
     <div className="space-y-6 p-6 text-slate-800">
       <div>
-        <div className="flex items-center gap-2 text-sm font-semibold text-primary-700">
-          <CalendarDays size={17} />
-          <span>Admin</span>
-          <span>/</span>
-          <span className="text-slate-700">Financial Years</span>
-        </div>
+        <Breadcrumbs
+          items={[
+            {
+              label: "Dashboard",
+              path: "/",
+            },
+            {
+              label: "Financial Years",
+              path: "/financial-years",
+            },
+          ]}
+        />
 
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900">
           Financial Years
         </h1>
-        <p className="mt-2 text-sm font-medium text-slate-500">
-          Only users with can_manage_financial_years can open and close years.
-          Only one year can be OPEN or PRE-CLOSING at a time.
+        <p className="mt-2 text-sm text-slate-500">
+          Open, pre-close, and close financial years to control budget planning
+          and financial operations.
         </p>
       </div>
 

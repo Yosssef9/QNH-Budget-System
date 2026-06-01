@@ -39,6 +39,9 @@ const actionOptions = [
   "SAVE_BUDGET",
   "APPROVE_BUDGET",
   "RETURN_BUDGET",
+  "CREATE_TRANSFER",
+  "APPROVE_TRANSFER",
+  "REJECT_TRANSFER",
 ];
 
 const entityTypeOptions = [

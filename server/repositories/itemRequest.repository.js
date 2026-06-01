@@ -31,7 +31,7 @@ export async function getItemRequestsRepo(status) {
       r.reviewed_by,
       reviewer.USER_NAME AS reviewed_by_name,
       r.reviewed_at,
-    created_at
+   r.created_at
     FROM BS_budget_item_requests r
     LEFT JOIN BS_budget_categories c
       ON c.id = r.existing_category_id
@@ -204,7 +204,7 @@ export async function getDashboardItemRequestsRepo({ userId, budgetAccess }) {
         c.name AS existing_category_name,
         r.status,
         r.admin_note,
-    created_at
+         r.created_at,
         r.reviewed_at,
         u.USER_NAME AS requested_by_name,
         d.name AS requested_department_name

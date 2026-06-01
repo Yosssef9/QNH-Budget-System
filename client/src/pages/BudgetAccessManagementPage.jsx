@@ -11,17 +11,19 @@ import {
   CheckCircle2,
   XCircle,
   Search,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import PageLoader from "../components/PageLoader";
 import SearchableMultiSelect from "../components/SearchableMultiSelect";
-
+import { AnimatePresence, motion } from "framer-motion";
 import {
   useBudgetAccessAssignments,
   useCreateBudgetAccessAssignment,
   useUpdateBudgetAccessAssignment,
   useToggleBudgetAccessAssignmentStatus,
 } from "../hooks/budget-access/useBudgetAccessAssignments";
-
+import CollapsiblePanelToggle from "../components/layout/CollapsiblePanelToggle";
 import { useBudgetAccessUsers } from "../hooks/budget-access/useBudgetAccessUsers";
 import { useBudgetAccessDepartments } from "../hooks/budget-access/useBudgetAccessDepartments";
 import { useBudgetAccessRoles } from "../hooks/budget-access/useBudgetAccessRoles";
@@ -125,7 +127,7 @@ export default function BudgetAccessManagementPage() {
   const [form, setForm] = useState(emptyForm);
   const [userSearch, setUserSearch] = useState("");
   const [tableSearch, setTableSearch] = useState("");
-
+  const [isFormOpen, setIsFormOpen] = useState(true);
   const assignmentsQuery = useBudgetAccessAssignments();
 
   const usersQuery = useBudgetAccessUsers({
@@ -282,30 +284,6 @@ export default function BudgetAccessManagementPage() {
               are either inherited from the role or explicitly allowed.
             </p>
           </div>
-
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={resetForm}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-700"
-            >
-              <Plus size={16} />
-              Add New User Access
-            </button>
-
-            <button
-              type="button"
-              onClick={() => assignmentsQuery.refetch()}
-              disabled={assignmentsQuery.isFetching}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-enterprise-border bg-white px-4 py-2 text-sm font-medium text-enterprise-text transition hover:bg-enterprise-soft disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <RefreshCcw
-                size={16}
-                className={assignmentsQuery.isFetching ? "animate-spin" : ""}
-              />
-              Refresh
-            </button>
-          </div>
         </div>
       </section>
 
@@ -341,242 +319,267 @@ export default function BudgetAccessManagementPage() {
         </div>
       </section>
 
-      <section className="grid min-w-0 gap-6 xl:grid-cols-[520px_minmax(0,1fr)]">
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-card border border-enterprise-border bg-white shadow-card"
-        >
-          <div className="border-b border-enterprise-border p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-primary-700">
-                  Step 1
-                </p>
-
-                <h3 className="mt-1 text-lg font-semibold tracking-tight text-enterprise-text">
-                  Select User
-                </h3>
-
-                <p className="mt-1 text-sm text-enterprise-muted">
-                  Search by user name or user code. Existing users will load
-                  automatically for editing.
-                </p>
-              </div>
-
-              {form.user_id && (
-                <div className="mt-3 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="inline-flex items-center gap-2 rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 transition hover:bg-primary-100"
-                  >
-                    <X size={14} />
-                    Clear
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-5">
-              <SearchableMultiSelect
-                name="user_id"
-                multiple={false}
-                value={form.user_id}
-                options={mergedUserOptions}
-                disabled={isEditing}
-                placeholder="Search and select user"
-                searchPlaceholder="Search by user name or user code..."
-                noResultsText="No users found"
-                maxVisibleBadges={1}
-                searchValue={userSearch}
-                onSearchChange={setUserSearch}
-                loading={usersQuery.isLoading || usersQuery.isFetchingNextPage}
-                hasMore={Boolean(usersQuery.hasNextPage)}
-                onLoadMore={() => {
-                  if (
-                    usersQuery.hasNextPage &&
-                    !usersQuery.isFetchingNextPage
-                  ) {
-                    usersQuery.fetchNextPage();
-                  }
-                }}
-                getOptionValue={(user) => user.id}
-                getOptionLabel={(user) =>
-                  `${user.name || "Unknown"}${
-                    user.code ? ` - ${user.code}` : ""
-                  }`
-                }
-                onChange={(e) => handleUserSelect(e.target.value)}
-              />
-            </div>
-
-            {form.user_id && (
-              <div className="mt-5 rounded-2xl border border-primary-100 bg-primary-50 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-primary-700 shadow-soft">
-                    <UserCog size={19} />
-                  </div>
-
-                  <div className="min-w-0">
-                    <p className="font-semibold text-enterprise-text">
-                      {form.user_code || `User ${form.user_id}`}
-                    </p>
-                    <p className="truncate text-sm text-enterprise-muted">
-                      {form.user_name || "No user name"}
-                    </p>
-                  </div>
-
-                  <span
-                    className={[
-                      "ml-auto rounded-full px-3 py-1 text-xs font-semibold",
-                      isEditing
-                        ? "bg-success-50 text-success-700"
-                        : "bg-white text-primary-700",
-                    ].join(" ")}
-                  >
-                    {isEditing ? "Existing access" : "New access"}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-6 p-6">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary-700">
-                Step 2
-              </p>
-
-              <h3 className="mt-1 text-base font-semibold text-enterprise-text">
-                Access Details
-              </h3>
-
-              <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-1">
-                <div>
-                  <label className="text-sm font-medium text-enterprise-text">
-                    Department
-                  </label>
-
-                  <div className="mt-2">
-                    <SearchableMultiSelect
-                      name="department_id"
-                      multiple={false}
-                      value={form.department_id}
-                      options={departmentOptions}
-                      placeholder="Global access / select department"
-                      searchPlaceholder="Search department..."
-                      noResultsText="No departments found"
-                      maxVisibleBadges={1}
-                      getOptionValue={(department) => department.id}
-                      getOptionLabel={(department) => department.name}
-                      onChange={(e) => {
-                        setForm((prev) => ({
-                          ...prev,
-                          department_id: e.target.value,
-                        }));
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-enterprise-text">
-                    Role
-                  </label>
-
-                  <div className="mt-2">
-                    <SearchableMultiSelect
-                      name="role_id"
-                      multiple={false}
-                      value={form.role_id}
-                      options={roleOptions}
-                      placeholder="Select role"
-                      searchPlaceholder="Search role..."
-                      noResultsText="No roles found"
-                      maxVisibleBadges={1}
-                      getOptionValue={(role) => role.id}
-                      getOptionLabel={(role) => role.name}
-                      onChange={(e) => {
-                        setForm((prev) => ({
-                          ...prev,
-                          role_id: e.target.value,
-                        }));
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-enterprise-border bg-enterprise-soft p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary-700">
-                Step 3
-              </p>
-
-              <h3 className="mt-1 text-base font-semibold text-enterprise-text">
-                Optional Permission Allows
-              </h3>
-
-              <p className="mt-1 text-xs leading-5 text-enterprise-muted">
-                Keep permissions as “Inherit from role” unless this user needs a
-                specific extra permission.
-              </p>
-
-              <div className="mt-4 grid gap-3">
-                {permissionFields.map((permission) => (
-                  <div
-                    key={permission.key}
-                    className="grid grid-cols-[1fr_170px] items-center gap-3 rounded-xl bg-white p-3"
-                  >
-                    <span className="text-sm font-medium text-enterprise-text">
-                      {permission.label}
-                    </span>
-
-                    <SearchableMultiSelect
-                      name={permission.key}
-                      multiple={false}
-                      value={form[permission.key]}
-                      options={permissionOptions}
-                      placeholder="Inherit"
-                      searchPlaceholder="Search..."
-                      noResultsText="No options found"
-                      maxVisibleBadges={1}
-                      getOptionValue={(option) => option.id}
-                      getOptionLabel={(option) => option.name}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          [permission.key]: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={saving || !form.user_id || !form.role_id}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
+      <section
+        className={`grid min-w-0 gap-6 xl:items-start ${
+          isFormOpen
+            ? "xl:grid-cols-[520px_minmax(0,1fr)]"
+            : "xl:grid-cols-[minmax(0,1fr)]"
+        }`}
+      >
+        <AnimatePresence mode="wait">
+          {isFormOpen && (
+            <motion.form
+              onSubmit={handleSubmit}
+              initial={{ opacity: 0, x: -30 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -30 }}
+              transition={{ duration: 0.25 }}
+              className="rounded-card border border-enterprise-border bg-white shadow-card overflow-hidden"
             >
-              {isEditing ? <Save size={17} /> : <Plus size={17} />}
-              {saving
-                ? "Saving..."
-                : isEditing
-                  ? "Save Access Changes"
-                  : "Add User Access"}
-            </button>
-          </div>
-        </form>
+              <div className="border-b border-enterprise-border p-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-primary-700">
+                      Step 1
+                    </p>
+
+                    <h3 className="mt-1 text-lg font-semibold tracking-tight text-enterprise-text">
+                      Select User
+                    </h3>
+
+                    <p className="mt-1 text-sm text-enterprise-muted">
+                      Search by user name or user code. Existing users will load
+                      automatically for editing.
+                    </p>
+                  </div>
+
+                  {form.user_id && (
+                    <div className="mt-3 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={resetForm}
+                        className="inline-flex items-center gap-2 rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 transition hover:bg-primary-100"
+                      >
+                        <X size={14} />
+                        Clear
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-5">
+                  <SearchableMultiSelect
+                    name="user_id"
+                    multiple={false}
+                    value={form.user_id}
+                    options={mergedUserOptions}
+                    disabled={isEditing}
+                    placeholder="Search and select user"
+                    searchPlaceholder="Search by user name or user code..."
+                    noResultsText="No users found"
+                    maxVisibleBadges={1}
+                    searchValue={userSearch}
+                    onSearchChange={setUserSearch}
+                    loading={
+                      usersQuery.isLoading || usersQuery.isFetchingNextPage
+                    }
+                    hasMore={Boolean(usersQuery.hasNextPage)}
+                    onLoadMore={() => {
+                      if (
+                        usersQuery.hasNextPage &&
+                        !usersQuery.isFetchingNextPage
+                      ) {
+                        usersQuery.fetchNextPage();
+                      }
+                    }}
+                    getOptionValue={(user) => user.id}
+                    getOptionLabel={(user) =>
+                      `${user.name || "Unknown"}${
+                        user.code ? ` - ${user.code}` : ""
+                      }`
+                    }
+                    onChange={(e) => handleUserSelect(e.target.value)}
+                  />
+                </div>
+
+                {form.user_id && (
+                  <div className="mt-5 rounded-2xl border border-primary-100 bg-primary-50 p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-primary-700 shadow-soft">
+                        <UserCog size={19} />
+                      </div>
+
+                      <div className="min-w-0">
+                        <p className="font-semibold text-enterprise-text">
+                          {form.user_code || `User ${form.user_id}`}
+                        </p>
+                        <p className="truncate text-sm text-enterprise-muted">
+                          {form.user_name || "No user name"}
+                        </p>
+                      </div>
+
+                      <span
+                        className={[
+                          "ml-auto rounded-full px-3 py-1 text-xs font-semibold",
+                          isEditing
+                            ? "bg-success-50 text-success-700"
+                            : "bg-white text-primary-700",
+                        ].join(" ")}
+                      >
+                        {isEditing ? "Existing access" : "New access"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-6 p-6">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-primary-700">
+                    Step 2
+                  </p>
+
+                  <h3 className="mt-1 text-base font-semibold text-enterprise-text">
+                    Access Details
+                  </h3>
+
+                  <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-1">
+                    <div>
+                      <label className="text-sm font-medium text-enterprise-text">
+                        Department
+                      </label>
+
+                      <div className="mt-2">
+                        <SearchableMultiSelect
+                          name="department_id"
+                          multiple={false}
+                          value={form.department_id}
+                          options={departmentOptions}
+                          placeholder="Global access / select department"
+                          searchPlaceholder="Search department..."
+                          noResultsText="No departments found"
+                          maxVisibleBadges={1}
+                          getOptionValue={(department) => department.id}
+                          getOptionLabel={(department) => department.name}
+                          onChange={(e) => {
+                            setForm((prev) => ({
+                              ...prev,
+                              department_id: e.target.value,
+                            }));
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-enterprise-text">
+                        Role
+                      </label>
+
+                      <div className="mt-2">
+                        <SearchableMultiSelect
+                          name="role_id"
+                          multiple={false}
+                          value={form.role_id}
+                          options={roleOptions}
+                          placeholder="Select role"
+                          searchPlaceholder="Search role..."
+                          noResultsText="No roles found"
+                          maxVisibleBadges={1}
+                          getOptionValue={(role) => role.id}
+                          getOptionLabel={(role) => role.name}
+                          onChange={(e) => {
+                            setForm((prev) => ({
+                              ...prev,
+                              role_id: e.target.value,
+                            }));
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-enterprise-border bg-enterprise-soft p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-primary-700">
+                    Step 3
+                  </p>
+
+                  <h3 className="mt-1 text-base font-semibold text-enterprise-text">
+                    Optional Permission Allows
+                  </h3>
+
+                  <p className="mt-1 text-xs leading-5 text-enterprise-muted">
+                    Keep permissions as “Inherit from role” unless this user
+                    needs a specific extra permission.
+                  </p>
+
+                  <div className="mt-4 grid gap-3">
+                    {permissionFields.map((permission) => (
+                      <div
+                        key={permission.key}
+                        className="grid grid-cols-[1fr_170px] items-center gap-3 rounded-xl bg-white p-3"
+                      >
+                        <span className="text-sm font-medium text-enterprise-text">
+                          {permission.label}
+                        </span>
+
+                        <SearchableMultiSelect
+                          name={permission.key}
+                          multiple={false}
+                          value={form[permission.key]}
+                          options={permissionOptions}
+                          placeholder="Inherit"
+                          searchPlaceholder="Search..."
+                          noResultsText="No options found"
+                          maxVisibleBadges={1}
+                          getOptionValue={(option) => option.id}
+                          getOptionLabel={(option) => option.name}
+                          onChange={(e) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              [permission.key]: e.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={saving || !form.user_id || !form.role_id}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isEditing ? <Save size={17} /> : <Plus size={17} />}
+                  {saving
+                    ? "Saving..."
+                    : isEditing
+                      ? "Save Access Changes"
+                      : "Add User Access"}
+                </button>
+              </div>
+            </motion.form>
+          )}
+        </AnimatePresence>
 
         <section className="min-w-0 rounded-card border border-enterprise-border bg-white shadow-card">
           <div className="border-b border-enterprise-border p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h3 className="text-lg font-semibold tracking-tight text-enterprise-text">
-                  Current Budget Users
-                </h3>
+                <div className="flex items-center gap-3">
+                  <h3 className="text-lg font-semibold tracking-tight text-enterprise-text">
+                    Current Budget Users
+                  </h3>
+
+                  <CollapsiblePanelToggle
+                    isOpen={isFormOpen}
+                    onToggle={() => setIsFormOpen((prev) => !prev)}
+                    openLabel="Show Form"
+                    closeLabel="Hide Form"
+                  />
+                </div>
 
                 <p className="mt-1 text-sm text-enterprise-muted">
                   Click a row to review or update access.
@@ -596,159 +599,161 @@ export default function BudgetAccessManagementPage() {
           </div>
 
           <div className="max-w-full overflow-x-auto">
-            <table className="w-full min-w-[1000px] border-separate border-spacing-0 text-left text-sm">
-              <thead>
-                <tr className="bg-enterprise-soft text-xs font-semibold uppercase tracking-wide text-enterprise-muted">
-                  <th className="border-b border-enterprise-border px-4 py-3">
-                    User
-                  </th>
-                  <th className="border-b border-enterprise-border px-4 py-3">
-                    Department
-                  </th>
-                  <th className="border-b border-enterprise-border px-4 py-3">
-                    Role
-                  </th>
-                  <th className="border-b border-enterprise-border px-4 py-3">
-                    Extra Allows
-                  </th>
-                  <th className="border-b border-enterprise-border px-4 py-3">
-                    Status
-                  </th>
-                  <th className="border-b border-enterprise-border px-4 py-3 text-right">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
+            <div className="max-h-[800px] overflow-y-auto">
+              <table className="w-full min-w-[1000px] border-separate border-spacing-0 text-left text-sm">
+                <thead className="sticky top-0 z-10 bg-enterprise-soft">
+                  <tr className="bg-enterprise-soft text-xs font-semibold uppercase tracking-wide text-enterprise-muted">
+                    <th className="border-b border-enterprise-border px-4 py-3">
+                      User
+                    </th>
+                    <th className="border-b border-enterprise-border px-4 py-3">
+                      Department
+                    </th>
+                    <th className="border-b border-enterprise-border px-4 py-3">
+                      Role
+                    </th>
+                    <th className="border-b border-enterprise-border px-4 py-3">
+                      Extra Allows
+                    </th>
+                    <th className="border-b border-enterprise-border px-4 py-3">
+                      Status
+                    </th>
+                    <th className="border-b border-enterprise-border px-4 py-3 text-right">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
 
-              <tbody>
-                {filteredRows.map((row) => (
-                  <tr
-                    key={row.id}
-                    onClick={() => handleEdit(row)}
-                    className={[
-                      "cursor-pointer text-enterprise-text transition hover:bg-enterprise-soft",
-                      form.id === row.id ? "bg-primary-50" : "",
-                    ].join(" ")}
-                  >
-                    <td className="border-b border-enterprise-border px-4 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-50 text-primary-700">
-                          <UserCog size={17} />
+                <tbody>
+                  {filteredRows.map((row) => (
+                    <tr
+                      key={row.id}
+                      onClick={() => handleEdit(row)}
+                      className={[
+                        "cursor-pointer text-enterprise-text transition hover:bg-enterprise-soft",
+                        form.id === row.id ? "bg-primary-50" : "",
+                      ].join(" ")}
+                    >
+                      <td className="border-b border-enterprise-border px-4 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-50 text-primary-700">
+                            <UserCog size={17} />
+                          </div>
+
+                          <div>
+                            <p className="font-semibold">
+                              {row.user_code ||
+                                row.userCode ||
+                                `User ${row.user_id}`}
+                            </p>
+
+                            <p className="text-xs text-enterprise-muted">
+                              {row.user_name || row.userName || "No user name"}
+                            </p>
+                          </div>
                         </div>
+                      </td>
 
-                        <div>
-                          <p className="font-semibold">
-                            {row.user_code ||
-                              row.userCode ||
-                              `User ${row.user_id}`}
-                          </p>
+                      <td className="border-b border-enterprise-border px-4 py-4">
+                        {row.department_name || "Global"}
+                      </td>
 
-                          <p className="text-xs text-enterprise-muted">
-                            {row.user_name || row.userName || "No user name"}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
+                      <td className="border-b border-enterprise-border px-4 py-4">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1 text-xs font-medium text-primary-700">
+                          <ShieldCheck size={14} />
+                          {row.role_name || `Role #${row.role_id}`}
+                        </span>
+                      </td>
 
-                    <td className="border-b border-enterprise-border px-4 py-4">
-                      {row.department_name || "Global"}
-                    </td>
+                      <td className="border-b border-enterprise-border px-4 py-4">
+                        <div className="flex flex-wrap gap-2">
+                          {permissionFields
+                            .filter(
+                              (permission) =>
+                                row[permission.key] === true ||
+                                row[permission.key] === 1,
+                            )
+                            .slice(0, 4)
+                            .map((permission) => (
+                              <span
+                                key={permission.key}
+                                className={[
+                                  "rounded-full border px-2.5 py-1 text-xs font-medium",
+                                  permissionClass(row[permission.key]),
+                                ].join(" ")}
+                              >
+                                {permission.label}
+                              </span>
+                            ))}
 
-                    <td className="border-b border-enterprise-border px-4 py-4">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1 text-xs font-medium text-primary-700">
-                        <ShieldCheck size={14} />
-                        {row.role_name || `Role #${row.role_id}`}
-                      </span>
-                    </td>
-
-                    <td className="border-b border-enterprise-border px-4 py-4">
-                      <div className="flex flex-wrap gap-2">
-                        {permissionFields
-                          .filter(
+                          {permissionFields.filter(
                             (permission) =>
                               row[permission.key] === true ||
                               row[permission.key] === 1,
-                          )
-                          .slice(0, 4)
-                          .map((permission) => (
-                            <span
-                              key={permission.key}
-                              className={[
-                                "rounded-full border px-2.5 py-1 text-xs font-medium",
-                                permissionClass(row[permission.key]),
-                              ].join(" ")}
-                            >
-                              {permission.label}
+                          ).length === 0 && (
+                            <span className="rounded-full border border-enterprise-border bg-enterprise-soft px-2.5 py-1 text-xs font-medium text-enterprise-muted">
+                              Role defaults
                             </span>
-                          ))}
+                          )}
+                        </div>
+                      </td>
 
-                        {permissionFields.filter(
-                          (permission) =>
-                            row[permission.key] === true ||
-                            row[permission.key] === 1,
-                        ).length === 0 && (
-                          <span className="rounded-full border border-enterprise-border bg-enterprise-soft px-2.5 py-1 text-xs font-medium text-enterprise-muted">
-                            Role defaults
-                          </span>
-                        )}
-                      </div>
-                    </td>
+                      <td className="border-b border-enterprise-border px-4 py-4">
+                        <span
+                          className={[
+                            "rounded-full px-3 py-1 text-xs font-semibold",
+                            row.is_active
+                              ? "bg-success-50 text-success-700"
+                              : "bg-danger-50 text-danger-700",
+                          ].join(" ")}
+                        >
+                          {row.is_active ? "Active" : "Inactive"}
+                        </span>
+                      </td>
 
-                    <td className="border-b border-enterprise-border px-4 py-4">
-                      <span
-                        className={[
-                          "rounded-full px-3 py-1 text-xs font-semibold",
-                          row.is_active
-                            ? "bg-success-50 text-success-700"
-                            : "bg-danger-50 text-danger-700",
-                        ].join(" ")}
+                      <td className="border-b border-enterprise-border px-4 py-4">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEdit(row);
+                            }}
+                            className="rounded-lg border border-enterprise-border bg-white px-3 py-2 text-xs font-medium text-enterprise-text transition hover:bg-enterprise-soft"
+                          >
+                            Edit
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleStatus(row);
+                            }}
+                            disabled={saving}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-enterprise-border bg-white px-3 py-2 text-xs font-medium text-enterprise-text transition hover:bg-enterprise-soft disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <Power size={14} />
+                            {row.is_active ? "Deactivate" : "Activate"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+
+                  {filteredRows.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan="6"
+                        className="px-4 py-12 text-center text-sm text-enterprise-muted"
                       >
-                        {row.is_active ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-
-                    <td className="border-b border-enterprise-border px-4 py-4">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEdit(row);
-                          }}
-                          className="rounded-lg border border-enterprise-border bg-white px-3 py-2 text-xs font-medium text-enterprise-text transition hover:bg-enterprise-soft"
-                        >
-                          Edit
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleToggleStatus(row);
-                          }}
-                          disabled={saving}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-enterprise-border bg-white px-3 py-2 text-xs font-medium text-enterprise-text transition hover:bg-enterprise-soft disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          <Power size={14} />
-                          {row.is_active ? "Deactivate" : "Activate"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-
-                {filteredRows.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan="6"
-                      className="px-4 py-12 text-center text-sm text-enterprise-muted"
-                    >
-                      No matching users found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                        No matching users found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
       </section>

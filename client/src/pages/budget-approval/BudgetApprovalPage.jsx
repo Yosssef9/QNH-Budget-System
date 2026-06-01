@@ -30,6 +30,7 @@ import {
   getBudgetStatusStyle,
 } from "../../theme/statusStyles";
 import BudgetTimeline from "../../components/BudgetTimeline";
+import CollapsiblePanelToggle from "../../components/layout/CollapsiblePanelToggle";
 export default function BudgetApprovalPage() {
   const [activeTab, setActiveTab] = useState("REVIEW");
   const [isPendingPanelOpen, setIsPendingPanelOpen] = useState(true);
@@ -284,23 +285,12 @@ export default function BudgetApprovalPage() {
           />
           <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-200 p-4">
-              <button
-                type="button"
-                onClick={() => setIsApprovedPanelOpen((prev) => !prev)}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 shadow-sm transition hover:bg-slate-50"
-              >
-                {isApprovedPanelOpen ? (
-                  <>
-                    <PanelLeftClose size={17} />
-                    Hide Approved List
-                  </>
-                ) : (
-                  <>
-                    <PanelLeftOpen size={17} />
-                    Show Approved List
-                  </>
-                )}
-              </button>
+              <CollapsiblePanelToggle
+                isOpen={isApprovedPanelOpen}
+                onToggle={() => setIsApprovedPanelOpen((prev) => !prev)}
+                openLabel="Show Approved"
+                closeLabel="Hide Approved"
+              />
             </div>
             {!selectedApprovedBudgetId && (
               <div className="flex min-h-[520px] items-center justify-center p-8">
@@ -384,23 +374,12 @@ export default function BudgetApprovalPage() {
             className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
           >
             <div className="border-b border-slate-200 p-4">
-              <button
-                type="button"
-                onClick={() => setIsPendingPanelOpen((prev) => !prev)}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 shadow-sm transition hover:bg-slate-50"
-              >
-                {isPendingPanelOpen ? (
-                  <>
-                    <PanelLeftClose size={17} />
-                    Hide Pending List
-                  </>
-                ) : (
-                  <>
-                    <PanelLeftOpen size={17} />
-                    Show Pending List
-                  </>
-                )}
-              </button>
+              <CollapsiblePanelToggle
+                isOpen={isPendingPanelOpen}
+                onToggle={() => setIsPendingPanelOpen((prev) => !prev)}
+                openLabel="Show Pending List"
+                closeLabel="Hide Pending List"
+              />
             </div>
             {!selectedBudgetId && (
               <div className="flex min-h-[520px] items-center justify-center p-8">

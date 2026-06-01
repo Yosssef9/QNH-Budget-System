@@ -25,6 +25,9 @@ import auditRoutes from "./routes/audit.routes.js";
 import { errorHandler } from "./middleware/error.middleware.js";
 import { logger } from "./utils/logger.js";
 import { ApiError } from "./utils/apiError.js";
+import testRoutes from "./routes/test.routes.js";
+import transferRoutes from "./routes/transfer.routes.js";
+import budgetItemRoutes from "./routes/budgetItem.routes.js";
 
 const app = express();
 
@@ -78,6 +81,9 @@ app.use("/api/budget-approval", budgetApprovalRoutes);
 app.use("/api/item-requests", itemRequestRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/audit-logs", auditRoutes);
+app.use("/api/transfers", transferRoutes);
+app.use("/api/test", testRoutes);
+app.use("/api/budget-items", budgetItemRoutes);
 // 404
 app.use((req, res, next) => {
   next(new ApiError(404, "Route not found", "NOT_FOUND"));

@@ -20,7 +20,11 @@ import {
   XCircle,
   ChevronDown,
 } from "lucide-react";
-
+import {
+  getBudgetStatusLabel,
+  getBudgetStatusStyle,
+} from "../theme/statusStyles";
+import CollapsiblePanelToggle from "../components/layout/CollapsiblePanelToggle";
 import ConfirmModal from "../components/ConfirmModal";
 import SearchableMultiSelect from "../components/SearchableMultiSelect";
 import {
@@ -767,23 +771,12 @@ export default function BudgetSetupPage() {
         </AnimatePresence>
       </section>
       <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => setIsSetupPanelOpen((prev) => !prev)}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 shadow-sm transition hover:bg-slate-50"
-        >
-          {isSetupPanelOpen ? (
-            <>
-              <PanelLeftClose size={17} />
-              Hide Setup Panel
-            </>
-          ) : (
-            <>
-              <PanelLeftOpen size={17} />
-              Show Setup Panel
-            </>
-          )}
-        </button>
+        <CollapsiblePanelToggle
+          isOpen={isSetupPanelOpen}
+          onToggle={() => setIsSetupPanelOpen((prev) => !prev)}
+          openLabel="Show Requests"
+          closeLabel="Hide Requests"
+        />
       </div>
 
       <div
@@ -1236,8 +1229,12 @@ export default function BudgetSetupPage() {
                       {budget.department_name}
                     </p>
 
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
-                      {budget.status}
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-bold ${
+                        getBudgetStatusStyle(budget.status).badge
+                      }`}
+                    >
+                      {getBudgetStatusLabel(budget.status)}
                     </span>
                   </div>
 

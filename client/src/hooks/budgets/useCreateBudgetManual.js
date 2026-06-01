@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   replaceBudgetItems,
   deleteBudgetItem,
@@ -264,7 +264,7 @@ export function useCreateBudgetManual() {
     };
   }, [rows, typesByCategory]);
 
-  function updateRow(id, field, value) {
+  const updateRow = useCallback((id, field, value) => {
     setRows((prev) =>
       prev.map((row) => {
         if (row.id !== id) return row;
@@ -283,72 +283,78 @@ export function useCreateBudgetManual() {
         };
       }),
     );
-  }
+  }, []);
 
-  function addItem() {
+  const addItem = useCallback(() => {
     setRows((prev) => [
       createRow(Date.now(), categories[0]?.id || "", "", "MONTHLY", 0, 0),
       ...prev,
     ]);
-  }
+  }, [categories]);
 
-  async function deleteItem(id) {
-    const rowToDelete = rows.find((row) => row.id === id);
-    if (!rowToDelete) return;
+  const deleteItem = useCallback(
+    async (id) => {
+      const rowToDelete = rows.find((row) => row.id === id);
+      if (!rowToDelete) return;
 
-    const previousRows = rows;
+      const previousRows = rows;
 
-    setRows((prev) => prev.filter((row) => row.id !== id));
+      setRows((prev) => prev.filter((row) => row.id !== id));
 
-    if (rowToDelete.isNew) {
-      return;
-    }
-
-    if (!currentBudget?.id) {
-      setRows(previousRows);
-      toast.error("Current budget was not loaded");
-      return;
-    }
-
-    try {
-      await toastPromise(deleteBudgetItem(currentBudget.id, id), {
-        loading: "Deleting item...",
-        success: "Item deleted successfully",
-        error: "Failed to delete item",
-      });
-    } catch {
-      setRows(previousRows);
-    }
-  }
-
-  async function saveDraft(payloadRows) {
-    setSaving(true);
-
-    try {
-      const budgetId = currentBudget?.id;
-
-      if (!budgetId) {
-        throw new Error("Current draft budget was not loaded");
+      if (rowToDelete.isNew) {
+        return;
       }
 
-      await toastPromise(replaceBudgetItems(budgetId, payloadRows), {
-        loading: "Saving budget draft...",
-        success: "Budget draft saved successfully",
-        error: "Failed to save budget",
-      });
+      if (!currentBudget?.id) {
+        setRows(previousRows);
+        toast.error("Current budget was not loaded");
+        return;
+      }
 
-      const savedItems = await getBudgetItems(budgetId);
+      try {
+        await toastPromise(deleteBudgetItem(currentBudget.id, id), {
+          loading: "Deleting item...",
+          success: "Item deleted successfully",
+          error: "Failed to delete item",
+        });
+      } catch {
+        setRows(previousRows);
+      }
+    },
+    [rows, currentBudget],
+  );
 
-      setRows(savedItems.map(mapBudgetItemToRow));
+  const saveDraft = useCallback(
+    async (payloadRows) => {
+      setSaving(true);
 
-      mergeExistingBudgetTypes(savedItems);
-      mergeExistingBudgetCategories(savedItems);
+      try {
+        const budgetId = currentBudget?.id;
 
-      localStorage.removeItem(getBudgetDraftKey(budgetId));
-    } finally {
-      setSaving(false);
-    }
-  }
+        if (!budgetId) {
+          throw new Error("Current draft budget was not loaded");
+        }
+
+        await toastPromise(replaceBudgetItems(budgetId, payloadRows), {
+          loading: "Saving budget draft...",
+          success: "Budget draft saved successfully",
+          error: "Failed to save budget",
+        });
+
+        const savedItems = await getBudgetItems(budgetId);
+
+        setRows(savedItems.map(mapBudgetItemToRow));
+
+        mergeExistingBudgetTypes(savedItems);
+        mergeExistingBudgetCategories(savedItems);
+
+        localStorage.removeItem(getBudgetDraftKey(budgetId));
+      } finally {
+        setSaving(false);
+      }
+    },
+    [currentBudget],
+  );
 
   return {
     currentBudget,

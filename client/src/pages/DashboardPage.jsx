@@ -11,7 +11,10 @@ import DashboardQuickActionCard from "../components/dashboard/DashboardQuickActi
 import CollapsibleSection from "../components/CollapsibleSection";
 import { useNavigate } from "react-router-dom";
 import { formatDate } from "../utils/dateFormatters";
-
+import {
+  getBudgetStatusLabel,
+  getBudgetStatusStyle,
+} from "../theme/statusStyles";
 export default function DashboardPage() {
   const { user, budgetAccess } = useAuth();
   const navigate = useNavigate();
@@ -155,21 +158,17 @@ export default function DashboardPage() {
                             <p className="mt-1 text-xs font-semibold text-slate-500">
                               Requested At:{" "}
                               {item.created_at
-                                ?   formatDate(item.created_at)
+                                ? formatDate(item.created_at)
                                 : "-"}
                             </p>
                           </div>
 
                           <span
-                            className={`rounded-full border px-3 py-1 text-xs font-bold ${
-                              item.status === "APPROVED"
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                : item.status === "REJECTED"
-                                  ? "border-red-200 bg-red-50 text-red-700"
-                                  : "border-amber-200 bg-amber-50 text-amber-700"
+                            className={`rounded-full px-3 py-1 text-xs font-bold ${
+                              getBudgetStatusStyle(item.status).badge
                             }`}
                           >
-                            {item.status}
+                            {getBudgetStatusLabel(item.status)}
                           </span>
                         </div>
 

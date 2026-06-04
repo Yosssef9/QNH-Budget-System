@@ -162,11 +162,14 @@ SELECT
   t.expense_type,
         bi.quantity,
         bi.unit_price,
-        bi.total_amount,
-        bi.distribution_method,
-        bi.distribution_level,
+       bi.total_amount,
+bi.distribution_method,
+bi.distribution_level,
 
-        d.period_type,
+bi.created_from_transfer,
+bi.source_transfer_id,
+
+d.period_type,
         d.period_no,
         d.quantity AS distribution_quantity
       FROM BS_budget_items bi

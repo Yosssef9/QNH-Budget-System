@@ -12,7 +12,10 @@ import {
   deleteTypeService,
   getCategoryUsageService,
   getTypeUsageService,
+  getAllTypesService,
+  getAvailableTransferTypesService,
 } from "../services/category.service.js";
+
 import {
   validateCategoryId,
   validateCreateCategory,
@@ -205,3 +208,31 @@ export const deleteType = asyncHandler(async (req, res) => {
     }),
   );
 });
+export const getAllTypes = asyncHandler(async (req, res) => {
+  const types = await getAllTypesService();
+
+  return res.json(
+    new ApiResponse({
+      message: "Types fetched successfully",
+      data: types,
+    }),
+  );
+});
+export const getAvailableTransferTypes =
+  asyncHandler(async (req, res) => {
+    const budgetId =
+      req.user.currentBudgetId;
+
+    const data =
+      await getAvailableTransferTypesService(
+        budgetId,
+      );
+
+    return res.json(
+      new ApiResponse({
+        message:
+          "Available types fetched successfully",
+        data,
+      }),
+    );
+  });

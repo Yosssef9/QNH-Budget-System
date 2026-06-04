@@ -36,3 +36,29 @@ export async function getBudgetItemBalanceRepo(itemId) {
 
   return result.recordset[0] || null;
 }
+export async function getBudgetBalanceSummaryRepo(budgetId) {
+  const pool = await poolPromise;
+
+  const result = await pool.request().input("budgetId", sql.BigInt, budgetId)
+    .query(`
+      SELECT
+        bi.id,
+
+        bt.name AS type_name,
+
+        bi.total_amount AS approved_amount,
+
+        bi.created_from_transfer,
+        bi.source_transfer_id
+
+      FROM BS_budget_items bi
+
+      INNER JOIN BS_budget_types bt
+        ON bt.id = bi.type_id
+
+      WHERE bi.budget_id = @budgetId
+        AND bi.is_active = 1
+    `);
+
+  return result.recordset;
+}

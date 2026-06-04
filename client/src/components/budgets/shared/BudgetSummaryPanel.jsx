@@ -2,12 +2,20 @@ import BudgetSummaryCard from "./BudgetSummaryCard";
 import CurrencyText from "../../../components/CurrencyText";
 import { formatNumber } from "../../../utils/formatters";
 import { MONTHS as months } from "../../../constants/months.constants";
+import { AnimatePresence, motion } from "framer-motion";
 
 export default function BudgetSummaryPanel({ summary, summaryView }) {
   return (
-    <div className="transition-all duration-200 ease-in-out">
+    <AnimatePresence mode="wait">
       {summaryView === "QUARTER" ? (
-        <div className="grid animate-[fadeIn_0.18s_ease-in-out] md:grid-cols-6">
+        <motion.div
+          key="quarter"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.25 }}
+          className="grid md:grid-cols-6"
+        >
           <BudgetSummaryCard
             label="Total Quantity"
             value={formatNumber(summary.totalQuantity)}
@@ -38,9 +46,16 @@ export default function BudgetSummaryPanel({ summary, summaryView }) {
             label="Q4"
             value={<CurrencyText value={summary.quarterTotals[3]} />}
           />
-        </div>
+        </motion.div>
       ) : (
-        <div className="animate-[fadeIn_0.18s_ease-in-out] p-4">
+        <motion.div
+          key="month"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.25 }}
+          className="p-4"
+        >
           <div className="mb-4 flex items-center justify-between rounded-xl bg-blue-50 px-4 py-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
@@ -70,9 +85,13 @@ export default function BudgetSummaryPanel({ summary, summaryView }) {
               const hasAmount = amount > 0;
 
               return (
-                <div
+                <motion.div
                   key={month}
-                  className={`rounded-xl border p-4 transition-all duration-200 ease-in-out ${
+                  layout
+                  initial={{ opacity: 0, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.2 }}
+                  className={`rounded-xl border p-4 ${
                     hasAmount
                       ? "border-blue-100 bg-white shadow-sm"
                       : "border-slate-200 bg-slate-50"
@@ -99,26 +118,30 @@ export default function BudgetSummaryPanel({ summary, summaryView }) {
                   </div>
 
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full rounded-full bg-blue-500 transition-all duration-300 ease-in-out"
-                      style={{
+                    <motion.div
+                      className="h-full rounded-full bg-blue-500"
+                      animate={{
                         width: `${
                           summary.totalAmount > 0
                             ? Math.min(
                                 (amount / summary.totalAmount) * 100,
-                                100,
+                                100
                               )
                             : 0
                         }%`,
                       }}
+                      transition={{
+                        duration: 0.4,
+                        ease: "easeInOut",
+                      }}
                     />
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>
-        </div>
+        </motion.div>
       )}
-    </div>
+    </AnimatePresence>
   );
 }

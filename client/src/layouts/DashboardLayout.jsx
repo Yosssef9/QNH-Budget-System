@@ -215,9 +215,11 @@ function getSidebarSections(budgetAccess) {
         },
         {
           label: "Budgets",
-          path: "/budgets",
+          path: permissions.can_approve_budget
+            ? "/budget-analytics"
+            : "/budgets",
           icon: Wallet,
-          show: permissions.can_view_budget,
+          show: permissions.can_view_budget || permissions.can_approve_budget,
         },
         {
           label: "Approvals",
@@ -227,7 +229,9 @@ function getSidebarSections(budgetAccess) {
         },
         {
           label: "Transfers",
-          path: "/transfers",
+          path: permissions.can_approve_transfer
+            ? "/transfers/approvals"
+            : "/transfers/requests",
           icon: Repeat2,
           show:
             permissions.can_request_transfer ||

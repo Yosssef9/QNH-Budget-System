@@ -7,6 +7,7 @@ import {
   getBudgetReviewFeedback,
   getBudgetTimeline,
   getBudgetDetails,
+  getBudgetBalanceSummary,
 } from "../controllers/budgets.controller.js";
 
 import { verifyPortalJwt } from "../middleware/verifyPortalJwt.middleware.js";
@@ -69,4 +70,5 @@ router.get(
   requirePermission("can_view_budget"),
   getBudgetDetails,
 );
+router.get("/:budgetId/balance-summary", getBudgetBalanceSummary);
 export default router;

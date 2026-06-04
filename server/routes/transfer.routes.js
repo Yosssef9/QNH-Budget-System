@@ -5,20 +5,44 @@ import {
   getTransfers,
   approveTransfer,
   rejectTransfer,
-  getPendingTransfers,
-  getTransferById
+  getTransferById,
+  getTransferItems,
+  getMyTransfers,
+  getTransferDashboard,
 } from "../controllers/transfer.controller.js";
 
-const router = express.Router();
-router.get("/", getTransfers);
+import { verifyPortalJwt } from "../middleware/verifyPortalJwt.middleware.js";
+import { verifyBudgetAccess } from "../middleware/verifyBudgetAccess.middleware.js";
+import { requirePermission } from "../middleware/permission.middleware.js";
 
-router.get("/pending", getPendingTransfers);
+const router = express.Router();
+
+router.use(verifyPortalJwt, verifyBudgetAccess);
+
+router.get("/", requirePermission("can_approve_transfer"), getTransfers);
+
+router.get(
+  "/items",
+  requirePermission("can_request_transfer"),
+  getTransferItems,
+);
+router.get("/dashboard", getTransferDashboard);
+
+router.get("/my", requirePermission("can_request_transfer"), getMyTransfers);
 
 router.get("/:id", getTransferById);
 
-router.post("/", createTransfer);
+router.post("/", requirePermission("can_request_transfer"), createTransfer);
 
-router.post("/:id/approve", approveTransfer);
+router.post(
+  "/:id/approve",
+  requirePermission("can_approve_transfer"),
+  approveTransfer,
+);
 
-router.post("/:id/reject", rejectTransfer);
+router.post(
+  "/:id/reject",
+  requirePermission("can_approve_transfer"),
+  rejectTransfer,
+);
 export default router;

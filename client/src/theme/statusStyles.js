@@ -1,3 +1,6 @@
+import { formatStatus } from "../utils/statusFormatter";
+
+
 export const BUDGET_STATUS_LABELS = {
   DRAFT: "Draft",
   PENDING_APPROVAL: "Pending",
@@ -45,9 +48,12 @@ export const BUDGET_STATUS_STYLES = {
   },
 };
 export function getBudgetStatusLabel(status) {
-  return BUDGET_STATUS_LABELS[status] || status || "Unknown";
+  return (
+    BUDGET_STATUS_LABELS[status] ||
+    formatStatus(status) ||
+    "Unknown"
+  );
 }
-
 export function getBudgetStatusStyle(status) {
   return (
     BUDGET_STATUS_STYLES[status] || {
@@ -55,6 +61,43 @@ export function getBudgetStatusStyle(status) {
       activeCard: "border-slate-300 bg-slate-100 shadow-sm",
       inactiveCard:
         "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50",
+    }
+  );
+}
+export const FINANCIAL_YEAR_STATUS_LABELS = {
+  OPEN: "Open",
+  PRE_CLOSING: "Pre Closing",
+  CLOSED: "Closed",
+};
+
+export const FINANCIAL_YEAR_STATUS_STYLES = {
+  OPEN: {
+    badge: "bg-blue-50 text-blue-700 border-blue-200 ring-1 ring-blue-100/60",
+  },
+
+  PRE_CLOSING: {
+    badge:
+      "bg-amber-50 text-amber-700 border-amber-200 ring-1 ring-amber-100/60",
+  },
+
+  CLOSED: {
+    badge: "bg-slate-100 text-slate-700 border-slate-200 ring-1 ring-slate-100",
+  },
+};
+
+
+export function getFinancialYearStatusLabel(status) {
+  return (
+    FINANCIAL_YEAR_STATUS_LABELS[status] ||
+    formatStatus(status) ||
+    "Unknown"
+  );
+}
+
+export function getFinancialYearStatusStyle(status) {
+  return (
+    FINANCIAL_YEAR_STATUS_STYLES[status] || {
+      badge: "bg-slate-100 text-slate-700 border-slate-200",
     }
   );
 }

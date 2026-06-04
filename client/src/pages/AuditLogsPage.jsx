@@ -14,6 +14,8 @@ import DatePicker from "../components/DatePicker";
 import { getAuditLogs, getAuditLogUsers } from "../api/budget.api";
 import { formatDateTime } from "../utils/dateFormatters";
 import SearchableMultiSelect from "../components/SearchableMultiSelect";
+import EnterpriseSearch from "../components/EnterpriseSearch";
+
 const emptyFilters = {
   search: "",
   user: "",
@@ -138,17 +140,13 @@ export default function AuditLogsPage() {
         </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-12">
-          <div className="relative lg:col-span-5">
-            <Search
-              size={17}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            />
-
-            <input
+          <div className="lg:col-span-5">
+            <EnterpriseSearch
               value={filters.search}
-              onChange={(e) => updateFilter("search", e.target.value)}
+              onChange={(value) => updateFilter("search", value)}
               placeholder="Search action, user, entity, description, IP..."
-              className="w-full rounded-2xl border border-slate-200 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+              debounceMs={400}
+              showClear={true}
             />
           </div>
 

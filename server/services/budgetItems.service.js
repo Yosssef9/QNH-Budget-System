@@ -159,8 +159,13 @@ export async function getBudgetItemsService({ budgetId, budgetAccess }) {
         quantity: Number(row.quantity || 0),
         unit_price: Number(row.unit_price || 0),
         total_amount: Number(row.total_amount || 0),
+
         distribution_method: row.distribution_method,
         distribution_level: row.distribution_level,
+
+        created_from_transfer: row.created_from_transfer,
+        source_transfer_id: row.source_transfer_id,
+
         distribution: [],
       });
     }

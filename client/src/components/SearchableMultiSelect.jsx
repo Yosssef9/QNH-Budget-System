@@ -249,15 +249,24 @@ export default function SearchableMultiSelect({
                 const itemValue = optionValue(item);
                 const isSelected = selectedValues.includes(itemValue);
 
+                const isDisabled =
+                  Boolean(item.disabled) || Boolean(item.has_pending_request);
+
                 return (
                   <button
                     key={itemValue}
                     type="button"
-                    onClick={() => handleToggle(itemValue)}
+                    disabled={isDisabled}
+                    onClick={() => {
+                      if (isDisabled) return;
+                      handleToggle(itemValue);
+                    }}
                     className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm transition ${
-                      isSelected
-                        ? "bg-primary-50 text-primary-700"
-                        : "text-enterprise-text hover:bg-enterprise-soft"
+                      isDisabled
+                        ? "cursor-not-allowed bg-slate-50 opacity-60"
+                        : isSelected
+                          ? "bg-primary-50 text-primary-700"
+                          : "text-enterprise-text hover:bg-enterprise-soft"
                     }`}
                   >
                     <div className="flex min-w-0 items-center gap-3">
@@ -271,13 +280,27 @@ export default function SearchableMultiSelect({
                         {isSelected && <Check className="h-3 w-3" />}
                       </span>
 
-                      <span
-                        className="text-left break-words whitespace-normal"
-                        title={optionLabel(item)}
-                      >
-                        {optionLabel(item)}
-                      </span>
+                      <div className="flex flex-col items-start">
+                        <span
+                          className="text-left break-words whitespace-normal"
+                          title={optionLabel(item)}
+                        >
+                          {optionLabel(item)}
+                        </span>
+
+                        {item.has_pending_request && (
+                          <span className="mt-1 text-[10px] font-semibold text-amber-600">
+                            Pending Request
+                          </span>
+                        )}
+                      </div>
                     </div>
+
+                    {item.has_pending_request && (
+                      <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-700">
+                        ⏳ Pending
+                      </span>
+                    )}
                   </button>
                 );
               })

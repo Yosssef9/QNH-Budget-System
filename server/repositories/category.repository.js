@@ -379,3 +379,25 @@ export async function deleteTypeRepo({ categoryId, typeId }) {
 
   return result.recordset[0];
 }
+export async function getAllTypesRepo() {
+  const pool = await poolPromise;
+
+  const result = await pool.request().query(`
+    SELECT
+      t.id,
+      t.category_id,
+      c.name AS category_name,
+      t.name,
+      t.expense_type
+    FROM BS_budget_types t
+    INNER JOIN BS_budget_categories c
+      ON c.id = t.category_id
+    WHERE t.is_active = 1
+      AND c.is_active = 1
+    ORDER BY
+      c.name,
+      t.name
+  `);
+
+  return result.recordset;
+}

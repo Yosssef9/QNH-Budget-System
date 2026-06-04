@@ -169,22 +169,65 @@ export async function getBudgetComparisonRepo() {
 
       bi.quantity,
       bi.unit_price,
-      bi.total_amount,
-      bi.distribution_method,
-      bi.distribution_level
+
+      bi.total_amount AS original_amount,
+
+      ISNULL(ti.transfer_in, 0) AS transfer_in,
+
+      ISNULL(tox.transfer_out, 0) AS transfer_out,
+
+      (
+        bi.total_amount
+        + ISNULL(ti.transfer_in, 0)
+        - ISNULL(tox.transfer_out, 0)
+      ) AS current_amount,
+
+    bi.distribution_method,
+bi.distribution_level,
+
+bi.created_from_transfer,
+bi.source_transfer_id
+
     FROM BS_budgets b
+
     INNER JOIN BS_departments d
       ON d.id = b.department_id
+
     INNER JOIN BS_financial_years fy
       ON fy.id = b.financial_year_id
+
     INNER JOIN BS_budget_items bi
       ON bi.budget_id = b.id
      AND bi.is_active = 1
+
     INNER JOIN BS_budget_types t
       ON t.id = bi.type_id
+
     INNER JOIN BS_budget_categories c
       ON c.id = t.category_id
+
+    LEFT JOIN (
+      SELECT
+        to_budget_item_id,
+        SUM(amount) AS transfer_in
+      FROM BS_budget_transfers
+      WHERE status = 'APPROVED'
+      GROUP BY to_budget_item_id
+    ) ti
+      ON ti.to_budget_item_id = bi.id
+
+    LEFT JOIN (
+      SELECT
+        from_budget_item_id,
+        SUM(amount) AS transfer_out
+      FROM BS_budget_transfers
+      WHERE status = 'APPROVED'
+      GROUP BY from_budget_item_id
+    ) tox
+      ON tox.from_budget_item_id = bi.id
+
     WHERE b.is_active = 1
+
     ORDER BY
       fy.year DESC,
       d.name,

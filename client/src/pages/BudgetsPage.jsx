@@ -31,40 +31,20 @@ const budgetActions = [
     permission: "can_edit_budget",
   },
   {
-    title: "Import Excel",
-    description: "Upload an Excel budget file, validate it, then save items.",
-    path: "/budgets/import",
-    icon: FileSpreadsheet,
-    permission: "can_edit_budget",
-  },
-  {
     title: "Copy From History",
     description: "Create a new draft budget from a previous approved budget.",
     path: "/budgets/copy-history",
     icon: Copy,
     permission: "can_edit_budget",
   },
-  {
-    title: "Draft Budgets",
-    description: "Continue budgets that are saved but not submitted yet.",
-    path: "/budgets/drafts",
-    icon: FileText,
-    permission: "can_edit_budget",
-  },
-  {
-    title: "Returned Budgets",
-    description: "Review returned budgets, fix notes, and resubmit.",
-    path: "/budgets/returned",
-    icon: RotateCcw,
-    permission: "can_edit_budget",
-  },
-  {
-    title: "Budget History",
-    description: "View previous versions and approved historical budgets.",
-    path: "/budgets/history",
-    icon: History,
-    permission: "can_view_budget",
-  },
+
+  // {
+  //   title: "Budget History",
+  //   description: "View previous versions and approved historical budgets.",
+  //   path: "/budgets/history",
+  //   icon: History,
+  //   permission: "can_view_budget",
+  // },
 ];
 
 function hasPermission(permissions, permission) {
@@ -128,16 +108,6 @@ export default function BudgetsPage() {
               returned budgets, or open budget history.
             </p>
           </div>
-
-          {hasPermission(permissions, "can_edit_budget") && (
-            <button
-              onClick={handleBudgetEntryClick}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary-600 px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-700"
-            >
-              <Plus size={18} />
-              Budget Entery
-            </button>
-          )}
         </div>
       </section>
 

@@ -3,7 +3,7 @@ import {
   closeFinancialYear,
   createFinancialYear,
   getFinancialYears,
-  getOpenFinancialYear,
+  getActiveFinancialYear,
   preCloseFinancialYear,
 } from "../../api/financialYears.api";
 
@@ -14,10 +14,10 @@ export function useFinancialYears() {
   });
 }
 
-export function useOpenFinancialYear() {
+export function useActiveFinancialYear() {
   return useQuery({
-    queryKey: ["financial-years", "open"],
-    queryFn: getOpenFinancialYear,
+    queryKey: ["financial-years", "active"],
+    queryFn: getActiveFinancialYear,
     retry: false,
   });
 }

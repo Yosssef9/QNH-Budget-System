@@ -118,3 +118,20 @@ export async function getBudgetDetails(budgetId) {
 
   return response.data?.data;
 }
+export async function getBudgetBalanceSummary(budgetId) {
+  const response = await api.get(`/budgets/${budgetId}/balance-summary`);
+
+  return response.data?.data || [];
+}
+export async function getAvailableTransferTypes() {
+  const response = await api.get("/budget-items/available-transfer-types");
+
+  return response.data?.data || [];
+}
+export async function getAllBudgetTypes() {
+  const response = await api.get(
+    "/categories/types/all",
+  );
+
+  return response.data?.data || [];
+}

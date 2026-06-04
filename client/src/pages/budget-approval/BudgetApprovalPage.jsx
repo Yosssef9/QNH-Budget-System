@@ -22,7 +22,7 @@ import {
 } from "../../hooks/budgets/useBudgetApproval";
 import BudgetApprovalSidebar from "../../components/budgets/BudgetApprovalSidebar";
 import ReadonlyBudgetGrid from "./ReadonlyBudgetGrid";
-import BudgetComparison from "./BudgetComparison";
+
 import ApprovalReviewFeedbackPanel from "./ApprovalReviewFeedbackPanel";
 import { scrollToBudgetItemRow } from "../../helpers/budgetReviewNavigation.helper";
 import {
@@ -42,7 +42,9 @@ export default function BudgetApprovalPage() {
   const [itemNotes, setItemNotes] = useState({});
   const [actionType, setActionType] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
-  const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+  const [isPendingTimelineOpen, setIsPendingTimelineOpen] = useState(false);
+
+  const [isApprovedTimelineOpen, setIsApprovedTimelineOpen] = useState(false);
   const [selectedApprovedBudgetId, setSelectedApprovedBudgetId] =
     useState(null);
   const {
@@ -220,7 +222,10 @@ export default function BudgetApprovalPage() {
         <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
           <button
             type="button"
-            onClick={() => setActiveTab("REVIEW")}
+            onClick={() => {
+              setActiveTab("REVIEW");
+              setIsApprovedTimelineOpen(false);
+            }}
             className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition ${
               activeTab === "REVIEW"
                 ? "bg-white text-amber-600 shadow-sm"
@@ -232,7 +237,10 @@ export default function BudgetApprovalPage() {
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("APPROVED")}
+            onClick={() => {
+              setActiveTab("APPROVED");
+              setIsPendingTimelineOpen(false);
+            }}
             className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition ${
               activeTab === "APPROVED"
                 ? "bg-white text-emerald-600 shadow-sm"
@@ -241,18 +249,6 @@ export default function BudgetApprovalPage() {
           >
             <CheckCircle2 size={16} />
             Approved Budgets
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("COMPARISON")}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition ${
-              activeTab === "COMPARISON"
-                ? "bg-white text-blue-600 shadow-sm"
-                : "text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            <BarChart3 size={16} />
-            Budget Comparison
           </button>
         </div>
       </div>
@@ -325,18 +321,76 @@ export default function BudgetApprovalPage() {
             )}
 
             {approvedBudget && !loadingApprovedReview && (
-              <div className="space-y-6 p-6">
-                <ReadonlyBudgetGrid
-                  budget={approvedBudget}
-                  items={approvedItems}
-                  showNotes={false}
-                />
+              <div
+                className={`grid gap-6 p-6 transition-all duration-300 ${
+                  isApprovedTimelineOpen
+                    ? "xl:grid-cols-[minmax(0,1fr)_380px]"
+                    : "grid-cols-1"
+                }`}
+              >
+                <div className="min-w-0">
+                  <ReadonlyBudgetGrid
+                    budget={approvedBudget}
+                    items={approvedItems}
+                    showNotes={false}
+                  />
+                </div>
+
+                <AnimatePresence mode="wait">
+                  {isApprovedTimelineOpen && (
+                    <motion.div
+                      initial={{
+                        width: 0,
+                        opacity: 0,
+                      }}
+                      animate={{
+                        width: 380,
+                        opacity: 1,
+                      }}
+                      exit={{
+                        width: 0,
+                        opacity: 0,
+                      }}
+                      transition={{
+                        duration: 0.25,
+                        ease: "easeInOut",
+                      }}
+                      className="hidden xl:block overflow-hidden"
+                    >
+                      <div className="sticky top-6 h-[calc(100vh-120px)]">
+                        <BudgetTimeline
+                          budgetId={selectedApprovedBudgetId}
+                          isOpen={isApprovedTimelineOpen}
+                          onToggle={() =>
+                            setIsApprovedTimelineOpen((prev) => !prev)
+                          }
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
+            )}
+            {approvedBudget && !isApprovedTimelineOpen && (
+              <button
+                type="button"
+                onClick={() => setIsApprovedTimelineOpen(true)}
+                className="
+      fixed bottom-6 right-6 z-40
+      flex items-center gap-2
+      rounded-2xl border border-slate-200
+      bg-white px-4 py-3 shadow-xl
+      transition hover:scale-105
+    "
+              >
+                <PanelRightOpen size={18} />
+
+                <span className="text-sm font-semibold">Timeline</span>
+              </button>
             )}
           </section>
         </div>
       )}
-      {activeTab === "COMPARISON" && <BudgetComparison />}
 
       {activeTab === "REVIEW" && (
         <div
@@ -416,7 +470,7 @@ export default function BudgetApprovalPage() {
             {selectedBudget && !loadingReview && (
               <div
                 className={`grid gap-6 p-6 transition-all duration-300 ${
-                  isTimelineOpen
+                  isPendingTimelineOpen
                     ? "xl:grid-cols-[minmax(0,1fr)_380px]"
                     : "grid-cols-1"
                 }`}
@@ -485,19 +539,43 @@ export default function BudgetApprovalPage() {
                   </div>
                 </div>
 
-                {isTimelineOpen && (
-                  <div className="hidden xl:block xl:sticky xl:top-6 h-[calc(100vh-120px)]">
-                    <BudgetTimeline
-                      budgetId={selectedBudgetId}
-                      isOpen={isTimelineOpen}
-                      onToggle={() => setIsTimelineOpen((prev) => !prev)}
-                    />
-                  </div>
-                )}
-                {!isTimelineOpen && (
+                <AnimatePresence mode="wait">
+                  {isPendingTimelineOpen && (
+                    <motion.div
+                      initial={{
+                        width: 0,
+                        opacity: 0,
+                      }}
+                      animate={{
+                        width: 380,
+                        opacity: 1,
+                      }}
+                      exit={{
+                        width: 0,
+                        opacity: 0,
+                      }}
+                      transition={{
+                        duration: 0.25,
+                        ease: "easeInOut",
+                      }}
+                      className="hidden xl:block overflow-hidden"
+                    >
+                      <div className="sticky top-6 h-[calc(100vh-120px)]">
+                        <BudgetTimeline
+                          budgetId={selectedBudgetId}
+                          isOpen={isPendingTimelineOpen}
+                          onToggle={() =>
+                            setIsPendingTimelineOpen((prev) => !prev)
+                          }
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                {!isPendingTimelineOpen && (
                   <button
                     type="button"
-                    onClick={() => setIsTimelineOpen(true)}
+                    onClick={() => setIsPendingTimelineOpen(true)}
                     className="
       fixed bottom-6 right-6 z-40
       flex items-center gap-2

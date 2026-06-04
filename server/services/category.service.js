@@ -8,6 +8,7 @@ import {
   findTypeByNameInCategoryRepo,
   getCategoriesRepo,
   getTypesByCategoryRepo,
+  getAllTypesRepo,
   reactivateCategoryRepo,
   reactivateTypeRepo,
   updateCategoryRepo,
@@ -17,6 +18,8 @@ import {
   getCategoryUsageRepo,
   getTypeUsageRepo,
 } from "../repositories/category.repository.js";
+import { getAvailableTransferTypesRepo } from "../repositories/budgetItem.repository.js";
+
 export async function getCategoriesService() {
   return await getCategoriesRepo();
 }
@@ -189,4 +192,17 @@ export async function deleteTypeService({ categoryId, typeId }) {
   }
 
   return await deleteTypeRepo({ categoryId, typeId });
+}
+export async function getAllTypesService() {
+  return await getAllTypesRepo();
+}
+
+export async function getAvailableTransferTypesService(budgetAccess) {
+  const budgetId = budgetAccess?.budget?.id;
+
+  if (!budgetId) {
+    throw new ApiError(403, "No active budget assigned");
+  }
+
+  return getAvailableTransferTypesRepo(budgetId);
 }

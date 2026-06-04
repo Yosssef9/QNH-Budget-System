@@ -97,3 +97,8 @@ export async function approveItemRequestManual({ requestId, adminNote }) {
 
   return response.data?.data;
 }
+export async function getBudgetTypes() {
+  const response = await api.get("/categories/types/all");
+
+  return response.data?.data || [];
+}

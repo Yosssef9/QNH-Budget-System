@@ -10,6 +10,7 @@ import {
   deleteType,
   getCategoryUsage,
   getTypeUsage,
+  getAllTypes,
 } from "../controllers/category.controller.js";
 
 import { verifyPortalJwt } from "../middleware/verifyPortalJwt.middleware.js";
@@ -35,7 +36,7 @@ router.patch(
   requirePermission("can_manage_categories"),
   updateCategory,
 );
-
+router.get("/types/all", verifyPortalJwt, verifyBudgetAccess, getAllTypes);
 router.get(
   "/:categoryId/types",
   verifyPortalJwt,

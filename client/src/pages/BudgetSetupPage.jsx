@@ -27,6 +27,7 @@ import {
 import CollapsiblePanelToggle from "../components/layout/CollapsiblePanelToggle";
 import ConfirmModal from "../components/ConfirmModal";
 import SearchableMultiSelect from "../components/SearchableMultiSelect";
+import EnterpriseSearch from "../components/EnterpriseSearch";
 import {
   useApproveItemRequest,
   useCreateSetupCategory,
@@ -837,19 +838,12 @@ export default function BudgetSetupPage() {
                     Edit Categories
                   </h2>
 
-                  <div className="relative mt-4">
-                    <Search
-                      size={16}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                    />
-
-                    <input
-                      value={categorySearch}
-                      onChange={(e) => setCategorySearch(e.target.value)}
-                      placeholder="Search categories..."
-                      className="w-full rounded-2xl border border-slate-200 py-2.5 pl-9 pr-4 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
-                    />
-                  </div>
+                  <EnterpriseSearch
+                    value={categorySearch}
+                    onChange={setCategorySearch}
+                    placeholder="Search categories..."
+                    showClear={true}
+                  />
 
                   <div className="mt-4 h-[360px] space-y-3 overflow-y-auto pr-1">
                     {loadingCategories ? (
@@ -1048,18 +1042,12 @@ export default function BudgetSetupPage() {
               </p>
             </div>
 
-            <div className="relative">
-              <Search
-                size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search items..."
-                className="w-full rounded-2xl border border-slate-200 py-2.5 pl-9 pr-4 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100 lg:w-72"
-              />
-            </div>
+            <EnterpriseSearch
+              value={search}
+              onChange={setSearch}
+              placeholder="Search items..."
+              showClear={true}
+            />
           </div>
 
           <div className="p-5">

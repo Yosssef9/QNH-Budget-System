@@ -13,7 +13,6 @@ import {
   countUnfinishedPOLinksForYearRepo,
   findLatestFinancialYearRepo,
 } from "../repositories/financialYears.repository.js";
-
 export async function getFinancialYearsService() {
   return await getFinancialYearsRepo();
 }

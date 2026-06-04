@@ -6,11 +6,12 @@ import {
   getDashboardStats,
   getDashboardItemRequests,
 } from "../../api/budget.api";
-import { useOpenFinancialYear } from "../financial-years/useFinancialYears";
+import { getTransferDashboard } from "../../api/transfer.api";
+import { useActiveFinancialYear } from "../financial-years/useFinancialYears";
 import { toNumber } from "../../utils/number";
 
 export function useDashboardData() {
-  const { data: openYear } = useOpenFinancialYear();
+  const { data: activeYear } = useActiveFinancialYear();
 
   const { data: currentBudget, isLoading: loadingBudget } = useQuery({
     queryKey: ["dashboard", "current-budget"],
@@ -36,18 +37,23 @@ export function useDashboardData() {
       0,
     );
   }, [budgetItems]);
-const { data: dashboardItemRequests } = useQuery({
-  queryKey: ["dashboard", "item-requests"],
-  queryFn: getDashboardItemRequests,
-  refetchOnWindowFocus: true,
-});
+  const { data: dashboardItemRequests } = useQuery({
+    queryKey: ["dashboard", "item-requests"],
+    queryFn: getDashboardItemRequests,
+    refetchOnWindowFocus: true,
+  });
+  const { data: dashboardTransfers = null } = useQuery({
+    queryKey: ["dashboard", "transfer-requests"],
+    queryFn: getTransferDashboard,
+  });
   return {
-    openYear,
+    activeYear,
     currentBudget,
     budgetItems,
     totalAmount,
     dashboardStats,
     dashboardItemRequests,
+    dashboardTransfers,
     isLoading: loadingBudget || loadingItems,
   };
 }

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import toast from "react-hot-toast";
-
+import LockedPage from "../../components/LockedPage";
+import useLockToast from "../../hooks/useLockToast";
+import { getBudgetEntryPageLock } from "../../helpers/pageLockRules";
 import {
   ChevronRight,
   Plus,
@@ -12,6 +14,11 @@ import {
   AlertCircle,
   PackagePlus,
 } from "lucide-react";
+import { getAllBudgetTypes } from "../../api/budget.api";
+import {
+  downloadBudgetTemplate,
+  importBudgetTemplate,
+} from "../../helpers/budgetExcel.helper";
 import BudgetSummaryPanel from "../../components/budgets/shared/BudgetSummaryPanel";
 import SearchableMultiSelect from "../../components/SearchableMultiSelect";
 import ConfirmModal from "../../components/ConfirmModal";
@@ -107,58 +114,19 @@ export default function BudgetEnteryPage() {
     deleteItem,
     saveDraft,
   } = useCreateBudgetManual();
-  useEffect(() => {
-    if (loadingSetup) return;
+  const pageLock = getBudgetEntryPageLock(openYear);
 
-    if (openYear?.status === "PRE_CLOSING") {
-      toast.error(
-        "Budget Entry is locked. The financial year is in Pre-Closing status.",
-      );
-    }
-
-    if (openYear?.status === "CLOSED") {
-      toast.error(
-        "Budget Entry is locked. The financial year has been closed.",
-      );
-    }
-  }, [openYear, loadingSetup]);
-  if (openYear?.status === "PRE_CLOSING") {
+  useLockToast(pageLock.locked && !loadingSetup, pageLock.message);
+  if (pageLock.locked) {
     return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center">
-          <h2 className="text-2xl font-bold text-amber-700">
-            Budget Entry Locked
-          </h2>
+      <div className="space-y-6">
+        <Breadcrumbs />
 
-          <p className="mt-3 text-amber-600">
-            The financial year is in Pre-Closing status.
-          </p>
-
-          <p className="mt-2 text-slate-600">
-            Budget creation and editing are no longer allowed. Please use
-            Transfers and PO Linking.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (openYear?.status === "CLOSED") {
-    return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
-          <h2 className="text-2xl font-bold text-red-700">
-            Budget Entry Locked
-          </h2>
-
-          <p className="mt-3 text-red-600">
-            The financial year has been closed.
-          </p>
-
-          <p className="mt-2 text-slate-600">
-            Budget changes are no longer allowed.
-          </p>
-        </div>
+        <LockedPage
+          title={pageLock.title}
+          message={pageLock.message}
+          reasons={pageLock.reasons}
+        />
       </div>
     );
   }
@@ -182,6 +150,10 @@ export default function BudgetEnteryPage() {
   const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
   const [localBudgetStatus, setLocalBudgetStatus] = useState(null);
   const [requestItemModalOpen, setRequestItemModalOpen] = useState(false);
+  const [importErrors, setImportErrors] = useState([]);
+  const [importSummaryOpen, setImportSummaryOpen] = useState(false);
+  const [importSummary, setImportSummary] = useState(null);
+  const importInputRef = useRef(null);
   const saveDraftLockRef = useRef(false);
   const budgetStatus = localBudgetStatus || currentBudget?.status || "DRAFT";
   const isBudgetLocked = ["PENDING_APPROVAL", "APPROVED", "CANCELLED"].includes(
@@ -313,7 +285,59 @@ export default function BudgetEnteryPage() {
       }),
     );
   }, []);
+  async function handleDownloadTemplate() {
+    try {
+      const types = await getAllBudgetTypes();
 
+      downloadBudgetTemplate(types);
+    } catch (error) {
+      console.error(error);
+
+      toast.error("Failed to download template");
+    }
+  }
+  async function handleImportExcel(event) {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    try {
+      const allTypes = await getAllBudgetTypes();
+
+      const result = await importBudgetTemplate({
+        file,
+        rows,
+        allTypes,
+      });
+
+      if (result.importedRows.length > 0) {
+        setRows((prev) => [...prev, ...result.importedRows]);
+      }
+
+      setBudgetItemsPage(1);
+
+      setImportErrors(result.errors);
+      if (result.successCount === 0) {
+        toast.error("No valid budget items found in the selected file");
+      }
+      setImportSummary({
+        successCount: result.successCount,
+        errorCount: result.errorCount,
+      });
+
+      setImportSummaryOpen(true);
+
+      toast.success(
+        `Imported ${result.successCount} budget item(s) successfully`,
+      );
+    } catch (error) {
+      console.error(error);
+
+      toast.error("Failed to import Excel file");
+    }
+
+    event.target.value = "";
+  }
   async function handleSaveDraft() {
     if (saveDraftLockRef.current) {
       return false;
@@ -366,9 +390,19 @@ export default function BudgetEnteryPage() {
     setDeleteRowId(null);
 
     setTimeout(async () => {
-      await deleteItem(rowId);
+      try {
+        await deleteItem(rowId);
 
-      setDeletingRowIds((prev) => prev.filter((id) => id !== rowId));
+        toast.success("Budget item deleted successfully");
+
+        setDeletingRowIds((prev) => prev.filter((id) => id !== rowId));
+      } catch (error) {
+        toast.error(
+          error?.response?.data?.message || "Failed to delete budget item",
+        );
+
+        setDeletingRowIds((prev) => prev.filter((id) => id !== rowId));
+      }
     }, 180);
   }
   const getSelectedType = useCallback(
@@ -505,23 +539,85 @@ export default function BudgetEnteryPage() {
               </p>
             )}
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2">
+              <p className="text-xs font-bold text-blue-700">
+                Excel Import Process
+              </p>
+
+              <p className="text-[11px] text-blue-600">
+                1. Download → 2. Edit → 3. Import
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleDownloadTemplate}
+              disabled={isBudgetLocked}
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              ↓ Download Template
+            </button>
+
+            <button
+              type="button"
+              onClick={() => importInputRef.current?.click()}
+              disabled={isBudgetLocked}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Upload size={17} />↑ Import Excel
+            </button>
+
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleImportExcel}
+              hidden
+            />
+            <div className="mx-2 hidden h-8 w-px bg-slate-200 md:block" />
+
             <button
               type="button"
               onClick={addItem}
               disabled={isBudgetLocked}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+              className="
+    group
+    inline-flex
+    items-center
+    gap-3
+    rounded-xl
+    border-2
+    border-blue-200
+    bg-white
+    px-5
+    py-3
+    text-sm
+    font-bold
+    text-slate-800
+    shadow-sm
+    transition-all
+    duration-200
+    hover:-translate-y-0.5
+    hover:border-blue-400
+    hover:bg-blue-50
+    hover:shadow-lg
+    active:scale-[0.98]
+    disabled:cursor-not-allowed
+    disabled:opacity-50
+  "
             >
-              <Plus size={17} />
-              Add Item
-            </button>
+              <div className="rounded-lg bg-blue-100 p-2 text-blue-600 transition-all group-hover:bg-blue-200">
+                <Plus size={18} />
+              </div>
 
-            <button
-              disabled={isBudgetLocked}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Upload size={17} />
-              Import from Excel
+              <div className="flex flex-col items-start leading-none">
+                <span className="text-slate-900">Add New Item</span>
+
+                <span className="mt-1 text-[11px] font-medium text-slate-500">
+                  Manual Entry
+                </span>
+              </div>
             </button>
           </div>
         </div>
@@ -548,6 +644,45 @@ export default function BudgetEnteryPage() {
             setDeleteRowId={setDeleteRowId}
           />
         </div>
+
+        {importErrors.length > 0 && (
+          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="font-bold text-red-700">Import Errors</h3>
+
+              <button
+                type="button"
+                onClick={() => setImportErrors([])}
+                className="text-sm font-semibold text-red-600 hover:text-red-800"
+              >
+                Clear
+              </button>
+            </div>
+
+            <div className="max-h-64 overflow-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-red-200">
+                    <th className="p-2 text-left">Row</th>
+                    <th className="p-2 text-left">Item</th>
+                    <th className="p-2 text-left">Error</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {importErrors.map((error, index) => (
+                    <tr key={index} className="border-b border-red-100">
+                      <td className="p-2 font-bold">{error.row}</td>
+                      <td className="p-2">{error.item}</td>
+                      <td className="p-2 text-red-600">{error.message}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {rows.length > BUDGET_ITEMS_PAGE_SIZE && (
           <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm font-semibold text-slate-500">
@@ -633,11 +768,11 @@ export default function BudgetEnteryPage() {
               </p>
             </div>
 
-            <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
+            <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1 shadow-inner">
               <button
                 type="button"
                 onClick={() => setSummaryView("QUARTER")}
-                className={`rounded-lg px-3 py-2 text-xs font-bold transition ${
+                className={`rounded-lg px-3 py-2 text-xs font-bold transition-all duration-300 ${
                   summaryView === "QUARTER"
                     ? "bg-white text-blue-600 shadow-sm"
                     : "text-slate-500 hover:text-slate-700"
@@ -649,7 +784,7 @@ export default function BudgetEnteryPage() {
               <button
                 type="button"
                 onClick={() => setSummaryView("MONTH")}
-                className={`rounded-lg px-3 py-2 text-xs font-bold transition ${
+                className={`rounded-lg px-3 py-2 text-xs font-bold  transition-all duration-300 ${
                   summaryView === "MONTH"
                     ? "bg-white text-blue-600 shadow-sm"
                     : "text-slate-500 hover:text-slate-700"
@@ -659,7 +794,9 @@ export default function BudgetEnteryPage() {
               </button>
             </div>
           </div>
-          <BudgetSummaryPanel summary={summary} summaryView={summaryView} />
+       
+            <BudgetSummaryPanel summary={summary} summaryView={summaryView} />
+         
         </div>
       </section>
 
@@ -712,6 +849,64 @@ export default function BudgetEnteryPage() {
           await handleSubmitBudget();
         }}
       />
+      <ConfirmModal
+        open={importSummaryOpen}
+        title="Excel Import Results"
+        confirmText="Close"
+        cancelText=""
+        onCancel={() => setImportSummaryOpen(false)}
+        onConfirm={() => setImportSummaryOpen(false)}
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 size={28} className="text-emerald-600" />
+
+                <div>
+                  <p className="text-xs font-semibold uppercase text-emerald-700">
+                    Imported
+                  </p>
+
+                  <p className="text-3xl font-bold text-emerald-700">
+                    {importSummary?.successCount ?? 0}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+              <div className="flex items-center gap-3">
+                <AlertCircle size={28} className="text-red-600" />
+
+                <div>
+                  <p className="text-xs font-semibold uppercase text-red-700">
+                    Errors
+                  </p>
+
+                  <p className="text-3xl font-bold text-red-700">
+                    {importSummary?.errorCount ?? 0}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {importSummary?.successCount > 0 &&
+            importSummary?.errorCount === 0 && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-700">
+                All rows were imported successfully.
+              </div>
+            )}
+
+          {importSummary?.errorCount > 0 && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-700">
+              Some rows could not be imported. Please review the Import Errors
+              table below.
+            </div>
+          )}
+        </div>
+      </ConfirmModal>
       <RequestBudgetItemModal
         open={requestItemModalOpen}
         onClose={() => setRequestItemModalOpen(false)}

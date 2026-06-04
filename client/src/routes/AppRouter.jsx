@@ -17,6 +17,8 @@ import ReportsPage from "../pages/ReportsPage";
 import TransferPage from "../pages/TransferPage";
 import MyBudgetsPage from "../pages/budget/MyBudgetsPage";
 import BudgetViewPage from "../pages/budget/BudgetViewPage";
+import TransferApprovalPage from "../pages/TransferApprovalPage";
+import BudgetAnalyticsPage from "../pages/BudgetAnalyticsPage";
 
 const router = createBrowserRouter([
   {
@@ -107,10 +109,26 @@ const router = createBrowserRouter([
         ),
       },
       {
-        path: "transfers",
+        path: "transfers/requests",
         element: (
           <RequirePermission permission="can_request_transfer">
             <TransferPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: "transfers/approvals",
+        element: (
+          <RequirePermission permission="can_approve_transfer">
+            <TransferApprovalPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: "budget-analytics",
+        element: (
+          <RequirePermission permission="can_approve_budget">
+            <BudgetAnalyticsPage />
           </RequirePermission>
         ),
       },

@@ -37,15 +37,20 @@ ORDER BY started_at DESC, id DESC;
       AND b.status = 'APPROVED'
       AND b.financial_year_id = @activeFinancialYearId;
 
-    SELECT
-      COUNT(*) AS pending_item_requests
-    FROM BS_budget_item_requests
-    WHERE status = 'PENDING';
+   SELECT
+  COUNT(*) AS pending_item_requests
+FROM BS_budget_item_requests
+WHERE status = 'PENDING';
 
-    SELECT
-      COUNT(*) AS system_users
-    FROM BS_budget_user_roles
-    WHERE is_active = 1;
+SELECT
+  COUNT(*) AS pending_transfer_requests
+FROM BS_budget_transfers
+WHERE status = 'PENDING_APPROVAL';
+
+SELECT
+  COUNT(*) AS system_users
+FROM BS_budget_user_roles
+WHERE is_active = 1;
   `);
 
   return {
@@ -53,6 +58,7 @@ ORDER BY started_at DESC, id DESC;
     departments: result.recordsets[1]?.[0] || {},
     approvedAmount: result.recordsets[2]?.[0] || {},
     itemRequests: result.recordsets[3]?.[0] || {},
-    users: result.recordsets[4]?.[0] || {},
+    transferRequests: result.recordsets[4]?.[0] || {},
+    users: result.recordsets[5]?.[0] || {},
   };
 }

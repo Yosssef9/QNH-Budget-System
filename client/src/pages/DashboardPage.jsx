@@ -1,11 +1,11 @@
 import { useAuth } from "../context/AuthContext";
 import { getUserRoleLabel } from "../helpers/permissions";
 import { useDashboardData } from "../hooks/dashboard/useDashboardData";
-import { getDashboardStatsCards } from "../config/dashboardCards.config";
 import {
+  getDashboardStatsCards,
   getQuickActions,
   getWorkPanels,
-} from "../config/dashboardActions.config";
+} from "../config/dashboard";
 import DashboardStatCard from "../components/dashboard/DashboardStatCard";
 import DashboardQuickActionCard from "../components/dashboard/DashboardQuickActionCard";
 import CollapsibleSection from "../components/CollapsibleSection";
@@ -15,17 +15,27 @@ import {
   getBudgetStatusLabel,
   getBudgetStatusStyle,
 } from "../theme/statusStyles";
+import PendingBadge from "../components/dashboard/PendingBadge";
 export default function DashboardPage() {
   const { user, budgetAccess } = useAuth();
   const navigate = useNavigate();
   const roleLabel = getUserRoleLabel(budgetAccess);
 
   const dashboardData = useDashboardData();
+  console.log("dashboardData", dashboardData);
+  console.log("dashboardTransfers", dashboardData.dashboardTransfers);
   const stats = getDashboardStatsCards(budgetAccess, dashboardData);
   const quickActions = getQuickActions(budgetAccess);
   const workPanels = getWorkPanels(budgetAccess);
 
   const itemRequestPanel = dashboardData.dashboardItemRequests;
+  const transferPanel = dashboardData.dashboardTransfers;
+
+  const transferRequests = transferPanel?.requests || [];
+
+  const pendingTransferCount = transferRequests.filter(
+    (item) => item.status === "PENDING_APPROVAL",
+  ).length;
   const itemRequests = itemRequestPanel?.requests || [];
   const pendingCount = itemRequests.filter(
     (item) => item.status === "PENDING",
@@ -84,6 +94,8 @@ export default function DashboardPage() {
             "Item / Category Requests",
           );
 
+          const isTransferPanel = panel.title.includes("Transfer Requests");
+
           return (
             <CollapsibleSection
               key={panel.title}
@@ -100,14 +112,12 @@ export default function DashboardPage() {
               closedText="Show"
               action={
                 isItemRequestPanel && pendingCount > 0 ? (
-                  <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-                    <div className="h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse" />
-
-                    <span className="text-xs font-bold text-amber-700">
-                      {pendingCount} Pending Request
-                      {pendingCount > 1 ? "s" : ""}
-                    </span>
-                  </div>
+                  <PendingBadge count={pendingCount} label="Pending Request" />
+                ) : isTransferPanel && pendingTransferCount > 0 ? (
+                  <PendingBadge
+                    count={pendingTransferCount}
+                    label="Pending Transfer"
+                  />
                 ) : null
               }
             >
@@ -183,6 +193,68 @@ export default function DashboardPage() {
                             </p>
                           </div>
                         )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : isTransferPanel ? (
+                <div className="enterprise-scrollbar max-h-[420px] space-y-3 overflow-y-auto scroll-smooth pr-2">
+                  {transferRequests.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm font-semibold text-slate-500">
+                      {transferPanel?.mode === "APPROVER_PENDING"
+                        ? "No pending transfer requests."
+                        : "No transfer requests found."}
+                    </div>
+                  ) : (
+                    transferRequests.map((item) => (
+                      <div
+                        key={item.id}
+                        onClick={() =>
+                          navigate(
+                            transferPanel?.mode === "APPROVER_PENDING"
+                              ? "/transfers/approvals"
+                              : "/transfers/requests",
+                          )
+                        }
+                        className="cursor-pointer rounded-2xl border border-slate-200 bg-slate-50 p-4 transition-all hover:border-blue-300 hover:bg-blue-50 hover:shadow-md"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-bold text-slate-900">
+                              {item.from_item_name}
+                            </p>
+
+                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                              →{item.to_item_name}
+                            </p>
+
+                            {item.department_name && (
+                              <p className="mt-1 text-xs font-semibold text-slate-500">
+                                Department: {item.department_name}
+                              </p>
+                            )}
+
+                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                              Amount: SAR{" "}
+                              {Number(item.amount || 0).toLocaleString()}
+                            </p>
+
+                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                              Requested At:{" "}
+                              {item.requested_at
+                                ? formatDate(item.requested_at)
+                                : "-"}
+                            </p>
+                          </div>
+
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-bold ${
+                              getBudgetStatusStyle(item.status).badge
+                            }`}
+                          >
+                            {getBudgetStatusLabel(item.status)}
+                          </span>
+                        </div>
                       </div>
                     ))
                   )}

@@ -1,3 +1,4 @@
+import { can } from "../../helpers/permissions";
 import {
   CalendarDays,
   Wallet,
@@ -9,8 +10,6 @@ import {
   ShieldCheck,
   Tags,
 } from "lucide-react";
-
-import { can } from "../helpers/permissions";
 
 export function getQuickActions(budgetAccess) {
   return [
@@ -24,7 +23,7 @@ export function getQuickActions(budgetAccess) {
     {
       title: "View Budgets",
       description: "Review assigned department budgets.",
-      path: "/budgets",
+      path: "/budgets/my",
       icon: Wallet,
       show: can(budgetAccess, "can_view_budget"),
     },
@@ -45,7 +44,7 @@ export function getQuickActions(budgetAccess) {
     {
       title: "Request Transfer",
       description: "Move balance between existing or new budget items.",
-      path: "/transfers",
+      path: "/transfers/requests",
       icon: Repeat2,
       show: can(budgetAccess, "can_request_transfer"),
     },
@@ -59,7 +58,7 @@ export function getQuickActions(budgetAccess) {
     {
       title: "Approve Transfers",
       description: "Approve or reject transfer requests.",
-      path: "/transfers",
+      path: "/transfers/approvals",
       icon: Repeat2,
       show: can(budgetAccess, "can_approve_transfer"),
     },
@@ -83,61 +82,6 @@ export function getQuickActions(budgetAccess) {
       path: "/reports",
       icon: BarChart3,
       show: can(budgetAccess, "can_view_reports"),
-    },
-  ].filter((item) => item.show);
-}
-
-export function getWorkPanels(budgetAccess) {
-  return [
-    {
-      title: "Budget Workspace",
-      description: "No draft, returned, or active budgets to show yet.",
-      show:
-        can(budgetAccess, "can_view_budget") ||
-        can(budgetAccess, "can_edit_budget"),
-    },
-    {
-      title: "PO Linking",
-      description:
-        "Approved CareWare PO lines ready for linking will appear here.",
-      show: can(budgetAccess, "can_link_po"),
-    },
-    {
-      title: "My Transfer Requests",
-      description:
-        "Your pending, approved, and rejected transfer requests will appear here.",
-      show: can(budgetAccess, "can_request_transfer"),
-    },
-    {
-      title: "Approval Queue",
-      description:
-        "Budgets and transfers waiting for your approval will appear here.",
-      show:
-        can(budgetAccess, "can_approve_budget") ||
-        can(budgetAccess, "can_approve_transfer"),
-    },
-    {
-      title: "Admin Overview",
-      description:
-        "User access, roles, categories, and item requests will appear here.",
-      show:
-        can(budgetAccess, "can_manage_users") ||
-        can(budgetAccess, "can_manage_categories"),
-    },
-    {
-      title: "Reports Overview",
-      description:
-        "Exceeded items, variance, PO usage, and transfer reports will appear here.",
-      show: can(budgetAccess, "can_view_reports"),
-    },
-    {
-      title: can(budgetAccess, "can_manage_categories")
-        ? "Pending Item / Category Requests"
-        : "My Item / Category Requests",
-      description: "Requested new items and categories will appear here.",
-      show:
-        can(budgetAccess, "can_edit_budget") ||
-        can(budgetAccess, "can_manage_categories"),
     },
   ].filter((item) => item.show);
 }

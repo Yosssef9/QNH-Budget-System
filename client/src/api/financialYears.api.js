@@ -5,11 +5,10 @@ export async function getFinancialYears() {
   return response.data?.data || [];
 }
 
-export async function getOpenFinancialYear() {
-  const response = await api.get("/financial-years/open");
+export async function getActiveFinancialYear() {
+  const response = await api.get("/financial-years/current");
   return response.data?.data || null;
 }
-
 export async function createFinancialYear(payload) {
   const response = await api.post("/financial-years", payload);
   return response.data?.data;

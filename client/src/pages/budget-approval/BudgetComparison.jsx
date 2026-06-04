@@ -13,6 +13,7 @@ import {
   getBudgetStatusStyle,
 } from "../../theme/statusStyles";
 import CurrencyText from "../../components/CurrencyText";
+import EnterpriseSearch from "../../components/EnterpriseSearch";
 import BudgetComparisonInsights from "./BudgetComparisonInsights";
 import {
   exportBudgetComparisonCsv,
@@ -25,8 +26,16 @@ import { useBudgetComparison } from "../../hooks/budgets/useBudgetApproval";
 import { formatNumber } from "../../utils/formatters";
 import { toNumber } from "../../utils/number";
 import SearchableMultiSelect from "../../components/SearchableMultiSelect";
-const ALL = "ALL";
+import { useSearchParams } from "react-router-dom";
+import useTableSort from "../../hooks/useTableSort";
+import SortableHeader from "../../components/SortableHeader";
 
+const ALL = "ALL";
+function getArrayParam(searchParams, key) {
+  return searchParams.get(key)
+    ? searchParams.get(key).split(",").filter(Boolean)
+    : [];
+}
 function uniqueOptions(rows, key, labelKey = key) {
   const map = new Map();
 
@@ -44,15 +53,15 @@ function uniqueOptions(rows, key, labelKey = key) {
 
 export default function BudgetComparison() {
   const { data = [], isLoading, isError } = useBudgetComparison();
-
+  const [searchParams] = useSearchParams();
   const [filters, setFilters] = useState({
-    financialYear: ALL,
-    statuses: [],
-    departmentIds: [],
-    categoryIds: [],
-    typeIds: [],
-    expenseTypes: [],
-    search: "",
+    financialYear: searchParams.get("financialYear") || ALL,
+    statuses: getArrayParam(searchParams, "statuses"),
+    departmentIds: getArrayParam(searchParams, "departmentIds"),
+    categoryIds: getArrayParam(searchParams, "categoryIds"),
+    typeIds: getArrayParam(searchParams, "typeIds"),
+    expenseTypes: getArrayParam(searchParams, "expenseTypes"),
+    search: searchParams.get("search") || "",
   });
   const [detailedPage, setDetailedPage] = useState(1);
   const [detailedPageSize, setDetailedPageSize] = useState(25);
@@ -170,10 +179,17 @@ export default function BudgetComparison() {
       }));
     }
   }, [filters.categoryIds, filters.typeIds, itemOptions]);
+  const {
+    sortedRows: sortedDetailedRows,
+    sortColumn: detailedSortColumn,
+    sortDirection: detailedSortDirection,
+    handleSort: handleDetailedSort,
+  } = useTableSort(filteredRows, "current_amount", "desc");
   const paginatedDetailedRows = useMemo(() => {
     const start = (detailedPage - 1) * detailedPageSize;
-    return filteredRows.slice(start, start + detailedPageSize);
-  }, [filteredRows, detailedPage, detailedPageSize]);
+
+    return sortedDetailedRows.slice(start, start + detailedPageSize);
+  }, [sortedDetailedRows, detailedPage, detailedPageSize]);
 
   const detailedStartRow =
     filteredRows.length === 0 ? 0 : (detailedPage - 1) * detailedPageSize + 1;
@@ -194,13 +210,13 @@ export default function BudgetComparison() {
         0,
       ),
       totalAmount: filteredRows.reduce(
-        (sum, row) => sum + toNumber(row.total_amount),
+        (sum, row) => sum + toNumber(row.current_amount),
         0,
       ),
     };
   }, [filteredRows]);
 
-  const groupedByItem = useMemo(() => {
+  const groupedByItemData = useMemo(() => {
     const map = new Map();
 
     filteredRows.forEach((row) => {
@@ -216,7 +232,10 @@ export default function BudgetComparison() {
           budgets: new Set(),
           statuses: new Set(),
           totalQuantity: 0,
-          totalAmount: 0,
+          originalAmount: 0,
+          transferIn: 0,
+          transferOut: 0,
+          currentAmount: 0,
           unitPrices: [],
           rows: [],
         });
@@ -228,7 +247,13 @@ export default function BudgetComparison() {
       item.budgets.add(row.budget_id);
       item.statuses.add(row.status);
       item.totalQuantity += toNumber(row.quantity);
-      item.totalAmount += toNumber(row.total_amount);
+      item.originalAmount += toNumber(row.original_amount);
+
+      item.transferIn += toNumber(row.transfer_in);
+
+      item.transferOut += toNumber(row.transfer_out);
+
+      item.currentAmount += toNumber(row.current_amount);
       item.unitPrices.push(toNumber(row.unit_price));
       item.rows.push(row);
     });
@@ -245,8 +270,15 @@ export default function BudgetComparison() {
               item.unitPrices.length
             : 0,
       }))
-      .sort((a, b) => b.totalAmount - a.totalAmount);
+      .sort((a, b) => b.currentAmount - a.currentAmount);
   }, [filteredRows]);
+
+  const {
+    sortedRows: groupedByItem,
+    sortColumn,
+    sortDirection,
+    handleSort,
+  } = useTableSort(groupedByItemData, "currentAmount", "desc");
   const departmentsInView = useMemo(() => {
     const map = new Map();
 
@@ -276,7 +308,7 @@ export default function BudgetComparison() {
 
         const cell = departmentMap.get(key);
         cell.quantity += toNumber(row.quantity);
-        cell.amount += toNumber(row.total_amount);
+        cell.amount += toNumber(row.current_amount);
       });
 
       return {
@@ -285,7 +317,12 @@ export default function BudgetComparison() {
       };
     });
   }, [groupedByItem]);
-
+  const {
+    sortedRows: sortedDepartmentMatrix,
+    sortColumn: departmentSortColumn,
+    sortDirection: departmentSortDirection,
+    handleSort: handleDepartmentSort,
+  } = useTableSort(itemDepartmentMatrix, "currentAmount", "desc");
   const topCostItems = useMemo(
     () => getTopCostItems(groupedByItem, 10),
     [groupedByItem],
@@ -446,17 +483,12 @@ export default function BudgetComparison() {
             onChange={(values) => updateFilter("expenseTypes", values)}
           />
         </div>
-
-        <div className="relative mt-4">
-          <Search
-            size={17}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-          />
-          <input
+        <div className="mt-3 md:col-span-3 xl:col-span-6">
+          <EnterpriseSearch
             value={filters.search}
-            onChange={(e) => updateFilter("search", e.target.value)}
+            onChange={(value) => updateFilter("search", value)}
             placeholder="Search department, item, category, status..."
-            className="w-full rounded-2xl border border-slate-200 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+            showClear={true}
           />
         </div>
       </section>
@@ -473,27 +505,78 @@ export default function BudgetComparison() {
           <table className="min-w-[1200px] w-full border-collapse text-sm">
             <thead className="sticky top-0 z-20 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 shadow-sm">
               <tr>
-                <th className="border border-slate-200 px-4 py-3 text-left">
-                  Item
-                </th>
+                <SortableHeader
+                  label="Item"
+                  column="type_name"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                  className="text-left"
+                />
                 <th className="border border-slate-200 px-4 py-3 text-left">
                   Category
                 </th>
                 <th className="border border-slate-200 px-4 py-3 text-left">
                   Departments
                 </th>
-                <th className="border border-slate-200 px-4 py-3 text-right">
-                  Budgets
-                </th>
-                <th className="border border-slate-200 px-4 py-3 text-right">
-                  Total Qty
-                </th>
-                <th className="border border-slate-200 px-4 py-3 text-right">
-                  Avg Unit Price
-                </th>
-                <th className="border border-slate-200 px-4 py-3 text-right">
-                  Total Amount
-                </th>
+                <SortableHeader
+                  label="Budgets"
+                  column="budgetsCount"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                  className="text-right"
+                />
+                <SortableHeader
+                  label="Total Qty"
+                  column="totalQuantity"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                  className="text-right"
+                />
+                <SortableHeader
+                  label="Avg Unit Price"
+                  column="avgUnitPrice"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                  className="text-right"
+                />
+                <SortableHeader
+                  label="Original"
+                  column="originalAmount"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                  className="text-right text-slate-700"
+                />
+
+                <SortableHeader
+                  label="In"
+                  column="transferIn"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                  className="text-right text-green-700"
+                />
+
+                <SortableHeader
+                  label="Out"
+                  column="transferOut"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                  className="text-right text-red-700"
+                />
+                <SortableHeader
+                  label="Current"
+                  column="currentAmount"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                  className="text-right text-blue-700"
+                />
                 <th className="border border-slate-200 px-4 py-3 text-left">
                   Statuses
                 </th>
@@ -503,8 +586,20 @@ export default function BudgetComparison() {
             <tbody>
               {groupedByItem.map((item) => (
                 <tr key={item.type_id} className="hover:bg-slate-50">
-                  <td className="border border-slate-200 px-4 py-3 font-bold text-slate-900">
-                    {item.type_name}
+                  <td className="border border-slate-200 px-4 py-3">
+                    <div className="flex flex-col gap-1">
+                      <span className="font-bold text-slate-900">
+                        {item.type_name}
+                      </span>
+
+                      {item.rows?.some((r) =>
+                        Boolean(r.created_from_transfer),
+                      ) && (
+                        <span className="inline-flex w-fit rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-700">
+                          Created from Transfer
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="border border-slate-200 px-4 py-3">
                     {item.category_name}
@@ -521,8 +616,20 @@ export default function BudgetComparison() {
                   <td className="border border-slate-200 px-4 py-3 text-right">
                     <CurrencyText value={item.avgUnitPrice} />
                   </td>
+                  <td className="border border-slate-200 px-4 py-3 text-right font-bold text-slate-700">
+                    <CurrencyText value={item.originalAmount} />
+                  </td>
+
+                  <td className="border border-slate-200 px-4 py-3 text-right font-bold text-green-600">
+                    <CurrencyText value={item.transferIn} />
+                  </td>
+
+                  <td className="border border-slate-200 px-4 py-3 text-right font-bold text-red-600">
+                    <CurrencyText value={item.transferOut} />
+                  </td>
+
                   <td className="border border-slate-200 px-4 py-3 text-right font-bold text-blue-600">
-                    <CurrencyText value={item.totalAmount} />
+                    <CurrencyText value={item.currentAmount} />
                   </td>
                   <td className="border border-slate-200 px-4 py-3">
                     <div className="flex flex-wrap gap-1">
@@ -542,7 +649,7 @@ export default function BudgetComparison() {
               {groupedByItem.length === 0 && (
                 <tr>
                   <td
-                    colSpan="8"
+                    colSpan="11"
                     className="border border-slate-200 px-4 py-10 text-center font-semibold text-slate-500"
                   >
                     No matching comparison results.
@@ -567,17 +674,32 @@ export default function BudgetComparison() {
           <table className="min-w-[1400px] w-full border-collapse text-sm">
             <thead className="sticky top-0 z-20 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 shadow-sm">
               <tr>
-                <th className="sticky left-0 z-10 border border-slate-200 bg-slate-50 px-4 py-3 text-left">
-                  Item
-                </th>
+                <SortableHeader
+                  label="Item"
+                  column="type_name"
+                  sortColumn={departmentSortColumn}
+                  sortDirection={departmentSortDirection}
+                  onSort={handleDepartmentSort}
+                  className="sticky left-0 z-10 bg-slate-50 text-left"
+                />
 
-                <th className="border border-slate-200 px-4 py-3 text-right">
-                  Overall Qty
-                </th>
+                <SortableHeader
+                  label="Overall Qty"
+                  column="totalQuantity"
+                  sortColumn={departmentSortColumn}
+                  sortDirection={departmentSortDirection}
+                  onSort={handleDepartmentSort}
+                  className="text-right"
+                />
 
-                <th className="border border-slate-200 px-4 py-3 text-right">
-                  Overall Amount
-                </th>
+                <SortableHeader
+                  label="Overall Amount"
+                  column="currentAmount"
+                  sortColumn={departmentSortColumn}
+                  sortDirection={departmentSortDirection}
+                  onSort={handleDepartmentSort}
+                  className="text-right text-blue-700"
+                />
 
                 {departmentsInView.map((department) => (
                   <th
@@ -591,10 +713,22 @@ export default function BudgetComparison() {
             </thead>
 
             <tbody>
-              {itemDepartmentMatrix.map((item) => (
+              {sortedDepartmentMatrix.map((item) => (
                 <tr key={item.type_id} className="hover:bg-slate-50">
                   <td className="sticky left-0 z-10 border border-slate-200 bg-white px-4 py-3">
-                    <p className="font-bold text-slate-900">{item.type_name}</p>
+                    <div className="flex flex-col gap-1">
+                      <p className="font-bold text-slate-900">
+                        {item.type_name}
+                      </p>
+
+                    {item.rows?.some(
+  (r) => Boolean(r.created_from_transfer),
+) && (
+                        <span className="inline-flex w-fit rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-700">
+                          Created from Transfer
+                        </span>
+                      )}
+                    </div>
                     <p className="mt-1 text-xs font-semibold text-slate-500">
                       {item.category_name} · {item.expense_type}
                     </p>
@@ -605,7 +739,7 @@ export default function BudgetComparison() {
                   </td>
 
                   <td className="border border-slate-200 px-4 py-3 text-right font-bold text-blue-600">
-                    <CurrencyText value={item.totalAmount} />
+                    <CurrencyText value={item.currentAmount} />
                   </td>
 
                   {departmentsInView.map((department) => {
@@ -634,7 +768,7 @@ export default function BudgetComparison() {
                 </tr>
               ))}
 
-              {itemDepartmentMatrix.length === 0 && (
+              {sortedDepartmentMatrix.length === 0 && (
                 <tr>
                   <td
                     colSpan={3 + departmentsInView.length}
@@ -659,30 +793,97 @@ export default function BudgetComparison() {
           <table className="min-w-[1300px] w-full border-collapse text-sm">
             <thead className="sticky top-0 z-20 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 shadow-sm">
               <tr>
-                <th className="border border-slate-200 px-4 py-3 text-left">
-                  Department
-                </th>
-                <th className="border border-slate-200 px-4 py-3 text-left">
-                  Year
-                </th>
-                <th className="border border-slate-200 px-4 py-3 text-left">
-                  Status
-                </th>
-                <th className="border border-slate-200 px-4 py-3 text-left">
-                  Category
-                </th>
-                <th className="border border-slate-200 px-4 py-3 text-left">
-                  Item
-                </th>
-                <th className="border border-slate-200 px-4 py-3 text-right">
-                  Quantity
-                </th>
-                <th className="border border-slate-200 px-4 py-3 text-right">
-                  Unit Price
-                </th>
-                <th className="border border-slate-200 px-4 py-3 text-right">
-                  Total
-                </th>
+                <SortableHeader
+                  label="Department"
+                  column="department_name"
+                  sortColumn={detailedSortColumn}
+                  sortDirection={detailedSortDirection}
+                  onSort={handleDetailedSort}
+                  className="text-left"
+                />
+                <SortableHeader
+                  label="Year"
+                  column="financial_year"
+                  sortColumn={detailedSortColumn}
+                  sortDirection={detailedSortDirection}
+                  onSort={handleDetailedSort}
+                  className="text-left"
+                />
+                <SortableHeader
+                  label="Status"
+                  column="status"
+                  sortColumn={detailedSortColumn}
+                  sortDirection={detailedSortDirection}
+                  onSort={handleDetailedSort}
+                  className="text-left"
+                />
+                <SortableHeader
+                  label="Category"
+                  column="category_name"
+                  sortColumn={detailedSortColumn}
+                  sortDirection={detailedSortDirection}
+                  onSort={handleDetailedSort}
+                  className="text-left"
+                />
+                <SortableHeader
+                  label="Item"
+                  column="type_name"
+                  sortColumn={detailedSortColumn}
+                  sortDirection={detailedSortDirection}
+                  onSort={handleDetailedSort}
+                  className="text-left"
+                />
+                <SortableHeader
+                  label="Quantity"
+                  column="quantity"
+                  sortColumn={detailedSortColumn}
+                  sortDirection={detailedSortDirection}
+                  onSort={handleDetailedSort}
+                  className="text-right"
+                />
+                <SortableHeader
+                  label="Unit Price"
+                  column="unit_price"
+                  sortColumn={detailedSortColumn}
+                  sortDirection={detailedSortDirection}
+                  onSort={handleDetailedSort}
+                  className="text-right"
+                />
+                <SortableHeader
+                  label="Original"
+                  column="original_amount"
+                  sortColumn={detailedSortColumn}
+                  sortDirection={detailedSortDirection}
+                  onSort={handleDetailedSort}
+                  className="text-right text-slate-700"
+                />
+
+                <SortableHeader
+                  label="In"
+                  column="transfer_in"
+                  sortColumn={detailedSortColumn}
+                  sortDirection={detailedSortDirection}
+                  onSort={handleDetailedSort}
+                  className="text-right text-green-700"
+                />
+
+                <SortableHeader
+                  label="Out"
+                  column="transfer_out"
+                  sortColumn={detailedSortColumn}
+                  sortDirection={detailedSortDirection}
+                  onSort={handleDetailedSort}
+                  className="text-right text-red-700"
+                />
+
+                <SortableHeader
+                  label="Current"
+                  column="current_amount"
+                  sortColumn={detailedSortColumn}
+                  sortDirection={detailedSortDirection}
+                  onSort={handleDetailedSort}
+                  className="text-right text-blue-700"
+                />
               </tr>
             </thead>
 
@@ -708,8 +909,16 @@ export default function BudgetComparison() {
                   <td className="border border-slate-200 px-4 py-3">
                     {row.category_name}
                   </td>
-                  <td className="border border-slate-200 px-4 py-3 font-semibold">
-                    {row.type_name}
+                  <td className="border border-slate-200 px-4 py-3">
+                    <div className="flex flex-col gap-1">
+                      <span className="font-semibold">{row.type_name}</span>
+
+                  {Boolean(row.created_from_transfer) && (
+                        <span className="inline-flex w-fit rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-700">
+                          Created from Transfer
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="border border-slate-200 px-4 py-3 text-right font-bold">
                     {formatNumber(row.quantity)}
@@ -717,8 +926,20 @@ export default function BudgetComparison() {
                   <td className="border border-slate-200 px-4 py-3 text-right">
                     <CurrencyText value={row.unit_price} />
                   </td>
+                  <td className="border border-slate-200 px-4 py-3 text-right">
+                    <CurrencyText value={row.original_amount} />
+                  </td>
+
+                  <td className="border border-slate-200 px-4 py-3 text-right font-bold text-green-600">
+                    <CurrencyText value={row.transfer_in} />
+                  </td>
+
+                  <td className="border border-slate-200 px-4 py-3 text-right font-bold text-red-600">
+                    <CurrencyText value={row.transfer_out} />
+                  </td>
+
                   <td className="border border-slate-200 px-4 py-3 text-right font-bold text-blue-600">
-                    <CurrencyText value={row.total_amount} />
+                    <CurrencyText value={row.current_amount} />
                   </td>
                 </tr>
               ))}
@@ -726,7 +947,7 @@ export default function BudgetComparison() {
               {filteredRows.length === 0 && (
                 <tr>
                   <td
-                    colSpan="8"
+                    colSpan="11"
                     className="border border-slate-200 px-4 py-10 text-center font-semibold text-slate-500"
                   >
                     No detailed rows found.

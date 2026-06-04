@@ -11,9 +11,10 @@ import {
   submitBudgetRepo,
   getBudgetByIdRepo,
 } from "../repositories/budgets.repository.js";
+import { findLatestFinancialYearRepo } from "../repositories/financialYears.repository.js";
 
 export async function getCurrentBudgetService({ budgetAccess }) {
-  const financialYear = await findOpenFinancialYearRepo();
+ const financialYear = await findLatestFinancialYearRepo();
 
   if (!financialYear) {
     throw new ApiError(

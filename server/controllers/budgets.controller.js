@@ -11,6 +11,8 @@ import {
 import { getBudgetReviewFeedbackService } from "../services/budgetReviewFeedback.service.js";
 import { getBudgetTimelineService } from "../services/budgetTimeline.service.js";
 import { auditLog } from "../utils/audit.js";
+import { getBudgetBalanceSummaryService } from "../services/budgetBalance.service.js";
+
 export async function getCurrentBudget(req, res, next) {
   try {
     const result = await getCurrentBudgetService({
@@ -130,3 +132,15 @@ export const getBudgetDetails = asyncHandler(async (req, res) => {
     }),
   );
 });
+export async function getBudgetBalanceSummary(req, res) {
+  const result = await getBudgetBalanceSummaryService(
+    Number(req.params.budgetId),
+  );
+
+  return res.json(
+    new ApiResponse({
+      message: "Budget balance summary fetched successfully",
+      data: result,
+    }),
+  );
+}

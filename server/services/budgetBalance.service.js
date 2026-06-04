@@ -1,5 +1,8 @@
 import { ApiError } from "../utils/apiError.js";
-import { getBudgetItemBalanceRepo } from "../repositories/budgetBalance.repository.js";
+import {
+  getBudgetItemBalanceRepo,
+  getBudgetBalanceSummaryRepo,
+} from "../repositories/budgetBalance.repository.js";
 
 export async function calculateItemBalance(itemId) {
   const row = await getBudgetItemBalanceRepo(itemId);
@@ -14,11 +17,15 @@ export async function calculateItemBalance(itemId) {
   const poUsed = Number(row.po_used || 0);
 
   const remainingAmount = approvedAmount + transferIn - transferOut - poUsed;
+  const netTransfer = transferIn - transferOut;
 
   return {
     approvedAmount,
+
     transferIn,
     transferOut,
+    netTransfer,
+
     poUsed,
 
     remainingAmount,
@@ -27,4 +34,35 @@ export async function calculateItemBalance(itemId) {
 
     availableForTransfer: Math.max(0, remainingAmount),
   };
+}
+export async function getBudgetBalanceSummaryService(budgetId) {
+  const items = await getBudgetBalanceSummaryRepo(budgetId);
+
+  const result = [];
+
+  for (const item of items) {
+    const balance = await calculateItemBalance(item.id);
+
+   result.push({
+  itemId: item.id,
+  typeName: item.type_name,
+
+  created_from_transfer: item.created_from_transfer,
+  source_transfer_id: item.source_transfer_id,
+
+  approvedAmount: balance.approvedAmount,
+
+  transferIn: balance.transferIn,
+
+  transferOut: balance.transferOut,
+
+  netTransfer: balance.netTransfer,
+
+  poUsed: balance.poUsed,
+
+  remainingAmount: balance.remainingAmount,
+});
+  }
+
+  return result;
 }

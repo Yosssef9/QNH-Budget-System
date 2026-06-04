@@ -10,6 +10,7 @@ import {
 import { formatDateTime } from "../utils/dateFormatters";
 import ConfirmModal from "../components/ConfirmModal";
 import Breadcrumbs from "../components/Breadcrumbs";
+import { getFinancialYearStatusLabel } from "../theme/statusStyles";
 
 function getErrorMessage(error, fallback) {
   return error?.response?.data?.message || fallback;
@@ -174,9 +175,7 @@ export default function FinancialYearsPage() {
                             : "bg-slate-100 text-slate-600"
                       }`}
                     >
-                      {item.status === "PRE_CLOSING"
-                        ? "PRE-CLOSING"
-                        : item.status}
+                      {getFinancialYearStatusLabel(item.status)}
                     </span>
                   </td>
                   <td className="px-4 py-4 text-slate-600">

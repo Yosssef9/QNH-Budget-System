@@ -11,7 +11,8 @@ import {
 } from "../repositories/budgetApproval.repository.js";
 
 import { insertBudgetNoteRepo } from "../repositories/budgetNote.repository.js";
-
+import { queueNotification } from "./notification.service.js";
+import { NOTIFICATION_TYPES } from "../constants/notificationTypes.js";
 export async function getPendingBudgetsService() {
   return await getPendingBudgetsRepo();
 }
@@ -80,7 +81,18 @@ export async function approveBudgetService({ budgetId, body, user }) {
       createdBy: user.userId,
     });
   }
+  await queueNotification({
+    notificationType: NOTIFICATION_TYPES.BUDGET_APPROVED,
 
+    entityType: "BUDGET",
+
+    entityId: budgetId,
+
+    payload: {
+      budgetId,
+      actorUserId: user.userId,
+    },
+  });
   return approved;
 }
 
@@ -136,7 +148,18 @@ export async function returnBudgetService({ budgetId, body, user }) {
       createdBy: user.userId,
     });
   }
+  await queueNotification({
+    notificationType: NOTIFICATION_TYPES.BUDGET_RETURNED,
 
+    entityType: "BUDGET",
+
+    entityId: budgetId,
+
+    payload: {
+      budgetId,
+      actorUserId: user.userId,
+    },
+  });
   return returned;
 }
 

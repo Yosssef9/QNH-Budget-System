@@ -13,6 +13,8 @@ import {
   countUnfinishedPOLinksForYearRepo,
   findLatestFinancialYearRepo,
 } from "../repositories/financialYears.repository.js";
+import { queueNotification } from "./notification.service.js";
+import { NOTIFICATION_TYPES } from "../constants/notificationTypes.js";
 export async function getFinancialYearsService() {
   return await getFinancialYearsRepo();
 }
@@ -77,7 +79,25 @@ export async function createFinancialYearService({ year, startedBy }) {
     );
   }
 
-  return await createFinancialYearRepo({ year, startedBy });
+  const financialYear = await createFinancialYearRepo({
+    year,
+    startedBy,
+  });
+
+  await queueNotification({
+    notificationType: NOTIFICATION_TYPES.FINANCIAL_YEAR_OPENED,
+
+    entityType: "FINANCIAL_YEAR",
+
+    entityId: financialYear.id,
+
+    payload: {
+      financialYearId: financialYear.id,
+      actorUserId: startedBy,
+    },
+  });
+
+  return financialYear;
 }
 
 export async function closeFinancialYearService({ id, closedBy }) {
@@ -130,7 +150,18 @@ export async function closeFinancialYearService({ id, closedBy }) {
   if (!closedYear) {
     throw new ApiError(409, "Financial year could not be closed");
   }
+  await queueNotification({
+    notificationType: NOTIFICATION_TYPES.FINANCIAL_YEAR_CLOSED,
 
+    entityType: "FINANCIAL_YEAR",
+
+    entityId: id,
+
+    payload: {
+      financialYearId: id,
+      actorUserId: closedBy,
+    },
+  });
   return closedYear;
 }
 export async function preCloseFinancialYearService({ id, preClosedBy }) {
@@ -169,7 +200,18 @@ export async function preCloseFinancialYearService({ id, preClosedBy }) {
   if (!preClosedYear) {
     throw new ApiError(409, "Financial year could not be pre-closed");
   }
+  await queueNotification({
+    notificationType: NOTIFICATION_TYPES.FINANCIAL_YEAR_PRE_CLOSING,
 
+    entityType: "FINANCIAL_YEAR",
+
+    entityId: id,
+
+    payload: {
+      financialYearId: id,
+      actorUserId: preClosedBy,
+    },
+  });
   return preClosedYear;
 }
 export async function getFinancialYearByIdService(id) {

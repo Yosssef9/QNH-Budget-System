@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import CurrencyText from "../../CurrencyText";
+import CreatedFromTransferBadge from "../../CreatedFromTransferBadge";
 
 export default function BudgetBalanceSummaryTable({ items = [] }) {
   return (
@@ -58,9 +59,7 @@ export default function BudgetBalanceSummaryTable({ items = [] }) {
                     </span>
 
                     {Boolean(item.created_from_transfer) && (
-                      <span className="inline-flex w-fit rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-purple-700">
-                        Created from Transfer
-                      </span>
+                      <CreatedFromTransferBadge />
                     )}
                   </div>
                 </td>

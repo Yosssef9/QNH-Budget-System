@@ -45,7 +45,7 @@ export default function BudgetComparisonInsights({
                 index={index + 1}
                 title={item.type_name}
                 subtitle={`${item.category_name} · ${item.departments.length} department(s)`}
-                value={<CurrencyText value={item.totalAmount} />}
+                value={<CurrencyText value={item.currentAmount} />}
                 onClick={() => onFilterItem(item.type_id)}
               />
             ))
@@ -85,7 +85,7 @@ export default function BudgetComparisonInsights({
                 index={index + 1}
                 title={item.type_name}
                 subtitle={`Requested by ${item.departments.length} departments`}
-                value={<CurrencyText value={item.totalAmount} />}
+                value={<CurrencyText value={item.currentAmount} />}
                 onClick={() => onFilterItem(item.type_id)}
               />
             ))

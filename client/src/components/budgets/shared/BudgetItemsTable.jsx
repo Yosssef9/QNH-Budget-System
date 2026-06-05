@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { formatNumber } from "../../../utils/formatters";
 import CurrencyText from "../../../components/CurrencyText";
 import BudgetMethodBadge from "../../../components/budgets/shared/BudgetMethodBadge";
-
+import CreatedFromTransferBadge from "../../CreatedFromTransferBadge";
+CreatedFromTransferBadge
 export default function BudgetItemsTable({
   items = [],
   showNotes = false,
@@ -73,10 +74,8 @@ export default function BudgetItemsTable({
                       {item.type_name}
                     </div>
 
-                   {Boolean(item.created_from_transfer) && (
-                      <span className="inline-flex w-fit rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-purple-700">
-                        Created from Transfer
-                      </span>
+                    {Boolean(item.created_from_transfer) && (
+                      <CreatedFromTransferBadge />
                     )}
                   </div>
                 </td>

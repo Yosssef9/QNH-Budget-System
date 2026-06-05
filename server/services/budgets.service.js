@@ -12,9 +12,10 @@ import {
   getBudgetByIdRepo,
 } from "../repositories/budgets.repository.js";
 import { findLatestFinancialYearRepo } from "../repositories/financialYears.repository.js";
-
+import { queueNotification } from "./notification.service.js";
+import { NOTIFICATION_TYPES } from "../constants/notificationTypes.js";
 export async function getCurrentBudgetService({ budgetAccess }) {
- const financialYear = await findLatestFinancialYearRepo();
+  const financialYear = await findLatestFinancialYearRepo();
 
   if (!financialYear) {
     throw new ApiError(
@@ -208,10 +209,25 @@ export async function submitBudgetService({ budgetId, user, budgetAccess }) {
     );
   }
 
-  return await submitBudgetRepo({
+  const budget = await submitBudgetRepo({
     budgetId,
     submittedBy: user.userId,
   });
+
+  await queueNotification({
+    notificationType: NOTIFICATION_TYPES.BUDGET_SUBMITTED,
+
+    entityType: "BUDGET",
+
+    entityId: budgetId,
+
+    payload: {
+      budgetId,
+      actorUserId: user.userId,
+    },
+  });
+
+  return budget;
 }
 export async function getBudgetDetailsService(budgetId) {
   const budget = await getBudgetByIdRepo(budgetId);

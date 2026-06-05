@@ -29,6 +29,7 @@ import SearchableMultiSelect from "../../components/SearchableMultiSelect";
 import { useSearchParams } from "react-router-dom";
 import useTableSort from "../../hooks/useTableSort";
 import SortableHeader from "../../components/SortableHeader";
+import CreatedFromTransferBadge from "../../components/CreatedFromTransferBadge";
 
 const ALL = "ALL";
 function getArrayParam(searchParams, key) {
@@ -594,11 +595,7 @@ export default function BudgetComparison() {
 
                       {item.rows?.some((r) =>
                         Boolean(r.created_from_transfer),
-                      ) && (
-                        <span className="inline-flex w-fit rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-700">
-                          Created from Transfer
-                        </span>
-                      )}
+                      ) && <CreatedFromTransferBadge />}
                     </div>
                   </td>
                   <td className="border border-slate-200 px-4 py-3">
@@ -721,13 +718,9 @@ export default function BudgetComparison() {
                         {item.type_name}
                       </p>
 
-                    {item.rows?.some(
-  (r) => Boolean(r.created_from_transfer),
-) && (
-                        <span className="inline-flex w-fit rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-700">
-                          Created from Transfer
-                        </span>
-                      )}
+                      {item.rows?.some((r) =>
+                        Boolean(r.created_from_transfer),
+                      ) && <CreatedFromTransferBadge />}
                     </div>
                     <p className="mt-1 text-xs font-semibold text-slate-500">
                       {item.category_name} · {item.expense_type}
@@ -913,10 +906,8 @@ export default function BudgetComparison() {
                     <div className="flex flex-col gap-1">
                       <span className="font-semibold">{row.type_name}</span>
 
-                  {Boolean(row.created_from_transfer) && (
-                        <span className="inline-flex w-fit rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-700">
-                          Created from Transfer
-                        </span>
+                      {Boolean(row.created_from_transfer) && (
+                        <CreatedFromTransferBadge />
                       )}
                     </div>
                   </td>

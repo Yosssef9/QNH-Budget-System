@@ -2,7 +2,7 @@ import { toNumber } from "../utils/number";
 
 export function getTopCostItems(groupedByItem, limit = 10) {
   return [...groupedByItem]
-    .sort((a, b) => b.totalAmount - a.totalAmount)
+    .sort((a, b) => b.currentAmount - a.currentAmount)
     .slice(0, limit);
 }
 
@@ -53,8 +53,13 @@ export function getDepartmentRanking(rows) {
     }
 
     const department = map.get(key);
+
     department.totalQuantity += toNumber(row.quantity);
-    department.totalAmount += toNumber(row.total_amount);
+
+    department.totalAmount += toNumber(
+      row.current_amount ?? row.original_amount,
+    );
+
     department.itemsCount += 1;
   });
 

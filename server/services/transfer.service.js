@@ -19,6 +19,8 @@ import {
   findPendingTransferForItemsRepo,
   findPendingNewItemTransferRepo,
 } from "../repositories/transfer.repository.js";
+import { queueNotification } from "./notification.service.js";
+import { NOTIFICATION_TYPES } from "../constants/notificationTypes.js";
 export async function createTransferService({
   from_budget_item_id,
   to_budget_item_id,
@@ -141,7 +143,7 @@ export async function createTransferService({
     }
   }
 
-  return createTransferRepo({
+  const transfer = await createTransferRepo({
     from_budget_item_id,
     to_budget_item_id: is_new_item ? null : to_budget_item_id,
 
@@ -150,13 +152,28 @@ export async function createTransferService({
     new_item_type_id,
     new_item_quantity,
     new_item_unit_price,
-    new_item_total_amount: amount,
+    new_item_total_amount,
 
     amount,
     reason,
 
     requested_by: userId,
   });
+
+  await queueNotification({
+    notificationType: NOTIFICATION_TYPES.TRANSFER_CREATED,
+
+    entityType: "TRANSFER",
+
+    entityId: transfer.id,
+
+    payload: {
+      transferId: transfer.id,
+      actorUserId: userId,
+    },
+  });
+
+  return transfer;
 }
 export async function getTransfersService(status) {
   return getTransfersRepo(status);
@@ -183,7 +200,18 @@ export async function approveTransferService(transferId, userId) {
   }
 
   const approvedTransfer = await approveTransferRepo(transferId, userId);
+  await queueNotification({
+    notificationType: NOTIFICATION_TYPES.TRANSFER_APPROVED,
 
+    entityType: "TRANSFER",
+
+    entityId: transferId,
+
+    payload: {
+      transferId,
+      actorUserId: userId,
+    },
+  });
   if (transfer.is_new_item) {
     const sourceItem = await getBudgetItemDetails(transfer.from_budget_item_id);
 
@@ -229,7 +257,22 @@ export async function rejectTransferService(transferId, userId, note) {
     throw new ApiError(400, "Rejection note is required");
   }
 
-  return rejectTransferRepo(transferId, userId, note);
+  const rejectedTransfer = await rejectTransferRepo(transferId, userId, note);
+
+  await queueNotification({
+    notificationType: NOTIFICATION_TYPES.TRANSFER_REJECTED,
+
+    entityType: "TRANSFER",
+
+    entityId: transferId,
+
+    payload: {
+      transferId,
+      actorUserId: userId,
+    },
+  });
+
+  return rejectedTransfer;
 }
 
 export async function getTransferByIdService(id) {

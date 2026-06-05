@@ -1,6 +1,9 @@
 import nodemailer from "nodemailer";
 import { logger } from "./logger.js";
 import { ApiError } from "./apiError.js";
+import path from "path";
+
+const EMAIL_ENABLED = process.env.EMAIL_ENABLED?.toLowerCase() === "true";
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -17,6 +20,24 @@ export async function sendEmail({ to, cc, subject, text, html }) {
     throw new ApiError(400, "Email recipient is required", "EMAIL_TO_REQUIRED");
   }
 
+  // =====================================
+  // EMAIL FEATURE TOGGLE
+  // =====================================
+
+  if (!EMAIL_ENABLED) {
+    logger.info({
+      message: "Email skipped (EMAIL_ENABLED=false)",
+      to,
+      cc,
+      subject,
+    });
+
+    return {
+      skipped: true,
+      reason: "EMAIL_DISABLED",
+    };
+  }
+
   try {
     const info = await transporter.sendMail({
       from: process.env.SMTP_FROM,
@@ -25,6 +46,21 @@ export async function sendEmail({ to, cc, subject, text, html }) {
       subject,
       text,
       html,
+
+      attachments: [
+        {
+          filename: "qnh-logo.png",
+
+          path: path.join(
+            process.cwd(),
+            "notifications",
+            "assets",
+            "qnh-logo.png",
+          ),
+
+          cid: "qnh-logo",
+        },
+      ],
     });
 
     logger.info({

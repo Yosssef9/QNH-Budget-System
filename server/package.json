@@ -8,6 +8,7 @@
     "dev": "nodemon server.js",
     "generate-token": "node scripts/generatePortalToken.js",
     "test:email": "node scripts/testEmail.js",
+    "worker:notifications": "node jobs/notification.worker.js",
     "start": "node server.js"
   },
   "keywords": [],

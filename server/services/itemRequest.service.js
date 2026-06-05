@@ -12,13 +12,29 @@ import {
   createCategoryService,
   createTypeService,
 } from "./category.service.js";
-
+import { queueNotification } from "./notification.service.js";
+import { NOTIFICATION_TYPES } from "../constants/notificationTypes.js";
 export async function getItemRequestsService(status) {
   return await getItemRequestsRepo(status);
 }
 
 export async function createItemRequestService(payload) {
-  return await createItemRequestRepo(payload);
+  const request = await createItemRequestRepo(payload);
+
+  await queueNotification({
+    notificationType: NOTIFICATION_TYPES.ITEM_REQUEST_CREATED,
+
+    entityType: "ITEM_REQUEST",
+
+    entityId: request.id,
+
+    payload: {
+      requestId: request.id,
+      actorUserId: payload.requestedBy,
+    },
+  });
+
+  return request;
 }
 
 export async function approveItemRequestService({
@@ -56,11 +72,26 @@ export async function approveItemRequestService({
     expenseType: "OPEX",
   });
 
-  return await approveItemRequestRepo({
+  const result = await approveItemRequestRepo({
     requestId,
     adminNote,
     reviewedBy,
   });
+
+  await queueNotification({
+    notificationType: NOTIFICATION_TYPES.ITEM_REQUEST_APPROVED,
+
+    entityType: "ITEM_REQUEST",
+
+    entityId: requestId,
+
+    payload: {
+      requestId,
+      actorUserId: reviewedBy,
+    },
+  });
+
+  return result;
 }
 
 export async function rejectItemRequestService({
@@ -82,11 +113,26 @@ export async function rejectItemRequestService({
     );
   }
 
-  return await rejectItemRequestRepo({
+  const result = await rejectItemRequestRepo({
     requestId,
     adminNote,
     reviewedBy,
   });
+
+  await queueNotification({
+    notificationType: NOTIFICATION_TYPES.ITEM_REQUEST_REJECTED,
+
+    entityType: "ITEM_REQUEST",
+
+    entityId: requestId,
+
+    payload: {
+      requestId,
+      actorUserId: reviewedBy,
+    },
+  });
+
+  return result;
 }
 
 export async function approveItemRequestManualService({
@@ -114,6 +160,9 @@ export async function approveItemRequestManualService({
     reviewedBy,
   });
 }
-export async function getDashboardItemRequestsService({ userId, budgetAccess }) {
+export async function getDashboardItemRequestsService({
+  userId,
+  budgetAccess,
+}) {
   return await getDashboardItemRequestsRepo({ userId, budgetAccess });
 }

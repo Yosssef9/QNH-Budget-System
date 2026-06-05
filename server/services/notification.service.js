@@ -1,0 +1,66 @@
+import {
+  createNotificationRepo,
+  claimNotificationRepo,
+  markNotificationSentRepo,
+  markNotificationFailedRepo,
+} from "../repositories/notification.repository.js";
+import { resolveRecipients } from "../notifications/recipientResolver.js";
+import { sendEmail } from "../utils/email.js";
+
+import { resolveTemplate } from "../notifications/templateResolver.js";
+
+import { defaultLayout } from "../notifications/layouts/default.layout.js";
+export async function queueNotification(data) {
+  const recipients = await resolveRecipients(
+    data.notificationType,
+    data.payload,
+  );
+
+  if (!recipients?.length) {
+    return;
+  }
+
+  await Promise.all(
+    recipients.map((recipient) =>
+      createNotificationRepo({
+        ...data,
+        recipientEmail: recipient.email,
+      }),
+    ),
+  );
+}
+export async function processPendingNotifications() {
+  while (true) {
+    const notification = await claimNotificationRepo();
+
+    if (!notification) {
+      break;
+    }
+
+    try {
+      const payload = JSON.parse(notification.payload || "{}");
+
+      const template = resolveTemplate(notification.notification_type, payload);
+      const html = defaultLayout({
+        status: template.status,
+        title: template.title,
+        message: template.message,
+        details: template.details,
+      });
+
+      await sendEmail({
+        to: notification.recipient_email,
+        subject: template.subject,
+        html,
+      });
+
+      await markNotificationSentRepo(notification.id);
+    } catch (error) {
+      await markNotificationFailedRepo(
+        notification.id,
+        notification.attempts + 1,
+        error.message,
+      );
+    }
+  }
+}

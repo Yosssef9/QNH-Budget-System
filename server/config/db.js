@@ -1,5 +1,7 @@
+import "dotenv/config";
 import sql from "mssql";
 import { logger } from "../utils/logger.js";
+
 const dbConfig = {
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
@@ -38,10 +40,7 @@ setInterval(async () => {
   try {
     const pool = await poolPromise;
 
-   
-
     if (pool.pool) {
-    
     }
   } catch (err) {
     console.error("POOL ERROR:", err);

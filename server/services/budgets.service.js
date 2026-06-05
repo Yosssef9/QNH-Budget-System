@@ -209,7 +209,7 @@ export async function submitBudgetService({ budgetId, user, budgetAccess }) {
     );
   }
 
-  const budget = await submitBudgetRepo({
+  const submittedBudget = await submitBudgetRepo({
     budgetId,
     submittedBy: user.userId,
   });
@@ -227,7 +227,7 @@ export async function submitBudgetService({ budgetId, user, budgetAccess }) {
     },
   });
 
-  return budget;
+  return submittedBudget;
 }
 export async function getBudgetDetailsService(budgetId) {
   const budget = await getBudgetByIdRepo(budgetId);

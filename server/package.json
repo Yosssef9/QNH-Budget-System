@@ -9,7 +9,11 @@
     "generate-token": "node scripts/generatePortalToken.js",
     "test:email": "node scripts/testEmail.js",
     "worker:notifications": "node jobs/notification.worker.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [],
   "author": "",
@@ -33,6 +37,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "vitest": "^4.1.8"
   }
 }

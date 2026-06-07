@@ -129,9 +129,18 @@ export async function getAvailableTransferTypes() {
   return response.data?.data || [];
 }
 export async function getAllBudgetTypes() {
-  const response = await api.get(
-    "/categories/types/all",
-  );
+  const response = await api.get("/categories/types/all");
+
+  return response.data?.data || [];
+}
+export async function getApprovedBudgetHistory() {
+  const response = await api.get("/budgets/history/approved");
+
+  return response.data?.data || [];
+}
+
+export async function getBudgetHistoryItems(budgetId) {
+  const response = await api.get(`/budgets/history/${budgetId}/items`);
 
   return response.data?.data || [];
 }

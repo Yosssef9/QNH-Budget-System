@@ -4,10 +4,11 @@ import LockedPage from "../../components/LockedPage";
 import useLockToast from "../../hooks/useLockToast";
 import { getBudgetEntryPageLock } from "../../helpers/pageLockRules";
 import {
-  ChevronRight,
+  ChevronDown,
+  Download,
   Plus,
   Upload,
-  Trash2,
+  Copy,
   Save,
   Send,
   CheckCircle2,
@@ -15,10 +16,12 @@ import {
   PackagePlus,
 } from "lucide-react";
 import { getAllBudgetTypes } from "../../api/budget.api";
+import useEscapeKey from "../../hooks/useEscapeKey";
 import {
   downloadBudgetTemplate,
   importBudgetTemplate,
 } from "../../helpers/budgetExcel.helper";
+import useClickOutside from "../../hooks/useClickOutside";
 import BudgetSummaryPanel from "../../components/budgets/shared/BudgetSummaryPanel";
 import SearchableMultiSelect from "../../components/SearchableMultiSelect";
 import ConfirmModal from "../../components/ConfirmModal";
@@ -57,7 +60,7 @@ import BudgetHeaderCard from "../../components/budgets/shared/BudgetHeaderCard";
 
 import BudgetDistributionTable from "../../components/budgets/shared/BudgetDistributionTable";
 import { BUDGET_ITEMS_PAGE_SIZE } from "../../constants/budget.constants";
-
+import CopyBudgetDrawer from "../../components/budgets/CopyBudgetDrawer";
 function getMethodBase(method) {
   if (method === "CUSTOM_MONTHLY" || method === "CUSTOM_QUARTERLY")
     return "CUSTOM";
@@ -70,33 +73,6 @@ function getMethodNote(method) {
   if (method === "CUSTOM_MONTHLY") return "Monthly";
   if (method === "CUSTOM_QUARTERLY") return "Quarter";
   return "";
-}
-
-function MethodBadge({ method }) {
-  const base = getMethodBase(method);
-  const note = getMethodNote(method);
-
-  const styles = {
-    MONTHLY: "bg-blue-50 text-blue-700 border-blue-100",
-    QUARTERLY: "bg-emerald-50 text-emerald-700 border-emerald-100",
-    CUSTOM: "bg-orange-50 text-orange-700 border-orange-100",
-    ANNUAL: "bg-violet-50 text-violet-700 border-violet-100",
-  };
-
-  return (
-    <div className="text-center">
-      <span
-        className={`inline-flex rounded-md border px-2 py-1 text-[11px] font-bold ${styles[base]}`}
-      >
-        {base}
-      </span>
-      {note && (
-        <p className="mt-1 text-[11px] font-semibold text-slate-500">
-          ({note})
-        </p>
-      )}
-    </div>
-  );
 }
 
 export default function BudgetEnteryPage() {
@@ -150,6 +126,8 @@ export default function BudgetEnteryPage() {
   const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
   const [localBudgetStatus, setLocalBudgetStatus] = useState(null);
   const [requestItemModalOpen, setRequestItemModalOpen] = useState(false);
+  const [copyDrawerOpen, setCopyDrawerOpen] = useState(false);
+  const [excelMenuOpen, setExcelMenuOpen] = useState(false);
   const [importErrors, setImportErrors] = useState([]);
   const [importSummaryOpen, setImportSummaryOpen] = useState(false);
   const [importSummary, setImportSummary] = useState(null);
@@ -207,6 +185,13 @@ export default function BudgetEnteryPage() {
 
     return 0;
   }
+  const excelMenuRef = useRef(null);
+
+  const closeExcelMenu = useCallback(() => {
+    setExcelMenuOpen(false);
+  }, []);
+  useEscapeKey(closeExcelMenu, excelMenuOpen);
+  useClickOutside(excelMenuRef, closeExcelMenu, excelMenuOpen);
   async function handleSubmitBudget() {
     if (isBudgetLocked) {
       toast.error("This budget cannot be submitted");
@@ -436,6 +421,18 @@ export default function BudgetEnteryPage() {
     const start = (budgetItemsPage - 1) * BUDGET_ITEMS_PAGE_SIZE;
     return rows.slice(start, start + BUDGET_ITEMS_PAGE_SIZE);
   }, [rows, budgetItemsPage]);
+  const handleCopyBudget = (copiedRows) => {
+    setRows((currentRows) => [...currentRows, ...copiedRows]);
+
+    setBudgetItemsPage(1);
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+
+    toast.success(`${copiedRows.length} items added successfully`);
+  };
   return (
     <div className="space-y-5 p-6 text-slate-800">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -540,34 +537,229 @@ export default function BudgetEnteryPage() {
             )}
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2">
-              <p className="text-xs font-bold text-blue-700">
-                Excel Import Process
-              </p>
+            <div ref={excelMenuRef} className="relative">
+              <button
+                type="button"
+                disabled={isBudgetLocked}
+                onClick={() => setExcelMenuOpen((prev) => !prev)}
+                className="
+    group
+    inline-flex
+    items-center
+    gap-3
+    rounded-xl
+    border-2
+    border-emerald-200
+    bg-white
+    px-5
+    py-3
+    text-sm
+    font-bold
+    text-slate-800
+    shadow-sm
+    transition-all
+    duration-200
+    hover:-translate-y-0.5
+    hover:border-emerald-400
+    hover:bg-emerald-50
+    hover:shadow-lg
+  "
+              >
+                <div className="rounded-lg bg-emerald-100 p-2 text-emerald-600">
+                  <Upload size={18} />
+                </div>
 
-              <p className="text-[11px] text-blue-600">
-                1. Download → 2. Edit → 3. Import
-              </p>
+                <div className="flex flex-col items-start leading-none">
+                  <span>Import & Templates</span>
+
+                  <span className="mt-1 text-[11px] font-medium text-slate-500">
+                    Excel Budget Tools
+                  </span>
+                </div>
+
+                <ChevronDown
+                  size={16}
+                  className={`ml-1 transition-transform duration-300 ease-out ${
+                    excelMenuOpen ? "rotate-180" : "rotate-0"
+                  }`}
+                />
+              </button>
+
+              <div
+                className={`
+    absolute
+    left-0
+    top-full
+    z-50
+    mt-3
+    w-80
+    overflow-hidden
+    rounded-3xl
+    border
+    border-slate-200
+    bg-white
+    shadow-[0_20px_60px_rgba(15,23,42,0.18)]
+    backdrop-blur-xl
+
+    origin-top-left
+    transition-[opacity,transform]
+    duration-300
+    ease-out
+    will-change-transform
+
+    ${
+      excelMenuOpen
+        ? "translate-y-0 scale-100 opacity-100 pointer-events-auto"
+        : "-translate-y-3 scale-95 opacity-0 pointer-events-none"
+    }
+  `}
+              >
+                <div className="border-b border-slate-100 px-5 py-4">
+                  <h3 className="font-bold text-slate-900">Excel Tools</h3>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Import budgets or download the latest template
+                  </p>
+                </div>
+
+                <div className="p-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExcelMenuOpen(false);
+                      handleDownloadTemplate();
+                    }}
+                    className="
+    group
+    flex
+    w-full
+    items-start
+    gap-4
+    rounded-2xl
+    border
+    border-transparent
+    p-4
+    text-left
+
+    transition-all
+    duration-200
+
+    hover:-translate-y-0.5
+    hover:border-blue-200
+    hover:bg-blue-50
+    hover:shadow-md
+
+    active:scale-[0.98]
+  "
+                  >
+                    <div
+                      className="
+      rounded-xl
+      bg-blue-100
+      p-3
+      text-blue-600
+
+      transition-all
+      duration-200
+
+      group-hover:bg-blue-200
+      group-hover:scale-110
+    "
+                    >
+                      <Download size={18} />
+                    </div>
+
+                    <div>
+                      <div
+                        className="
+        font-semibold
+        text-slate-900
+        transition-colors
+        group-hover:text-blue-700
+      "
+                      >
+                        Download Template
+                      </div>
+
+                      <div className="mt-1 text-xs text-slate-500">
+                        Get the latest approved Excel format
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExcelMenuOpen(false);
+                      importInputRef.current?.click();
+                    }}
+                    className="
+    group
+    mt-2
+    flex
+    w-full
+    items-start
+    gap-4
+    rounded-2xl
+    border
+    border-transparent
+    p-4
+    text-left
+
+    transition-all
+    duration-200
+
+    hover:-translate-y-0.5
+    hover:border-emerald-200
+    hover:bg-emerald-50
+    hover:shadow-md
+
+    active:scale-[0.98]
+  "
+                  >
+                    <div
+                      className="
+      rounded-xl
+      bg-emerald-100
+      p-3
+      text-emerald-600
+
+      transition-all
+      duration-200
+
+      group-hover:bg-emerald-200
+      group-hover:scale-110
+    "
+                    >
+                      <Upload size={18} />
+                    </div>
+
+                    <div>
+                      <div
+                        className="
+        font-semibold
+        text-slate-900
+        transition-colors
+        group-hover:text-emerald-700
+      "
+                      >
+                        Import Budget File
+                      </div>
+
+                      <div className="mt-1 text-xs text-slate-500">
+                        Import multiple budget items from Excel
+                      </div>
+                    </div>
+                  </button>
+                </div>
+
+                <div className="border-t border-slate-100 bg-slate-50 px-5 py-3">
+                  <p className="text-xs font-medium text-slate-500">
+                    Supported formats: .xlsx, .xls
+                  </p>
+                </div>
+              </div>
             </div>
-
-            <button
-              type="button"
-              onClick={handleDownloadTemplate}
-              disabled={isBudgetLocked}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              ↓ Download Template
-            </button>
-
-            <button
-              type="button"
-              onClick={() => importInputRef.current?.click()}
-              disabled={isBudgetLocked}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Upload size={17} />↑ Import Excel
-            </button>
-
             <input
               ref={importInputRef}
               type="file"
@@ -575,6 +767,15 @@ export default function BudgetEnteryPage() {
               onChange={handleImportExcel}
               hidden
             />
+            <button
+              type="button"
+              onClick={() => setCopyDrawerOpen(true)}
+              disabled={isBudgetLocked}
+              className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Copy size={17} />
+              Copy From History
+            </button>
             <div className="mx-2 hidden h-8 w-px bg-slate-200 md:block" />
 
             <button
@@ -794,9 +995,8 @@ export default function BudgetEnteryPage() {
               </button>
             </div>
           </div>
-       
-            <BudgetSummaryPanel summary={summary} summaryView={summaryView} />
-         
+
+          <BudgetSummaryPanel summary={summary} summaryView={summaryView} />
         </div>
       </section>
 
@@ -911,6 +1111,12 @@ export default function BudgetEnteryPage() {
         open={requestItemModalOpen}
         onClose={() => setRequestItemModalOpen(false)}
         categories={categories}
+      />
+      <CopyBudgetDrawer
+        open={copyDrawerOpen}
+        onClose={() => setCopyDrawerOpen(false)}
+        onCopy={handleCopyBudget}
+        hasExistingItems={rows.length > 0}
       />
     </div>
   );

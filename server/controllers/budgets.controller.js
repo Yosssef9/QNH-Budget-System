@@ -7,6 +7,8 @@ import {
   getCurrentBudgetService,
   submitBudgetService,
   getBudgetDetailsService,
+  getBudgetHistoryItemsService,
+  getApprovedBudgetHistoryService,
 } from "../services/budgets.service.js";
 import { getBudgetReviewFeedbackService } from "../services/budgetReviewFeedback.service.js";
 import { getBudgetTimelineService } from "../services/budgetTimeline.service.js";
@@ -38,7 +40,30 @@ export const getMyBudgets = asyncHandler(async (req, res) => {
     }),
   );
 });
+export const getApprovedBudgetHistory = asyncHandler(async (req, res) => {
+  const data = await getApprovedBudgetHistoryService(req.budgetAccess);
 
+  return res.json(
+    new ApiResponse({
+      message: "Budget history fetched successfully",
+      data,
+    }),
+  );
+});
+
+export const getBudgetHistoryItems = asyncHandler(async (req, res) => {
+  const data = await getBudgetHistoryItemsService(
+    Number(req.params.budgetId),
+    req.budgetAccess,
+  );
+
+  return res.json(
+    new ApiResponse({
+      message: "Budget history items fetched successfully",
+      data,
+    }),
+  );
+});
 export const createBudget = asyncHandler(async (req, res) => {
   const body = validateCreateBudget(req.body);
 

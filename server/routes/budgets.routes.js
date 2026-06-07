@@ -8,6 +8,8 @@ import {
   getBudgetTimeline,
   getBudgetDetails,
   getBudgetBalanceSummary,
+  getApprovedBudgetHistory,
+  getBudgetHistoryItems,
 } from "../controllers/budgets.controller.js";
 
 import { verifyPortalJwt } from "../middleware/verifyPortalJwt.middleware.js";
@@ -30,7 +32,17 @@ router.get("/current", requirePermission("can_edit_budget"), getCurrentBudget);
 router.post("/", requirePermission("can_edit_budget"), createBudget);
 
 router.get("/my", getMyBudgets);
+router.get(
+  "/history/approved",
+  requirePermission("can_edit_budget"),
+  getApprovedBudgetHistory,
+);
 
+router.get(
+  "/history/:budgetId/items",
+  requirePermission("can_edit_budget"),
+  getBudgetHistoryItems,
+);
 router.get(
   "/:budgetId/review-feedback",
   requirePermission("can_view_budget"),

@@ -9,11 +9,8 @@ export async function getTransferItemsService(financialYearId) {
   return getTransferEligibleItems(financialYearId);
 }
 
-export async function getAvailableTransferTypesService(
-  departmentId,
-) {
-  const financialYear =
-    await findLatestFinancialYearRepo();
+export async function getAvailableTransferTypesService(departmentId) {
+  const financialYear = await findLatestFinancialYearRepo();
 
   if (!financialYear) {
     return [];
@@ -27,6 +24,8 @@ export async function getAvailableTransferTypesService(
   if (!budget) {
     return [];
   }
-
+  console.log("departmentId", departmentId);
+  console.log("financialYear", financialYear);
+  console.log("budget", budget);
   return getAvailableTransferTypesRepo(budget.id);
 }

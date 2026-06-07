@@ -208,7 +208,7 @@ export async function countPendingTransferRequestsForYearRepo(financialYearId) {
       SELECT COUNT(*) AS count
       FROM BS_budget_transfers t
       INNER JOIN BS_budget_items bi
-        ON bi.id = t.from_item_id
+        ON bi.id = t.from_budget_item_id
       INNER JOIN BS_budgets b
         ON b.id = bi.budget_id
       WHERE b.financial_year_id = @financialYearId
@@ -218,29 +218,32 @@ export async function countPendingTransferRequestsForYearRepo(financialYearId) {
   return result.recordset[0]?.count || 0;
 }
 
-export async function countUnfinishedPOLinksForYearRepo(financialYearId) {
-  const pool = await poolPromise;
+// export async function countUnfinishedPOLinksForYearRepo(financialYearId) {
+//   const pool = await poolPromise;
 
-  const result = await pool
-    .request()
-    .input("financialYearId", sql.Int, financialYearId).query(`
-      IF OBJECT_ID('BS_budget_po_links', 'U') IS NULL
-      BEGIN
-        SELECT 0 AS count;
-        RETURN;
-      END;
+//   const result = await pool
+//     .request()
+//     .input("financialYearId", sql.Int, financialYearId).query(`
+//       IF OBJECT_ID('BS_budget_po_links', 'U') IS NULL
+//       BEGIN
+//         SELECT 0 AS count;
+//         RETURN;
+//       END;
 
-      SELECT COUNT(*) AS count
-      FROM BS_budget_po_links pl
-      INNER JOIN BS_budget_items bi
-        ON bi.id = pl.budget_item_id
-      INNER JOIN BS_budgets b
-        ON b.id = bi.budget_id
-      WHERE b.financial_year_id = @financialYearId
-        AND ISNULL(pl.status, '') NOT IN ('COMPLETED', 'CANCELLED')
-    `);
+//       SELECT COUNT(*) AS count
+//       FROM BS_budget_po_links pl
+//       INNER JOIN BS_budget_items bi
+//         ON bi.id = pl.budget_item_id
+//       INNER JOIN BS_budgets b
+//         ON b.id = bi.budget_id
+//       WHERE b.financial_year_id = @financialYearId
+//         AND ISNULL(pl.status, '') NOT IN ('COMPLETED', 'CANCELLED')
+//     `);
 
-  return result.recordset[0]?.count || 0;
+//   return result.recordset[0]?.count || 0;
+// }
+export async function countUnfinishedPOLinksForYearRepo() {
+  return 0;
 }
 export async function findLatestFinancialYearRepo() {
   const pool = await poolPromise;
@@ -255,4 +258,19 @@ export async function findLatestFinancialYearRepo() {
   `);
 
   return result.recordset[0] || null;
+}
+
+export async function countBudgetsForYearRepo(financialYearId) {
+  const pool = await poolPromise;
+
+  const result = await pool
+    .request()
+    .input("financialYearId", sql.Int, financialYearId).query(`
+      SELECT COUNT(*) AS count
+      FROM BS_budgets
+      WHERE financial_year_id = @financialYearId
+        AND is_active = 1
+    `);
+
+  return result.recordset[0]?.count || 0;
 }

@@ -218,21 +218,16 @@ export const getAllTypes = asyncHandler(async (req, res) => {
     }),
   );
 });
-export const getAvailableTransferTypes =
-  asyncHandler(async (req, res) => {
-    const budgetId =
-      req.user.currentBudgetId;
+export const getAvailableTransferTypes = asyncHandler(async (req, res) => {
+  const budgetId = req.user.currentBudgetId;
+  console.log("USER =", req.user);
+  console.log("BUDGET ACCESS =", req.budgetAccess);
+  const data = await getAvailableTransferTypesService(budgetId);
 
-    const data =
-      await getAvailableTransferTypesService(
-        budgetId,
-      );
-
-    return res.json(
-      new ApiResponse({
-        message:
-          "Available types fetched successfully",
-        data,
-      }),
-    );
-  });
+  return res.json(
+    new ApiResponse({
+      message: "Available types fetched successfully",
+      data,
+    }),
+  );
+});

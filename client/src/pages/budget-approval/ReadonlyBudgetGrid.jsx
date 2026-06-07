@@ -9,6 +9,7 @@ import BudgetReviewStatusCard from "../../components/budgets/shared/BudgetReview
 import BudgetItemsTable from "../../components/budgets/shared/BudgetItemsTable";
 import useBudgetTotals from "../../hooks/budgets/useBudgetTotals";
 
+
 export default function ReadonlyBudgetGrid({
   budget,
   items = [],

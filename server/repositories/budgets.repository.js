@@ -307,3 +307,162 @@ export async function getBudgetByIdRepo(budgetId) {
 
   return budget;
 }
+export async function getApprovedBudgetHistoryRepo(departmentId) {
+  const pool = await poolPromise;
+
+  const result = await pool
+    .request()
+    .input("departmentId", sql.Int, departmentId).query(`
+      SELECT
+          b.id,
+          fy.year,
+          b.status,
+          COUNT(bi.id) AS items_count,
+          ISNULL(SUM(bi.total_amount),0) AS total_amount
+      FROM BS_budgets b
+      INNER JOIN BS_financial_years fy
+          ON fy.id = b.financial_year_id
+      LEFT JOIN BS_budget_items bi
+          ON bi.budget_id = b.id
+         AND bi.is_active = 1
+      WHERE
+          b.department_id = @departmentId
+          AND b.status = 'APPROVED'
+          AND b.is_active = 1
+      GROUP BY
+          b.id,
+          fy.year,
+          b.status
+      ORDER BY
+          fy.year DESC
+    `);
+
+  return result.recordset;
+}
+export async function getBudgetHistoryItemsRepo(budgetId, departmentId) {
+  const pool = await poolPromise;
+
+  const itemsResult = await pool
+    .request()
+    .input("budgetId", sql.Int, budgetId)
+    .input("departmentId", sql.Int, departmentId).query(`
+      SELECT
+          bi.id,
+          bi.budget_id,
+
+          bi.type_id,
+
+          bt.name AS type_name,
+          bt.is_active AS type_is_active,
+          bt.expense_type,
+
+          bc.id AS category_id,
+          bc.name AS category_name,
+          bc.is_active AS category_is_active,
+
+          bi.quantity,
+          bi.unit_price,
+          bi.total_amount,
+
+          bi.distribution_method,
+          bi.distribution_level
+
+      FROM BS_budget_items bi
+
+      INNER JOIN BS_budgets b
+          ON b.id = bi.budget_id
+
+      LEFT JOIN BS_budget_types bt
+          ON bt.id = bi.type_id
+
+      LEFT JOIN BS_budget_categories bc
+          ON bc.id = bt.category_id
+
+      WHERE
+          b.id = @budgetId
+          AND b.department_id = @departmentId
+          AND b.status = 'APPROVED'
+          AND bi.is_active = 1
+
+      ORDER BY
+          bc.name,
+          bt.name
+    `);
+
+  const items = itemsResult.recordset;
+
+  if (!items.length) {
+    return [];
+  }
+
+  const distributionsResult = await pool
+    .request()
+    .input("budgetId", sql.Int, budgetId).query(`
+      SELECT
+          d.budget_item_id,
+          d.period_type,
+          d.period_no,
+          d.quantity
+      FROM BS_budget_item_distribution d
+      WHERE d.budget_item_id IN (
+          SELECT id
+          FROM BS_budget_items
+          WHERE budget_id = @budgetId
+            AND is_active = 1
+      )
+    `);
+
+  const distributions = distributionsResult.recordset;
+
+  const distributionsMap = new Map();
+
+  for (const row of distributions) {
+    const key = row.budget_item_id;
+
+    if (!distributionsMap.has(key)) {
+      distributionsMap.set(key, []);
+    }
+
+    distributionsMap.get(key).push({
+      period_type: row.period_type,
+      period_no: Number(row.period_no),
+      quantity: Number(row.quantity || 0),
+    });
+  }
+
+  return items.map((item) => ({
+    ...item,
+    distribution: distributionsMap.get(item.id) || [],
+  }));
+}
+export async function createBudgetsForAllDepartmentsRepo({
+  financialYearId,
+  createdBy,
+}) {
+  const pool = await poolPromise;
+
+  await pool
+    .request()
+    .input("financialYearId", sql.Int, financialYearId)
+    .input("createdBy", sql.Int, createdBy).query(`
+      INSERT INTO BS_budgets (
+        department_id,
+        financial_year_id,
+        status,
+        created_by
+      )
+      SELECT
+        d.id,
+        @financialYearId,
+        'DRAFT',
+        @createdBy
+      FROM BS_departments d
+      WHERE d.is_active = 1
+        AND NOT EXISTS (
+          SELECT 1
+          FROM BS_budgets b
+          WHERE b.department_id = d.id
+            AND b.financial_year_id = @financialYearId
+        )
+    `);
+}

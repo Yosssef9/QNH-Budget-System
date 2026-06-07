@@ -5,6 +5,8 @@ import { queueNotification } from "./services/notification.service.js";
 
 import { NOTIFICATION_TYPES } from "./constants/notificationTypes.js";
 const TEST_EMAIL = "yossefyasser561@gmail.com";
+
+
 async function run() {
   await queueNotification({
     notificationType: NOTIFICATION_TYPES.TRANSFER_APPROVED,

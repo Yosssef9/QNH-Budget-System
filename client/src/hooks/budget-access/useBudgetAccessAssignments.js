@@ -5,7 +5,7 @@ import {
   updateBudgetAccessAssignment,
   updateBudgetAccessAssignmentStatus,
 } from "../../api/budgetAccessAssignments.api";
-
+import toast from "react-hot-toast";
 const QUERY_KEY = ["budgetAccessAssignments"];
 const FIVE_MINUTES = 5 * 60 * 1000;
 
@@ -24,8 +24,19 @@ export function useCreateBudgetAccessAssignment() {
 
   return useMutation({
     mutationFn: createBudgetAccessAssignment,
+
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      toast.success("User access created successfully");
+
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEY,
+      });
+    },
+
+    onError: (error) => {
+      toast.error(
+        error?.response?.data?.message || "Failed to create user access",
+      );
     },
   });
 }
@@ -35,10 +46,20 @@ export function useUpdateBudgetAccessAssignment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, payload }) =>
-      updateBudgetAccessAssignment(id, payload),
+    mutationFn: ({ id, payload }) => updateBudgetAccessAssignment(id, payload),
+
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      toast.success("User access updated successfully");
+
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEY,
+      });
+    },
+
+    onError: (error) => {
+      toast.error(
+        error?.response?.data?.message || "Failed to update user access",
+      );
     },
   });
 }
@@ -50,8 +71,23 @@ export function useToggleBudgetAccessAssignmentStatus() {
   return useMutation({
     mutationFn: ({ id, is_active }) =>
       updateBudgetAccessAssignmentStatus(id, is_active),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+
+    onSuccess: (_, variables) => {
+      toast.success(
+        variables.is_active
+          ? "User access activated successfully"
+          : "User access deactivated successfully",
+      );
+
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEY,
+      });
+    },
+
+    onError: (error) => {
+      toast.error(
+        error?.response?.data?.message || "Failed to update user status",
+      );
     },
   });
 }

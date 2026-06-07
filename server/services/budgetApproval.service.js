@@ -9,12 +9,18 @@ import {
   getBudgetComparisonRepo,
   getApprovedBudgetsRepo,
 } from "../repositories/budgetApproval.repository.js";
-
+import { findLatestFinancialYearRepo } from "../repositories/financialYears.repository.js";
 import { insertBudgetNoteRepo } from "../repositories/budgetNote.repository.js";
 import { queueNotification } from "./notification.service.js";
 import { NOTIFICATION_TYPES } from "../constants/notificationTypes.js";
 export async function getPendingBudgetsService() {
-  return await getPendingBudgetsRepo();
+  const financialYear = await findLatestFinancialYearRepo();
+
+  if (!financialYear) {
+    return [];
+  }
+
+  return await getPendingBudgetsRepo(financialYear.id);
 }
 
 export async function getBudgetReviewService(budgetId) {
@@ -167,5 +173,11 @@ export async function getBudgetComparisonService() {
   return await getBudgetComparisonRepo();
 }
 export async function getApprovedBudgetsService() {
-  return await getApprovedBudgetsRepo();
+  const financialYear = await findLatestFinancialYearRepo();
+
+  if (!financialYear) {
+    return [];
+  }
+
+  return await getApprovedBudgetsRepo(financialYear.id);
 }

@@ -152,7 +152,7 @@ export async function createTransferService({
     new_item_type_id,
     new_item_quantity,
     new_item_unit_price,
-    new_item_total_amount,
+    new_item_total_amount: is_new_item ? amount : null,
 
     amount,
     reason,

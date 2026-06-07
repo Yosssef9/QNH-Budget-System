@@ -12,9 +12,11 @@ import {
   countPendingTransferRequestsForYearRepo,
   countUnfinishedPOLinksForYearRepo,
   findLatestFinancialYearRepo,
+  countBudgetsForYearRepo,
 } from "../repositories/financialYears.repository.js";
 import { queueNotification } from "./notification.service.js";
 import { NOTIFICATION_TYPES } from "../constants/notificationTypes.js";
+import { createBudgetsForAllDepartmentsRepo } from "../repositories/budgets.repository.js";
 export async function getFinancialYearsService() {
   return await getFinancialYearsRepo();
 }
@@ -83,7 +85,10 @@ export async function createFinancialYearService({ year, startedBy }) {
     year,
     startedBy,
   });
-
+  await createBudgetsForAllDepartmentsRepo({
+    financialYearId: financialYear.id,
+    createdBy: startedBy,
+  }); 
   await queueNotification({
     notificationType: NOTIFICATION_TYPES.FINANCIAL_YEAR_OPENED,
 
@@ -118,7 +123,28 @@ export async function closeFinancialYearService({ id, closedBy }) {
       "FINANCIAL_YEAR_NOT_PRE_CLOSING",
     );
   }
+  const budgetCount = await countBudgetsForYearRepo(financialYear.id);
 
+  if (budgetCount === 0) {
+    throw new ApiError(
+      400,
+      "Cannot close financial year. No department budgets exist for this financial year.",
+      "FINANCIAL_YEAR_HAS_NO_BUDGETS",
+    );
+  }
+
+  const notApprovedCount = await countNotApprovedBudgetsForYearRepo(
+    financialYear.id,
+  );
+
+  if (notApprovedCount > 0) {
+    throw new ApiError(
+      400,
+      `Cannot close financial year. There are ${notApprovedCount} budget(s) not approved yet.`,
+      "FINANCIAL_YEAR_HAS_NOT_APPROVED_BUDGETS",
+      { notApprovedCount },
+    );
+  }
   const pendingTransfers = await countPendingTransferRequestsForYearRepo(
     financialYear.id,
   );
@@ -174,7 +200,15 @@ export async function preCloseFinancialYearService({ id, preClosedBy }) {
       "FINANCIAL_YEAR_NOT_FOUND",
     );
   }
+  const budgetCount = await countBudgetsForYearRepo(financialYear.id);
 
+  if (budgetCount === 0) {
+    throw new ApiError(
+      400,
+      "Cannot pre-close financial year. No department budgets exist for this financial year.",
+      "FINANCIAL_YEAR_HAS_NO_BUDGETS",
+    );
+  }
   if (financialYear.status !== "OPEN") {
     throw new ApiError(
       400,

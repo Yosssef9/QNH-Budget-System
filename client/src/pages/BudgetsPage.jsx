@@ -30,13 +30,6 @@ const budgetActions = [
     icon: Plus,
     permission: "can_edit_budget",
   },
-  {
-    title: "Copy From History",
-    description: "Create a new draft budget from a previous approved budget.",
-    path: "/budgets/copy-history",
-    icon: Copy,
-    permission: "can_edit_budget",
-  },
 
   // {
   //   title: "Budget History",

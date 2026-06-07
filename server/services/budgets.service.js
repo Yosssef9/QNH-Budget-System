@@ -10,6 +10,8 @@ import {
   countActiveBudgetItemsRepo,
   submitBudgetRepo,
   getBudgetByIdRepo,
+  getApprovedBudgetHistoryRepo,
+  getBudgetHistoryItemsRepo,
 } from "../repositories/budgets.repository.js";
 import { findLatestFinancialYearRepo } from "../repositories/financialYears.repository.js";
 import { queueNotification } from "./notification.service.js";
@@ -85,7 +87,25 @@ export async function getMyBudgetsService(budgetAccess) {
     departmentId: userDepartmentId,
   });
 }
+export async function getApprovedBudgetHistoryService(budgetAccess) {
+  const departmentId = budgetAccess.department?.id;
 
+  if (!departmentId) {
+    throw new ApiError(403, "No department access", "NO_DEPARTMENT_ACCESS");
+  }
+
+  return getApprovedBudgetHistoryRepo(departmentId);
+}
+
+export async function getBudgetHistoryItemsService(budgetId, budgetAccess) {
+  const departmentId = budgetAccess.department?.id;
+
+  if (!departmentId) {
+    throw new ApiError(403, "No department access", "NO_DEPARTMENT_ACCESS");
+  }
+
+  return getBudgetHistoryItemsRepo(budgetId, departmentId);
+}
 export async function createBudgetService({ body, user, budgetAccess }) {
   const financialYear = await findOpenFinancialYearRepo();
 

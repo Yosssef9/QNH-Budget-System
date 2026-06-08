@@ -96,7 +96,12 @@ export async function approveBudgetService({ budgetId, body, user }) {
 
     payload: {
       budgetId,
-      actorUserId: user.userId,
+
+      budgetName: `${approved.department_name} Budget ${approved.financial_year}`,
+
+      departmentName: approved.department_name,
+
+      approvedBy: user.userName,
     },
   });
   return approved;
@@ -163,7 +168,14 @@ export async function returnBudgetService({ budgetId, body, user }) {
 
     payload: {
       budgetId,
-      actorUserId: user.userId,
+
+      budgetName: `${returned.department_name} Budget ${returned.financial_year}`,
+
+      departmentName: returned.department_name,
+
+      returnedBy: user.userName,
+
+      reason: generalNote,
     },
   });
   return returned;

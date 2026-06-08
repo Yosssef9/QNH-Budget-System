@@ -27,6 +27,7 @@ import CollapsiblePanelToggle from "../components/layout/CollapsiblePanelToggle"
 import { useBudgetAccessUsers } from "../hooks/budget-access/useBudgetAccessUsers";
 import { useBudgetAccessDepartments } from "../hooks/budget-access/useBudgetAccessDepartments";
 import { useBudgetAccessRoles } from "../hooks/budget-access/useBudgetAccessRoles";
+import toast from "react-hot-toast";
 const permissionFields = [
   { key: "can_view_budget", label: "View Budget" },
   { key: "can_edit_budget", label: "Edit Budget" },
@@ -46,11 +47,11 @@ const permissionOptions = [
 
 const emptyForm = {
   id: null,
-  user_id: "",
+  user_id: null,
   user_code: "",
   user_name: "",
-  department_id: "",
-  role_id: "",
+  department_id: null,
+  role_id: null,
   can_view_budget: "",
   can_edit_budget: "",
   can_link_po: "",
@@ -106,11 +107,11 @@ function extractRows(data) {
 function rowToForm(row) {
   return {
     id: row.id,
-    user_id: row.user_id || "",
+    user_id: row.user_id ?? null,
     user_code: row.user_code || row.userCode || "",
     user_name: row.user_name || row.userName || "",
-    department_id: row.department_id || "",
-    role_id: row.role_id || "",
+    department_id: row.department_id ?? null,
+    role_id: row.role_id ?? null,
     can_view_budget: toFormPermissionValue(row.can_view_budget),
     can_edit_budget: toFormPermissionValue(row.can_edit_budget),
     can_link_po: toFormPermissionValue(row.can_link_po),
@@ -163,7 +164,7 @@ export default function BudgetAccessManagementPage() {
 
   const mergedUserOptions = [
     ...selectedUserOption,
-    ...userOptions.filter((user) => String(user.id) !== String(form.user_id)),
+    ...userOptions.filter((user) => user.id !== form.user_id),
   ];
 
   const departmentOptions = departmentsQuery.data?.data || [];
@@ -208,13 +209,9 @@ export default function BudgetAccessManagementPage() {
   }
 
   function handleUserSelect(userId) {
-    const selectedUser = mergedUserOptions.find(
-      (user) => String(user.id) === String(userId),
-    );
+    const selectedUser = mergedUserOptions.find((user) => user.id === userId);
 
-    const existingAccess = rows.find(
-      (row) => String(row.user_id) === String(userId),
-    );
+    const existingAccess = rows.find((row) => row.user_id === userId);
 
     if (existingAccess) {
       setForm(rowToForm(existingAccess));
@@ -231,7 +228,15 @@ export default function BudgetAccessManagementPage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    const selectedRole = roleOptions.find((r) => r.id === form.role_id);
 
+    const isHod = selectedRole?.name?.toUpperCase() === "HOD";
+
+    if (isHod && !form.department_id) {
+      toast.error("Department is required for HOD role");
+
+      return;
+    }
     const payload = buildPayload(form);
 
     if (isEditing) {
@@ -246,7 +251,11 @@ export default function BudgetAccessManagementPage() {
     await assignmentsQuery.refetch();
     resetForm();
   }
+  const selectedRole = roleOptions.find((r) => r.id === form.role_id);
 
+  const isHod = selectedRole?.name?.toUpperCase() === "HOD";
+
+  const isHodWithoutDepartment = isHod && !form.department_id;
   async function handleToggleStatus(row) {
     await updateStatusMutation.mutateAsync({
       id: row.id,
@@ -398,7 +407,11 @@ export default function BudgetAccessManagementPage() {
                         user.code ? ` - ${user.code}` : ""
                       }`
                     }
-                    onChange={(e) => handleUserSelect(e.target.value)}
+                    onChange={(e) =>
+                      handleUserSelect(
+                        e.target.value ? Number(e.target.value) : null,
+                      )
+                    }
                   />
                 </div>
 
@@ -464,10 +477,17 @@ export default function BudgetAccessManagementPage() {
                           onChange={(e) => {
                             setForm((prev) => ({
                               ...prev,
-                              department_id: e.target.value,
+                              department_id: e.target.value
+                                ? Number(e.target.value)
+                                : null,
                             }));
                           }}
                         />
+                        {isHodWithoutDepartment && (
+                          <p className="mt-2 text-sm font-medium text-danger-600">
+                            Department is required for HOD role
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -491,7 +511,9 @@ export default function BudgetAccessManagementPage() {
                           onChange={(e) => {
                             setForm((prev) => ({
                               ...prev,
-                              role_id: e.target.value,
+                              role_id: e.target.value
+                                ? Number(e.target.value)
+                                : null,
                             }));
                           }}
                         />
@@ -549,7 +571,12 @@ export default function BudgetAccessManagementPage() {
 
                 <button
                   type="submit"
-                  disabled={saving || !form.user_id || !form.role_id}
+                  disabled={
+                    saving ||
+                    !form.user_id ||
+                    !form.role_id ||
+                    isHodWithoutDepartment
+                  }
                   className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isEditing ? <Save size={17} /> : <Plus size={17} />}

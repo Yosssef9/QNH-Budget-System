@@ -15,7 +15,7 @@ export async function createTransfer(req, res, next) {
   try {
     const result = await createTransferService({
       ...req.body,
-      userId: req.user.userId,
+      user: req.user,
     });
 
     await auditLog(req, {
@@ -55,7 +55,7 @@ export async function getTransfers(req, res, next) {
 
 export async function approveTransfer(req, res, next) {
   try {
-    const result = await approveTransferService(req.params.id, req.user.userId);
+    const result = await approveTransferService(req.params.id, req.user);
 
     await auditLog(req, {
       action: "APPROVE_TRANSFER",
@@ -81,7 +81,7 @@ export async function rejectTransfer(req, res, next) {
   try {
     const result = await rejectTransferService(
       req.params.id,
-      req.user.userId,
+      req.user,
       req.body.note,
     );
 

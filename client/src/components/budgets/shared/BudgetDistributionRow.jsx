@@ -101,7 +101,13 @@ function BudgetDistributionRow({
             maxVisibleBadges={1}
             getOptionValue={(option) => option.id}
             getOptionLabel={(option) => option.name}
-            onChange={(e) => updateRow(row.id, "category", e.target.value)}
+            onChange={(e) =>
+              updateRow(
+                row.id,
+                "category",
+                e.target.value ? Number(e.target.value) : null,
+              )
+            }
           />
         </div>
       </td>
@@ -114,13 +120,19 @@ function BudgetDistributionRow({
             multiple={false}
             disableClear
             value={row.item}
-            options={typesByCategory[row.category] || []}
+            options={typesByCategory[row.category]}
             placeholder="Item / Type"
             searchPlaceholder="Search item..."
             maxVisibleBadges={1}
             getOptionValue={(option) => option.id}
             getOptionLabel={(option) => option.name}
-            onChange={(e) => updateRow(row.id, "item", e.target.value)}
+            onChange={(e) =>
+              updateRow(
+                row.id,
+                "item",
+                e.target.value ? Number(e.target.value) : null,
+              )
+            }
           />
         </div>
         {isDuplicateTypeRow && (
@@ -307,12 +319,4 @@ function BudgetDistributionRow({
   );
 }
 
-export default memo(BudgetDistributionRow, (prev, next) => {
-  return (
-    prev.row === next.row &&
-    prev.isBudgetLocked === next.isBudgetLocked &&
-    prev.deletingRowIds === next.deletingRowIds &&
-    prev.duplicateTypeRowIds === next.duplicateTypeRowIds &&
-    prev.returnedItemNotesByItemId === next.returnedItemNotesByItemId
-  );
-});
+export default memo(BudgetDistributionRow);

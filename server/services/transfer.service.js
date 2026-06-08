@@ -33,7 +33,7 @@ export async function createTransferService({
 
   amount,
   reason,
-  userId,
+  user,
 }) {
   const source = await getBudgetItemDetails(from_budget_item_id);
 
@@ -157,9 +157,9 @@ export async function createTransferService({
     amount,
     reason,
 
-    requested_by: userId,
+    requested_by: user.userId,
   });
-
+  const transferDetails = await getTransferByIdRepo(transfer.id);
   await queueNotification({
     notificationType: NOTIFICATION_TYPES.TRANSFER_CREATED,
 
@@ -169,7 +169,12 @@ export async function createTransferService({
 
     payload: {
       transferId: transfer.id,
-      actorUserId: userId,
+
+      budgetName: transferDetails.department_name,
+
+      amount: transfer.amount,
+
+      requestedBy: user.userName,
     },
   });
 
@@ -179,7 +184,7 @@ export async function getTransfersService(status) {
   return getTransfersRepo(status);
 }
 
-export async function approveTransferService(transferId, userId) {
+export async function approveTransferService(transferId, user) {
   const transfer = await getTransferByIdRepo(transferId);
 
   if (!transfer) {
@@ -199,7 +204,7 @@ export async function approveTransferService(transferId, userId) {
     );
   }
 
-  const approvedTransfer = await approveTransferRepo(transferId, userId);
+  const approvedTransfer = await approveTransferRepo(transferId, user.userId);
   await queueNotification({
     notificationType: NOTIFICATION_TYPES.TRANSFER_APPROVED,
 
@@ -209,7 +214,12 @@ export async function approveTransferService(transferId, userId) {
 
     payload: {
       transferId,
-      actorUserId: userId,
+
+      budgetName: transfer.department_name,
+
+      amount: transfer.amount,
+
+      approvedBy: user.userName,
     },
   });
   if (transfer.is_new_item) {
@@ -236,13 +246,13 @@ export async function approveTransferService(transferId, userId) {
       distributionLevel: "MONTH",
 
       transferId,
-      createdBy: userId,
+      createdBy: user.userId,
     });
   }
 
   return approvedTransfer;
 }
-export async function rejectTransferService(transferId, userId, note) {
+export async function rejectTransferService(transferId, user, note) {
   const transfer = await getTransferByIdRepo(transferId);
 
   if (!transfer) {
@@ -257,7 +267,11 @@ export async function rejectTransferService(transferId, userId, note) {
     throw new ApiError(400, "Rejection note is required");
   }
 
-  const rejectedTransfer = await rejectTransferRepo(transferId, userId, note);
+  const rejectedTransfer = await rejectTransferRepo(
+    transferId,
+    user.userId,
+    note,
+  );
 
   await queueNotification({
     notificationType: NOTIFICATION_TYPES.TRANSFER_REJECTED,
@@ -268,7 +282,14 @@ export async function rejectTransferService(transferId, userId, note) {
 
     payload: {
       transferId,
-      actorUserId: userId,
+
+      budgetName: transfer.department_name,
+
+      amount: transfer.amount,
+
+      rejectedBy: user.userName,
+
+      reason: note,
     },
   });
 

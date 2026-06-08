@@ -233,7 +233,7 @@ export async function submitBudgetService({ budgetId, user, budgetAccess }) {
     budgetId,
     submittedBy: user.userId,
   });
-
+  const budgetDetails = await getBudgetByIdRepo(budgetId);
   await queueNotification({
     notificationType: NOTIFICATION_TYPES.BUDGET_SUBMITTED,
 
@@ -243,7 +243,14 @@ export async function submitBudgetService({ budgetId, user, budgetAccess }) {
 
     payload: {
       budgetId,
+
       actorUserId: user.userId,
+
+      budgetName: `${budgetDetails.department_name} Budget ${budgetDetails.financial_year}`,
+
+      departmentName: budgetDetails.department_name,
+
+      submittedBy: user.userName,
     },
   });
 

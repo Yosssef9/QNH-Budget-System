@@ -66,7 +66,7 @@ export function useCreateBudgetManual() {
         if (!item.category_id) continue;
 
         const alreadyExists = merged.some(
-          (category) => Number(category.id) === Number(item.category_id),
+          (category) => category.id === item.category_id,
         );
 
         if (!alreadyExists) {
@@ -123,7 +123,7 @@ export function useCreateBudgetManual() {
 
         for (const existingType of existingTypes) {
           const alreadyExists = merged.some(
-            (type) => Number(type.id) === Number(existingType.id),
+            (type) => type.id === existingType.id,
           );
 
           if (!alreadyExists) {
@@ -190,6 +190,9 @@ export function useCreateBudgetManual() {
         const localRows = getRowsFromLocalStorage(budgetDraftKey);
 
         if (localRows) {
+          mergeExistingBudgetTypes(budgetItems);
+          mergeExistingBudgetCategories(budgetItems);
+
           setRows(localRows);
           return;
         }
@@ -226,11 +229,12 @@ export function useCreateBudgetManual() {
 
   useEffect(() => {
     const categoryIds = [
-      ...new Set(rows.map((row) => row.category).filter(Boolean)),
+      ...new Set(rows.map((row) => String(row.category)).filter(Boolean)),
     ];
 
     const missingIds = categoryIds.filter(
-      (categoryId) => !typesByCategory[categoryId],
+      (categoryId) =>
+        !Object.prototype.hasOwnProperty.call(typesByCategory, categoryId),
     );
 
     if (missingIds.length === 0) return;
@@ -269,10 +273,20 @@ export function useCreateBudgetManual() {
       prev.map((row) => {
         if (row.id !== id) return row;
 
-        const next = { ...row, [field]: value };
+        const normalizedValue =
+          field === "category" || field === "item"
+            ? value === null || value === ""
+              ? null
+              : Number(value)
+            : value;
+
+        const next = {
+          ...row,
+          [field]: normalizedValue,
+        };
 
         if (field === "category") {
-          next.item = "";
+          next.item = null;
         }
 
         const nextSnapshot = getRowSnapshot(next);
@@ -287,7 +301,7 @@ export function useCreateBudgetManual() {
 
   const addItem = useCallback(() => {
     setRows((prev) => [
-      createRow(Date.now(), categories[0]?.id || "", "", "MONTHLY", 0, 0),
+      createRow(Date.now(), categories[0]?.id ?? null, null, "MONTHLY", 0, 0),
       ...prev,
     ]);
   }, [categories]);

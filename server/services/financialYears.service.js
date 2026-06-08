@@ -88,7 +88,7 @@ export async function createFinancialYearService({ year, startedBy }) {
   await createBudgetsForAllDepartmentsRepo({
     financialYearId: financialYear.id,
     createdBy: startedBy,
-  }); 
+  });
   await queueNotification({
     notificationType: NOTIFICATION_TYPES.FINANCIAL_YEAR_OPENED,
 
@@ -98,7 +98,10 @@ export async function createFinancialYearService({ year, startedBy }) {
 
     payload: {
       financialYearId: financialYear.id,
-      actorUserId: startedBy,
+
+      year: financialYear.year,
+
+      openedBy: startedBy,
     },
   });
 
@@ -185,7 +188,10 @@ export async function closeFinancialYearService({ id, closedBy }) {
 
     payload: {
       financialYearId: id,
-      actorUserId: closedBy,
+
+      year: financialYear.year,
+
+      closedBy,
     },
   });
   return closedYear;
@@ -243,7 +249,10 @@ export async function preCloseFinancialYearService({ id, preClosedBy }) {
 
     payload: {
       financialYearId: id,
-      actorUserId: preClosedBy,
+
+      year: financialYear.year,
+
+      preClosedBy,
     },
   });
   return preClosedYear;

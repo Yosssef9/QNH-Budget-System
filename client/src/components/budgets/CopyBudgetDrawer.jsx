@@ -183,7 +183,7 @@ export default function CopyBudgetDrawer({
                 </div>
                 <div className="flex-1 overflow-hidden">
                   {loadingItems ? (
-                    <div className="flex h-full items-center justify-center">
+                    <div className="h-full w-full p-5">
                       <LoadingSpinner />
                     </div>
                   ) : (

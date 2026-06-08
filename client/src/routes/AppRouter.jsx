@@ -1,24 +1,14 @@
+import { Suspense } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+
 import { UnsavedChangesProvider } from "../context/UnsavedChangesContext";
-import ErrorPage from "../pages/ErrorPage";
-import DashboardLayout from "../layouts/DashboardLayout";
-import DashboardPage from "../pages/DashboardPage";
-import LoginRequiredPage from "../pages/LoginRequiredPage";
 import RequireAuth from "../context/RequireAuth";
 import RequirePermission from "../context/RequirePermission";
-import BudgetAccessManagementPage from "../pages/BudgetAccessManagementPage";
-import BudgetEnteryPage from "../pages/budget/BudgetEnteryPage";
-import BudgetsPage from "../pages/BudgetsPage";
-import FinancialYearsPage from "../pages/FinancialYearsPage";
-import BudgetApprovalPage from "../pages/budget-approval/BudgetApprovalPage";
-import BudgetSetupPage from "../pages/BudgetSetupPage";
-import AuditLogsPage from "../pages/AuditLogsPage";
-import ReportsPage from "../pages/ReportsPage";
-import TransferPage from "../pages/TransferPage";
-import MyBudgetsPage from "../pages/budget/MyBudgetsPage";
-import BudgetViewPage from "../pages/budget/BudgetViewPage";
-import TransferApprovalPage from "../pages/TransferApprovalPage";
-import BudgetAnalyticsPage from "../pages/BudgetAnalyticsPage";
+
+import DashboardLayout from "../layouts/DashboardLayout";
+import ErrorPage from "../pages/ErrorPage";
+
+import LoadingSpinner from "../components/LoadingSpinner";
 
 const router = createBrowserRouter([
   {
@@ -26,129 +16,240 @@ const router = createBrowserRouter([
     element: (
       <RequireAuth>
         <UnsavedChangesProvider>
-          <DashboardLayout />
+          <Suspense fallback={<LoadingSpinner />}>
+            <DashboardLayout />
+          </Suspense>
         </UnsavedChangesProvider>
       </RequireAuth>
     ),
     errorElement: <ErrorPage />,
+
     children: [
       {
         index: true,
-        element: <DashboardPage />,
+        async lazy() {
+          const module = await import("../pages/DashboardPage");
+
+          return {
+            Component: module.default,
+          };
+        },
       },
+
       {
         path: "admin/users",
-        element: (
-          <RequirePermission permission="can_manage_users">
-            <BudgetAccessManagementPage />
-          </RequirePermission>
-        ),
+        async lazy() {
+          const module = await import("../pages/BudgetAccessManagementPage");
+
+          return {
+            Component: () => (
+              <RequirePermission permission="can_manage_users">
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
       },
+
       {
         path: "budgets",
-        element: (
-          <RequirePermission permission="can_view_budget">
-            <BudgetsPage />
-          </RequirePermission>
-        ),
+        async lazy() {
+          const module = await import("../pages/BudgetsPage");
+
+          return {
+            Component: () => (
+              <RequirePermission permission="can_view_budget">
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
       },
+
       {
         path: "budgets/entry",
-        element: (
-          <RequirePermission permission="can_edit_budget">
-            <BudgetEnteryPage />
-          </RequirePermission>
-        ),
+        async lazy() {
+          const module = await import("../pages/budget/BudgetEnteryPage");
+
+          return {
+            Component: () => (
+              <RequirePermission permission="can_edit_budget">
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
       },
+
       {
         path: "budgets/my",
-        element: (
-          <RequirePermission permission="can_edit_budget">
-            <MyBudgetsPage />
-          </RequirePermission>
-        ),
+        async lazy() {
+          const module = await import("../pages/budget/MyBudgetsPage");
+
+          return {
+            Component: () => (
+              <RequirePermission permission="can_edit_budget">
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
       },
+
       {
         path: "budgets/view/:budgetId",
-        element: (
-          <RequirePermission permission="can_view_budget">
-            <BudgetViewPage />
-          </RequirePermission>
-        ),
+        async lazy() {
+          const module = await import("../pages/budget/BudgetViewPage");
+
+          return {
+            Component: () => (
+              <RequirePermission permission="can_view_budget">
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
       },
+
       {
         path: "financial-years",
-        element: (
-          <RequirePermission permission="can_manage_financial_years">
-            <FinancialYearsPage />
-          </RequirePermission>
-        ),
+        async lazy() {
+          const module = await import("../pages/FinancialYearsPage");
+
+          return {
+            Component: () => (
+              <RequirePermission permission="can_manage_financial_years">
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
       },
+
       {
         path: "budget-approval",
-        element: (
-          <RequirePermission permission="can_approve_budget">
-            <BudgetApprovalPage />
-          </RequirePermission>
-        ),
+        async lazy() {
+          const module =
+            await import("../pages/budget-approval/BudgetApprovalPage");
+
+          return {
+            Component: () => (
+              <RequirePermission permission="can_approve_budget">
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
       },
+
       {
         path: "admin/budget-setup",
-        element: (
-          <RequirePermission permission="can_manage_categories">
-            <BudgetSetupPage />
-          </RequirePermission>
-        ),
+        async lazy() {
+          const module = await import("../pages/BudgetSetupPage");
+
+          return {
+            Component: () => (
+              <RequirePermission permission="can_manage_categories">
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
       },
+
       {
         path: "admin/audit-logs",
-        element: (
-          <RequirePermission permission="can_manage_users">
-            <AuditLogsPage />
-          </RequirePermission>
-        ),
+        async lazy() {
+          const module = await import("../pages/AuditLogsPage");
+
+          return {
+            Component: () => (
+              <RequirePermission permission="can_manage_users">
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
       },
+
       {
         path: "transfers/requests",
-        element: (
-          <RequirePermission permission="can_request_transfer">
-            <TransferPage />
-          </RequirePermission>
-        ),
+        async lazy() {
+          const module = await import("../pages/TransferPage");
+
+          return {
+            Component: () => (
+              <RequirePermission permission="can_request_transfer">
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
       },
+
       {
         path: "transfers/approvals",
-        element: (
-          <RequirePermission permission="can_approve_transfer">
-            <TransferApprovalPage />
-          </RequirePermission>
-        ),
+        async lazy() {
+          const module = await import("../pages/TransferApprovalPage");
+
+          return {
+            Component: () => (
+              <RequirePermission permission="can_approve_transfer">
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
       },
+
       {
         path: "budget-analytics",
-        element: (
-          <RequirePermission permission="can_approve_budget">
-            <BudgetAnalyticsPage />
-          </RequirePermission>
-        ),
+        async lazy() {
+          const module = await import("../pages/BudgetAnalyticsPage");
+
+          return {
+            Component: () => (
+              <RequirePermission permission="can_approve_budget">
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
       },
+
       {
         path: "reports",
-        element: (
-          <RequirePermission permission="can_view_reports">
-            <ReportsPage />
-          </RequirePermission>
-        ),
+        async lazy() {
+          const module = await import("../pages/ReportsPage");
+
+          return {
+            Component: () => (
+              <RequirePermission permission="can_view_reports">
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
       },
+
       {
         path: "*",
         element: <ErrorPage />,
       },
     ],
   },
+
   {
     path: "/login-required",
-    element: <LoginRequiredPage />,
+
+    async lazy() {
+      const module = await import("../pages/LoginRequiredPage");
+
+      return {
+        Component: module.default,
+      };
+    },
+
     errorElement: <ErrorPage />,
   },
 ]);

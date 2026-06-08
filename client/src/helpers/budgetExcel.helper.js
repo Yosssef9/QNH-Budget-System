@@ -1,8 +1,8 @@
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
 import { createRow } from "./budgetRows.helper";
 
-export function downloadBudgetTemplate(types) {
+export async function downloadBudgetTemplate(types) {
+  const XLSX = await import("xlsx");
+  const { saveAs } = await import("file-saver");
   const rows = types.map((type) => ({
     Type_ID: type.id,
     Category: type.category_name,
@@ -54,6 +54,7 @@ export function downloadBudgetTemplate(types) {
 }
 
 export async function importBudgetTemplate({ file, rows, allTypes }) {
+  const XLSX = await import("xlsx");
   const buffer = await file.arrayBuffer();
 
   const workbook = XLSX.read(buffer, {
@@ -111,31 +112,25 @@ export async function importBudgetTemplate({ file, rows, allTypes }) {
 
     const systemItem = String(matchedType.name || "").trim();
 
-   if (
-  excelCategory.toLowerCase() !==
-  systemCategory.toLowerCase()
-) {
-  errors.push({
-    row: rowNumber,
-    item: excelItem || systemItem,
-    message: `Category was modified. Expected "${systemCategory}"`,
-  });
+    if (excelCategory.toLowerCase() !== systemCategory.toLowerCase()) {
+      errors.push({
+        row: rowNumber,
+        item: excelItem || systemItem,
+        message: `Category was modified. Expected "${systemCategory}"`,
+      });
 
-  return;
-}
+      return;
+    }
 
-if (
-  excelItem.toLowerCase() !==
-  systemItem.toLowerCase()
-) {
-  errors.push({
-    row: rowNumber,
-    item: excelItem || systemItem,
-    message: `Item was modified. Expected "${systemItem}"`,
-  });
+    if (excelItem.toLowerCase() !== systemItem.toLowerCase()) {
+      errors.push({
+        row: rowNumber,
+        item: excelItem || systemItem,
+        message: `Item was modified. Expected "${systemItem}"`,
+      });
 
-  return;
-}
+      return;
+    }
     if (existingTypeIds.has(typeId)) {
       errors.push({
         row: rowNumber,

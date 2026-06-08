@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, Loader2, Search, X } from "lucide-react";
+const normalizeValue = (value) => {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
 
+  const num = Number(value);
+
+  return Number.isNaN(num) ? value : num;
+};
 export default function SearchableMultiSelect({
   name,
   value = "",
@@ -71,7 +79,11 @@ export default function SearchableMultiSelect({
   }, [actualSearch, options, onSearchChange]);
 
   const selectedOptions = useMemo(() => {
-    return options.filter((item) => selectedValues.includes(optionValue(item)));
+    return options.filter((item) =>
+      selectedValues.some(
+        (v) => normalizeValue(v) === normalizeValue(optionValue(item)),
+      ),
+    );
   }, [options, selectedValues]);
 
   const emitChange = (nextValue) => {
@@ -158,7 +170,12 @@ export default function SearchableMultiSelect({
 
   const handleToggle = (selectedValue) => {
     if (!multiple) {
-      if (disableClear && selectedValues.includes(selectedValue)) {
+      if (
+        disableClear &&
+        selectedValues.some(
+          (v) => normalizeValue(v) === normalizeValue(selectedValue),
+        )
+      ) {
         closeDropdown();
         return;
       }
@@ -168,10 +185,16 @@ export default function SearchableMultiSelect({
       return;
     }
 
-    const exists = selectedValues.includes(selectedValue);
+    const exists = selectedValues.some(
+      (v) => normalizeValue(v) === normalizeValue(selectedValue),
+    );
 
     if (exists) {
-      emitChange(selectedValues.filter((v) => v !== selectedValue));
+      emitChange(
+        selectedValues.filter(
+          (v) => normalizeValue(v) !== normalizeValue(selectedValue),
+        ),
+      );
     } else {
       emitChange([...selectedValues, selectedValue]);
     }
@@ -185,7 +208,11 @@ export default function SearchableMultiSelect({
       return;
     }
 
-    emitChange(selectedValues.filter((v) => v !== selectedValue));
+    emitChange(
+      selectedValues.filter(
+        (v) => normalizeValue(v) !== normalizeValue(selectedValue),
+      ),
+    );
   };
 
   const clearAll = (e) => {
@@ -247,7 +274,9 @@ export default function SearchableMultiSelect({
           {filteredOptions.length > 0
             ? filteredOptions.map((item) => {
                 const itemValue = optionValue(item);
-                const isSelected = selectedValues.includes(itemValue);
+                const isSelected = selectedValues.some(
+                  (v) => normalizeValue(v) === normalizeValue(itemValue),
+                );
 
                 const isDisabled =
                   Boolean(item.disabled) || Boolean(item.has_pending_request);

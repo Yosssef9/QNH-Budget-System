@@ -87,7 +87,10 @@ export async function approveItemRequestService({
 
     payload: {
       requestId,
-      actorUserId: reviewedBy,
+
+      itemName: request.requested_type_name,
+
+      approvedBy: reviewedBy,
     },
   });
 
@@ -128,7 +131,12 @@ export async function rejectItemRequestService({
 
     payload: {
       requestId,
-      actorUserId: reviewedBy,
+
+      itemName: request.requested_type_name,
+
+      rejectedBy: reviewedBy,
+
+      reason: adminNote,
     },
   });
 

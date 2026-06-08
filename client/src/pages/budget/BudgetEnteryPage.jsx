@@ -26,7 +26,7 @@ import BudgetSummaryPanel from "../../components/budgets/shared/BudgetSummaryPan
 import SearchableMultiSelect from "../../components/SearchableMultiSelect";
 import ConfirmModal from "../../components/ConfirmModal";
 import Breadcrumbs from "../../components/Breadcrumbs";
-import RequestBudgetItemModal from "../../components/budgets/RequestBudgetItemModal";
+
 import { useCreateBudgetManual } from "../../hooks/budgets/useCreateBudgetManual";
 import BudgetReviewFeedback from "../../components/budgets/BudgetReviewFeedback";
 import { useBudgetReviewFeedback } from "../../hooks/budgets/useBudgetReviewFeedback";
@@ -60,7 +60,15 @@ import BudgetHeaderCard from "../../components/budgets/shared/BudgetHeaderCard";
 
 import BudgetDistributionTable from "../../components/budgets/shared/BudgetDistributionTable";
 import { BUDGET_ITEMS_PAGE_SIZE } from "../../constants/budget.constants";
-import CopyBudgetDrawer from "../../components/budgets/CopyBudgetDrawer";
+import { lazy, Suspense } from "react";
+
+const CopyBudgetDrawer = lazy(
+  () => import("../../components/budgets/CopyBudgetDrawer"),
+);
+
+const RequestBudgetItemModal = lazy(
+  () => import("../../components/budgets/RequestBudgetItemModal"),
+);
 function getMethodBase(method) {
   if (method === "CUSTOM_MONTHLY" || method === "CUSTOM_QUARTERLY")
     return "CUSTOM";
@@ -392,12 +400,11 @@ export default function BudgetEnteryPage() {
   }
   const getSelectedType = useCallback(
     (row) => {
-      // notremoved
       const types = typesByCategory[row.category];
 
       if (!Array.isArray(types)) return null;
 
-      return types.find((type) => Number(type.id) === Number(row.item));
+      return types.find((type) => type.id === row.item);
     },
     [typesByCategory],
   );
@@ -1107,17 +1114,25 @@ export default function BudgetEnteryPage() {
           )}
         </div>
       </ConfirmModal>
-      <RequestBudgetItemModal
-        open={requestItemModalOpen}
-        onClose={() => setRequestItemModalOpen(false)}
-        categories={categories}
-      />
-      <CopyBudgetDrawer
-        open={copyDrawerOpen}
-        onClose={() => setCopyDrawerOpen(false)}
-        onCopy={handleCopyBudget}
-        hasExistingItems={rows.length > 0}
-      />
+      {requestItemModalOpen && (
+        <Suspense fallback={null}>
+          <RequestBudgetItemModal
+            open={requestItemModalOpen}
+            onClose={() => setRequestItemModalOpen(false)}
+            categories={categories}
+          />
+        </Suspense>
+      )}
+      {copyDrawerOpen && (
+        <Suspense fallback={null}>
+          <CopyBudgetDrawer
+            open={copyDrawerOpen}
+            onClose={() => setCopyDrawerOpen(false)}
+            onCopy={handleCopyBudget}
+            hasExistingItems={rows.length > 0}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

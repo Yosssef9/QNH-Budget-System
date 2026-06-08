@@ -80,8 +80,18 @@ export async function getBudgetOwnerRepo(budgetId) {
         u.USER_NAME,
         u.email
       FROM BS_budgets b
+
+      INNER JOIN BS_budget_user_roles bur
+        ON bur.department_id = b.department_id
+       AND bur.is_active = 1
+
+      INNER JOIN BS_budget_roles br
+        ON br.id = bur.role_id
+       AND UPPER(br.name) = 'HOD'
+
       INNER JOIN USERS u
-        ON u.USER_ID = b.created_by
+        ON u.USER_ID = bur.user_id
+
       WHERE b.id = @budgetId
     `);
 

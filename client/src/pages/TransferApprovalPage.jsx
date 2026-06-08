@@ -79,17 +79,14 @@ export default function TransferApprovalPage() {
       label: "All Departments",
     },
     ...departments.map((d) => ({
-      value: String(d.id),
+      value: d.id,
       label: d.name,
     })),
   ];
   const filteredTransfers = useMemo(() => {
     let result = transfers;
-
     if (departmentFilter !== "ALL") {
-      result = result.filter(
-        (x) => String(x.department_id) === String(departmentFilter),
-      );
+      result = result.filter((x) => x.department_id === departmentFilter);
     }
 
     const q = search.trim().toLowerCase();
@@ -267,7 +264,11 @@ export default function TransferApprovalPage() {
                 disableClear
                 value={departmentFilter}
                 options={departmentOptions}
-                onChange={(e) => setDepartmentFilter(e.target.value || "ALL")}
+                onChange={(e) =>
+                  setDepartmentFilter(
+                    e.target.value === "ALL" ? "ALL" : Number(e.target.value),
+                  )
+                }
                 placeholder="Department"
               />
             </div>

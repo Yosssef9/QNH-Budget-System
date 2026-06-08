@@ -161,7 +161,8 @@ export async function updateBudgetAccessAssignmentRepo(id, payload) {
     .input("can_approve_transfer", sql.Bit, payload.can_approve_transfer)
     .input("can_manage_users", sql.Bit, payload.can_manage_users)
     .input("can_manage_categories", sql.Bit, payload.can_manage_categories)
-    .input("can_view_reports", sql.Bit, payload.can_view_reports) .input(
+    .input("can_view_reports", sql.Bit, payload.can_view_reports)
+    .input(
       "can_manage_financial_years",
       sql.Bit,
       payload.can_manage_financial_years,
@@ -205,4 +206,35 @@ export async function updateBudgetAccessAssignmentStatusRepo(id, isActive) {
     `);
 
   return result.recordset[0];
+}
+export async function findDepartmentHodRepo({
+  department_id,
+  excludeId = null,
+}) {
+  const pool = await poolPromise;
+
+  const request = pool.request().input("department_id", sql.Int, department_id);
+
+  let query = `
+    SELECT TOP 1
+      bur.id
+    FROM BS_budget_user_roles bur
+    INNER JOIN BS_budget_roles r
+      ON r.id = bur.role_id
+    WHERE bur.department_id = @department_id
+      AND bur.is_active = 1
+      AND UPPER(r.name) = 'HOD'
+  `;
+
+  if (excludeId) {
+    request.input("excludeId", sql.BigInt, excludeId);
+
+    query += `
+      AND bur.id <> @excludeId
+    `;
+  }
+
+  const result = await request.query(query);
+
+  return result.recordset[0] || null;
 }

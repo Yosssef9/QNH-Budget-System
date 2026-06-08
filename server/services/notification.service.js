@@ -4,7 +4,7 @@ import {
   markNotificationSentRepo,
   markNotificationFailedRepo,
 } from "../repositories/notification.repository.js";
-
+import { buildNotificationPayload } from "../notifications/buildNotificationPayload.js";
 import { resolveRecipients } from "../notifications/recipientResolver.js";
 import { sendEmail } from "../utils/email.js";
 
@@ -53,12 +53,24 @@ export async function queueNotification(data) {
   }
 
   await Promise.all(
-    validRecipients.map((recipient) =>
-      createNotificationRepo({
+    validRecipients.map(async (recipient) => {
+      const enrichedPayload = await buildNotificationPayload(
+        data.notificationType,
+        {
+          ...data.payload,
+          recipientName:
+            recipient.name || recipient.USER_NAME || recipient.user_name,
+        },
+      );
+
+      return createNotificationRepo({
         ...data,
+
+        payload: enrichedPayload,
+
         recipientEmail: recipient.email,
-      }),
-    ),
+      });
+    }),
   );
 }
 
@@ -92,7 +104,13 @@ export async function processPendingNotifications() {
         status: template.status,
         title: template.title,
         message: template.message,
+
+        recipientName: template.recipientName,
+
         details: template.details,
+
+        actionText: template.actionText,
+        actionUrl: template.actionUrl,
       });
 
       await sendEmail({

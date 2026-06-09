@@ -1,5 +1,5 @@
 import { poolPromise, sql } from "../config/db.js";
-
+import { createRequest } from "../utils/createRequest.js";
 export async function createTransferRepo(data) {
   const pool = await poolPromise;
 
@@ -56,11 +56,16 @@ export async function createTransferRepo(data) {
   return result.recordset[0];
 }
 
-export async function approveTransferRepo(transferId, userId) {
+export async function approveTransferRepo(
+  transferId,
+  userId,
+  transaction = null,
+) {
   const pool = await poolPromise;
 
-  const result = await pool
-    .request()
+  const request = createRequest(pool, transaction);
+
+  const result = await request
     .input("id", sql.BigInt, transferId)
     .input("userId", sql.Int, userId).query(`
       UPDATE BS_budget_transfers

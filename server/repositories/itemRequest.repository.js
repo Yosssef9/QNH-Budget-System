@@ -15,8 +15,9 @@ export async function getItemRequestsRepo(status) {
     SELECT
       r.id,
       r.requested_category_name,
-      r.requested_type_name,
-      r.existing_category_id,
+    r.requested_type_name,
+r.requested_expense_type,
+r.existing_category_id,
       c.name AS existing_category_name,
 
       r.requested_by,
@@ -63,6 +64,7 @@ export async function createItemRequestRepo({
   existingCategoryId,
   requestedCategoryName,
   requestedTypeName,
+  requestedExpenseType,
   requestedBy,
 }) {
   const pool = await poolPromise;
@@ -72,24 +74,27 @@ export async function createItemRequestRepo({
     .input("existingCategoryId", sql.Int, existingCategoryId)
     .input("requestedCategoryName", sql.VarChar(200), requestedCategoryName)
     .input("requestedTypeName", sql.VarChar(200), requestedTypeName)
+    .input("requestedExpenseType", sql.VarChar(10), requestedExpenseType)
     .input("requestedBy", sql.Int, requestedBy).query(`
-      INSERT INTO BS_budget_item_requests (
-        existing_category_id,
-        requested_category_name,
-        requested_type_name,
-        requested_by,
-        status,
-        created_at
-      )
+     INSERT INTO BS_budget_item_requests (
+  existing_category_id,
+  requested_category_name,
+  requested_type_name,
+  requested_expense_type,
+  requested_by,
+  status,
+  created_at
+)
       OUTPUT INSERTED.*
-      VALUES (
-        @existingCategoryId,
-        @requestedCategoryName,
-        @requestedTypeName,
-        @requestedBy,
-        'PENDING',
-        GETUTCDATE()
-      )
+    VALUES (
+  @existingCategoryId,
+  @requestedCategoryName,
+  @requestedTypeName,
+  @requestedExpenseType,
+  @requestedBy,
+  'PENDING',
+  GETUTCDATE()
+)
     `);
 
   return result.recordset[0];
@@ -199,8 +204,9 @@ export async function getDashboardItemRequestsRepo({ userId, budgetAccess }) {
       SELECT
         r.id,
         r.requested_category_name,
-        r.requested_type_name,
-        r.existing_category_id,
+      r.requested_type_name,
+r.requested_expense_type,
+r.existing_category_id,
         c.name AS existing_category_name,
         r.status,
         r.admin_note,

@@ -1,16 +1,13 @@
 import { poolPromise, sql } from "../config/db.js";
+import { createRequest } from "../utils/createRequest.js";
 
-export async function insertBudgetNoteRepo({
-  budgetId,
-  budgetItemId,
-  noteType,
-  note,
-  createdBy,
-}) {
+export async function insertBudgetNoteRepo(
+  { budgetId, budgetItemId, noteType, note, createdBy },
+  transaction = null,
+) {
   const pool = await poolPromise;
 
-  const result = await pool
-    .request()
+  const request = createRequest(pool, transaction)
     .input("budgetId", sql.BigInt, budgetId)
     .input("budgetItemId", sql.BigInt, budgetItemId)
     .input("noteType", sql.VarChar(50), noteType)

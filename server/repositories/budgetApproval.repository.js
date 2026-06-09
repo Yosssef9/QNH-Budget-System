@@ -1,4 +1,5 @@
 import { poolPromise, sql } from "../config/db.js";
+import { createRequest } from "../utils/createRequest.js";
 
 export async function getPendingBudgetsRepo(financialYearId) {
   const pool = await poolPromise;
@@ -133,11 +134,13 @@ export async function approveBudgetRepo({ budgetId, approvedBy }) {
   return result.recordset[0] || null;
 }
 
-export async function returnBudgetRepo({ budgetId, returnedBy }) {
+export async function returnBudgetRepo(
+  { budgetId, returnedBy },
+  transaction = null,
+) {
   const pool = await poolPromise;
 
-  const result = await pool
-    .request()
+  const request = createRequest(pool, transaction)
     .input("budgetId", sql.BigInt, budgetId)
     .input("returnedBy", sql.Int, returnedBy).query(`
       UPDATE BS_budgets

@@ -69,19 +69,6 @@ const CopyBudgetDrawer = lazy(
 const RequestBudgetItemModal = lazy(
   () => import("../../components/budgets/RequestBudgetItemModal"),
 );
-function getMethodBase(method) {
-  if (method === "CUSTOM_MONTHLY" || method === "CUSTOM_QUARTERLY")
-    return "CUSTOM";
-  return method;
-}
-
-function getMethodNote(method) {
-  if (method === "MONTHLY") return "Auto Distribute";
-  if (method === "QUARTERLY") return "Auto Distribute";
-  if (method === "CUSTOM_MONTHLY") return "Monthly";
-  if (method === "CUSTOM_QUARTERLY") return "Quarter";
-  return "";
-}
 
 export default function BudgetEnteryPage() {
   const {

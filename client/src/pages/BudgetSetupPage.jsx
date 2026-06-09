@@ -583,9 +583,22 @@ export default function BudgetSetupPage() {
                               <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                                 Requested Item / Type
                               </p>
-                              <h3 className="mt-1 text-base font-bold text-slate-900">
-                                {request.requested_type_name}
-                              </h3>
+                              <div className="mt-1 flex flex-wrap items-center gap-2">
+                                <h3 className="text-base font-bold text-slate-900">
+                                  {request.requested_type_name}
+                                </h3>
+
+                                <span
+                                  className={[
+                                    "rounded-full px-2 py-1 text-[10px] font-bold",
+                                    request.requested_expense_type === "CAPEX"
+                                      ? "bg-purple-50 text-purple-700"
+                                      : "bg-emerald-50 text-emerald-700",
+                                  ].join(" ")}
+                                >
+                                  {request.requested_expense_type || "OPEX"}
+                                </span>
+                              </div>
                             </div>
                             <motion.span
                               animate={{
@@ -680,7 +693,26 @@ export default function BudgetSetupPage() {
                                           "-"}
                                       </p>
                                     </div>
+                                    <div className="rounded-xl bg-white p-3">
+                                      <p className="text-xs font-bold text-slate-500">
+                                        Expense Type
+                                      </p>
 
+                                      <div className="mt-1">
+                                        <span
+                                          className={[
+                                            "rounded-full px-3 py-1 text-xs font-bold",
+                                            request.requested_expense_type ===
+                                            "CAPEX"
+                                              ? "bg-purple-50 text-purple-700"
+                                              : "bg-emerald-50 text-emerald-700",
+                                          ].join(" ")}
+                                        >
+                                          {request.requested_expense_type ||
+                                            "OPEX"}
+                                        </span>
+                                      </div>
+                                    </div>
                                     <div className="rounded-xl bg-white p-3">
                                       <p className="text-xs font-bold text-slate-500">
                                         Requested At

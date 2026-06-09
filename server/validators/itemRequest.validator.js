@@ -66,10 +66,23 @@ export function validateCreateItemRequest(body) {
     );
   }
 
+  const expenseType = String(body?.expenseType || body?.expense_type || "")
+    .trim()
+    .toUpperCase();
+
+  if (!["OPEX", "CAPEX"].includes(expenseType)) {
+    throw new ApiError(
+      400,
+      "Expense type must be OPEX or CAPEX",
+      "VALIDATION_ERROR",
+    );
+  }
+
   return {
     existingCategoryId: categoryId,
     requestedCategoryName,
     requestedTypeName,
+    expenseType,
   };
 }
 

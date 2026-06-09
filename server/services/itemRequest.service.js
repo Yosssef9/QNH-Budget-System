@@ -19,7 +19,10 @@ export async function getItemRequestsService(status) {
 }
 
 export async function createItemRequestService(payload) {
-  const request = await createItemRequestRepo(payload);
+  const request = await createItemRequestRepo({
+    ...payload,
+    requestedExpenseType: payload.expenseType,
+  });
 
   await queueNotification({
     notificationType: NOTIFICATION_TYPES.ITEM_REQUEST_CREATED,
@@ -69,7 +72,7 @@ export async function approveItemRequestService({
   await createTypeService({
     categoryId,
     name: request.requested_type_name,
-    expenseType: "OPEX",
+    expenseType: request.requested_expense_type,
   });
 
   const result = await approveItemRequestRepo({

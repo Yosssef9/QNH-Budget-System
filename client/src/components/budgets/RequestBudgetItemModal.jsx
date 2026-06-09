@@ -2,8 +2,10 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 import { Loader2, PackagePlus, X } from "lucide-react";
 
+import Input from "../Input";
 import SearchableMultiSelect from "../SearchableMultiSelect";
 import { useCreateItemRequest } from "../../hooks/budgets/useBudgetSetup";
+import LoadingSpinner from "../LoadingSpinner";
 
 export default function RequestBudgetItemModal({
   open,
@@ -15,6 +17,7 @@ export default function RequestBudgetItemModal({
     useState("");
   const [requestNewCategoryName, setRequestNewCategoryName] = useState("");
   const [requestTypeName, setRequestTypeName] = useState("");
+  const [requestExpenseType, setRequestExpenseType] = useState("OPEX");
 
   const createItemRequestMutation = useCreateItemRequest();
 
@@ -23,6 +26,7 @@ export default function RequestBudgetItemModal({
     setRequestExistingCategoryId("");
     setRequestNewCategoryName("");
     setRequestTypeName("");
+    setRequestExpenseType("OPEX");
   }
 
   function handleClose() {
@@ -59,17 +63,18 @@ export default function RequestBudgetItemModal({
           requestCategoryMode === "EXISTING"
             ? Number(requestExistingCategoryId)
             : null,
+
         requestedCategoryName:
           requestCategoryMode === "NEW" ? newCategoryName : null,
+
         requestedTypeName: typeName,
+
+        expenseType: requestExpenseType,
       });
 
       toast.success("Item request sent to admin successfully");
-      resetForm();
-      setRequestCategoryMode("EXISTING");
-      setRequestExistingCategoryId("");
-      setRequestNewCategoryName("");
-      setRequestTypeName("");
+      handleClose();
+      return;
     } catch (error) {
       toast.error(
         error?.response?.data?.message || "Failed to send item request",
@@ -169,11 +174,10 @@ export default function RequestBudgetItemModal({
                 New Category Name
               </label>
 
-              <input
+              <Input
                 value={requestNewCategoryName}
                 onChange={(e) => setRequestNewCategoryName(e.target.value)}
                 placeholder="Example: Medical Equipment"
-                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
               />
             </div>
           )}
@@ -183,14 +187,41 @@ export default function RequestBudgetItemModal({
               Requested Item / Type Name
             </label>
 
-            <input
+            <Input
               value={requestTypeName}
               onChange={(e) => setRequestTypeName(e.target.value)}
               placeholder="Example: Printer Toner"
-              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
             />
           </div>
+          <div>
+            <label className="text-sm font-bold text-slate-900">
+              Expense Type
+            </label>
 
+            <div className="mt-2">
+              <SearchableMultiSelect
+                usePortal={false}
+                multiple={false}
+                disableClear
+                value={requestExpenseType}
+                onChange={(e) => setRequestExpenseType(e.target.value)}
+                options={[
+                  {
+                    id: "OPEX",
+                    name: "OPEX - Operational Expense",
+                  },
+                  {
+                    id: "CAPEX",
+                    name: "CAPEX - Capital Expense",
+                  },
+                ]}
+                placeholder="Select expense type"
+                searchPlaceholder="Search expense types..."
+                getOptionValue={(option) => option.id}
+                getOptionLabel={(option) => option.name}
+              />
+            </div>
+          </div>
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-800">
             This request will be sent to admin. After admin approval, the new
             item/type will appear in the budget item dropdown.
@@ -212,7 +243,7 @@ export default function RequestBudgetItemModal({
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:opacity-60"
             >
               {createItemRequestMutation.isPending ? (
-                <Loader2 className="animate-spin" size={18} />
+                <LoadingSpinner />
               ) : (
                 <PackagePlus size={18} />
               )}

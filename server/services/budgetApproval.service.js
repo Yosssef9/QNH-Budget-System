@@ -13,6 +13,7 @@ import { findLatestFinancialYearRepo } from "../repositories/financialYears.repo
 import { insertBudgetNoteRepo } from "../repositories/budgetNote.repository.js";
 import { queueNotification } from "./notification.service.js";
 import { NOTIFICATION_TYPES } from "../constants/notificationTypes.js";
+import { withTransaction } from "../database/transaction.js";
 export async function getPendingBudgetsService() {
   const financialYear = await findLatestFinancialYearRepo();
 
@@ -134,31 +135,51 @@ export async function returnBudgetService({ budgetId, body, user }) {
     );
   }
 
-  await returnBudgetRepo({
-    budgetId,
-    returnedBy: user.userId,
+  const returned = await withTransaction(async (trx) => {
+    await returnBudgetRepo(
+      {
+        budgetId,
+        returnedBy: user.userId,
+      },
+      trx,
+    );
+
+    const returned = await getBudgetHeaderRepo(budgetId);
+
+    await insertBudgetNoteRepo(
+      {
+        budgetId,
+        budgetItemId: null,
+        noteType: "GENERAL_RETURN",
+        note: generalNote,
+        createdBy: user.userId,
+      },
+      trx,
+    );
+
+    for (const itemNote of body?.itemNotes || []) {
+      if (!itemNote.note?.trim()) {
+        continue;
+      }
+
+      await insertBudgetNoteRepo(
+        {
+          budgetId,
+
+          budgetItemId: itemNote.budgetItemId,
+
+          noteType: "ITEM_RETURN",
+
+          note: itemNote.note.trim(),
+
+          createdBy: user.userId,
+        },
+        trx,
+      );
+    }
+
+    return returned;
   });
-
-  const returned = await getBudgetHeaderRepo(budgetId);
-  await insertBudgetNoteRepo({
-    budgetId,
-    budgetItemId: null,
-    noteType: "GENERAL_RETURN",
-    note: generalNote,
-    createdBy: user.userId,
-  });
-
-  for (const itemNote of body?.itemNotes || []) {
-    if (!itemNote.note?.trim()) continue;
-
-    await insertBudgetNoteRepo({
-      budgetId,
-      budgetItemId: itemNote.budgetItemId,
-      noteType: "ITEM_RETURN",
-      note: itemNote.note.trim(),
-      createdBy: user.userId,
-    });
-  }
   await queueNotification({
     notificationType: NOTIFICATION_TYPES.BUDGET_RETURNED,
 

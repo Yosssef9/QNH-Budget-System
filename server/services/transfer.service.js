@@ -1,7 +1,7 @@
 import { ApiError } from "../utils/apiError.js";
 
 import { calculateItemBalance } from "./budgetBalance.service.js";
-
+import { withTransaction } from "../database/transaction.js";
 import {
   getBudgetItemDetails,
   budgetItemTypeExistsRepo,
@@ -204,7 +204,53 @@ export async function approveTransferService(transferId, user) {
     );
   }
 
-  const approvedTransfer = await approveTransferRepo(transferId, user.userId);
+  const approvedTransfer = await withTransaction(async (trx) => {
+    const approvedTransfer = await approveTransferRepo(
+      transferId,
+      user.userId,
+      trx,
+    );
+
+    if (transfer.is_new_item) {
+      const sourceItem = await getBudgetItemDetails(
+        transfer.from_budget_item_id,
+      );
+
+      const exists = await budgetItemTypeExistsRepo(
+        sourceItem.budget_id,
+        transfer.new_item_type_id,
+      );
+
+      if (exists) {
+        throw new ApiError(400, "Budget item already exists.");
+      }
+
+      await createBudgetItemFromTransferRepo(
+        {
+          budgetId: sourceItem.budget_id,
+
+          typeId: transfer.new_item_type_id,
+
+          quantity: transfer.new_item_quantity,
+
+          unitPrice: transfer.new_item_unit_price,
+
+          amount: transfer.new_item_total_amount,
+
+          distributionMethod: "MONTHLY",
+
+          distributionLevel: "MONTH",
+
+          transferId,
+          createdBy: user.userId,
+        },
+        trx,
+      );
+    }
+
+    return approvedTransfer;
+  });
+
   await queueNotification({
     notificationType: NOTIFICATION_TYPES.TRANSFER_APPROVED,
 
@@ -222,33 +268,6 @@ export async function approveTransferService(transferId, user) {
       approvedBy: user.userName,
     },
   });
-  if (transfer.is_new_item) {
-    const sourceItem = await getBudgetItemDetails(transfer.from_budget_item_id);
-
-    const exists = await budgetItemTypeExistsRepo(
-      sourceItem.budget_id,
-      transfer.new_item_type_id,
-    );
-
-    if (exists) {
-      throw new ApiError(400, "Budget item already exists.");
-    }
-    await createBudgetItemFromTransferRepo({
-      budgetId: sourceItem.budget_id,
-
-      typeId: transfer.new_item_type_id,
-
-      quantity: transfer.new_item_quantity,
-      unitPrice: transfer.new_item_unit_price,
-      amount: transfer.new_item_total_amount,
-
-      distributionMethod: "MONTHLY",
-      distributionLevel: "MONTH",
-
-      transferId,
-      createdBy: user.userId,
-    });
-  }
 
   return approvedTransfer;
 }

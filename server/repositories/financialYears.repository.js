@@ -1,5 +1,5 @@
 import { poolPromise, sql } from "../config/db.js";
-
+import { createRequest } from "../utils/createRequest.js";
 export async function getFinancialYearsRepo() {
   const pool = await poolPromise;
 
@@ -93,11 +93,15 @@ ORDER BY started_at DESC, id DESC
   return result.recordset[0] || null;
 }
 
-export async function createFinancialYearRepo({ year, startedBy }) {
+export async function createFinancialYearRepo(
+  { year, startedBy },
+  transaction = null,
+) {
   const pool = await poolPromise;
 
-  const result = await pool
-    .request()
+  const request = createRequest(pool, transaction);
+
+  const result = await request
     .input("year", sql.Int, year)
     .input("startedBy", sql.Int, startedBy).query(`
      INSERT INTO BS_financial_years (

@@ -17,6 +17,7 @@ import {
 import { queueNotification } from "./notification.service.js";
 import { NOTIFICATION_TYPES } from "../constants/notificationTypes.js";
 import { createBudgetsForAllDepartmentsRepo } from "../repositories/budgets.repository.js";
+import { withTransaction } from "../database/transaction.js";
 export async function getFinancialYearsService() {
   return await getFinancialYearsRepo();
 }
@@ -81,14 +82,27 @@ export async function createFinancialYearService({ year, startedBy }) {
     );
   }
 
-  const financialYear = await createFinancialYearRepo({
-    year,
-    startedBy,
+  const financialYear = await withTransaction(async (trx) => {
+    const financialYear = await createFinancialYearRepo(
+      {
+        year,
+        startedBy,
+      },
+      trx,
+    );
+
+    await createBudgetsForAllDepartmentsRepo(
+      {
+        financialYearId: financialYear.id,
+
+        createdBy: startedBy,
+      },
+      trx,
+    );
+
+    return financialYear;
   });
-  await createBudgetsForAllDepartmentsRepo({
-    financialYearId: financialYear.id,
-    createdBy: startedBy,
-  });
+
   await queueNotification({
     notificationType: NOTIFICATION_TYPES.FINANCIAL_YEAR_OPENED,
 

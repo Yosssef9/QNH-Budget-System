@@ -1,5 +1,5 @@
 import { poolPromise, sql } from "../config/db.js";
-
+import { createRequest } from "../utils/createRequest.js";
 export async function getBudgetItemDetails(itemId) {
   const pool = await poolPromise;
 
@@ -154,24 +154,28 @@ export async function getAvailableTransferTypesRepo(budgetId) {
 
   return result.recordset;
 }
-export async function createBudgetItemFromTransferRepo({
-  budgetId,
-  typeId,
+export async function createBudgetItemFromTransferRepo(
+  {
+    budgetId,
+    typeId,
 
-  quantity,
-  unitPrice,
-  amount,
+    quantity,
+    unitPrice,
+    amount,
 
-  distributionMethod,
-  distributionLevel,
+    distributionMethod,
+    distributionLevel,
 
-  transferId,
-  createdBy,
-}) {
+    transferId,
+    createdBy,
+  },
+  transaction = null,
+) {
   const pool = await poolPromise;
 
-  const result = await pool
-    .request()
+  const request = createRequest(pool, transaction);
+
+  const result = await request
     .input("budgetId", sql.BigInt, budgetId)
     .input("typeId", sql.Int, typeId)
 
@@ -179,16 +183,8 @@ export async function createBudgetItemFromTransferRepo({
     .input("unitPrice", sql.Decimal(18, 2), unitPrice)
     .input("amount", sql.Decimal(18, 2), amount)
 
-   .input(
-  "distributionMethod",
-  sql.VarChar(50),
-  "MONTHLY"
-)
-.input(
-  "distributionLevel",
-  sql.VarChar(50),
-  "MONTH"
-)
+    .input("distributionMethod", sql.VarChar(50), "MONTHLY")
+    .input("distributionLevel", sql.VarChar(50), "MONTH")
 
     .input("transferId", sql.BigInt, transferId)
     .input("createdBy", sql.Int, createdBy).query(`

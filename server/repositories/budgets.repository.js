@@ -1,4 +1,5 @@
 import { poolPromise, sql } from "../config/db.js";
+import { createRequest } from "../utils/createRequest.js";
 
 export async function getCurrentBudgetRepo({ departmentId, financialYearId }) {
   const pool = await poolPromise;
@@ -435,14 +436,16 @@ export async function getBudgetHistoryItemsRepo(budgetId, departmentId) {
     distribution: distributionsMap.get(item.id) || [],
   }));
 }
-export async function createBudgetsForAllDepartmentsRepo({
-  financialYearId,
-  createdBy,
-}) {
+
+export async function createBudgetsForAllDepartmentsRepo(
+  { financialYearId, createdBy },
+  transaction = null,
+) {
   const pool = await poolPromise;
 
-  await pool
-    .request()
+  const request = createRequest(pool, transaction);
+
+  await request
     .input("financialYearId", sql.Int, financialYearId)
     .input("createdBy", sql.Int, createdBy).query(`
       INSERT INTO BS_budgets (

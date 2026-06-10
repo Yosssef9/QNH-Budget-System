@@ -31,6 +31,9 @@ export async function createTransferService({
   new_item_quantity,
   new_item_unit_price,
 
+  transfer_mode = "AMOUNT",
+  transfer_quantity,
+
   amount,
   reason,
   user,
@@ -39,6 +42,12 @@ export async function createTransferService({
 
   if (!source) {
     throw new ApiError(404, "Source item not found");
+  }
+
+  const sourceUnitPrice = Number(source.unit_price || 0);
+
+  if (sourceUnitPrice <= 0) {
+    throw new ApiError(400, "Source item unit price must be greater than zero");
   }
 
   if (source.status !== "APPROVED") {
@@ -116,10 +125,23 @@ export async function createTransferService({
     amount = Number(new_item_quantity) * Number(new_item_unit_price);
   }
 
-  if (!amount || Number(amount) <= 0) {
-    throw new ApiError(400, "Amount must be greater than zero");
-  }
+  let transferQuantity;
 
+  if (transfer_mode === "QUANTITY") {
+    if (!transfer_quantity || Number(transfer_quantity) <= 0) {
+      throw new ApiError(400, "Quantity must be greater than zero");
+    }
+
+    transferQuantity = Number(transfer_quantity);
+
+    amount = transferQuantity * sourceUnitPrice;
+  } else {
+    if (!amount || Number(amount) <= 0) {
+      throw new ApiError(400, "Amount must be greater than zero");
+    }
+
+    transferQuantity = Number(amount) / sourceUnitPrice;
+  }
   const balance = await calculateItemBalance(from_budget_item_id);
 
   if (balance.availableForTransfer < amount) {
@@ -128,7 +150,12 @@ export async function createTransferService({
       `Insufficient balance. Maximum allowed: ${balance.availableForTransfer}`,
     );
   }
-
+  if (Number(balance.remainingQuantity) < Number(transferQuantity)) {
+    throw new ApiError(
+      400,
+      `Insufficient quantity. Maximum allowed quantity: ${balance.remainingQuantity}`,
+    );
+  }
   if (!is_new_item) {
     const lockedTransfer = await findPendingTransferForItemsRepo(
       from_budget_item_id,
@@ -155,6 +182,9 @@ export async function createTransferService({
     new_item_total_amount: is_new_item ? amount : null,
 
     amount,
+
+    transfer_quantity: transferQuantity,
+
     reason,
 
     requested_by: user.userId,
@@ -180,10 +210,9 @@ export async function createTransferService({
 
   return transfer;
 }
-export async function getTransfersService(status) {
-  return getTransfersRepo(status);
+export async function getTransfersService(status, financialYearId = null) {
+  return getTransfersRepo(status, financialYearId);
 }
-
 export async function approveTransferService(transferId, user) {
   const transfer = await getTransferByIdRepo(transferId);
 
@@ -203,7 +232,12 @@ export async function approveTransferService(transferId, user) {
       `Transfer can no longer be approved. Available balance is ${balance.availableForTransfer}`,
     );
   }
-
+  if (Number(balance.remainingQuantity) < transfer.transfer_quantity) {
+    throw new ApiError(
+      400,
+      `Transfer can no longer be approved. Available quantity is ${balance.remainingQuantity}`,
+    );
+  }
   const approvedTransfer = await withTransaction(async (trx) => {
     const approvedTransfer = await approveTransferRepo(
       transferId,
@@ -341,7 +375,10 @@ export async function getTransferItemsService({ budgetAccess }) {
 
       return {
         ...item,
+
         available_amount: balance.availableForTransfer,
+
+        available_quantity: balance.availableForTransferQuantity,
       };
     }),
   );

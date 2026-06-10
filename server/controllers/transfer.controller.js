@@ -40,7 +40,10 @@ export async function createTransfer(req, res, next) {
 
 export async function getTransfers(req, res, next) {
   try {
-    const result = await getTransfersService(req.query.status);
+    const result = await getTransfersService(
+      req.query.status,
+      req.query.financialYearId ? Number(req.query.financialYearId) : null,
+    );
 
     return res.json(
       new ApiResponse({
@@ -139,7 +142,10 @@ export async function getTransferItems(req, res, next) {
 
 export async function getMyTransfers(req, res, next) {
   try {
-    const result = await getMyTransfersService(req.user.userId);
+    const result = await getMyTransfersService(
+      req.user.userId,
+      req.query.financialYearId ? Number(req.query.financialYearId) : null,
+    );
 
     return res.json(
       new ApiResponse({

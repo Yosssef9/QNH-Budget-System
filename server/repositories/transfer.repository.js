@@ -8,6 +8,7 @@ export async function createTransferRepo(data) {
     .input("fromItem", sql.BigInt, data.from_budget_item_id)
     .input("toItem", sql.BigInt, data.to_budget_item_id)
     .input("amount", sql.Decimal(18, 2), data.amount)
+    .input("transferQuantity", sql.Decimal(18, 4), data.transfer_quantity)
     .input("reason", sql.NVarChar(sql.MAX), data.reason)
     .input("requestedBy", sql.Int, data.requested_by)
     .input("isNewItem", sql.Bit, data.is_new_item)
@@ -28,10 +29,11 @@ export async function createTransferRepo(data) {
         new_item_unit_price,
         new_item_total_amount,
 
-        amount,
-        reason,
-        requested_by,
-        status
+       amount,
+transfer_quantity,
+reason,
+requested_by,
+status
       )
       OUTPUT INSERTED.*
       VALUES
@@ -46,10 +48,11 @@ export async function createTransferRepo(data) {
         @newItemPrice,
         @newItemAmount,
 
-        @amount,
-        @reason,
-        @requestedBy,
-        'PENDING_APPROVAL'
+     @amount,
+@transferQuantity,
+@reason,
+@requestedBy,
+'PENDING_APPROVAL'
       )
     `);
 
@@ -171,6 +174,8 @@ export async function getTransferItemsRepo({ departmentId }) {
         bt.name,
         bt.expense_type,
         bi.total_amount,
+        bi.quantity,
+bi.unit_price,
         b.department_id,
         b.financial_year_id,
 
@@ -205,7 +210,13 @@ export async function getTransferItemsRepo({ departmentId }) {
 
       WHERE
         b.status = 'APPROVED'
-        AND fy.status = 'PRE_CLOSING'
+      AND b.financial_year_id =
+(
+    SELECT TOP 1 id
+    FROM BS_financial_years
+    WHERE status = 'PRE_CLOSING'
+    ORDER BY year DESC
+)
         AND b.department_id = @departmentId
 
       ORDER BY
@@ -215,10 +226,14 @@ export async function getTransferItemsRepo({ departmentId }) {
 
   return result.recordset;
 }
-export async function getMyTransfersRepo() {
+export async function getMyTransfersRepo(financialYearId = null) {
   const pool = await poolPromise;
 
-  const result = await pool.request().query(`
+  const request = pool.request();
+
+  request.input("financialYearId", sql.Int, financialYearId || null);
+
+  const result = await request.query(`
     SELECT
   t.*,
 
@@ -236,7 +251,11 @@ export async function getMyTransfersRepo() {
 
     INNER JOIN BS_budget_items fi
       ON fi.id = t.from_budget_item_id
+INNER JOIN BS_budgets b
+  ON b.id = fi.budget_id
 
+INNER JOIN BS_financial_years fy
+  ON fy.id = b.financial_year_id
     INNER JOIN BS_budget_types ft
       ON ft.id = fi.type_id
 
@@ -251,13 +270,17 @@ export async function getMyTransfersRepo() {
 
     LEFT JOIN BS_budget_categories nc
       ON nc.id = nit.category_id
-
+WHERE
+(
+    @financialYearId IS NULL
+    OR b.financial_year_id = @financialYearId
+)
     ORDER BY t.requested_at DESC
   `);
 
   return result.recordset;
 }
-export async function getTransfersRepo(status) {
+export async function getTransfersRepo(status, financialYearId = null) {
   const pool = await poolPromise;
   const request = pool.request();
 
@@ -266,7 +289,7 @@ export async function getTransfersRepo(status) {
     sql.VarChar(30),
     status && status !== "ALL" ? status : null,
   );
-
+  request.input("financialYearId", sql.Int, financialYearId || null);
   const result = await request.query(`
     SELECT
         t.*,
@@ -323,10 +346,16 @@ nc.name AS category_name,
     LEFT JOIN BS_budget_categories nc
         ON nc.id = nit.category_id
 
-    WHERE (
-        @status IS NULL
-        OR t.status = @status
-    )
+   WHERE
+(
+    @status IS NULL
+    OR t.status = @status
+)
+AND
+(
+    @financialYearId IS NULL
+    OR b.financial_year_id = @financialYearId
+)
 
     ORDER BY t.requested_at DESC
   `);
@@ -342,11 +371,24 @@ export async function getTransferDashboardRepo(
 
   if (isApprover) {
     const result = await pool.request().query(`
-      SELECT TOP 20
-        *
-      FROM BS_budget_transfers
-      WHERE status = 'PENDING_APPROVAL'
-      ORDER BY requested_at DESC
+     SELECT TOP 20
+    t.*
+FROM BS_budget_transfers t
+
+INNER JOIN BS_budget_items fi
+    ON fi.id = t.from_budget_item_id
+
+INNER JOIN BS_budgets b
+    ON b.id = fi.budget_id
+
+INNER JOIN BS_financial_years fy
+    ON fy.id = b.financial_year_id
+
+WHERE
+    t.status = 'PENDING_APPROVAL'
+    AND fy.status IN ('OPEN','PRE_CLOSING')
+
+ORDER BY t.requested_at DESC
     `);
 
     return result.recordset;
@@ -365,16 +407,21 @@ export async function getTransferDashboardRepo(
 
       INNER JOIN BS_budgets b
           ON b.id = fi.budget_id
-
-      WHERE
-      (
-          t.requested_by = @userId
-      )
-      OR
-      (
-          @departmentId IS NOT NULL
-          AND b.department_id = @departmentId
-      )
+INNER JOIN BS_financial_years fy
+    ON fy.id = b.financial_year_id
+    WHERE
+fy.status IN ('OPEN','PRE_CLOSING')
+AND
+(
+    (
+        t.requested_by = @userId
+    )
+    OR
+    (
+        @departmentId IS NOT NULL
+        AND b.department_id = @departmentId
+    )
+)
 
       ORDER BY t.requested_at DESC
   `);

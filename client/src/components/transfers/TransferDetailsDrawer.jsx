@@ -55,7 +55,11 @@ export default function TransferDetailsDrawer({ transfer, open, onClose }) {
         <div className="text-xs text-slate-500">Status</div>
         <div className="font-medium">{transfer.status}</div>
       </div>
+      <div>
+        <div className="text-xs text-slate-500">Financial Year</div>
 
+        <div className="font-medium">FY {transfer.financial_year}</div>
+      </div>
       <div>
         <div className="text-xs text-slate-500">Amount</div>
         <div className="font-medium">

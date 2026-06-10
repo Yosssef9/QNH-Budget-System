@@ -200,13 +200,12 @@ export async function deleteBudgetItemRepo({ budgetId, itemId }) {
     const result = await request2
       .input("budgetId", sql.Int, budgetId)
       .input("itemId", sql.Int, itemId).query(`
-    UPDATE BS_budget_items
-    SET
-      is_active = 0,
-      updated_at = GETUTCDATE()
+    DELETE FROM BS_budget_item_distribution
+    WHERE budget_item_id = @itemId;
+
+    DELETE FROM BS_budget_items
     WHERE id = @itemId
-      AND budget_id = @budgetId
-      AND is_active = 1
+      AND budget_id = @budgetId;
   `);
 
     await transaction.commit();
@@ -266,21 +265,20 @@ WHERE budget_id = @budgetId
       .filter((item) => item.id && existingIds.includes(Number(item.id)))
       .map((item) => Number(item.id));
 
-    const idsToSoftDelete = existingIds.filter(
+    const idsToHardDelete = existingIds.filter(
       (id) => !sentExistingIds.includes(id),
     );
 
-    for (const itemId of idsToSoftDelete) {
+    for (const itemId of idsToHardDelete) {
       await new sql.Request(transaction).input("itemId", sql.Int, itemId)
         .query(`
-          UPDATE BS_budget_items
-          SET
-            is_active = 0,
-            updated_at = GETUTCDATE()
-          WHERE id = @itemId
-        `);
-    }
+      DELETE FROM BS_budget_item_distribution
+      WHERE budget_item_id = @itemId;
 
+      DELETE FROM BS_budget_items
+      WHERE id = @itemId;
+    `);
+    }
     for (const item of normalizedItems) {
       const existingTypeId = item.id
         ? existingTypeByItemId.get(Number(item.id))

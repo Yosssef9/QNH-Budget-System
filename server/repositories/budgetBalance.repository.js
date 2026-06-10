@@ -7,7 +7,8 @@ export async function getBudgetItemBalanceRepo(itemId) {
       SELECT
         bi.id,
 
-        bi.total_amount AS approved_amount,
+     bi.total_amount AS approved_amount,
+bi.quantity AS approved_quantity,
 
         ISNULL((
             SELECT SUM(t.amount)
@@ -15,14 +16,29 @@ export async function getBudgetItemBalanceRepo(itemId) {
             WHERE t.to_budget_item_id = bi.id
             AND t.status = 'APPROVED'
         ),0) AS transfer_in,
-
+ISNULL(
+(
+    SELECT
+        SUM(t.amount) / NULLIF(bi.unit_price,0)
+    FROM BS_budget_transfers t
+    WHERE t.to_budget_item_id = bi.id
+      AND t.status = 'APPROVED'
+),
+0) AS transfer_in_quantity,
         ISNULL((
             SELECT SUM(t.amount)
             FROM BS_budget_transfers t
             WHERE t.from_budget_item_id = bi.id
             AND t.status = 'APPROVED'
         ),0) AS transfer_out,
-
+ISNULL(
+(
+    SELECT SUM(t.transfer_quantity)
+    FROM BS_budget_transfers t
+    WHERE t.from_budget_item_id = bi.id
+    AND t.status = 'APPROVED'
+),
+0) AS transfer_out_quantity,
         ISNULL((
             SELECT SUM(p.amount)
             FROM BS_budget_po_links p
@@ -46,7 +62,8 @@ export async function getBudgetBalanceSummaryRepo(budgetId) {
 
         bt.name AS type_name,
 
-        bi.total_amount AS approved_amount,
+    bi.total_amount AS approved_amount,
+bi.quantity AS approved_quantity,
 
         bi.created_from_transfer,
         bi.source_transfer_id

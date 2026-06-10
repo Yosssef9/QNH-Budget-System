@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import CurrencyText from "../../CurrencyText";
 import CreatedFromTransferBadge from "../../CreatedFromTransferBadge";
+import { formatQty } from "../../../utils/numberFormatter";
 
 export default function BudgetBalanceSummaryTable({ items = [] }) {
   return (
@@ -65,15 +66,33 @@ export default function BudgetBalanceSummaryTable({ items = [] }) {
                 </td>
 
                 <td className="border border-slate-200 px-4 py-4 text-center">
-                  <CurrencyText value={item.approvedAmount} />
+                  <div className="flex flex-col">
+                    <CurrencyText value={item.approvedAmount} />
+
+                    <span className="text-xs text-slate-500">
+                      Qty: {formatQty(item.approvedQuantity)}
+                    </span>
+                  </div>
                 </td>
 
                 <td className="border border-slate-200 px-4 py-4 text-center font-semibold text-emerald-600">
-                  <CurrencyText value={item.transferIn} />
+                  <div className="flex flex-col">
+                    <CurrencyText value={item.transferIn} />
+
+                    <span className="text-xs text-slate-500">
+                      Qty: {formatQty(item.transferInQuantity)}
+                    </span>
+                  </div>
                 </td>
 
                 <td className="border border-slate-200 px-4 py-4 text-center font-semibold text-red-600">
-                  <CurrencyText value={item.transferOut} />
+                  <div className="flex flex-col">
+                    <CurrencyText value={item.transferOut} />
+
+                    <span className="text-xs text-slate-500">
+                      Qty: {formatQty(item.transferOutQuantity)}
+                    </span>
+                  </div>
                 </td>
 
                 <td className="border border-slate-200 px-4 py-4 text-center font-semibold">
@@ -83,9 +102,14 @@ export default function BudgetBalanceSummaryTable({ items = [] }) {
                 <td className="border border-slate-200 px-4 py-4 text-center">
                   <CurrencyText value={item.poUsed} />
                 </td>
-
                 <td className="border border-slate-200 px-4 py-4 text-center font-bold text-blue-600">
-                  <CurrencyText value={item.remainingAmount} />
+                  <div className="flex flex-col">
+                    <CurrencyText value={item.remainingAmount} />
+
+                    <span className="text-xs font-medium text-slate-500">
+                      Qty: {formatQty(item.remainingQuantity)}
+                    </span>
+                  </div>
                 </td>
               </motion.tr>
             ))}

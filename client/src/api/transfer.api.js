@@ -26,14 +26,30 @@ export async function getTransferById(id) {
   return data.data;
 }
 
-export async function getMyTransfers() {
-  const { data } = await api.get("/transfers/my");
+export async function getMyTransfers(financialYearId = null) {
+  const { data } = await api.get("/transfers/my", {
+    params: financialYearId ? { financialYearId } : {},
+  });
+
   return data.data || [];
 }
 
-export async function getTransfers(status = "PENDING_APPROVAL") {
+export async function getTransfers(
+  status = "PENDING_APPROVAL",
+  financialYearId = null,
+) {
+  const params = {};
+
+  if (status && status !== "ALL") {
+    params.status = status;
+  }
+
+  if (financialYearId) {
+    params.financialYearId = financialYearId;
+  }
+
   const { data } = await api.get("/transfers", {
-    params: status && status !== "ALL" ? { status } : {},
+    params,
   });
 
   return data.data || [];

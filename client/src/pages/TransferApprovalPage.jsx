@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRightLeft,
@@ -24,6 +24,7 @@ import { useNavigate } from "react-router-dom";
 import TransferApprovalTable from "../components/transfers/TransferApprovalTable";
 import TransferDetailsDrawer from "../components/transfers/TransferDetailsDrawer";
 import EnterpriseSearch from "../components/EnterpriseSearch";
+import { useFinancialYears } from "../hooks/financial-years/useFinancialYears";
 
 const statusOptions = [
   {
@@ -52,12 +53,31 @@ export default function TransferApprovalPage() {
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("PENDING_APPROVAL");
-  const [rejectionNote, setRejectionNote] = useState("");
-  const { data: transfers = [], isLoading } = useQuery({
-    queryKey: ["transfers", statusFilter],
-    queryFn: () => getTransfers(statusFilter),
-  });
+  const [financialYearFilter, setFinancialYearFilter] = useState(null);
+  const { data: financialYears = [] } = useFinancialYears();
+  useEffect(() => {
+    if (!financialYears.length) return;
 
+    const sortedYears = [...financialYears].sort(
+      (a, b) => Number(b.year) - Number(a.year),
+    );
+
+    const latestYear = sortedYears[0];
+
+    if (!financialYearFilter && latestYear) {
+      setFinancialYearFilter(latestYear.id);
+      setStatusFilter("PENDING_APPROVAL");
+    }
+  }, [financialYears, financialYearFilter]);
+  const [rejectionNote, setRejectionNote] = useState("");
+  ("CURRENT");
+  const { data: transfers = [], isLoading } = useQuery({
+    queryKey: ["transfers", statusFilter, financialYearFilter],
+
+    queryFn: () => getTransfers(statusFilter, financialYearFilter),
+
+    enabled: !!financialYearFilter,
+  });
   const departments = useMemo(() => {
     return [
       ...new Map(
@@ -83,6 +103,12 @@ export default function TransferApprovalPage() {
       label: d.name,
     })),
   ];
+  const financialYearOptions = financialYears
+    .sort((a, b) => Number(b.year) - Number(a.year))
+    .map((year) => ({
+      value: year.id,
+      label: `FY ${year.year}`,
+    }));
   const filteredTransfers = useMemo(() => {
     let result = transfers;
     if (departmentFilter !== "ALL") {
@@ -258,19 +284,42 @@ export default function TransferApprovalPage() {
               />
             </div>
 
-            <div className="w-full lg:w-72">
-              <SearchableMultiSelect
-                multiple={false}
-                disableClear
-                value={departmentFilter}
-                options={departmentOptions}
-                onChange={(e) =>
-                  setDepartmentFilter(
-                    e.target.value === "ALL" ? "ALL" : Number(e.target.value),
-                  )
-                }
-                placeholder="Department"
-              />
+            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+              <div className="w-full sm:w-60">
+                <SearchableMultiSelect
+                  multiple={false}
+                  disableClear
+                  value={financialYearFilter}
+                  options={financialYearOptions}
+                  onChange={(e) => {
+                    const selectedYearId = Number(e.target.value);
+
+                    setFinancialYearFilter(selectedYearId);
+
+                    const latestYear = [...financialYears].sort(
+                      (a, b) => Number(b.year) - Number(a.year),
+                    )[0];
+
+                    if (selectedYearId === latestYear?.id) {
+                      setStatusFilter("PENDING_APPROVAL");
+                    } else {
+                      setStatusFilter("ALL");
+                    }
+                  }}
+                  placeholder="Financial Year"
+                />
+              </div>
+
+              <div className="w-full sm:w-72">
+                <SearchableMultiSelect
+                  multiple={false}
+                  disableClear
+                  value={departmentFilter}
+                  options={departmentOptions}
+                  onChange={(e) => setDepartmentFilter(e.target.value || "ALL")}
+                  placeholder="Department"
+                />
+              </div>
             </div>
           </div>
         </div>

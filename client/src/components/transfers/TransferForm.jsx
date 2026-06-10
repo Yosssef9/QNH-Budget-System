@@ -77,7 +77,8 @@ export default function TransferForm() {
     new_item_type_id: "",
     new_item_quantity: "",
     new_item_unit_price: "",
-
+    transfer_mode: "AMOUNT",
+    transfer_quantity: "",
     amount: "",
     reason: "",
   });
@@ -124,11 +125,23 @@ export default function TransferForm() {
   const transferAmount = form.is_new_item
     ? Number(form.new_item_quantity || 0) *
       Number(form.new_item_unit_price || 0)
-    : Number(form.amount || 0);
-
+    : form.transfer_mode === "QUANTITY"
+      ? Number(form.transfer_quantity || 0) *
+        Number(sourceItem?.unit_price || 0)
+      : Number(form.amount || 0);
+  const transferQuantity = form.is_new_item
+    ? 0
+    : form.transfer_mode === "QUANTITY"
+      ? Number(form.transfer_quantity || 0)
+      : Number(transferAmount || 0) / Number(sourceItem?.unit_price || 1);
   const sourceBudget = Number(sourceItem?.available_amount || 0);
 
   const remainingAfterTransfer = sourceBudget - transferAmount;
+  const targetCurrentBalance = Number(targetItem?.available_amount || 0);
+
+  const targetBalanceAfterTransfer = targetCurrentBalance + transferAmount;
+  const targetQuantityAfterTransfer =
+    Number(transferAmount || 0) / Number(targetItem?.unit_price || 1);
   const { data: budgetTypes = [] } = useQuery({
     queryKey: ["available-transfer-types"],
 
@@ -159,7 +172,9 @@ export default function TransferForm() {
         form.new_item_unit_price
       : form.to_budget_item_id) &&
     form.reason.trim() &&
-    transferAmount > 0 &&
+    (form.transfer_mode === "QUANTITY"
+      ? Number(form.transfer_quantity) > 0
+      : transferAmount > 0) &&
     remainingAfterTransfer >= 0 &&
     String(form.from_budget_item_id) !== String(form.to_budget_item_id);
 
@@ -194,7 +209,8 @@ export default function TransferForm() {
         new_item_type_id: "",
         new_item_quantity: "",
         new_item_unit_price: "",
-
+        transfer_mode: "AMOUNT",
+        transfer_quantity: "",
         amount: "",
         reason: "",
       });
@@ -273,7 +289,11 @@ export default function TransferForm() {
       new_item_unit_price: form.is_new_item
         ? Number(form.new_item_unit_price)
         : null,
-
+      transfer_quantity:
+        form.transfer_mode === "QUANTITY"
+          ? Number(form.transfer_quantity)
+          : null,
+      transfer_mode: form.transfer_mode,
       amount: transferAmount,
 
       reason: form.reason.trim(),
@@ -321,7 +341,7 @@ export default function TransferForm() {
         </div>
       ) : (
         <div className="grid items-start gap-6 xl:grid-cols-[1fr_360px_1fr]">
-          <div className="flex h-[700px] flex-col">
+          <div className="flex flex-col">
             <div className="mb-3 flex items-center gap-2">
               <WalletCards size={18} className="text-red-500" />
               <h3 className="font-bold text-slate-900">Transfer From</h3>
@@ -353,7 +373,7 @@ export default function TransferForm() {
 
             <div
               ref={sourceListRef}
-              className="grid flex-1 gap-2 overflow-auto pr-1"
+              className="grid max-h-[600px] gap-2 overflow-auto pr-1"
             >
               {filteredSourceItems.map((item) => (
                 <ItemCard
@@ -438,51 +458,113 @@ export default function TransferForm() {
                 </div>
                 {!form.is_new_item && (
                   <>
-                    <Input
-                      type="number"
-                      min="1"
-                      required
-                      label="Transfer Amount"
-                      numberFormat
-                      value={form.amount}
+                    <SearchableMultiSelect
+                      multiple={false}
+                      disableClear
+                      value={form.transfer_mode}
+                      options={[
+                        {
+                          value: "AMOUNT",
+                          label: "Transfer By Amount",
+                        },
+                        {
+                          value: "QUANTITY",
+                          label: "Transfer By Quantity",
+                        },
+                      ]}
                       onChange={(e) =>
                         setForm((p) => ({
                           ...p,
-                          amount: e.target.value,
+                          transfer_mode: e.target.value,
+                          amount: "",
+                          transfer_quantity: "",
                         }))
-                      }
-                      placeholder="0"
-                      error={
-                        transferAmount > sourceBudget
-                          ? "Transfer amount exceeds available balance."
-                          : ""
                       }
                     />
 
-                    <div className="mt-3 grid grid-cols-3 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setAmountPercent(0.25)}
-                        className="rounded-xl border bg-white px-3 py-2 text-xs font-semibold hover:bg-blue-50"
-                      >
-                        25%
-                      </button>
+                    <div className="mt-4">
+                      {form.transfer_mode === "AMOUNT" ? (
+                        <>
+                          <Input
+                            type="number"
+                            min="1"
+                            required
+                            label="Transfer Amount"
+                            numberFormat
+                            value={form.amount}
+                            onChange={(e) =>
+                              setForm((p) => ({
+                                ...p,
+                                amount: e.target.value,
+                              }))
+                            }
+                            placeholder="0"
+                          />
 
-                      <button
-                        type="button"
-                        onClick={() => setAmountPercent(0.5)}
-                        className="rounded-xl border bg-white px-3 py-2 text-xs font-semibold hover:bg-blue-50"
-                      >
-                        50%
-                      </button>
+                          <div className="mt-3 grid grid-cols-3 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setAmountPercent(0.25)}
+                              className="rounded-xl border bg-white px-3 py-2 text-xs font-semibold hover:bg-blue-50"
+                            >
+                              25%
+                            </button>
 
-                      <button
-                        type="button"
-                        onClick={() => setAmountPercent(1)}
-                        className="rounded-xl border bg-white px-3 py-2 text-xs font-semibold hover:bg-blue-50"
-                      >
-                        Max
-                      </button>
+                            <button
+                              type="button"
+                              onClick={() => setAmountPercent(0.5)}
+                              className="rounded-xl border bg-white px-3 py-2 text-xs font-semibold hover:bg-blue-50"
+                            >
+                              50%
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setAmountPercent(1)}
+                              className="rounded-xl border bg-white px-3 py-2 text-xs font-semibold hover:bg-blue-50"
+                            >
+                              Max
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <Input
+                            type="number"
+                            min="1"
+                            step="any"
+                            required
+                            label="Transfer Quantity"
+                            value={form.transfer_quantity}
+                            onChange={(e) =>
+                              setForm((p) => ({
+                                ...p,
+                                transfer_quantity: e.target.value,
+                              }))
+                            }
+                          />
+
+                          <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-3">
+                            <div className="text-xs text-slate-500">
+                              Source Unit Price
+                            </div>
+
+                            <div className="font-semibold">
+                              <CurrencyText
+                                value={sourceItem?.unit_price || 0}
+                              />
+                            </div>
+
+                            <div className="mt-2 text-xs text-slate-500">
+                              Calculated Amount
+                            </div>
+
+                            <div className="font-semibold text-blue-700">
+                              <CurrencyText value={transferAmount} />
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </>
                 )}
@@ -510,39 +592,185 @@ export default function TransferForm() {
 
               {sourceItem && (
                 <div className="rounded-2xl border bg-white p-4">
-                  <div className="mb-3 font-bold text-slate-900">
+                  <div className="mb-4 text-lg font-bold text-slate-900">
                     Live Preview
                   </div>
 
-                  <div className="space-y-3 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Current Available</span>
-                      <strong>
-                        <CurrencyText value={sourceBudget} />
-                      </strong>
-                    </div>
+                  <div className="space-y-4">
+                    {/* SOURCE ITEM */}
+                    <div className="rounded-xl border border-red-100 bg-red-50 p-4">
+                      <div className="mb-3 text-xs font-bold uppercase text-red-600">
+                        Source Item
+                      </div>
 
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Transfer Amount</span>
-                      <strong>
-                        <CurrencyText value={transferAmount} />
-                      </strong>
-                    </div>
+                      <div className="mb-3 font-semibold text-slate-900">
+                        {sourceItem.name}
+                      </div>
 
-                    <div className="border-t pt-3">
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Remaining</span>
-                        <strong
-                          className={
-                            remainingAfterTransfer < 0
-                              ? "text-red-600"
-                              : "text-emerald-600"
-                          }
-                        >
-                          <CurrencyText value={remainingAfterTransfer} />
-                        </strong>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">
+                            Current Balance
+                          </span>
+
+                          <strong>
+                            <CurrencyText value={sourceBudget} />
+                          </strong>
+                        </div>
+
+                        {form.transfer_mode === "QUANTITY" && (
+                          <div className="flex justify-between">
+                            <span className="text-slate-500">
+                              Quantity To Transfer
+                            </span>
+
+                            <strong>
+                              {Number(transferQuantity).toLocaleString(
+                                undefined,
+                                {
+                                  maximumFractionDigits: 4,
+                                },
+                              )}
+                            </strong>
+                          </div>
+                        )}
+
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">
+                            Transfer Amount
+                          </span>
+
+                          <strong className="text-blue-600">
+                            <CurrencyText value={transferAmount} />
+                          </strong>
+                        </div>
+
+                        <div className="border-t pt-2">
+                          <div className="flex justify-between">
+                            <span className="font-medium text-slate-700">
+                              Remaining Balance
+                            </span>
+
+                            <strong
+                              className={
+                                remainingAfterTransfer < 0
+                                  ? "text-red-600"
+                                  : "text-emerald-600"
+                              }
+                            >
+                              <CurrencyText value={remainingAfterTransfer} />
+                            </strong>
+                          </div>
+                        </div>
                       </div>
                     </div>
+
+                    {/* TARGET ITEM */}
+                    {targetItem && (
+                      <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                        <div className="mb-3 text-xs font-bold uppercase text-emerald-600">
+                          Target Item
+                        </div>
+
+                        <div className="mb-3 font-semibold text-slate-900">
+                          {targetItem.name}
+                        </div>
+
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-slate-500">
+                              Current Balance
+                            </span>
+
+                            <strong>
+                              <CurrencyText value={targetCurrentBalance} />
+                            </strong>
+                          </div>
+
+                          <div className="flex justify-between">
+                            <span className="text-slate-500">Added Amount</span>
+
+                            <strong className="text-blue-600">
+                              + <CurrencyText value={transferAmount} />
+                            </strong>
+                          </div>
+
+                          <div className="border-t pt-2">
+                            <div className="flex justify-between">
+                              <span className="font-medium text-slate-700">
+                                Balance After Transfer
+                              </span>
+
+                              <strong className="text-emerald-600">
+                                <CurrencyText
+                                  value={targetBalanceAfterTransfer}
+                                />
+                              </strong>
+                            </div>
+                          </div>
+
+                          <div className="border-t pt-2">
+                            <div className="flex justify-between">
+                              <span className="text-slate-500">
+                                Additional Units Purchasable
+                              </span>
+
+                              <strong className="text-purple-600">
+                                {targetQuantityAfterTransfer.toLocaleString(
+                                  undefined,
+                                  {
+                                    maximumFractionDigits: 2,
+                                  },
+                                )}{" "}
+                                Units
+                              </strong>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* CALCULATION DETAILS */}
+                    {form.transfer_mode === "QUANTITY" && (
+                      <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                        <div className="mb-3 text-xs font-bold uppercase text-blue-600">
+                          Calculation Details
+                        </div>
+
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span>Quantity</span>
+
+                            <strong>
+                              {Number(transferQuantity).toLocaleString(
+                                undefined,
+                                {
+                                  maximumFractionDigits: 4,
+                                },
+                              )}
+                            </strong>
+                          </div>
+
+                          <div className="flex justify-between">
+                            <span>Unit Price</span>
+
+                            <strong>
+                              <CurrencyText
+                                value={sourceItem?.unit_price || 0}
+                              />
+                            </strong>
+                          </div>
+
+                          <div className="flex justify-between">
+                            <span>Calculated Amount</span>
+
+                            <strong className="text-blue-600">
+                              <CurrencyText value={transferAmount} />
+                            </strong>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -591,10 +819,10 @@ export default function TransferForm() {
                   showClear
                 />
 
-             <div
-  ref={targetListRef}
-  className="grid flex-1 gap-2 overflow-auto pr-1"
->
+                <div
+                  ref={targetListRef}
+                  className="grid max-h-[600px] gap-2 overflow-auto pr-1"
+                >
                   {filteredTargetItems.map((item) => (
                     <ItemCard
                       key={item.id}
@@ -655,10 +883,6 @@ export default function TransferForm() {
                       placeholder="Select Item Type"
                       searchPlaceholder="Search item type..."
                     />
-                    <div className="mt-2 text-xs text-slate-500">
-                      Items marked with ⏳ already have a pending transfer
-                      request and cannot be selected.
-                    </div>
                   </div>
 
                   <div className="mb-4">
@@ -781,7 +1005,26 @@ export default function TransferForm() {
               </div>
             )}
           </div>
+          {form.transfer_mode === "QUANTITY" && (
+            <div className="rounded-xl bg-slate-50 p-4">
+              <div className="text-xs text-slate-500">Transfer Quantity</div>
 
+              <div className="mt-1 text-lg font-bold">
+                {Number(transferQuantity).toLocaleString()}
+              </div>
+            </div>
+          )}
+          {targetItem && (
+            <div className="rounded-xl bg-emerald-50 p-4 border border-emerald-100">
+              <div className="text-xs text-emerald-600 font-bold">
+                Target Quantity After Transfer
+              </div>
+
+              <div className="mt-1 text-lg font-bold">
+                {targetQuantityAfterTransfer.toLocaleString()}
+              </div>
+            </div>
+          )}
           <div className="grid gap-3 md:grid-cols-2">
             <div className="rounded-xl bg-slate-50 p-4">
               <div className="text-xs text-slate-500">Transfer Amount</div>

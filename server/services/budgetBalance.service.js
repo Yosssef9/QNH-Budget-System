@@ -12,27 +12,46 @@ export async function calculateItemBalance(itemId) {
   }
 
   const approvedAmount = Number(row.approved_amount || 0);
+  const approvedQuantity = Number(row.approved_quantity || 0);
+
   const transferIn = Number(row.transfer_in || 0);
   const transferOut = Number(row.transfer_out || 0);
+
+  const transferInQuantity = Number(row.transfer_in_quantity || 0);
+
+  const transferOutQuantity = Number(row.transfer_out_quantity || 0);
+
   const poUsed = Number(row.po_used || 0);
 
   const remainingAmount = approvedAmount + transferIn - transferOut - poUsed;
+
   const netTransfer = transferIn - transferOut;
+
+  const remainingQuantity =
+    approvedQuantity + transferInQuantity - transferOutQuantity;
 
   return {
     approvedAmount,
+    approvedQuantity,
 
     transferIn,
     transferOut,
+
+    transferInQuantity,
+    transferOutQuantity,
+
     netTransfer,
 
     poUsed,
 
     remainingAmount,
+    remainingQuantity,
 
     isExceeded: remainingAmount < 0,
 
     availableForTransfer: Math.max(0, remainingAmount),
+
+    availableForTransferQuantity: Math.max(0, remainingQuantity),
   };
 }
 export async function getBudgetBalanceSummaryService(budgetId) {
@@ -43,25 +62,34 @@ export async function getBudgetBalanceSummaryService(budgetId) {
   for (const item of items) {
     const balance = await calculateItemBalance(item.id);
 
-   result.push({
-  itemId: item.id,
-  typeName: item.type_name,
+    result.push({
+      itemId: item.id,
+      typeName: item.type_name,
 
-  created_from_transfer: item.created_from_transfer,
-  source_transfer_id: item.source_transfer_id,
+      created_from_transfer: item.created_from_transfer,
 
-  approvedAmount: balance.approvedAmount,
+      source_transfer_id: item.source_transfer_id,
 
-  transferIn: balance.transferIn,
+      approvedAmount: balance.approvedAmount,
 
-  transferOut: balance.transferOut,
+      approvedQuantity: balance.approvedQuantity,
 
-  netTransfer: balance.netTransfer,
+      transferIn: balance.transferIn,
 
-  poUsed: balance.poUsed,
+      transferOut: balance.transferOut,
 
-  remainingAmount: balance.remainingAmount,
-});
+      transferInQuantity: balance.transferInQuantity,
+
+      transferOutQuantity: balance.transferOutQuantity,
+
+      netTransfer: balance.netTransfer,
+
+      poUsed: balance.poUsed,
+
+      remainingAmount: balance.remainingAmount,
+
+      remainingQuantity: balance.remainingQuantity,
+    });
   }
 
   return result;

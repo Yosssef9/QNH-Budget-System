@@ -18,7 +18,10 @@ export async function getBudgetAccessAssignmentsRepo() {
 
   bur.can_view_budget,
   bur.can_edit_budget,
-  bur.can_link_po,
+  bur.can_view_po_links,
+bur.can_request_po_links,
+bur.can_view_all_po_link_requests,
+bur.can_approve_po_links,
   bur.can_request_transfer,
   bur.can_approve_budget,
   bur.can_approve_transfer,
@@ -91,7 +94,26 @@ export async function createBudgetAccessAssignmentRepo(payload) {
 
     .input("can_view_budget", sql.Bit, payload.can_view_budget)
     .input("can_edit_budget", sql.Bit, payload.can_edit_budget)
-    .input("can_link_po", sql.Bit, payload.can_link_po)
+   .input(
+  "can_view_po_links",
+  sql.Bit,
+  payload.can_view_po_links,
+)
+.input(
+  "can_request_po_links",
+  sql.Bit,
+  payload.can_request_po_links,
+)
+.input(
+  "can_view_all_po_link_requests",
+  sql.Bit,
+  payload.can_view_all_po_link_requests,
+)
+.input(
+  "can_approve_po_links",
+  sql.Bit,
+  payload.can_approve_po_links,
+)
     .input("can_request_transfer", sql.Bit, payload.can_request_transfer)
     .input("can_approve_budget", sql.Bit, payload.can_approve_budget)
     .input("can_approve_transfer", sql.Bit, payload.can_approve_transfer)
@@ -111,7 +133,10 @@ export async function createBudgetAccessAssignmentRepo(payload) {
 
         can_view_budget,
         can_edit_budget,
-        can_link_po,
+      can_view_po_links,
+can_request_po_links,
+can_view_all_po_link_requests,
+can_approve_po_links,
         can_request_transfer,
         can_approve_budget,
         can_approve_transfer,
@@ -129,7 +154,10 @@ export async function createBudgetAccessAssignmentRepo(payload) {
 
         @can_view_budget,
         @can_edit_budget,
-        @can_link_po,
+      @can_view_po_links,
+@can_request_po_links,
+@can_view_all_po_link_requests,
+@can_approve_po_links,
         @can_request_transfer,
         @can_approve_budget,
         @can_approve_transfer,
@@ -155,7 +183,26 @@ export async function updateBudgetAccessAssignmentRepo(id, payload) {
 
     .input("can_view_budget", sql.Bit, payload.can_view_budget)
     .input("can_edit_budget", sql.Bit, payload.can_edit_budget)
-    .input("can_link_po", sql.Bit, payload.can_link_po)
+   .input(
+  "can_view_po_links",
+  sql.Bit,
+  payload.can_view_po_links,
+)
+.input(
+  "can_request_po_links",
+  sql.Bit,
+  payload.can_request_po_links,
+)
+.input(
+  "can_view_all_po_link_requests",
+  sql.Bit,
+  payload.can_view_all_po_link_requests,
+)
+.input(
+  "can_approve_po_links",
+  sql.Bit,
+  payload.can_approve_po_links,
+)
     .input("can_request_transfer", sql.Bit, payload.can_request_transfer)
     .input("can_approve_budget", sql.Bit, payload.can_approve_budget)
     .input("can_approve_transfer", sql.Bit, payload.can_approve_transfer)

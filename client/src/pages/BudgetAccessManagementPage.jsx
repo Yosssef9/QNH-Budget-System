@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import {
+import { 	
+
   Plus,
   RefreshCcw,
   Save,
@@ -31,7 +32,10 @@ import toast from "react-hot-toast";
 const permissionFields = [
   { key: "can_view_budget", label: "View Budget" },
   { key: "can_edit_budget", label: "Edit Budget" },
-  { key: "can_link_po", label: "Link PO" },
+ { key: "can_view_po_links", label: "View his department PO Links" },
+{ key: "can_request_po_links", label: "Request PO Links" },
+{ key: "can_view_all_po_link_requests", label: "View All PO Link Requests" },
+{ key: "can_approve_po_links", label: "Approve PO Links" },
   { key: "can_request_transfer", label: "Request Transfer" },
   { key: "can_approve_budget", label: "Approve Budget" },
   { key: "can_approve_transfer", label: "Approve Transfer" },

@@ -7,6 +7,7 @@ export async function getUsersByPermissionRepo(permissionColumn) {
     "can_approve_budget",
     "can_manage_categories",
     "can_manage_financial_years",
+    "can_approve_po_links",
   ];
 
   if (!allowedPermissions.includes(permissionColumn)) {
@@ -21,13 +22,15 @@ export async function getUsersByPermissionRepo(permissionColumn) {
       u.USER_NAME,
       u.email
     FROM BS_budget_user_roles r
+    LEFT JOIN BS_budget_role_permissions brp
+      ON brp.role_id = r.role_id
     INNER JOIN USERS u
       ON u.USER_ID = r.user_id
     WHERE
       r.is_active = 1
       AND u.IS_ACTIVE = 1
       AND u.email IS NOT NULL
-      AND r.${permissionColumn} = 1
+      AND COALESCE(r.${permissionColumn}, brp.${permissionColumn}, 0) = 1
   `);
 
   return result.recordset;
@@ -111,6 +114,24 @@ export async function getItemRequestOwnerRepo(requestId) {
       INNER JOIN USERS u
         ON u.USER_ID = r.requested_by
       WHERE r.id = @requestId
+    `);
+
+  return result.recordset;
+}
+
+export async function getPOLinkRequesterRepo(poLinkId) {
+  const pool = await poolPromise;
+
+  const result = await pool.request().input("poLinkId", sql.BigInt, poLinkId)
+    .query(`
+      SELECT TOP 1
+        U.USER_ID,
+        U.USER_NAME,
+        U.email
+      FROM BS_PO_LINKS PL
+      INNER JOIN USERS U
+        ON U.USER_ID = PL.REQUESTED_BY
+      WHERE PL.ID = @poLinkId
     `);
 
   return result.recordset;

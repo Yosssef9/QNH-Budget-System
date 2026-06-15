@@ -57,4 +57,18 @@ export const NOTIFICATION_CONFIG = {
   [NOTIFICATION_TYPES.FINANCIAL_YEAR_CLOSED]: {
     strategy: "BROADCAST",
   },
+  [NOTIFICATION_TYPES.PO_LINK_SUBMITTED]: {
+    strategy: "PERMISSION",
+    permission: "can_approve_po_links",
+  },
+
+  [NOTIFICATION_TYPES.PO_LINK_APPROVED]: {
+    strategy: "OWNER",
+    ownerType: "PO_LINK",
+  },
+
+  [NOTIFICATION_TYPES.PO_LINK_REJECTED]: {
+    strategy: "OWNER",
+    ownerType: "PO_LINK",
+  },
 };

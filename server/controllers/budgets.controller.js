@@ -1,6 +1,9 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/apiResponse.js";
-import { validateCreateBudget } from "../validators/budgets.validator.js";
+import {
+  validateBudgetItemId,
+  validateCreateBudget,
+} from "../validators/budgets.validator.js";
 import {
   createBudgetService,
   getMyBudgetsService,
@@ -13,7 +16,10 @@ import {
 import { getBudgetReviewFeedbackService } from "../services/budgetReviewFeedback.service.js";
 import { getBudgetTimelineService } from "../services/budgetTimeline.service.js";
 import { auditLog } from "../utils/audit.js";
-import { getBudgetBalanceSummaryService } from "../services/budgetBalance.service.js";
+import {
+  getBudgetBalanceSummaryService,
+  getBudgetItemPOLinksService,
+} from "../services/budgetBalance.service.js";
 
 export async function getCurrentBudget(req, res, next) {
   try {
@@ -169,3 +175,17 @@ export async function getBudgetBalanceSummary(req, res) {
     }),
   );
 }
+
+export const getBudgetItemPOLinks = asyncHandler(async (req, res) => {
+  const result = await getBudgetItemPOLinksService({
+    budgetItemId: validateBudgetItemId(req.params.budgetItemId),
+    budgetAccess: req.budgetAccess,
+  });
+
+  return res.json(
+    new ApiResponse({
+      message: "Budget item PO links fetched successfully",
+      data: result,
+    }),
+  );
+});

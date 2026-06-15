@@ -7,6 +7,7 @@ import {
   getDashboardItemRequests,
 } from "../../api/budget.api";
 import { getTransferDashboard } from "../../api/transfer.api";
+import { getPODashboard } from "../../api/po.api";
 import { useActiveFinancialYear } from "../financial-years/useFinancialYears";
 import { toNumber } from "../../utils/number";
 
@@ -46,6 +47,11 @@ export function useDashboardData() {
     queryKey: ["dashboard", "transfer-requests"],
     queryFn: getTransferDashboard,
   });
+  const { data: dashboardPOLinks = null } = useQuery({
+    queryKey: ["dashboard", "po-links"],
+    queryFn: getPODashboard,
+    refetchOnWindowFocus: true,
+  });
   return {
     activeYear,
     currentBudget,
@@ -54,6 +60,7 @@ export function useDashboardData() {
     dashboardStats,
     dashboardItemRequests,
     dashboardTransfers,
+    dashboardPOLinks,
     isLoading: loadingBudget || loadingItems,
   };
 }

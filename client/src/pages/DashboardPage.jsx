@@ -14,27 +14,33 @@ import { formatDate } from "../utils/dateFormatters";
 import {
   getBudgetStatusLabel,
   getBudgetStatusStyle,
+  getPOLinkStatusLabel,
+  getPOLinkStatusStyle,
 } from "../theme/statusStyles";
 import PendingBadge from "../components/dashboard/PendingBadge";
+import CurrencyText from "../components/CurrencyText";
 export default function DashboardPage() {
   const { user, budgetAccess } = useAuth();
   const navigate = useNavigate();
   const roleLabel = getUserRoleLabel(budgetAccess);
 
   const dashboardData = useDashboardData();
-  console.log("dashboardData", dashboardData);
-  console.log("dashboardTransfers", dashboardData.dashboardTransfers);
   const stats = getDashboardStatsCards(budgetAccess, dashboardData);
   const quickActions = getQuickActions(budgetAccess);
   const workPanels = getWorkPanels(budgetAccess);
 
   const itemRequestPanel = dashboardData.dashboardItemRequests;
   const transferPanel = dashboardData.dashboardTransfers;
+  const poPanel = dashboardData.dashboardPOLinks;
 
   const transferRequests = transferPanel?.requests || [];
+  const poRequests = poPanel?.requests || [];
 
   const pendingTransferCount = transferRequests.filter(
     (item) => item.status === "PENDING_APPROVAL",
+  ).length;
+  const pendingPOCount = poRequests.filter(
+    (item) => item.status === "PENDING",
   ).length;
   const itemRequests = itemRequestPanel?.requests || [];
   const pendingCount = itemRequests.filter(
@@ -95,6 +101,7 @@ export default function DashboardPage() {
           );
 
           const isTransferPanel = panel.title.includes("Transfer Requests");
+          const isPOPanel = panel.title.includes("PO Link Requests");
 
           return (
             <CollapsibleSection
@@ -118,6 +125,8 @@ export default function DashboardPage() {
                     count={pendingTransferCount}
                     label="Pending Transfer"
                   />
+                ) : isPOPanel && pendingPOCount > 0 ? (
+                  <PendingBadge count={pendingPOCount} label="Pending PO" />
                 ) : null
               }
             >
@@ -225,7 +234,7 @@ export default function DashboardPage() {
                             </p>
 
                             <p className="mt-1 text-xs font-semibold text-slate-500">
-                              →{item.to_item_name}
+                              -&gt; {item.to_item_name}
                             </p>
 
                             {item.department_name && (
@@ -253,6 +262,72 @@ export default function DashboardPage() {
                             }`}
                           >
                             {getBudgetStatusLabel(item.status)}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : isPOPanel ? (
+                <div className="enterprise-scrollbar max-h-[420px] space-y-3 overflow-y-auto scroll-smooth pr-2">
+                  {poRequests.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm font-semibold text-slate-500">
+                      {poPanel?.mode === "APPROVER_PENDING"
+                        ? "No pending PO link requests."
+                        : "No PO link requests found."}
+                    </div>
+                  ) : (
+                    poRequests.map((item) => (
+                      <div
+                        key={item.id}
+                        onClick={() =>
+                          navigate(
+                            poPanel?.mode === "APPROVER_PENDING"
+                              ? "/po-approvals"
+                              : "/po-linking",
+                          )
+                        }
+                        className="cursor-pointer rounded-2xl border border-slate-200 bg-slate-50 p-4 transition-all hover:border-blue-300 hover:bg-blue-50 hover:shadow-md"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-bold text-slate-900">
+                              {item.budget_type_name || "-"}
+                            </p>
+
+                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                              PO Item: {item.item_description || "-"}
+                            </p>
+
+                            {item.department_name && (
+                              <p className="mt-1 text-xs font-semibold text-slate-500">
+                                Department: {item.department_name}
+                              </p>
+                            )}
+
+                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                              Requested Qty: {item.requested_qty || 0}
+                            </p>
+
+                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                              Linked Amount:{" "}
+                              <CurrencyText value={item.linked_amount || 0} />
+                            </p>
+
+                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                              Requested At:{" "}
+                              {item.requested_at
+                                ? formatDate(item.requested_at)
+                                : "-"}
+                            </p>
+                          </div>
+
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-bold ${
+                              getPOLinkStatusStyle(item.status).badge
+                            }`}
+                          >
+                            {getPOLinkStatusLabel(item.status)}
                           </span>
                         </div>
                       </div>

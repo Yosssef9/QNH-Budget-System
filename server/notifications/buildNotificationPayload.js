@@ -16,7 +16,10 @@ export async function buildNotificationPayload(notificationType, payload) {
     case NOTIFICATION_TYPES.ITEM_REQUEST_APPROVED:
     case NOTIFICATION_TYPES.ITEM_REQUEST_REJECTED:
       return payload;
-
+    case NOTIFICATION_TYPES.PO_LINK_SUBMITTED:
+    case NOTIFICATION_TYPES.PO_LINK_APPROVED:
+    case NOTIFICATION_TYPES.PO_LINK_REJECTED:
+      return payload;
     default:
       return payload;
   }

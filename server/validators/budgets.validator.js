@@ -23,3 +23,7 @@ export function validateCreateBudget(body = {}) {
     departmentId,
   };
 }
+
+export function validateBudgetItemId(value) {
+  return toPositiveInt(value, "budgetItemId");
+}

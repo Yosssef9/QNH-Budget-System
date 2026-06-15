@@ -10,10 +10,15 @@ export function getWorkPanels(budgetAccess) {
         can(budgetAccess, "can_edit_budget"),
     },
     {
-      title: "PO Linking",
+      title: "My PO Link Requests",
       description:
-        "Approved CareWare PO lines ready for linking will appear here.",
-      show: can(budgetAccess, "can_link_po"),
+        "Submitted PO link requests and their approval status will appear here.",
+      show: can(budgetAccess, "can_request_po_links"),
+    },
+    {
+      title: "Pending PO Link Requests",
+      description: "PO link requests waiting for your approval will appear here.",
+      show: can(budgetAccess, "can_approve_po_links"),
     },
 
     {

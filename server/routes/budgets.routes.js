@@ -8,6 +8,7 @@ import {
   getBudgetTimeline,
   getBudgetDetails,
   getBudgetBalanceSummary,
+  getBudgetItemPOLinks,
   getApprovedBudgetHistory,
   getBudgetHistoryItems,
 } from "../controllers/budgets.controller.js";
@@ -43,6 +44,13 @@ router.get(
   requirePermission("can_edit_budget"),
   getBudgetHistoryItems,
 );
+
+router.get(
+  "/items/:budgetItemId/po-links",
+  requirePermission("can_view_budget"),
+  getBudgetItemPOLinks,
+);
+
 router.get(
   "/:budgetId/review-feedback",
   requirePermission("can_view_budget"),

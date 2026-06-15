@@ -48,6 +48,11 @@ FROM BS_budget_transfers
 WHERE status = 'PENDING_APPROVAL';
 
 SELECT
+  COUNT(*) AS pending_po_links
+FROM BS_PO_LINKS
+WHERE STATUS = 'PENDING';
+
+SELECT
   COUNT(*) AS system_users
 FROM BS_budget_user_roles
 WHERE is_active = 1;
@@ -59,6 +64,7 @@ WHERE is_active = 1;
     approvedAmount: result.recordsets[2]?.[0] || {},
     itemRequests: result.recordsets[3]?.[0] || {},
     transferRequests: result.recordsets[4]?.[0] || {},
-    users: result.recordsets[5]?.[0] || {},
+    poLinks: result.recordsets[5]?.[0] || {},
+    users: result.recordsets[6]?.[0] || {},
   };
 }

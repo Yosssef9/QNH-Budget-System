@@ -1,9 +1,10 @@
 import { memo } from "react";
-
 import { formatNumber } from "../../../utils/formatters";
 import CurrencyText from "../../../components/CurrencyText";
 import BudgetMethodBadge from "../../../components/budgets/shared/BudgetMethodBadge";
 import CreatedFromTransferBadge from "../../CreatedFromTransferBadge";
+import SortableHeader from "../../SortableHeader";
+import useTableSort from "../../../hooks/useTableSort";
 
 function BudgetItemsTable({
   items = [],
@@ -12,6 +13,11 @@ function BudgetItemsTable({
   onItemNoteChange,
   readOnly = true,
 }) {
+  const { sortedRows, sortColumn, sortDirection, handleSort } = useTableSort(
+    items,
+    "total_amount",
+    "desc",
+  );
   return (
     <div
       className="
@@ -35,33 +41,68 @@ function BudgetItemsTable({
           <tr className="text-slate-700">
             <th className="w-[70px] border border-slate-200 px-3 py-4">#</th>
 
-            <th className="w-[220px] border border-slate-200 px-4 py-4">
-              Category
-            </th>
+            <SortableHeader
+              label="Category"
+              column="category_name"
+              sortColumn={sortColumn}
+              sortDirection={sortDirection}
+              onSort={handleSort}
+              className="w-[220px]"
+            />
 
-            <th className="w-[260px] border border-slate-200 px-4 py-4">
-              Item / Type
-            </th>
+            <SortableHeader
+              label="Item / Type"
+              column="type_name"
+              sortColumn={sortColumn}
+              sortDirection={sortDirection}
+              onSort={handleSort}
+              className="w-[260px]"
+            />
 
-            <th className="w-[140px] border border-slate-200 px-4 py-4">
-              Expense
-            </th>
+            <SortableHeader
+              label="Expense"
+              column="expense_type"
+              sortColumn={sortColumn}
+              sortDirection={sortDirection}
+              onSort={handleSort}
+              className="w-[140px]"
+            />
 
-            <th className="w-[160px] border border-slate-200 px-4 py-4">
-              Method
-            </th>
+            <SortableHeader
+              label="Method"
+              column="distribution_method"
+              sortColumn={sortColumn}
+              sortDirection={sortDirection}
+              onSort={handleSort}
+              className="w-[160px]"
+            />
 
-            <th className="w-[140px] border border-slate-200 px-4 py-4">
-              Quantity
-            </th>
+            <SortableHeader
+              label="Quantity"
+              column="quantity"
+              sortColumn={sortColumn}
+              sortDirection={sortDirection}
+              onSort={handleSort}
+              className="w-[140px]"
+            />
 
-            <th className="w-[140px] border border-slate-200 px-4 py-4">
-              Unit Price
-            </th>
+            <SortableHeader
+              label="Unit Price"
+              column="unit_price"
+              sortColumn={sortColumn}
+              sortDirection={sortDirection}
+              onSort={handleSort}
+              className="w-[140px]"
+            />
 
-            <th className="w-[160px] border border-slate-200 px-4 py-4">
-              Total Amount
-            </th>
+            <SortableHeader
+              label="Total Amount"
+              column="total_amount"
+              sortColumn={sortColumn}
+              sortDirection={sortDirection}
+              onSort={handleSort}
+              className="w-[160px]"
+            />
 
             {showNotes && (
               <th className="w-[300px] border border-slate-200 px-4 py-4">
@@ -72,7 +113,7 @@ function BudgetItemsTable({
         </thead>
 
         <tbody>
-          {items.map((item, index) => (
+          {sortedRows.map((item, index) => (
             <tr
               key={item.id}
               id={`budget-item-row-${item.id}`}

@@ -1,12 +1,18 @@
 import { AnimatePresence, motion } from "framer-motion";
+import { createPortal } from "react-dom";
 
 export default function AnimatedDrawer({
   open,
   onClose,
   children,
   maxWidth = "max-w-7xl",
+  fullScreen = false,
 }) {
-  return (
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(
     <AnimatePresence mode="wait">
       {open && (
         <>
@@ -16,7 +22,7 @@ export default function AnimatedDrawer({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="fixed inset-0 z-[9998] bg-black/40 backdrop-blur-[3px]"
+            className="fixed inset-0 z-[99998] bg-black/40"
           />
 
           <motion.div
@@ -29,20 +35,22 @@ export default function AnimatedDrawer({
             }}
             className={`
               fixed
-              right-0
-              top-0
-              z-[9999]
-              h-screen
-              w-full
-              ${maxWidth}
+              inset-0
+              z-[99999]
               bg-white
               shadow-2xl
+              ${
+                fullScreen
+                  ? "w-screen h-screen"
+                  : `right-0 top-0 h-screen w-full ${maxWidth}`
+              }
             `}
           >
             {children}
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

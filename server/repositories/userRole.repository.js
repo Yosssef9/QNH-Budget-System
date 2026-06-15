@@ -13,17 +13,29 @@ export async function getBudgetAccessByUserId(userId) {
       bur.role_id,
       br.name AS role_name,
 
-      COALESCE(bur.can_view_budget, brp.can_view_budget, 0) AS can_view_budget,
-      COALESCE(bur.can_edit_budget, brp.can_edit_budget, 0) AS can_edit_budget,
-      COALESCE(bur.can_link_po, brp.can_link_po, 0) AS can_link_po,
-      COALESCE(bur.can_request_transfer, brp.can_request_transfer, 0) AS can_request_transfer,
-      COALESCE(bur.can_approve_budget, brp.can_approve_budget, 0) AS can_approve_budget,
-      COALESCE(bur.can_approve_transfer, brp.can_approve_transfer, 0) AS can_approve_transfer,
-      COALESCE(bur.can_manage_users, brp.can_manage_users, 0) AS can_manage_users,
-      COALESCE(bur.can_manage_categories, brp.can_manage_categories, 0) AS can_manage_categories,
-      COALESCE(bur.can_view_reports, brp.can_view_reports, 0) AS can_view_reports,
-      COALESCE(bur.can_manage_financial_years, brp.can_manage_financial_years, 0) AS can_manage_financial_years
+COALESCE(bur.can_view_budget, brp.can_view_budget, 0) AS can_view_budget,
+COALESCE(bur.can_edit_budget, brp.can_edit_budget, 0) AS can_edit_budget,
 
+COALESCE(bur.can_view_po_links, brp.can_view_po_links, 0) AS can_view_po_links,
+COALESCE(bur.can_request_po_links, brp.can_request_po_links, 0) AS can_request_po_links,
+COALESCE(
+  bur.can_view_all_po_link_requests,
+  brp.can_view_all_po_link_requests,
+  0
+) AS can_view_all_po_link_requests,
+COALESCE(
+  bur.can_approve_po_links,
+  brp.can_approve_po_links,
+  0
+) AS can_approve_po_links,
+
+COALESCE(bur.can_request_transfer, brp.can_request_transfer, 0) AS can_request_transfer,
+COALESCE(bur.can_approve_budget, brp.can_approve_budget, 0) AS can_approve_budget,
+COALESCE(bur.can_approve_transfer, brp.can_approve_transfer, 0) AS can_approve_transfer,
+COALESCE(bur.can_manage_users, brp.can_manage_users, 0) AS can_manage_users,
+COALESCE(bur.can_manage_categories, brp.can_manage_categories, 0) AS can_manage_categories,
+COALESCE(bur.can_view_reports, brp.can_view_reports, 0) AS can_view_reports,
+COALESCE(bur.can_manage_financial_years, brp.can_manage_financial_years, 0) AS can_manage_financial_years
     FROM BS_budget_user_roles bur
     LEFT JOIN BS_departments d
       ON d.id = bur.department_id
@@ -62,7 +74,12 @@ export async function getBudgetAccessByUserId(userId) {
     permissions: {
       can_view_budget: Boolean(row.can_view_budget),
       can_edit_budget: Boolean(row.can_edit_budget),
-      can_link_po: Boolean(row.can_link_po),
+
+      can_view_po_links: Boolean(row.can_view_po_links),
+      can_request_po_links: Boolean(row.can_request_po_links),
+      can_view_all_po_link_requests: Boolean(row.can_view_all_po_link_requests),
+      can_approve_po_links: Boolean(row.can_approve_po_links),
+
       can_request_transfer: Boolean(row.can_request_transfer),
       can_approve_budget: Boolean(row.can_approve_budget),
       can_approve_transfer: Boolean(row.can_approve_transfer),

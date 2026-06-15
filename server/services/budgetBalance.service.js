@@ -2,6 +2,7 @@ import { ApiError } from "../utils/apiError.js";
 import {
   getBudgetItemBalanceRepo,
   getBudgetBalanceSummaryRepo,
+  getBudgetItemPOLinksRepo,
 } from "../repositories/budgetBalance.repository.js";
 
 export async function calculateItemBalance(itemId) {
@@ -93,4 +94,39 @@ export async function getBudgetBalanceSummaryService(budgetId) {
   }
 
   return result;
+}
+
+export async function getBudgetItemPOLinksService({
+  budgetItemId,
+  budgetAccess,
+}) {
+  const result = await getBudgetItemPOLinksRepo(budgetItemId);
+
+  if (!result) {
+    throw new ApiError(404, "Budget item not found", "BUDGET_ITEM_NOT_FOUND");
+  }
+
+  const canSeeAll =
+    budgetAccess.isGlobalAdmin === true ||
+    budgetAccess.permissions?.can_approve_budget === true;
+
+  const userDepartmentId = budgetAccess.department?.id || null;
+
+  if (!canSeeAll && result.budgetItem.department_id !== userDepartmentId) {
+    throw new ApiError(
+      403,
+      "You cannot access PO links for this budget item",
+      "FORBIDDEN",
+    );
+  }
+
+  return {
+    budgetItem: result.budgetItem,
+    summary: {
+      approvedLinkCount: result.links.length,
+      totalPOUsed: Number(result.budgetItem.total_po_used || 0),
+      totalLinkedQuantity: Number(result.budgetItem.total_linked_quantity || 0),
+    },
+    links: result.links,
+  };
 }

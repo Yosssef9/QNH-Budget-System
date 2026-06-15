@@ -5,17 +5,13 @@ export default function useTableSort(
   defaultColumn = null,
   defaultDirection = "asc",
 ) {
-  const [sortColumn, setSortColumn] =
-    useState(defaultColumn);
+  const [sortColumn, setSortColumn] = useState(defaultColumn);
 
-  const [sortDirection, setSortDirection] =
-    useState(defaultDirection);
+  const [sortDirection, setSortDirection] = useState(defaultDirection);
 
   function handleSort(column) {
     if (sortColumn === column) {
-      setSortDirection((prev) =>
-        prev === "asc" ? "desc" : "asc",
-      );
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
       return;
     }
 
@@ -33,22 +29,16 @@ export default function useTableSort(
       if (aValue == null) return 1;
       if (bValue == null) return -1;
 
-      if (
-        typeof aValue === "number" &&
-        typeof bValue === "number"
-      ) {
-        return sortDirection === "asc"
-          ? aValue - bValue
-          : bValue - aValue;
+      const aNum = Number(aValue);
+      const bNum = Number(bValue);
+
+      if (!Number.isNaN(aNum) && !Number.isNaN(bNum)) {
+        return sortDirection === "asc" ? aNum - bNum : bNum - aNum;
       }
 
       return sortDirection === "asc"
-        ? String(aValue).localeCompare(
-            String(bValue),
-          )
-        : String(bValue).localeCompare(
-            String(aValue),
-          );
+        ? String(aValue).localeCompare(String(bValue))
+        : String(bValue).localeCompare(String(aValue));
     });
   }, [rows, sortColumn, sortDirection]);
 

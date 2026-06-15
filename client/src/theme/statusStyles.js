@@ -101,3 +101,35 @@ export function getFinancialYearStatusStyle(status) {
     }
   );
 }
+
+export const PO_LINK_STATUS_LABELS = {
+  PENDING: "Pending",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+};
+
+export const PO_LINK_STATUS_STYLES = {
+  PENDING: {
+    badge:
+      "border-amber-200 bg-amber-50 text-amber-700 ring-1 ring-amber-100/60",
+  },
+  APPROVED: {
+    badge:
+      "border-emerald-200 bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100/60",
+  },
+  REJECTED: {
+    badge: "border-red-200 bg-red-50 text-red-700 ring-1 ring-red-100/60",
+  },
+};
+
+export function getPOLinkStatusLabel(status) {
+  return PO_LINK_STATUS_LABELS[status] || formatStatus(status) || "Unknown";
+}
+
+export function getPOLinkStatusStyle(status) {
+  return (
+    PO_LINK_STATUS_STYLES[status] || {
+      badge: "border-slate-200 bg-slate-100 text-slate-700",
+    }
+  );
+}

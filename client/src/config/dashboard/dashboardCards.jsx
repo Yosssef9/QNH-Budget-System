@@ -15,6 +15,10 @@ export function getDashboardStatsCards(
     can(
       budgetAccess,
       "can_manage_users"
+    ) ||
+    can(
+      budgetAccess,
+      "can_approve_po_links"
     );
 
   const isHod =

@@ -3,13 +3,19 @@ import { ApiError } from "../utils/apiError.js";
 const permissionFields = [
   "can_view_budget",
   "can_edit_budget",
-  "can_link_po",
+
+  "can_view_po_links",
+  "can_request_po_links",
+  "can_view_all_po_link_requests",
+  "can_approve_po_links",
+
   "can_request_transfer",
   "can_approve_budget",
   "can_approve_transfer",
   "can_manage_users",
   "can_manage_categories",
   "can_view_reports",
+  "can_manage_financial_years",
 ];
 
 function isValidNullableBoolean(value) {

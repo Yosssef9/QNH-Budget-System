@@ -1,14 +1,16 @@
+import CompanySelectionPage from "./pages/CompanySelectionPage";
 import AppRouter from "./routes/AppRouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+
 
 const queryClient = new QueryClient();
 
 export default function App() {
+  const selectedCompany = localStorage.getItem("selectedCompany");
+
   return (
     <QueryClientProvider client={queryClient}>
-      <AppRouter />
-      {/* <ReactQueryDevtools initialIsOpen={false} /> */}
+      {!selectedCompany ? <CompanySelectionPage /> : <AppRouter />}
     </QueryClientProvider>
   );
 }

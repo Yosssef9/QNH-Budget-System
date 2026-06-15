@@ -1,5 +1,3 @@
-import React from "react";
-
 import {
   Building2,
   CheckCircle2,
@@ -7,6 +5,7 @@ import {
   Tags,
   Users,
   ArrowRightLeft,
+  Link2,
 } from "lucide-react";
 
 import CurrencyText from "../../components/CurrencyText";
@@ -17,6 +16,9 @@ import { createFinancialYearCard } from "./commonCards";
 
 export function getAdminCards(budgetAccess, dashboardData) {
   const dashboardStats = dashboardData.dashboardStats;
+  const pendingPOLinkCount = (
+    dashboardData.dashboardPOLinks?.requests || []
+  ).filter((request) => request.status === "PENDING").length;
 
   return [
     createFinancialYearCard(dashboardData.activeYear),
@@ -92,6 +94,19 @@ export function getAdminCards(budgetAccess, dashboardData) {
           ? "pending"
           : null,
       show: can(budgetAccess, "can_approve_transfer"),
+    },
+    {
+      title: "Pending PO Link Requests",
+
+      value: pendingPOLinkCount,
+
+      description: "PO link requests waiting for approval",
+
+      icon: Link2,
+
+      route: "/po-approvals",
+      highlight: pendingPOLinkCount > 0 ? "pending" : null,
+      show: can(budgetAccess, "can_approve_po_links"),
     },
     {
       title: "System Users",

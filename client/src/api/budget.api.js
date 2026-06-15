@@ -123,6 +123,21 @@ export async function getBudgetBalanceSummary(budgetId) {
 
   return response.data?.data || [];
 }
+
+export async function getBudgetItemPOLinks(budgetItemId) {
+  const response = await api.get(`/budgets/items/${budgetItemId}/po-links`);
+
+  return (
+    response.data?.data || {
+      budgetItem: null,
+      summary: {
+        approvedLinkCount: 0,
+        totalPOUsed: 0,
+      },
+      links: [],
+    }
+  );
+}
 export async function getAvailableTransferTypes() {
   const response = await api.get("/budget-items/available-transfer-types");
 

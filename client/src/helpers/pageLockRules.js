@@ -1,4 +1,20 @@
 export function getTransferPageLock(budgets = []) {
+  return getPreClosingApprovedBudgetPageLock(budgets, {
+    title: "Transfers Locked",
+    message:
+      "Transfer requests are not available right now because the transfer requirements are not completed.",
+  });
+}
+
+export function getPOLinkPageLock(budgets = []) {
+  return getPreClosingApprovedBudgetPageLock(budgets, {
+    title: "PO Linking Locked",
+    message:
+      "PO linking is not available right now because the PO linking requirements are not completed.",
+  });
+}
+
+function getPreClosingApprovedBudgetPageLock(budgets = [], config) {
   const hasApprovedPreClosingBudget = budgets.some(
     (budget) =>
       budget.status === "APPROVED" &&
@@ -34,9 +50,8 @@ export function getTransferPageLock(budgets = []) {
 
   return {
     locked: true,
-    title: "Transfers Locked",
-    message:
-      "Transfer requests are not available right now because the transfer requirements are not completed.",
+    title: config.title,
+    message: config.message,
     reasons,
   };
 }

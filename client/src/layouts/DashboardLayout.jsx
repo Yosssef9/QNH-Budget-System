@@ -195,6 +195,7 @@ import {
   Tags,
   History,
   Repeat2,
+  Link2,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useUnsavedChanges } from "../context/UnsavedChangesContext";
@@ -236,6 +237,16 @@ function getSidebarSections(budgetAccess) {
           show:
             permissions.can_request_transfer ||
             permissions.can_approve_transfer,
+        },
+        {
+          label: "PO Links",
+          path: permissions.can_approve_po_links
+            ? "/po-approvals"
+            : "/po-linking",
+          icon: Link2,
+          show:
+            permissions.can_request_po_links ||
+            permissions.can_approve_po_links,
         },
         {
           label: "Reports",

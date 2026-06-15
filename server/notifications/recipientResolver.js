@@ -6,6 +6,7 @@ import {
   getTransferRequesterRepo,
   getBudgetOwnerRepo,
   getItemRequestOwnerRepo,
+  getPOLinkRequesterRepo,
 } from "../repositories/notificationRecipients.repository.js";
 
 export async function resolveRecipients(notificationType, payload) {
@@ -32,6 +33,8 @@ export async function resolveRecipients(notificationType, payload) {
 
         case "ITEM_REQUEST":
           return getItemRequestOwnerRepo(payload.requestId);
+        case "PO_LINK":
+          return getPOLinkRequesterRepo(payload.poLinkId);
 
         default:
           return [];

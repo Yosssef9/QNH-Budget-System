@@ -16,6 +16,7 @@ createRoot(document.getElementById("root")).render(
         containerStyle={{
           top: 20,
           right: 20,
+          zIndex: 999999,
         }}
         toastOptions={{
           duration: 3500,

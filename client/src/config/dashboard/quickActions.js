@@ -37,9 +37,9 @@ export function getQuickActions(budgetAccess) {
     {
       title: "Link Approved PO",
       description: "Connect approved CareWare PO lines to budget items.",
-      path: "/budgets",
+      path: "/po-linking",
       icon: Link2,
-      show: can(budgetAccess, "can_link_po"),
+      show: can(budgetAccess, "can_request_po_links"),
     },
     {
       title: "Request Transfer",
@@ -61,6 +61,13 @@ export function getQuickActions(budgetAccess) {
       path: "/transfers/approvals",
       icon: Repeat2,
       show: can(budgetAccess, "can_approve_transfer"),
+    },
+    {
+      title: "Approve PO Links",
+      description: "Approve or reject PO link requests.",
+      path: "/po-approvals",
+      icon: ShieldCheck,
+      show: can(budgetAccess, "can_approve_po_links"),
     },
     {
       title: "User Access",

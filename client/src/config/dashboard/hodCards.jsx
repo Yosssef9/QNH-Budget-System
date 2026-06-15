@@ -1,7 +1,14 @@
 import React from "react";
-import { AlertTriangle, Building2, CheckCircle2, Wallet } from "lucide-react";
+import {
+  AlertTriangle,
+  Building2,
+  CheckCircle2,
+  Link2,
+  Wallet,
+} from "lucide-react";
 
 import CurrencyText from "../../components/CurrencyText";
+import { can } from "../../helpers/permissions";
 
 import {
   getBudgetStatusLabel,
@@ -60,5 +67,16 @@ export function getHodCards(budgetAccess, dashboardData) {
       description: `${dashboardData.budgetItems.length} item(s) in your current budget`,
       icon: Wallet,
     },
+    ...(can(budgetAccess, "can_request_po_links")
+      ? [
+          {
+            title: "PO Link Requests",
+            value: "Open",
+            description: "Submit and track PO link requests during pre-closing.",
+            icon: Link2,
+            route: "/po-linking",
+          },
+        ]
+      : []),
   ];
 }

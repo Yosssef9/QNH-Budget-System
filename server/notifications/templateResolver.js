@@ -15,7 +15,9 @@ import { itemRequestRejectedTemplate } from "./templates/itemRequestRejected.tem
 import { financialYearOpenedTemplate } from "./templates/financialYearOpened.template.js";
 import { financialYearPreClosingTemplate } from "./templates/financialYearPreClosing.template.js";
 import { financialYearClosedTemplate } from "./templates/financialYearClosed.template.js";
-
+import { poLinkSubmittedTemplate } from "./templates/poLinkSubmitted.template.js";
+import { poLinkApprovedTemplate } from "./templates/poLinkApproved.template.js";
+import { poLinkRejectedTemplate } from "./templates/poLinkRejected.template.js";
 export function resolveTemplate(notificationType, payload) {
   switch (notificationType) {
     case NOTIFICATION_TYPES.TRANSFER_CREATED:
@@ -53,7 +55,14 @@ export function resolveTemplate(notificationType, payload) {
 
     case NOTIFICATION_TYPES.FINANCIAL_YEAR_CLOSED:
       return financialYearClosedTemplate(payload);
+    case NOTIFICATION_TYPES.PO_LINK_SUBMITTED:
+      return poLinkSubmittedTemplate(payload);
 
+    case NOTIFICATION_TYPES.PO_LINK_APPROVED:
+      return poLinkApprovedTemplate(payload);
+
+    case NOTIFICATION_TYPES.PO_LINK_REJECTED:
+      return poLinkRejectedTemplate(payload);
     default:
       throw new Error(`Unknown notification type: ${notificationType}`);
   }

@@ -8,6 +8,7 @@ import BudgetCompactSummaryPanel from "../../components/budgets/shared/BudgetCom
 import BudgetHeaderCard from "../../components/budgets/shared/BudgetHeaderCard";
 import BudgetItemsTable from "../../components/budgets/shared/BudgetItemsTable";
 import BudgetBalanceSummaryTable from "../../components/budgets/shared/BudgetBalanceSummaryTable";
+import BudgetItemPOLinksDrawer from "../../components/budgets/shared/drawers/BudgetItemPOLinksDrawer";
 
 import CollapsibleSection from "../../components/CollapsibleSection";
 
@@ -33,9 +34,7 @@ export default function BudgetViewPage() {
   const [selectedMethods, setSelectedMethods] = useState([]);
   const [balanceSearch, setBalanceSearch] = useState("");
 
-  const [balanceCategories, setBalanceCategories] = useState([]);
-
-  const [balanceMethods, setBalanceMethods] = useState([]);
+  const [selectedPOBudgetItem, setSelectedPOBudgetItem] = useState(null);
   const categoryOptions = useMemo(() => {
     const map = new Map();
 
@@ -211,8 +210,6 @@ export default function BudgetViewPage() {
                 type="button"
                 onClick={() => {
                   setBalanceSearch("");
-                  setBalanceCategories([]);
-                  setBalanceMethods([]);
                 }}
                 className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
               >
@@ -221,7 +218,10 @@ export default function BudgetViewPage() {
             </div>
           </div>
 
-          <BudgetBalanceSummaryTable items={filteredBalanceSummary} />
+          <BudgetBalanceSummaryTable
+            items={filteredBalanceSummary}
+            onViewLinkedPOs={setSelectedPOBudgetItem}
+          />
         </>
       </CollapsibleSection>
 
@@ -299,6 +299,12 @@ export default function BudgetViewPage() {
 
         <BudgetItemsTable items={filteredItems} readOnly />
       </CollapsibleSection>
+
+      <BudgetItemPOLinksDrawer
+        open={Boolean(selectedPOBudgetItem)}
+        budgetItemId={selectedPOBudgetItem?.itemId}
+        onClose={() => setSelectedPOBudgetItem(null)}
+      />
     </div>
   );
 }

@@ -22,7 +22,7 @@ const router = createBrowserRouter([
         </UnsavedChangesProvider>
       </RequireAuth>
     ),
-    errorElement: <ErrorPage />,
+    // errorElement: <ErrorPage />,
 
     children: [
       {
@@ -203,6 +203,36 @@ const router = createBrowserRouter([
       },
 
       {
+        path: "po-linking",
+        async lazy() {
+          const module = await import("../pages/POLinkingPage");
+
+          return {
+            Component: () => (
+              <RequirePermission permission="can_request_po_links">
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
+      },
+
+      {
+        path: "po-approvals",
+        async lazy() {
+          const module = await import("../pages/POApprovalPage");
+
+          return {
+            Component: () => (
+              <RequirePermission permission="can_approve_po_links">
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
+      },
+
+      {
         path: "budget-analytics",
         async lazy() {
           const module = await import("../pages/BudgetAnalyticsPage");
@@ -232,10 +262,10 @@ const router = createBrowserRouter([
         },
       },
 
-      {
-        path: "*",
-        element: <ErrorPage />,
-      },
+      // {
+      //   path: "*",
+      //   element: <ErrorPage />,
+      // },
     ],
   },
 
@@ -250,7 +280,7 @@ const router = createBrowserRouter([
       };
     },
 
-    errorElement: <ErrorPage />,
+    // errorElement: <ErrorPage />,
   },
 ]);
 

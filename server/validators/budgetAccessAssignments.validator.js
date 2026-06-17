@@ -67,3 +67,13 @@ export function validateUpdateBudgetAccessAssignmentStatus(body) {
     );
   }
 }
+
+export function validateBudgetAccessAssignmentId(id) {
+  const parsedId = Number(id);
+
+  if (!Number.isInteger(parsedId) || parsedId <= 0) {
+    throw new ApiError(400, "Invalid assignment id", "VALIDATION_ERROR");
+  }
+
+  return parsedId;
+}

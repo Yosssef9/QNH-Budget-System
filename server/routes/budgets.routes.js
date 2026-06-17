@@ -28,7 +28,7 @@ const router = express.Router();
 router.use(verifyPortalJwt, verifyBudgetAccess);
 
 // ---------------- ROUTES ----------------
-router.get("/current", requirePermission("can_edit_budget"), getCurrentBudget);
+router.get("/current", requirePermission("can_view_budget"), getCurrentBudget);
 
 router.post("/", requirePermission("can_edit_budget"), createBudget);
 

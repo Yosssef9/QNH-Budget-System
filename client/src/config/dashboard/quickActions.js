@@ -12,6 +12,10 @@ import {
 } from "lucide-react";
 
 export function getQuickActions(budgetAccess) {
+  const permissions = budgetAccess?.permissions || {};
+  const canViewBudget = can(budgetAccess, "can_view_budget");
+  const canApproveBudget = can(budgetAccess, "can_approve_budget");
+
   return [
     {
       title: "Manage Financial Years",
@@ -21,18 +25,26 @@ export function getQuickActions(budgetAccess) {
       show: can(budgetAccess, "can_manage_financial_years"),
     },
     {
-      title: "View Budgets",
-      description: "Review assigned department budgets.",
-      path: "/budgets/my",
+      title: "Budgets",
+      description: "Enter and review department budgets.",
+      path: "/budgets",
       icon: Wallet,
-      show: can(budgetAccess, "can_view_budget"),
+      show: canViewBudget && !canApproveBudget,
+    },
+    {
+      title: "All Budgets",
+      description: "Review budgets across all departments.",
+      path: "/budgets/all",
+      icon: Wallet,
+      show: canViewBudget && canApproveBudget,
     },
     {
       title: "Enter / Edit Budget",
       description: "Enter, import, copy, and submit budgets.",
-      path: "/budgets",
+      path: "/budgets/entry",
       icon: FileSpreadsheet,
-      show: can(budgetAccess, "can_edit_budget"),
+      show:
+        can(budgetAccess, "can_edit_budget") && !permissions.can_approve_budget,
     },
     {
       title: "Link Approved PO",

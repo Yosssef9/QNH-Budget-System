@@ -12,14 +12,27 @@ import BudgetItemPOLinksDrawer from "../../components/budgets/shared/drawers/Bud
 
 import CollapsibleSection from "../../components/CollapsibleSection";
 
+import { useAuth } from "../../context/AuthContext";
 import useBudgetBalanceSummary from "../../hooks/budgets/useBudgetBalanceSummary";
 import { useBudgetView } from "../../hooks/budgets/useBudgetView";
 import useBudgetTotals from "../../hooks/budgets/useBudgetTotals";
 
 export default function BudgetViewPage() {
+  const { budgetAccess } = useAuth();
   const { data, isLoading } = useBudgetView();
 
   const budget = data;
+  const permissions = budgetAccess?.permissions || budgetAccess || {};
+  const isBudgetApprover = Boolean(permissions.can_approve_budget);
+  const budgetListBreadcrumb = isBudgetApprover
+    ? {
+        label: "All Budgets",
+        path: "/budgets/all",
+      }
+    : {
+        label: "My Budgets",
+        path: "/budgets/my",
+      };
 
   const { data: balanceSummary = [] } = useBudgetBalanceSummary(budget?.id);
 
@@ -143,10 +156,7 @@ export default function BudgetViewPage() {
             label: "Dashboard",
             path: "/",
           },
-          {
-            label: "My Budgets",
-            path: "/budgets/my",
-          },
+          budgetListBreadcrumb,
           {
             label: `Budget ${budget.financial_year}`,
           },

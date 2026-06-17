@@ -30,6 +30,7 @@ export function getHodCards(budgetAccess, dashboardData) {
       value: budgetAccess?.department?.name || "My Department",
       description: "Your department budget workspace",
       icon: Building2,
+      route: "/budgets",
     },
 
     {
@@ -59,6 +60,7 @@ export function getHodCards(budgetAccess, dashboardData) {
           : budgetStatus === "RETURNED"
             ? AlertTriangle
             : Wallet,
+      route: "/budgets",
     },
 
     {
@@ -66,6 +68,7 @@ export function getHodCards(budgetAccess, dashboardData) {
       value: <CurrencyText value={dashboardData.totalAmount} />,
       description: `${dashboardData.budgetItems.length} item(s) in your current budget`,
       icon: Wallet,
+      route: "/budgets",
     },
     ...(can(budgetAccess, "can_request_po_links")
       ? [

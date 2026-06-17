@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import Breadcrumbs from "../../components/Breadcrumbs";
 import CurrencyText from "../../components/CurrencyText";
 import { getMyBudgets } from "../../api/budget.api";
+import { useAuth } from "../../context/AuthContext";
 import { formatDateTime } from "../../utils/dateFormatters";
 import {
   getBudgetStatusLabel,
@@ -10,11 +12,27 @@ import {
 } from "../../theme/statusStyles";
 import { Eye } from "lucide-react";
 export default function MyBudgetsPage() {
+  const { budgetAccess } = useAuth();
+  const navigate = useNavigate();
+  const permissions = budgetAccess?.permissions || budgetAccess || {};
+  const isBudgetApprover = Boolean(permissions.can_approve_budget);
+
   const { data = [], isLoading } = useQuery({
     queryKey: ["my-budgets"],
     queryFn: getMyBudgets,
+    enabled: !isBudgetApprover,
   });
-  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isBudgetApprover) {
+      navigate("/budgets/all", { replace: true });
+    }
+  }, [isBudgetApprover, navigate]);
+
+  if (isBudgetApprover) {
+    return null;
+  }
+
   return (
     <div className="space-y-6 p-6">
       <Breadcrumbs />
@@ -22,7 +40,7 @@ export default function MyBudgetsPage() {
       <div>
         <h1 className="text-3xl font-bold">My Budgets</h1>
         <p className="text-slate-500 mt-2">
-          View all budgets across all financial years.
+          View your department budgets across all financial years.
         </p>
       </div>
 

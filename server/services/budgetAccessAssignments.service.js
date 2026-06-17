@@ -6,6 +6,7 @@ import {
   createBudgetAccessAssignmentRepo,
   updateBudgetAccessAssignmentRepo,
   updateBudgetAccessAssignmentStatusRepo,
+  deleteBudgetAccessAssignmentRepo,
   findDepartmentHodRepo,
 } from "../repositories/budgetAccessAssignments.repository.js";
 import { findBudgetRoleByIdRepo } from "../repositories/budgetRoles.repository.js";
@@ -97,4 +98,14 @@ export async function updateBudgetAccessAssignmentStatusService(id, isActive) {
   }
 
   return await updateBudgetAccessAssignmentStatusRepo(id, isActive);
+}
+
+export async function deleteBudgetAccessAssignmentService(id) {
+  const existing = await findBudgetAccessAssignmentByIdRepo(id);
+
+  if (!existing) {
+    throw new ApiError(404, "User role not found", "USER_ROLE_NOT_FOUND");
+  }
+
+  return await deleteBudgetAccessAssignmentRepo(id);
 }

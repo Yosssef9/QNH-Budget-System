@@ -1,6 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import toast from "react-hot-toast";
+
 import {
   AlertTriangle,
   CheckCircle2,
@@ -80,7 +81,7 @@ export default function BudgetSetupPage() {
   const [editingTypeExpenseType, setEditingTypeExpenseType] = useState("OPEX");
 
   const [confirmAction, setConfirmAction] = useState(null);
-
+  const [requestAction, setRequestAction] = useState(null);
   const {
     data: categories = [],
     isLoading: loadingCategories,
@@ -207,7 +208,76 @@ export default function BudgetSetupPage() {
       toast.error(error?.response?.data?.message || "Failed to create item");
     }
   }
+  function confirmRejectRequest(request) {
+    setRequestAction({
+      type: "REJECT_REQUEST",
+      request: request,
+      title: "Reject Request?",
+      message:
+        'Are you sure you want to reject "' +
+        request.requested_type_name +
+        '"? This action cannot be undone.',
+      danger: true,
+      confirmText: "Reject Request",
+    });
+  }
 
+  function confirmApproveOnly(request) {
+    setRequestAction({
+      type: "APPROVE_ONLY",
+      request: request,
+      title: "Approve Request?",
+      message:
+        'Approve "' +
+        request.requested_type_name +
+        '" without creating the item automatically? You will need to create it manually later.',
+      danger: false,
+      confirmText: "Approve Only",
+    });
+  }
+
+  function confirmApproveAuto(request) {
+    setRequestAction({
+      type: "APPROVE_AUTO",
+      request: request,
+      title: "Approve & Auto Create?",
+      message:
+        'Approve "' +
+        request.requested_type_name +
+        '" and automatically create the item/type in the setup master data?',
+      danger: false,
+      confirmText: "Approve & Auto Create",
+    });
+  }
+
+  async function handleRequestActionConfirm() {
+    if (!requestAction) {
+      return;
+    }
+
+    try {
+      switch (requestAction.type) {
+        case "REJECT_REQUEST":
+          await handleRejectRequest(requestAction.request);
+          break;
+
+        case "APPROVE_ONLY":
+          await handleApproveRequestManual(requestAction.request);
+          break;
+
+        case "APPROVE_AUTO":
+          await handleApproveRequest(requestAction.request);
+          break;
+
+        default:
+          break;
+      }
+
+      setRequestAction(null);
+    } catch (error) {
+      setRequestAction(null);
+    }
+  }
   function startEditCategory(category) {
     setEditingCategoryId(category.id);
     setEditingCategoryName(category.name);
@@ -744,7 +814,7 @@ export default function BudgetSetupPage() {
                                       <button
                                         type="button"
                                         onClick={() =>
-                                          handleRejectRequest(request)
+                                          confirmRejectRequest(request)
                                         }
                                         disabled={rejectMutation.isPending}
                                         className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:opacity-60"
@@ -756,7 +826,7 @@ export default function BudgetSetupPage() {
                                       <button
                                         type="button"
                                         onClick={() =>
-                                          handleApproveRequestManual(request)
+                                          confirmApproveOnly(request)
                                         }
                                         disabled={
                                           approveManualMutation.isPending
@@ -770,7 +840,7 @@ export default function BudgetSetupPage() {
                                       <button
                                         type="button"
                                         onClick={() =>
-                                          handleApproveRequest(request)
+                                          confirmApproveAuto(request)
                                         }
                                         disabled={approveMutation.isPending}
                                         className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-60"
@@ -1218,6 +1288,20 @@ export default function BudgetSetupPage() {
           </div>
         </section>
       </div>
+      <ConfirmModal
+        open={Boolean(requestAction)}
+        title={requestAction?.title}
+        message={requestAction?.message}
+        danger={requestAction?.danger}
+        confirmText={requestAction?.confirmText}
+        loading={
+          approveMutation.isPending ||
+          approveManualMutation.isPending ||
+          rejectMutation.isPending
+        }
+        onCancel={() => setRequestAction(null)}
+        onConfirm={handleRequestActionConfirm}
+      />
 
       <ConfirmModal
         open={Boolean(confirmAction)}

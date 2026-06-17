@@ -26,3 +26,8 @@ export async function updateBudgetAccessAssignmentStatus(id, is_active) {
 
   return response.data;
 }
+
+export async function deleteBudgetAccessAssignment(id) {
+  const response = await api.delete(`/admin/budget-access/assignments/${id}`);
+  return response.data;
+}

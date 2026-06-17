@@ -12,7 +12,13 @@ export function isAdmin(access) {
 export function getUserRoleLabel(access) {
   if (access?.isGlobalAdmin) return "Global Admin";
 
-  if (access?.permissions?.can_approve_budget) return "Approver";
+  if (access?.permissions?.can_approve_po_links) {
+    return "PO Link Approver";
+  }
+
+  if (access?.permissions?.can_approve_budget) {
+    return "Budget Approver";
+  }
 
   if (access?.permissions?.can_edit_budget) return "Budget Editor";
 

@@ -6,11 +6,13 @@ import {
   createBudgetAccessAssignmentService,
   updateBudgetAccessAssignmentService,
   updateBudgetAccessAssignmentStatusService,
+  deleteBudgetAccessAssignmentService,
 } from "../services/budgetAccessAssignments.service.js";
 import {
   validateCreateBudgetAccessAssignment,
   validateUpdateBudgetAccessAssignment,
   validateUpdateBudgetAccessAssignmentStatus,
+  validateBudgetAccessAssignmentId,
 } from "../validators/budgetAccessAssignments.validator.js";
 
 export const getBudgetAccessAssignments = asyncHandler(async (req, res) => {
@@ -25,8 +27,8 @@ export const getBudgetAccessAssignments = asyncHandler(async (req, res) => {
 });
 
 export const createBudgetAccessAssignment = asyncHandler(async (req, res) => {
+  console.log("createBudgetAccessAssignment req.body", req.body);
   validateCreateBudgetAccessAssignment(req.body);
-
   const data = await createBudgetAccessAssignmentService({
     ...req.body,
     created_by: req.user.userId,
@@ -105,3 +107,28 @@ export const updateBudgetAccessAssignmentStatus = asyncHandler(
     );
   },
 );
+
+export const deleteBudgetAccessAssignment = asyncHandler(async (req, res) => {
+  const id = validateBudgetAccessAssignmentId(req.params.id);
+
+  const data = await deleteBudgetAccessAssignmentService(id);
+
+  await auditLog(req, {
+    action: "DELETE_USER_ACCESS",
+    entityName:
+      data.user_name ||
+      data.userName ||
+      `Access Assignment #${data.id || id}`,
+    entityType: "USER_ACCESS",
+    entityId: String(id),
+    description: `Permanently deleted user access assignment #${id}`,
+    oldValues: data,
+  });
+
+  return res.status(200).json(
+    new ApiResponse({
+      message: "Budget access assignment deleted successfully",
+      data,
+    }),
+  );
+});

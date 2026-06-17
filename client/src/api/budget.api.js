@@ -9,6 +9,10 @@ export async function getMyBudgets() {
   return response.data?.data || [];
 }
 
+export async function getAllBudgets() {
+  return getMyBudgets();
+}
+
 export async function createBudget(payload = {}) {
   const response = await api.post("/budgets", payload);
   return response.data?.data;

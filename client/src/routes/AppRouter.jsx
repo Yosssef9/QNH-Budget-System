@@ -88,7 +88,22 @@ const router = createBrowserRouter([
 
           return {
             Component: () => (
-              <RequirePermission permission="can_edit_budget">
+              <RequirePermission permission="can_view_budget">
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
+      },
+
+      {
+        path: "budgets/all",
+        async lazy() {
+          const module = await import("../pages/budget/AllBudgetsPage");
+
+          return {
+            Component: () => (
+              <RequirePermission permission="can_approve_budget">
                 <module.default />
               </RequirePermission>
             ),

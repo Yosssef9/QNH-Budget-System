@@ -2,13 +2,13 @@ import { can } from "../../helpers/permissions";
 
 export function getWorkPanels(budgetAccess) {
   return [
-    {
-      title: "Budget Workspace",
-      description: "No draft, returned, or active budgets to show yet.",
-      show:
-        can(budgetAccess, "can_view_budget") ||
-        can(budgetAccess, "can_edit_budget"),
-    },
+    // {
+    //   title: "Budget Workspace",
+    //   description: "No draft, returned, or active budgets to show yet.",
+    //   show:
+    //     can(budgetAccess, "can_view_budget") ||
+    //     can(budgetAccess, "can_edit_budget"),
+    // },
     {
       title: "My PO Link Requests",
       description:
@@ -17,7 +17,8 @@ export function getWorkPanels(budgetAccess) {
     },
     {
       title: "Pending PO Link Requests",
-      description: "PO link requests waiting for your approval will appear here.",
+      description:
+        "PO link requests waiting for your approval will appear here.",
       show: can(budgetAccess, "can_approve_po_links"),
     },
 

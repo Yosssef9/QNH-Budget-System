@@ -49,6 +49,8 @@ export function getAdminCards(budgetAccess, dashboardData) {
 
       icon: CheckCircle2,
 
+      route: "/budgets/all",
+
       show: can(budgetAccess, "can_approve_budget"),
     },
 
@@ -59,6 +61,8 @@ export function getAdminCards(budgetAccess, dashboardData) {
       description: "Departments with budgets in current year",
 
       icon: Building2,
+
+      route: "/budgets/all",
 
       show: can(budgetAccess, "can_approve_budget"),
     },

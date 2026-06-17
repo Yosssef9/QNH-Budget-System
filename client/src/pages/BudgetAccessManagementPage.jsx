@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
-import { 	
-
+import {
   Plus,
   RefreshCcw,
   Save,
@@ -14,15 +13,18 @@ import {
   Search,
   PanelLeftClose,
   PanelLeftOpen,
+  Trash2,
 } from "lucide-react";
 import PageLoader from "../components/PageLoader";
 import SearchableMultiSelect from "../components/SearchableMultiSelect";
+import ConfirmModal from "../components/ConfirmModal";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   useBudgetAccessAssignments,
   useCreateBudgetAccessAssignment,
   useUpdateBudgetAccessAssignment,
   useToggleBudgetAccessAssignmentStatus,
+  useDeleteBudgetAccessAssignment,
 } from "../hooks/budget-access/useBudgetAccessAssignments";
 import CollapsiblePanelToggle from "../components/layout/CollapsiblePanelToggle";
 import { useBudgetAccessUsers } from "../hooks/budget-access/useBudgetAccessUsers";
@@ -32,10 +34,10 @@ import toast from "react-hot-toast";
 const permissionFields = [
   { key: "can_view_budget", label: "View Budget" },
   { key: "can_edit_budget", label: "Edit Budget" },
- { key: "can_view_po_links", label: "View his department PO Links" },
-{ key: "can_request_po_links", label: "Request PO Links" },
-{ key: "can_view_all_po_link_requests", label: "View All PO Link Requests" },
-{ key: "can_approve_po_links", label: "Approve PO Links" },
+  { key: "can_view_po_links", label: "View his department PO Links" },
+  { key: "can_request_po_links", label: "Request PO Links" },
+  { key: "can_view_all_po_link_requests", label: "View All PO Link Requests" },
+  { key: "can_approve_po_links", label: "Approve PO Links" },
   { key: "can_request_transfer", label: "Request Transfer" },
   { key: "can_approve_budget", label: "Approve Budget" },
   { key: "can_approve_transfer", label: "Approve Transfer" },
@@ -58,7 +60,10 @@ const emptyForm = {
   role_id: null,
   can_view_budget: "",
   can_edit_budget: "",
-  can_link_po: "",
+  can_view_po_links: "",
+  can_request_po_links: "",
+  can_view_all_po_link_requests: "",
+  can_approve_po_links: "",
   can_request_transfer: "",
   can_approve_budget: "",
   can_approve_transfer: "",
@@ -68,8 +73,15 @@ const emptyForm = {
 };
 
 function normalizePermissionValue(value) {
-  if (value === "") return null;
-  return true;
+  if (value === "" || value == null) {
+    return null;
+  }
+
+  if (value === "1") {
+    return true;
+  }
+
+  return null;
 }
 
 function buildPayload(form) {
@@ -118,7 +130,12 @@ function rowToForm(row) {
     role_id: row.role_id ?? null,
     can_view_budget: toFormPermissionValue(row.can_view_budget),
     can_edit_budget: toFormPermissionValue(row.can_edit_budget),
-    can_link_po: toFormPermissionValue(row.can_link_po),
+    can_view_po_links: toFormPermissionValue(row.can_view_po_links),
+    can_request_po_links: toFormPermissionValue(row.can_request_po_links),
+    can_view_all_po_link_requests: toFormPermissionValue(
+      row.can_view_all_po_link_requests,
+    ),
+    can_approve_po_links: toFormPermissionValue(row.can_approve_po_links),
     can_request_transfer: toFormPermissionValue(row.can_request_transfer),
     can_approve_budget: toFormPermissionValue(row.can_approve_budget),
     can_approve_transfer: toFormPermissionValue(row.can_approve_transfer),
@@ -133,6 +150,7 @@ export default function BudgetAccessManagementPage() {
   const [userSearch, setUserSearch] = useState("");
   const [tableSearch, setTableSearch] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const assignmentsQuery = useBudgetAccessAssignments();
 
   const usersQuery = useBudgetAccessUsers({
@@ -146,6 +164,7 @@ export default function BudgetAccessManagementPage() {
   const createAssignmentMutation = useCreateBudgetAccessAssignment();
   const updateAssignmentMutation = useUpdateBudgetAccessAssignment();
   const updateStatusMutation = useToggleBudgetAccessAssignmentStatus();
+  const deleteAssignmentMutation = useDeleteBudgetAccessAssignment();
   const rows = extractRows(assignmentsQuery.data);
   const adminUsers =
     usersQuery.data?.pages.flatMap((page) => page?.data?.users || []) || [];
@@ -198,7 +217,8 @@ export default function BudgetAccessManagementPage() {
   const saving =
     createAssignmentMutation.isPending ||
     updateAssignmentMutation.isPending ||
-    updateStatusMutation.isPending;
+    updateStatusMutation.isPending ||
+    deleteAssignmentMutation.isPending;
   const activeCount = useMemo(
     () => rows.filter((row) => row.is_active).length,
     [rows],
@@ -241,7 +261,33 @@ export default function BudgetAccessManagementPage() {
 
       return;
     }
+    console.log("FORM BEFORE SUBMIT");
+    console.log(form);
+
+    console.log("PO PERMISSIONS");
+    console.log({
+      can_view_po_links: form.can_view_po_links,
+      can_request_po_links: form.can_request_po_links,
+      can_view_all_po_link_requests: form.can_view_all_po_link_requests,
+      can_approve_po_links: form.can_approve_po_links,
+    });
+    console.log("RAW VALUES", {
+      can_view_po_links: form.can_view_po_links,
+      can_request_po_links: form.can_request_po_links,
+      can_view_all_po_link_requests: form.can_view_all_po_link_requests,
+      can_approve_po_links: form.can_approve_po_links,
+    });
+
+    console.log("RAW TYPES", {
+      can_view_po_links: typeof form.can_view_po_links,
+      can_request_po_links: typeof form.can_request_po_links,
+      can_view_all_po_link_requests: typeof form.can_view_all_po_link_requests,
+      can_approve_po_links: typeof form.can_approve_po_links,
+    });
+
     const payload = buildPayload(form);
+
+    console.log("FINAL PAYLOAD", payload);
 
     if (isEditing) {
       await updateAssignmentMutation.mutateAsync({
@@ -267,6 +313,23 @@ export default function BudgetAccessManagementPage() {
     });
 
     await assignmentsQuery.refetch();
+  }
+
+  function requestDeleteAssignment(row) {
+    setDeleteTarget(row);
+  }
+
+  async function confirmDeleteAssignment() {
+    if (!deleteTarget) return;
+
+    await deleteAssignmentMutation.mutateAsync(deleteTarget.id);
+
+    if (form.id === deleteTarget.id) {
+      resetForm();
+    }
+
+    await assignmentsQuery.refetch();
+    setDeleteTarget(null);
   }
 
   if (assignmentsQuery.isLoading) {
@@ -767,6 +830,19 @@ export default function BudgetAccessManagementPage() {
                             <Power size={14} />
                             {row.is_active ? "Deactivate" : "Activate"}
                           </button>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              requestDeleteAssignment(row);
+                            }}
+                            disabled={saving}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <Trash2 size={14} />
+                            Delete
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -788,6 +864,29 @@ export default function BudgetAccessManagementPage() {
           </div>
         </section>
       </section>
+
+      <ConfirmModal
+        open={Boolean(deleteTarget)}
+        title="Delete User Access"
+        message={
+          <>
+            <p>
+              This action will permanently delete this user access assignment
+              from the system.
+            </p>
+            <p className="mt-2 font-bold">
+              This is a hard delete and cannot be undone.
+            </p>
+            <p className="mt-2">Are you sure you want to continue?</p>
+          </>
+        }
+        confirmText="Delete User Access"
+        cancelText="Cancel"
+        danger
+        loading={deleteAssignmentMutation.isPending}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={confirmDeleteAssignment}
+      />
     </div>
   );
 }

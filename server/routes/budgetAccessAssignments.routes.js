@@ -8,6 +8,7 @@ import {
   createBudgetAccessAssignment,
   updateBudgetAccessAssignment,
   updateBudgetAccessAssignmentStatus,
+  deleteBudgetAccessAssignment,
 } from "../controllers/budgetAccessAssignments.controller.js";
 
 const router = express.Router();
@@ -20,5 +21,6 @@ router.get("/", getBudgetAccessAssignments);
 router.post("/", createBudgetAccessAssignment);
 router.put("/:id", updateBudgetAccessAssignment);
 router.patch("/:id/status", updateBudgetAccessAssignmentStatus);
+router.delete("/:id", deleteBudgetAccessAssignment);
 
 export default router;

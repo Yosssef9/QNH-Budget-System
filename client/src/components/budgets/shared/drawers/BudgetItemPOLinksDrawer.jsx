@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
   FileText,
@@ -13,6 +14,10 @@ import POLinkStatusBadge from "../../../po/POLinkStatusBadge";
 import useBudgetItemPOLinks from "../../../../hooks/budgets/useBudgetItemPOLinks";
 import { formatDateTime, formatDate } from "../../../../utils/dateFormatters";
 import { formatQty } from "../../../../utils/numberFormatter";
+import SortableHeader from "../../../SortableHeader";
+import useTableSort from "../../../../hooks/useTableSort";
+import usePagination from "../../../../hooks/usePagination";
+import TablePagination from "../../../TablePagination";
 
 function SummaryMetric({ title, value, description, icon: Icon }) {
   return (
@@ -127,11 +132,151 @@ function POApprovedLinkCard({ link }) {
   );
 }
 
+function POApprovedLinksTable({ links, selectedLinkId, onSelectLink }) {
+  const { sortedRows, sortColumn, sortDirection, handleSort } = useTableSort(
+    links,
+    "approved_at",
+    "desc",
+  );
+
+  const pagination = usePagination(sortedRows.length, 25);
+
+  const paginatedRows = useMemo(() => {
+    const start = (pagination.page - 1) * pagination.pageSize;
+    const end = start + pagination.pageSize;
+
+    return sortedRows.slice(start, end);
+  }, [sortedRows, pagination.page, pagination.pageSize]);
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="enterprise-scrollbar max-h-[420px] overflow-auto">
+        <table className="min-w-[1100px] w-full border-collapse text-sm">
+          <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 shadow-sm">
+            <tr>
+              <SortableHeader
+                label="Supplier"
+                column="supplier_name"
+                sortColumn={sortColumn}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+              />
+
+              <SortableHeader
+                label="Invoice No"
+                column="invoice_no"
+                sortColumn={sortColumn}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+              />
+
+              <SortableHeader
+                label="Requested Qty"
+                column="requested_qty"
+                sortColumn={sortColumn}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+                className="text-right"
+              />
+
+              <SortableHeader
+                label="Linked Amount"
+                column="linked_amount"
+                sortColumn={sortColumn}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+                className="text-right"
+              />
+
+              <SortableHeader
+                label="Approved By"
+                column="approved_by_name"
+                sortColumn={sortColumn}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+              />
+
+              <SortableHeader
+                label="Approved Date"
+                column="approved_at"
+                sortColumn={sortColumn}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+              />
+
+              <SortableHeader
+                label="Status"
+                column="status"
+                sortColumn={sortColumn}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+              />
+            </tr>
+          </thead>
+
+          <tbody>
+            {paginatedRows.map((link) => {
+              const selected = String(link.id) === String(selectedLinkId);
+
+              return (
+                <tr
+                  key={link.id}
+                  onClick={() => onSelectLink(String(link.id))}
+                  className={`cursor-pointer transition ${
+                    selected ? "bg-blue-50" : "bg-white hover:bg-slate-50"
+                  }`}
+                >
+                  <td className="border-b border-slate-100 px-4 py-3">
+                    <div className="font-bold text-slate-900">
+                      {link.supplier_name || "-"}
+                    </div>
+                    <div className="mt-1 max-w-[260px] truncate text-xs font-medium text-slate-500">
+                      {link.item_description || "-"}
+                    </div>
+                  </td>
+                  <td className="border-b border-slate-100 px-4 py-3 font-semibold text-slate-700">
+                    {link.invoice_no || "-"}
+                  </td>
+                  <td className="border-b border-slate-100 px-4 py-3 text-right font-bold text-slate-900">
+                    {formatQty(link.requested_qty)}
+                  </td>
+                  <td className="border-b border-slate-100 px-4 py-3 text-right font-bold text-blue-700">
+                    <CurrencyText value={link.linked_amount || 0} />
+                  </td>
+                  <td className="border-b border-slate-100 px-4 py-3 font-semibold text-slate-700">
+                    {link.approved_by_name || "-"}
+                  </td>
+                  <td className="border-b border-slate-100 px-4 py-3 font-medium text-slate-600">
+                    {formatDateTime(link.approved_at)}
+                  </td>
+                  <td className="border-b border-slate-100 px-4 py-3">
+                    <POLinkStatusBadge status={link.status} />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <TablePagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          pageSize={pagination.pageSize}
+          startRow={pagination.startRow}
+          endRow={pagination.endRow}
+          totalRows={sortedRows.length}
+          onPageChange={pagination.setPage}
+          onPageSizeChange={pagination.setPageSize}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function BudgetItemPOLinksDrawer({
   open,
   budgetItemId,
   onClose,
 }) {
+  const [selectedLinkId, setSelectedLinkId] = useState(null);
   const { data, isLoading, isError } = useBudgetItemPOLinks(
     open ? budgetItemId : null,
   );
@@ -139,6 +284,21 @@ export default function BudgetItemPOLinksDrawer({
   const budgetItem = data?.budgetItem;
   const summary = data?.summary || {};
   const links = data?.links || [];
+  const selectedLink =
+    links.find((link) => String(link.id) === String(selectedLinkId)) ||
+    links[0] ||
+    null;
+
+  useEffect(() => {
+    if (!links.length) {
+      setSelectedLinkId(null);
+      return;
+    }
+
+    if (!links.some((link) => String(link.id) === String(selectedLinkId))) {
+      setSelectedLinkId(String(links[0].id));
+    }
+  }, [links, selectedLinkId]);
 
   return (
     <AnimatedDrawer open={open} onClose={onClose} fullScreen>
@@ -246,9 +406,22 @@ export default function BudgetItemPOLinksDrawer({
                   </p>
                 </div>
 
-                {links.map((link) => (
-                  <POApprovedLinkCard key={link.id} link={link} />
-                ))}
+                {links.length > 0 && (
+                  <div className="space-y-4">
+                    <POApprovedLinksTable
+                      links={links}
+                      selectedLinkId={selectedLink?.id}
+                      onSelectLink={setSelectedLinkId}
+                    />
+
+                    <div>
+                      <h4 className="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500">
+                        Selected PO Details
+                      </h4>
+                      <POApprovedLinkCard link={selectedLink} />
+                    </div>
+                  </div>
+                )}
 
                 {links.length === 0 && (
                   <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm font-semibold text-slate-500">

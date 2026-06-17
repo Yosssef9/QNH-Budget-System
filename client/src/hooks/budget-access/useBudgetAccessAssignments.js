@@ -4,6 +4,7 @@ import {
   createBudgetAccessAssignment,
   updateBudgetAccessAssignment,
   updateBudgetAccessAssignmentStatus,
+  deleteBudgetAccessAssignment,
 } from "../../api/budgetAccessAssignments.api";
 import toast from "react-hot-toast";
 const QUERY_KEY = ["budgetAccessAssignments"];
@@ -87,6 +88,28 @@ export function useToggleBudgetAccessAssignmentStatus() {
     onError: (error) => {
       toast.error(
         error?.response?.data?.message || "Failed to update user status",
+      );
+    },
+  });
+}
+
+export function useDeleteBudgetAccessAssignment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteBudgetAccessAssignment,
+
+    onSuccess: () => {
+      toast.success("User access deleted successfully");
+
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEY,
+      });
+    },
+
+    onError: (error) => {
+      toast.error(
+        error?.response?.data?.message || "Failed to delete user access",
       );
     },
   });

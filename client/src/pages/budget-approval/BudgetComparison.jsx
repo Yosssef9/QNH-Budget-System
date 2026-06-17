@@ -30,7 +30,8 @@ import { useSearchParams } from "react-router-dom";
 import useTableSort from "../../hooks/useTableSort";
 import SortableHeader from "../../components/SortableHeader";
 import CreatedFromTransferBadge from "../../components/CreatedFromTransferBadge";
-
+import usePagination from "../../hooks/usePagination";
+import TablePagination from "../../components/TablePagination";
 const ALL = "ALL";
 function getArrayParam(searchParams, key) {
   return searchParams.get(key)
@@ -64,8 +65,7 @@ export default function BudgetComparison() {
     expenseTypes: getArrayParam(searchParams, "expenseTypes"),
     search: searchParams.get("search") || "",
   });
-  const [detailedPage, setDetailedPage] = useState(1);
-  const [detailedPageSize, setDetailedPageSize] = useState(25);
+
   const options = useMemo(() => {
     return {
       years: uniqueOptions(data, "financial_year"),
@@ -149,19 +149,7 @@ export default function BudgetComparison() {
       return true;
     });
   }, [data, filters]);
-  const detailedTotalPages = useMemo(() => {
-    return Math.max(1, Math.ceil(filteredRows.length / detailedPageSize));
-  }, [filteredRows.length, detailedPageSize]);
-
-  useEffect(() => {
-    setDetailedPage(1);
-  }, [filters, detailedPageSize]);
-
-  useEffect(() => {
-    if (detailedPage > detailedTotalPages) {
-      setDetailedPage(detailedTotalPages);
-    }
-  }, [detailedPage, detailedTotalPages]);
+  const detailedPagination = usePagination(filteredRows.length, 25);
   useEffect(() => {
     if (filters.categoryIds.length === 0) return;
 
@@ -187,18 +175,15 @@ export default function BudgetComparison() {
     handleSort: handleDetailedSort,
   } = useTableSort(filteredRows, "current_amount", "desc");
   const paginatedDetailedRows = useMemo(() => {
-    const start = (detailedPage - 1) * detailedPageSize;
+    const start = (detailedPagination.page - 1) * detailedPagination.pageSize;
 
-    return sortedDetailedRows.slice(start, start + detailedPageSize);
-  }, [sortedDetailedRows, detailedPage, detailedPageSize]);
+    return sortedDetailedRows.slice(start, start + detailedPagination.pageSize);
+  }, [
+    sortedDetailedRows,
+    detailedPagination.page,
+    detailedPagination.pageSize,
+  ]);
 
-  const detailedStartRow =
-    filteredRows.length === 0 ? 0 : (detailedPage - 1) * detailedPageSize + 1;
-
-  const detailedEndRow = Math.min(
-    detailedPage * detailedPageSize,
-    filteredRows.length,
-  );
   const summary = useMemo(() => {
     const budgetIds = new Set(filteredRows.map((row) => row.budget_id));
     const departments = new Set(filteredRows.map((row) => row.department_id));
@@ -344,6 +329,8 @@ export default function BudgetComparison() {
     [filteredRows],
   );
   function updateFilter(name, value) {
+    detailedPagination.resetPage();
+
     setFilters((prev) => ({
       ...prev,
       [name]: value,
@@ -351,6 +338,8 @@ export default function BudgetComparison() {
   }
 
   function resetFilters() {
+    detailedPagination.resetPage();
+
     setFilters({
       financialYear: ALL,
       statuses: [],
@@ -362,6 +351,8 @@ export default function BudgetComparison() {
     });
   }
   function filterByItem(typeId) {
+    detailedPagination.resetPage();
+
     setFilters((prev) => ({
       ...prev,
       typeIds: [String(typeId)],
@@ -369,6 +360,8 @@ export default function BudgetComparison() {
   }
 
   function filterByDepartment(departmentId) {
+    detailedPagination.resetPage();
+
     setFilters((prev) => ({
       ...prev,
       departmentIds: [String(departmentId)],
@@ -948,60 +941,16 @@ export default function BudgetComparison() {
             </tbody>
           </table>
         </div>
-        <div className="flex flex-col gap-4 border-t border-slate-200 p-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="text-sm font-semibold text-slate-500">
-            Showing <span className="text-slate-900">{detailedStartRow}</span>
-            {" - "}
-            <span className="text-slate-900">{detailedEndRow}</span>
-            {" of "}
-            <span className="text-slate-900">{filteredRows.length}</span>
-            {" rows"}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {[25, 50, 100].map((size) => (
-              <button
-                key={size}
-                type="button"
-                onClick={() => setDetailedPageSize(size)}
-                className={[
-                  "rounded-xl border px-3 py-2 text-xs font-bold transition",
-                  detailedPageSize === size
-                    ? "border-blue-200 bg-blue-50 text-blue-700"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
-                ].join(" ")}
-              >
-                {size}
-              </button>
-            ))}
-
-            <button
-              type="button"
-              onClick={() => setDetailedPage((page) => Math.max(1, page - 1))}
-              disabled={detailedPage <= 1}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Previous
-            </button>
-
-            <span className="rounded-xl bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700">
-              Page {detailedPage} / {detailedTotalPages}
-            </span>
-
-            <button
-              type="button"
-              onClick={() =>
-                setDetailedPage((page) =>
-                  Math.min(detailedTotalPages, page + 1),
-                )
-              }
-              disabled={detailedPage >= detailedTotalPages}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+        <TablePagination
+          page={detailedPagination.page}
+          totalPages={detailedPagination.totalPages}
+          pageSize={detailedPagination.pageSize}
+          startRow={detailedPagination.startRow}
+          endRow={detailedPagination.endRow}
+          totalRows={filteredRows.length}
+          onPageChange={detailedPagination.setPage}
+          onPageSizeChange={detailedPagination.setPageSize}
+        />
       </section>
     </div>
   );

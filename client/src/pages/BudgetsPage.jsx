@@ -1,17 +1,8 @@
-import { Link } from "react-router-dom";
-import {
-  Plus,
-  FileSpreadsheet,
-  Copy,
-  FileText,
-  RotateCcw,
-  History,
-  Wallet,
-  ArrowRight,
-} from "lucide-react";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Plus, Wallet, ArrowRight } from "lucide-react";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
 import { getCurrentFinancialYear } from "../api/financialYears.api";
 import toast from "react-hot-toast";
 const budgetActions = [
@@ -48,6 +39,14 @@ function hasPermission(permissions, permission) {
 export default function BudgetsPage() {
   const { budgetAccess } = useAuth();
   const navigate = useNavigate();
+  const permissions = budgetAccess?.permissions || budgetAccess || {};
+  const isBudgetApprover = Boolean(permissions.can_approve_budget);
+
+  useEffect(() => {
+    if (isBudgetApprover) {
+      navigate("/budgets/all", { replace: true });
+    }
+  }, [isBudgetApprover, navigate]);
 
   const handleBudgetEntryClick = async () => {
     try {
@@ -72,7 +71,10 @@ export default function BudgetsPage() {
       toast.error("Unable to verify financial year status.");
     }
   };
-  const permissions = budgetAccess?.permissions || budgetAccess || {};
+
+  if (isBudgetApprover) {
+    return null;
+  }
 
   const visibleActions = budgetActions.filter((action) =>
     hasPermission(permissions, action.permission),

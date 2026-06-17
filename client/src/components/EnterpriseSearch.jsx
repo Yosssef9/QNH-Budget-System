@@ -18,12 +18,14 @@ export default function EnterpriseSearch({
   }, [value]);
 
   useEffect(() => {
+    if (localValue === value) return;
+
     const timer = setTimeout(() => {
       onChange?.(localValue);
     }, debounceMs);
 
     return () => clearTimeout(timer);
-  }, [localValue, debounceMs, onChange]);
+  }, [localValue, value, debounceMs, onChange]);
 
   const sizeClasses = {
     sm: {

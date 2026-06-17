@@ -6,7 +6,7 @@ export default function DashboardQuickActionCard({ action }) {
   return (
     <Link
       to={action.path}
-      className="group rounded-xl border border-enterprise-border bg-enterprise-soft p-5 transition hover:border-primary-200 hover:bg-primary-50"
+      className="group rounded-xl border border-blue-200 bg-enterprise-soft p-5 transition hover:border-primary-200 hover:bg-primary-50"
     >
       <div className="flex items-start gap-4">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-primary-700 shadow-soft">

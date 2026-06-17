@@ -11,6 +11,7 @@ const routeLabels = {
   "/budgets/history": "Budget History",
   "/budgets/returned": "Returned Budgets",
   "/budgets/my": "My Budgets",
+  "/budgets/all": "All Budgets",
   "/budget-approval": "Budget Approvals",
 
   "/transfers/requests": "Transfer Requests",

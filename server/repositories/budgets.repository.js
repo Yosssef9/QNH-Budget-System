@@ -61,13 +61,17 @@ export async function getMyBudgetsRepo({ departmentId, canSeeAll }) {
         d.name AS department_name,
         b.status,
         b.created_by,
+        created_user.USER_NAME AS created_by_name,
         b.created_at,
         b.updated_at,
         b.submitted_by,
+        submitted_user.USER_NAME AS submitted_by_name,
         b.submitted_at,
         b.approved_by,
+        approved_user.USER_NAME AS approved_by_name,
         b.approved_at,
         b.returned_by,
+        returned_user.USER_NAME AS returned_by_name,
         b.returned_at,
         COUNT(bi.id) AS items_count,
         ISNULL(SUM(bi.total_amount), 0) AS total_amount
@@ -79,6 +83,14 @@ export async function getMyBudgetsRepo({ departmentId, canSeeAll }) {
       LEFT JOIN BS_budget_items bi
         ON bi.budget_id = b.id
        AND bi.is_active = 1
+      LEFT JOIN users created_user
+        ON created_user.USER_ID = b.created_by
+      LEFT JOIN users submitted_user
+        ON submitted_user.USER_ID = b.submitted_by
+      LEFT JOIN users approved_user
+        ON approved_user.USER_ID = b.approved_by
+      LEFT JOIN users returned_user
+        ON returned_user.USER_ID = b.returned_by
       WHERE
         @canSeeAll = 1
         OR b.department_id = @departmentId
@@ -91,13 +103,17 @@ export async function getMyBudgetsRepo({ departmentId, canSeeAll }) {
         d.name,
         b.status,
         b.created_by,
+        created_user.USER_NAME,
         b.created_at,
         b.updated_at,
         b.submitted_by,
+        submitted_user.USER_NAME,
         b.submitted_at,
         b.approved_by,
+        approved_user.USER_NAME,
         b.approved_at,
         b.returned_by,
+        returned_user.USER_NAME,
         b.returned_at
       ORDER BY fy.year DESC, d.name ASC
     `);

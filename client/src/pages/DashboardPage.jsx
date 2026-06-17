@@ -48,33 +48,165 @@ export default function DashboardPage() {
   ).length;
   return (
     <div className="space-y-8 font-sans">
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-2xl">
-            <p className="text-sm font-semibold tracking-wide text-blue-700">
-              Budget Dashboard
-            </p>
+      {/* <section className="overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-sm ">
+        <div className="border-b border-slate-200 bg-slate-50/70 px-6 py-3">
+          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
+            <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-blue-700">
+              Qassim National Hospital
+            </span>
 
-            <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
-              Welcome, {user?.userName || "User"}
-            </h2>
+            <span className="hidden text-slate-300 sm:inline">/</span>
 
-            <p className="mt-3 text-sm font-medium leading-6 text-slate-500">
-              Your dashboard changes automatically based on your role and
-              department scope.
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
-            <p className="text-xs font-semibold text-slate-500">
-              Current Access
-            </p>
-            <p className="mt-1 text-sm font-bold text-slate-900">{roleLabel}</p>
+            <span>Budget Management System</span>
           </div>
         </div>
-      </section>
 
-      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <div className="px-6 py-8">
+          <p className="text-sm font-semibold tracking-wide text-blue-700">
+            Enterprise Budget Workspace
+          </p>
+
+          <h1 className="mt-3 text-4xl font-light tracking-tight text-slate-500">
+            Welcome,
+          </h1>
+
+          <div className="mt-1">
+            <span
+              className="text-6xl tracking-tight text-slate-600"
+              style={{
+                fontFamily: "'Playfair Display', serif",
+              }}
+            >
+              {user?.userName || "User"}
+            </span>
+          </div>
+
+          <div className="mt-4 flex items-center gap-3">
+            <div className="h-8 w-[3px] rounded-full bg-blue-600" />
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Current Role
+              </p>
+
+              <p className="text-base font-semibold text-slate-800">
+                {roleLabel}
+              </p>
+            </div>
+          </div>
+
+          <p className="mt-5 max-w-3xl text-sm leading-6 text-slate-600">
+            Manage hospital budgeting, approvals, transfers, procurement
+            linking, and financial oversight from a controlled internal
+            workspace.
+          </p>
+        </div>
+        {/* <div className="px-6 py-10 text-center">
+          <p className="text-sm font-semibold tracking-[0.25em] uppercase text-blue-700">
+            Enterprise Budget Workspace
+          </p>
+
+          <h1 className="mt-5 text-4xl font-light tracking-tight text-slate-500">
+            Welcome
+          </h1>
+
+          <div className="mt-2">
+            <span
+              className="text-6xl tracking-tight text-slate-700"
+              style={{
+                fontFamily: "'Playfair Display', serif",
+              }}
+            >
+              {user?.userName || "User"}
+            </span>
+          </div>
+
+          <div className="mt-5 flex justify-center">
+            <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2">
+              <div className="h-2 w-2 rounded-full bg-blue-600" />
+
+              <span className="text-sm font-semibold text-blue-700">
+                {roleLabel}
+              </span>
+            </div>
+          </div>
+
+          <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-slate-600">
+            Manage hospital budgeting, approvals, transfers, procurement
+            linking, and financial oversight from a centralized internal
+            workspace.
+          </p>
+        </div> 
+      </section> */}
+      {/* <section
+        className="overflow-hidden rounded-3xl border border-slate-200 bg-white
+  shadow-sm"
+      >
+        <div className="grid gap-0 lg:grid-cols-[280px_minmax(0,1fr)_280px]">
+          <div
+            className="border-b border-slate-200 bg-slate-50 px-6 py-6 lg:border-b-0
+      lg:border-r"
+          >
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">
+              Qassim National Hospital
+            </p>
+
+            <h2 className="mt-3 text-lg font-bold tracking-tight text-slate-950">
+              Budget Management System
+            </h2>
+
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Internal hospital finance workspace
+            </p>
+          </div>
+
+          <div className="flex min-w-0 items-center justify-center px-6 py-7 text-center">
+            <div className="max-w-2xl">
+              <p className="text-sm font-semibold text-slate-500">
+                Enterprise Budget Dashboard
+              </p>
+
+              <h1
+                className="mt-2 text-2xl font-bold tracking-tight text-slate-950 md:text-
+          3xl"
+              >
+                Welcome, {user?.userName || "User"}
+              </h1>
+
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                A controlled workspace for hospital budgeting, approvals,
+                transfers, procurement linking, and financial governance.
+              </p>
+            </div>
+          </div>
+
+          <div
+            className="border-t border-slate-200 bg-slate-50 px-6 py-6 lg:border-l
+      lg:border-t-0"
+          >
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+              Current Access
+            </p>
+
+            <div className="mt-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+              <p className="text-sm font-bold text-slate-950">{roleLabel}</p>
+
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Dashboard visibility is based on assigned role and permissions.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section> */}
+      <section
+        className="
+    grid gap-5
+    grid-cols-1
+    md:grid-cols-2
+    lg:grid-cols-3
+    xl:grid-cols-5
+  "
+      >
         {stats.map((item) => (
           <DashboardStatCard key={item.title} item={item} />
         ))}

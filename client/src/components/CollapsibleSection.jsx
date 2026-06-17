@@ -23,7 +23,7 @@ export default function CollapsibleSection({
 
   return (
     <section
-      className={`overflow-hidden rounded-2xl border border-slate-200 shadow-sm ${className}`}
+      className={`overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm ${className}`}
     >
       <button
         type="button"
@@ -52,7 +52,7 @@ export default function CollapsibleSection({
           {action}
 
           <div
-            className={`flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-sm font-bold text-slate-600 ${badgeClassName}`}
+            className={`flex items-center gap-2 rounded-xl bg-blue-50/50 px-3 py-2 text-sm font-bold text-slate-600 ${badgeClassName}`}
           >
             <motion.div
               animate={{ rotate: isOpen ? 0 : 180 }}
@@ -75,7 +75,7 @@ export default function CollapsibleSection({
             transition={{ duration: 0.22, ease: "easeInOut" }}
             className="overflow-hidden"
           >
-            <div className={`border-t border-slate-200 p-5 ${bodyClassName}`}>
+            <div className={`border-t border-blue-100 p-5 ${bodyClassName}`}>
               {children}
             </div>
           </motion.div>

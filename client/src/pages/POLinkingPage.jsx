@@ -32,10 +32,8 @@ export default function POLinkingPage() {
     queryFn: getMyBudgets,
   });
 
-  const {
-    data: availablePOs = [],
-    isFetching: fetchingPOs,
-  } = useAvailablePOs();
+  const { data: availablePOs = [], isFetching: fetchingPOs } =
+    useAvailablePOs();
 
   const { data: myPOLinks = [] } = useMyPOLinks();
 
@@ -125,33 +123,12 @@ export default function POLinkingPage() {
         ]}
       />
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-blue-50 p-3 text-blue-600">
-                <Link2 size={24} />
-              </div>
-
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">
-                  PO Linking
-                </h1>
-
-                <p className="mt-1 text-sm text-slate-500">
-                  Link approved Purchase Order quantities to approved budget
-                  items during the pre-closing period.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">
-            {fetchingPOs ? "Refreshing PO records..." : "PO records ready"}
-          </div>
-        </div>
-      </section>
-
+      <div>
+        <h1 className="text-3xl font-bold"> PO Linking</h1>
+        <p className="text-slate-500 mt-2">
+          Link purchase orders to approved budget items.
+        </p>
+      </div>
       <POSummaryCards availablePOs={availablePOs} myLinks={myPOLinks} />
 
       <section id="po-link-form-section">

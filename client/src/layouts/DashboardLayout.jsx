@@ -196,9 +196,11 @@ import {
   History,
   Repeat2,
   Link2,
+  CircleUser,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useUnsavedChanges } from "../context/UnsavedChangesContext";
+import { getUserRoleLabel } from "../helpers/permissions";
 
 function getSidebarSections(budgetAccess) {
   const permissions = budgetAccess?.permissions || {};
@@ -216,14 +218,24 @@ function getSidebarSections(budgetAccess) {
         },
         {
           label: "Budgets",
-          path: permissions.can_approve_budget
-            ? "/budget-analytics"
-            : "/budgets",
+          path: "/budgets",
           icon: Wallet,
-          show: permissions.can_view_budget || permissions.can_approve_budget,
+          show: permissions.can_view_budget && !permissions.can_approve_budget,
         },
         {
-          label: "Approvals",
+          label: "All Budgets",
+          path: "/budgets/all",
+          icon: Wallet,
+          show: permissions.can_view_budget && permissions.can_approve_budget,
+        },
+        {
+          label: "Budget Analytics",
+          path: "/budget-analytics",
+          icon: BarChart3,
+          show: permissions.can_approve_budget,
+        },
+        {
+          label: "Budget Approvals",
           path: "/budget-approval",
           icon: CheckCircle2,
           show: permissions.can_approve_budget,
@@ -239,14 +251,16 @@ function getSidebarSections(budgetAccess) {
             permissions.can_approve_transfer,
         },
         {
-          label: "PO Links",
-          path: permissions.can_approve_po_links
-            ? "/po-approvals"
-            : "/po-linking",
+          label: "PO Link Requests",
+          path: "/po-linking",
           icon: Link2,
-          show:
-            permissions.can_request_po_links ||
-            permissions.can_approve_po_links,
+          show: permissions.can_request_po_links,
+        },
+        {
+          label: "PO Link Approvals",
+          path: "/po-approvals",
+          icon: CheckCircle2,
+          show: permissions.can_approve_po_links,
         },
         {
           label: "Reports",
@@ -292,7 +306,7 @@ export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const { safeNavigate } = useUnsavedChanges();
-
+  const roleLabel = getUserRoleLabel(budgetAccess);
   const sidebarSections = getSidebarSections(budgetAccess);
   const sidebarWidth = sidebarOpen ? "w-[280px]" : "w-[86px]";
   const contentPadding = sidebarOpen ? "pl-[280px]" : "pl-[86px]";
@@ -303,7 +317,7 @@ export default function DashboardLayout() {
         onMouseEnter={() => setSidebarOpen(true)}
         onMouseLeave={() => setSidebarOpen(false)}
         className={[
-          "fixed inset-y-0 left-0 z-30 border-r border-enterprise-border bg-white shadow-sm",
+          "fixed inset-y-0 left-0 z-30 border-r border-blue-200 bg-white shadow-sm",
           "transition-all duration-300 ease-in-out",
           sidebarWidth,
         ].join(" ")}
@@ -395,7 +409,17 @@ export default function DashboardLayout() {
           contentPadding,
         ].join(" ")}
       >
-        <header className="sticky top-0 z-20 flex h-[72px] items-center justify-between border-b border-enterprise-border bg-white/90 px-8 backdrop-blur">
+        <header
+          className="
+    sticky top-0 z-20
+    flex h-[90px] items-center justify-between
+    border-b border-blue-300
+    bg-white/95
+    px-8
+    backdrop-blur
+    shadow-[0_2px_12px_rgba(15,23,42,0.04)]
+  "
+        >
           <div>
             <h1 className="text-lg font-semibold tracking-tight text-enterprise-text">
               Budget System
@@ -406,11 +430,32 @@ export default function DashboardLayout() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 rounded-full border border-enterprise-border bg-enterprise-soft px-4 py-2 text-sm font-medium text-enterprise-text">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary-600 text-xs font-semibold text-white">
+          <div
+            className="flex items-center gap-3 rounded-2xl border border-blue-400 bg-white
+  px-4 py-2.5 shadow-sm"
+          >
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl
+    border border-blue-400 bg-slate-200 text-sm font-bold text-slate-700"
+            >
               {(user?.userName || "U").charAt(0).toUpperCase()}
-            </span>
-            {user?.userName || "User"}
+            </div>
+
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold leading-5 text-slate-950">
+                {user?.userName || "User"}
+              </p>
+
+              <div className="mt-0.5 flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+
+                <p className="truncate text-xs font-semibold leading-4 text-slate-500">
+                  {roleLabel}
+                </p>
+              </div>
+            </div>
+
+            <div className="hidden h-8 w-px bg-slate-200 sm:block" />
           </div>
         </header>
 

@@ -26,7 +26,7 @@ export async function getCurrentBudgetService({ budgetAccess }) {
       "OPEN_FINANCIAL_YEAR_NOT_FOUND",
     );
   }
-
+  console.log("getCurrentBudgetService budgetAccess", budgetAccess);
   const isGlobal =
     budgetAccess.isGlobalAdmin === true ||
     budgetAccess.permissions?.can_approve_budget === true;

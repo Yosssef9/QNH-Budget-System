@@ -61,9 +61,7 @@ function getBudgetApprovedQuantity(item) {
 }
 
 function getBudgetAlreadyLinkedQuantity(item) {
-  return (
-    toNumber(item.approved_linked_qty) + toNumber(item.pending_linked_qty)
-  );
+  return toNumber(item.approved_linked_qty) + toNumber(item.pending_linked_qty);
 }
 
 function getBudgetItemRemainingQuantity(item) {
@@ -248,17 +246,17 @@ function POCard({ po, selected, onClick }) {
             )}
           </div>
 
-         <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
-  <span>Code: {getPOItemCode(po)}</span>
-  <span>•</span>
+          <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
+            <span>Code: {getPOItemCode(po)}</span>
+            <span>•</span>
 
-  <span>Supplier: {getPOSupplier(po)}</span>
-  <span>•</span>
+            <span>Supplier: {getPOSupplier(po)}</span>
+            <span>•</span>
 
-  <span className="font-medium text-amber-700">
-    Due {formatDate(po.invoice_due_date)}
-  </span>
-</div>  
+            <span className="font-medium text-amber-700">
+              Invoice due {formatDate(po.invoice_due_date)}
+            </span>
+          </div>
         </div>
 
         <div className="shrink-0 text-right">
@@ -268,8 +266,11 @@ function POCard({ po, selected, onClick }) {
 
           <div className="text-sm font-bold text-slate-900">{availableQty}</div>
 
-          <div className="mt-1 text-xs text-slate-500">
-            <CurrencyText value={getPOUnitCost(po)} />
+          <div className="mt-1 text-xs font-medium text-slate-500">
+            Unit Price:{" "}
+            <span className="font-semibold text-slate-700">
+              <CurrencyText value={getPOUnitCost(po)} />
+            </span>
           </div>
         </div>
       </div>
@@ -283,7 +284,9 @@ export default function POLinkForm({
   className = "",
 }) {
   const [selectedBudgetItemId, setSelectedBudgetItemId] = useState(() =>
-    initialRequest?.budget_item_id ? String(initialRequest.budget_item_id) : null,
+    initialRequest?.budget_item_id
+      ? String(initialRequest.budget_item_id)
+      : null,
   );
   const [selectedPOId, setSelectedPOId] = useState(() =>
     initialRequest?.purchase_invoice_line_id
@@ -442,138 +445,171 @@ export default function POLinkForm({
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
-        <div className="space-y-5">
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">
-              Budget Item
-            </label>
+      <div className="grid gap-5 lg:grid-cols-[380px_minmax(0,1fr)] lg:items-start">
+        <section
+          className="rounded-2xl border border-blue-400  bg-blue-50/40
+ p-4 shadow-sm"
+        >
+          <div className="mb-4 border-b border-slate-200 pb-3">
+            <div className="flex items-start gap-3">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
+                1
+              </span>
 
-            <SearchableMultiSelect
-              multiple={false}
-              value={selectedBudgetItemId}
-              options={budgetItemOptions}
-              onChange={(event) => setSelectedBudgetItemId(event.target.value)}
-              placeholder={
-                loadingBudgetItems
-                  ? "Loading budget items..."
-                  : "Select budget item"
-              }
-              disabled={loadingBudgetItems}
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">
+                  Budget Allocation Setup
+                </h3>
+
+                <p className="mt-1 text-xs font-medium text-slate-500">
+                  Select the budget item and quantity to allocate.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">
+                Budget Item
+              </label>
+
+              <SearchableMultiSelect
+                multiple={false}
+                value={selectedBudgetItemId}
+                options={budgetItemOptions}
+                onChange={(event) =>
+                  setSelectedBudgetItemId(event.target.value)
+                }
+                placeholder={
+                  loadingBudgetItems
+                    ? "Loading budget items..."
+                    : "Select budget item"
+                }
+                disabled={loadingBudgetItems}
+              />
+
+              {selectedBudgetItem && (
+                <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+                  <div className="text-xs font-bold uppercase text-slate-400">
+                    Selected Budget Item
+                  </div>
+
+                  <div className="mt-1 text-sm font-bold text-slate-900">
+                    {getBudgetItemName(selectedBudgetItem)}
+                  </div>
+
+                  <div className="mt-2 flex items-center justify-between gap-3 text-xs font-semibold text-slate-500">
+                    <span>Remaining Qty</span>
+                    <span className="text-slate-900">
+                      {selectedBudgetRemainingQty}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <Input
+                label="Requested Quantity"
+                type="number"
+                min="0"
+                step="1"
+                value={requestedQty}
+                onChange={(event) => setRequestedQty(event.target.value)}
+                placeholder="Enter quantity to link"
+              />
+            </div>
+
+            <AllocationSummary
+              selectedBudgetItem={selectedBudgetItem}
+              selectedPO={selectedPO}
+              requestedQty={numericRequestedQty}
+              linkedAmount={linkedAmount}
             />
 
-            {selectedBudgetItem && (
-              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <div className="text-xs font-bold uppercase text-slate-400">
-                  Selected Budget Item
-                </div>
-
-                <div className="mt-1 text-sm font-bold text-slate-900">
-                  {getBudgetItemName(selectedBudgetItem)}
-                </div>
-
-                <div className="mt-2 flex items-center justify-between gap-3 text-xs font-semibold text-slate-500">
-                  <span>Remaining Qty</span>
-                  <span className="text-slate-900">
-                    {selectedBudgetRemainingQty}
-                  </span>
-                </div>
+            {validationMessage && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
+                {validationMessage}
               </div>
             )}
+
+            <button
+              type="submit"
+              disabled={!canSubmit}
+              className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {createMutation.isPending
+                ? "Submitting..."
+                : "Submit PO Link Request"}
+            </button>
           </div>
+        </section>
 
-          <div>
-            <Input
-              label="Requested Quantity"
-              type="number"
-              min="0"
-              step="1"
-              value={requestedQty}
-              onChange={(event) => setRequestedQty(event.target.value)}
-              placeholder="Enter quantity to link"
-            />
-          </div>
+        <section className="min-w-0 rounded-2xl border border-emerald-400 bg-emerald-50/30 p-4 shadow-sm">
+          <div className="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">
+                2
+              </span>
 
-          <AllocationSummary
-            selectedBudgetItem={selectedBudgetItem}
-            selectedPO={selectedPO}
-            requestedQty={numericRequestedQty}
-            linkedAmount={linkedAmount}
-          />
+              <div>
+                <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                  <PackageSearch size={16} className="text-blue-600" />
+                  Purchase Order Selection
+                </h3>
 
-          {validationMessage && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
-              {validationMessage}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {createMutation.isPending
-              ? "Submitting..."
-              : "Submit PO Link Request"}
-          </button>
-        </div>
-
-        <div className="min-w-0 space-y-4">
-          <PORecordDetails po={selectedPO} />
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-500">
-                <PackageSearch size={16} />
-                Available PO Records
-              </h3>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Select the PO record you want to allocate.
-              </p>
+                <p className="mt-1 text-xs font-medium text-slate-500">
+                  Search and select the PO record to link.
+                </p>
+              </div>
             </div>
 
             {(loadingPOs || fetchingPOs) && (
-              <span className="text-xs font-semibold text-slate-400">
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">
                 Loading...
               </span>
             )}
           </div>
 
-          <EnterpriseSearch
-            value={poSearch}
-            onChange={setPOSearch}
-            placeholder="Search PO by item, code, supplier, or ID..."
-          />
+          <div className="space-y-4">
+            <PORecordDetails po={selectedPO} />
 
-          <div className="max-h-[520px] space-y-3 overflow-auto rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            {availablePOs.map((po) => {
-              const poId = getPOId(po);
+            <EnterpriseSearch
+              value={poSearch}
+              onChange={setPOSearch}
+              placeholder="Search PO by item, code, supplier, or ID..."
+            />
 
-              return (
-                <POCard
-                  key={poId}
-                  po={po}
-                  selected={String(poId) === String(selectedPOId)}
-                  onClick={() => setSelectedPOId(String(poId))}
-                />
-              );
-            })}
+            <div className="max-h-[480px] space-y-3 overflow-auto rounded-2xl border border-slate-200 bg-slate-50 p-3">
+              {availablePOs.map((po) => {
+                const poId = getPOId(po);
 
-            {!loadingPOs && availablePOs.length === 0 && (
-              <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
-                <div className="text-sm font-bold text-slate-700">
-                  No available PO records found
+                return (
+                  <POCard
+                    key={poId}
+                    po={po}
+                    selected={String(poId) === String(selectedPOId)}
+                    onClick={() => setSelectedPOId(String(poId))}
+                  />
+                );
+              })}
+
+              {!loadingPOs && availablePOs.length === 0 && (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
+                  <div className="text-sm font-bold text-slate-700">
+                    No available PO records found
+                  </div>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    Try changing your search text or check if there are approved
+                    PO quantities available.
+                  </p>
                 </div>
-
-                <p className="mt-1 text-sm text-slate-500">
-                  Try changing your search text or check if there are approved
-                  PO quantities available.
-                </p>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        </section>
       </div>
 
       <ConfirmModal

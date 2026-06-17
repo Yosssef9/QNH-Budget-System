@@ -254,6 +254,20 @@ export async function updateBudgetAccessAssignmentStatusRepo(id, isActive) {
 
   return result.recordset[0];
 }
+
+export async function deleteBudgetAccessAssignmentRepo(id) {
+  const pool = await poolPromise;
+
+  const result = await pool
+    .request()
+    .input("id", sql.BigInt, id).query(`
+      DELETE FROM BS_budget_user_roles
+      OUTPUT DELETED.*
+      WHERE id = @id
+    `);
+
+  return result.recordset[0] || null;
+}
 export async function findDepartmentHodRepo({
   department_id,
   excludeId = null,

@@ -7,6 +7,7 @@ import {
   getPOBudgetItemsService,
   getPOLinkByIdService,
   getPOLinksForApprovalService,
+  getPOSuggestionsService,
   getPOTransparencyService,
   rejectPOLinkService,
 } from "../services/po.service.js";
@@ -18,6 +19,7 @@ import {
   validatePOApprovalFilters,
   validatePOFilters,
   validatePOLinkId,
+  validatePOSuggestionFilters,
   validateRejectPOLink,
 } from "../validators/po.validator.js";
 
@@ -63,6 +65,21 @@ export const getPOBudgetItems = asyncHandler(async (req, res) => {
   return res.json(
     new ApiResponse({
       message: "PO eligible budget items fetched successfully",
+      data,
+    }),
+  );
+});
+
+export const getPOSuggestions = asyncHandler(async (req, res) => {
+  const filters = validatePOSuggestionFilters(req.query);
+  const data = await getPOSuggestionsService({
+    budgetItemId: filters.budgetItemId,
+    budgetAccess: req.budgetAccess,
+  });
+
+  return res.json(
+    new ApiResponse({
+      message: "PO suggestions fetched successfully",
       data,
     }),
   );

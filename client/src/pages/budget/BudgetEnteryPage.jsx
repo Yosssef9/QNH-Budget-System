@@ -88,19 +88,17 @@ export default function BudgetEnteryPage() {
   const pageLock = getBudgetEntryPageLock(openYear);
 
   useLockToast(pageLock.locked && !loadingSetup, pageLock.message);
-  if (pageLock.locked) {
-    return (
-      <div className="space-y-6">
-        <Breadcrumbs />
+  const lockedContent = (
+    <div className="space-y-6">
+      <Breadcrumbs />
 
-        <LockedPage
-          title={pageLock.title}
-          message={pageLock.message}
-          reasons={pageLock.reasons}
-        />
-      </div>
-    );
-  }
+      <LockedPage
+        title={pageLock.title}
+        message={pageLock.message}
+        reasons={pageLock.reasons}
+      />
+    </div>
+  );
   const submitBudgetMutation = useSubmitBudget();
   const [summaryView, setSummaryView] = useState("QUARTER");
   const [budgetItemsPage, setBudgetItemsPage] = useState(1);
@@ -427,6 +425,7 @@ export default function BudgetEnteryPage() {
 
     toast.success(`${copiedRows.length} items added successfully`);
   };
+  
   return (
     <div className="space-y-5 p-6 text-slate-800">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">

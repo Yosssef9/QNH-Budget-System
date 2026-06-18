@@ -96,6 +96,13 @@ export function getQuickActions(budgetAccess) {
       show: can(budgetAccess, "can_manage_categories"),
     },
     {
+      title: "PO Item Mappings",
+      description: "Maintain budget item to PO item code mappings.",
+      path: "/admin/po-item-mappings",
+      icon: Link2,
+      show: can(budgetAccess, "can_manage_po_item_mappings"),
+    },
+    {
       title: "Reports",
       description: "Track usage, variance, transfers, and exceeded items.",
       path: "/reports",

@@ -36,7 +36,8 @@ export function getWorkPanels(budgetAccess) {
         "User access, roles, categories, and item requests will appear here.",
       show:
         can(budgetAccess, "can_manage_users") ||
-        can(budgetAccess, "can_manage_categories"),
+        can(budgetAccess, "can_manage_categories") ||
+        can(budgetAccess, "can_manage_po_item_mappings"),
     },
 
     {

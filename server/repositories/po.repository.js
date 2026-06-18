@@ -199,6 +199,103 @@ export async function getAvailablePurchaseInvoiceLinesRepo(filters = {}) {
   return result.recordset;
 }
 
+export async function getSuggestedPurchaseInvoiceLinesRepo({
+  budgetItemId,
+  departmentId,
+}) {
+  const pool = await poolPromise;
+
+  const result = await pool
+    .request()
+    .input("budgetItemId", sql.BigInt, budgetItemId)
+    .input("departmentId", sql.Int, departmentId).query(`
+      WITH selected_item AS (
+        SELECT TOP 1
+          bi.id,
+          bi.type_id
+        FROM BS_budget_items bi
+        INNER JOIN BS_budgets b
+          ON b.id = bi.budget_id
+        WHERE bi.id = @budgetItemId
+          AND b.department_id = @departmentId
+      ),
+      active_mappings AS (
+        SELECT
+          m.id AS mapping_id,
+          m.budget_type_id,
+          m.po_item_code,
+          m.po_item_description AS mapped_po_item_description,
+          m.mapping_source,
+          m.learned_count,
+          m.last_learned_at
+        FROM BS_PO_ITEM_MAPPINGS m
+        INNER JOIN selected_item si
+          ON si.type_id = m.budget_type_id
+        WHERE m.is_active = 1
+      )
+      SELECT
+        p.ID AS id,
+        p.INVOICE_NO AS invoice_no,
+        p.DELIVERY_NOTE_DATE AS delivery_note_date,
+        p.VENDOR_INVOICE_NO AS vendor_invoice_no,
+        p.SOURCE_NO AS source_no,
+        p.SOURCE_NAME_EN AS source_name,
+        p.SUPPLIER_NAME_EN AS supplier_name,
+        p.STATUS_NAME_EN AS po_status_name,
+        p.INVOICE_DUE_DATE AS invoice_due_date,
+        p.INV_VOUCHER_NO AS invoice_voucher_no,
+        p.ORDER_ID AS order_id,
+        p.STORE_CODE AS store_code,
+        p.STORE_NAME_EN AS store_name,
+        p.RECEIVED_BY_NAME_EN AS received_by_name,
+        p.ITEM_CODE AS item_code,
+        p.ITEM_DESC AS item_description,
+        p.PARENT_ITEM_NAME AS parent_item_name,
+        p.UNIT_NAME_EN AS unit_name,
+        p.LOT_NO AS lot_no,
+        p.QTY AS po_qty,
+        p.BONUS_QTY AS bonus_qty,
+        p.UNIT_COST AS unit_cost,
+        p.NET_AMOUNT AS net_amount,
+        p.INV_YEAR_CODE AS invoice_year_code,
+        p.CREATED_AT AS created_at,
+        ISNULL(approved.approved_qty, 0) AS approved_qty,
+        ISNULL(pending.pending_qty, 0) AS pending_qty,
+        ISNULL(p.QTY, 0)
+          - ISNULL(approved.approved_qty, 0)
+          - ISNULL(pending.pending_qty, 0) AS available_qty,
+        am.mapping_id,
+        am.mapping_source,
+        am.learned_count,
+        am.last_learned_at,
+        am.mapped_po_item_description
+      FROM active_mappings am
+      INNER JOIN BS_Purchase_Invoices_For_Budget p
+        ON LTRIM(RTRIM(p.ITEM_CODE)) = am.po_item_code
+      OUTER APPLY (
+        SELECT SUM(REQUESTED_QTY) AS approved_qty
+        FROM BS_PO_LINKS
+        WHERE PURCHASE_INVOICE_LINE_ID = p.ID
+          AND STATUS = 'APPROVED'
+      ) approved
+      OUTER APPLY (
+        SELECT SUM(REQUESTED_QTY) AS pending_qty
+        FROM BS_PO_LINKS
+        WHERE PURCHASE_INVOICE_LINE_ID = p.ID
+          AND STATUS = 'PENDING'
+      ) pending
+      ORDER BY
+        CASE WHEN am.mapping_source = 'MANUAL' THEN 1 ELSE 0 END DESC,
+        am.learned_count DESC,
+        am.last_learned_at DESC,
+        available_qty DESC,
+        p.CREATED_AT DESC,
+        p.ID DESC
+    `);
+
+  return result.recordset;
+}
+
 export async function getPurchaseInvoiceLineByIdRepo(id) {
   const pool = await poolPromise;
 

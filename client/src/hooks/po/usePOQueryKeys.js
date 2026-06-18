@@ -12,6 +12,8 @@ export const PO_DASHBOARD_QUERY_KEY = [...PO_QUERY_KEY, "dashboard"];
 
 export const PO_BUDGET_ITEMS_QUERY_KEY = [...PO_QUERY_KEY, "budget-items"];
 
+export const PO_SUGGESTIONS_QUERY_KEY = [...PO_QUERY_KEY, "suggestions"];
+
 export const PO_LINK_DETAILS_QUERY_KEY = [...PO_QUERY_KEY, "details"];
 
 export const PO_TRANSPARENCY_QUERY_KEY = [...PO_QUERY_KEY, "transparency"];

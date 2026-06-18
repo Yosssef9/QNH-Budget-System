@@ -35,7 +35,12 @@ COALESCE(bur.can_approve_transfer, brp.can_approve_transfer, 0) AS can_approve_t
 COALESCE(bur.can_manage_users, brp.can_manage_users, 0) AS can_manage_users,
 COALESCE(bur.can_manage_categories, brp.can_manage_categories, 0) AS can_manage_categories,
 COALESCE(bur.can_view_reports, brp.can_view_reports, 0) AS can_view_reports,
-COALESCE(bur.can_manage_financial_years, brp.can_manage_financial_years, 0) AS can_manage_financial_years
+COALESCE(bur.can_manage_financial_years, brp.can_manage_financial_years, 0) AS can_manage_financial_years,
+COALESCE(
+  bur.can_manage_po_item_mappings,
+  brp.can_manage_po_item_mappings,
+  0
+) AS can_manage_po_item_mappings
     FROM BS_budget_user_roles bur
     LEFT JOIN BS_departments d
       ON d.id = bur.department_id
@@ -87,6 +92,9 @@ COALESCE(bur.can_manage_financial_years, brp.can_manage_financial_years, 0) AS c
       can_manage_categories: Boolean(row.can_manage_categories),
       can_view_reports: Boolean(row.can_view_reports),
       can_manage_financial_years: Boolean(row.can_manage_financial_years),
+      can_manage_po_item_mappings: Boolean(
+        row.can_manage_po_item_mappings,
+      ),
     },
   };
 }

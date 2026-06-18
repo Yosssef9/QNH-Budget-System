@@ -286,6 +286,12 @@ function getSidebarSections(budgetAccess) {
           show: permissions.can_manage_categories,
         },
         {
+          label: "PO Item Mappings",
+          path: "/admin/po-item-mappings",
+          icon: Link2,
+          show: permissions.can_manage_po_item_mappings,
+        },
+        {
           label: "Audit Logs",
           path: "/admin/audit-logs",
           icon: History,
@@ -431,8 +437,14 @@ export default function DashboardLayout() {
           </div>
 
           <div
-            className="flex items-center gap-3 rounded-2xl border border-blue-400 bg-white
-  px-4 py-2.5 shadow-sm"
+            className="
+    flex items-center gap-3
+    rounded-2xl
+    border border-slate-200
+    bg-slate-50
+    px-4 py-2.5
+    shadow-sm
+  "
           >
             <div
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl

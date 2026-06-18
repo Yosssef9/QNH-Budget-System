@@ -173,6 +173,21 @@ const router = createBrowserRouter([
       },
 
       {
+        path: "admin/po-item-mappings",
+        async lazy() {
+          const module = await import("../pages/POItemMappingsPage");
+
+          return {
+            Component: () => (
+              <RequirePermission permission="can_manage_po_item_mappings">
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
+      },
+
+      {
         path: "admin/audit-logs",
         async lazy() {
           const module = await import("../pages/AuditLogsPage");

@@ -10,6 +10,7 @@ import toast from "react-hot-toast";
 import { useAvailablePOs } from "../../hooks/po/useAvailablePOs";
 import { usePOBudgetItems } from "../../hooks/po/usePOBudgetItems";
 import { useCreatePOLink } from "../../hooks/po/useCreatePOLink";
+import { usePOSuggestions } from "../../hooks/po/usePOSuggestions";
 
 import ConfirmModal from "../ConfirmModal";
 import CurrencyText from "../CurrencyText";
@@ -46,6 +47,10 @@ function getPOAvailableQuantity(po) {
 
 function getPOUnitCost(po) {
   return toNumber(po.unit_cost);
+}
+
+function getPOLearnedCount(po) {
+  return toNumber(po.learned_count);
 }
 
 function getBudgetItemId(item) {
@@ -192,7 +197,7 @@ function AllocationSummary({
             />
             <SummaryMetric
               label="Linked Amount"
-              value={<CurrencyText value={linkedAmount || 0} />}
+              value={<CurrencyText value={linkedAmount || 0} compact />}
               tone="green"
             />
           </div>
@@ -219,9 +224,10 @@ function AllocationSummary({
   );
 }
 
-function POCard({ po, selected, onClick }) {
+function POCard({ po, selected, onClick, suggestion = false }) {
   const availableQty = getPOAvailableQuantity(po);
   const disabled = availableQty <= 0;
+  const learnedCount = getPOLearnedCount(po);
 
   return (
     <button
@@ -241,6 +247,18 @@ function POCard({ po, selected, onClick }) {
               {getPOItemDescription(po)}
             </span>
 
+            {suggestion && (
+              <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-700">
+                Suggested
+              </span>
+            )}
+
+            {disabled && (
+              <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-600">
+                Fully Consumed
+              </span>
+            )}
+
             {selected && (
               <CheckCircle2 className="shrink-0 text-blue-600" size={18} />
             )}
@@ -257,6 +275,22 @@ function POCard({ po, selected, onClick }) {
               Invoice due {formatDate(po.invoice_due_date)}
             </span>
           </div>
+
+          {suggestion && (
+            <div className="mt-2 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
+              Recommended from mappings
+              {learnedCount > 0 ? ` - learned ${learnedCount} time(s)` : ""}
+              {po.last_learned_at
+                ? ` - last learned ${formatDate(po.last_learned_at)}`
+                : ""}
+            </div>
+          )}
+
+          {disabled && (
+            <div className="mt-2 text-xs font-semibold text-slate-500">
+              No Available Quantity
+            </div>
+          )}
         </div>
 
         <div className="shrink-0 text-right">
@@ -311,6 +345,8 @@ export default function POLinkForm({
   } = useAvailablePOs({
     search: poSearch || undefined,
   });
+  const { data: suggestedPOs = [], isFetching: fetchingSuggestions } =
+    usePOSuggestions(selectedBudgetItemId);
 
   const budgetItemOptions = useMemo(() => {
     return budgetItems.map((item) => ({
@@ -326,10 +362,10 @@ export default function POLinkForm({
   }, [budgetItems, selectedBudgetItemId]);
 
   const selectedPO = useMemo(() => {
-    return availablePOs.find(
+    return [...suggestedPOs, ...availablePOs].find(
       (po) => String(getPOId(po)) === String(selectedPOId),
     );
-  }, [availablePOs, selectedPOId]);
+  }, [availablePOs, selectedPOId, suggestedPOs]);
 
   const numericRequestedQty = toNumber(requestedQty);
   const selectedPOAvailableQty = selectedPO
@@ -570,10 +606,66 @@ export default function POLinkForm({
                 Loading...
               </span>
             )}
+
+            {fetchingSuggestions && (
+              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                Loading suggestions...
+              </span>
+            )}
           </div>
 
           <div className="space-y-4">
             <PORecordDetails po={selectedPO} />
+
+            {selectedBudgetItemId && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-3">
+                <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <div className="text-sm font-bold text-slate-900">
+                      Suggested PO Records
+                    </div>
+
+                    <p className="mt-1 text-xs font-medium text-slate-500">
+                      Recommended records generated from mappings.
+                    </p>
+                  </div>
+
+                  {suggestedPOs.length > 0 && (
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-700">
+                      {suggestedPOs.length} found
+                    </span>
+                  )}
+                </div>
+
+                <div className="max-h-[260px] space-y-3 overflow-auto rounded-xl border border-emerald-100 bg-white/70 p-3">
+                  {suggestedPOs.map((po) => {
+                    const poId = getPOId(po);
+
+                    return (
+                      <POCard
+                        key={`suggested-${poId}`}
+                        po={po}
+                        suggestion
+                        selected={String(poId) === String(selectedPOId)}
+                        onClick={() => setSelectedPOId(String(poId))}
+                      />
+                    );
+                  })}
+
+                  {!fetchingSuggestions && suggestedPOs.length === 0 && (
+                    <div className="rounded-xl border border-dashed border-emerald-200 bg-white p-5 text-center">
+                      <div className="text-sm font-bold text-slate-700">
+                        No suggested PO records found
+                      </div>
+
+                      <p className="mt-1 text-sm text-slate-500">
+                        Use All PO Records below to search manually.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <EnterpriseSearch
               value={poSearch}
@@ -581,32 +673,38 @@ export default function POLinkForm({
               placeholder="Search PO by item, code, supplier, or ID..."
             />
 
-            <div className="max-h-[480px] space-y-3 overflow-auto rounded-2xl border border-slate-200 bg-slate-50 p-3">
-              {availablePOs.map((po) => {
-                const poId = getPOId(po);
+            <div>
+              <div className="mb-2 text-sm font-bold text-slate-900">
+                All PO Records
+              </div>
 
-                return (
-                  <POCard
-                    key={poId}
-                    po={po}
-                    selected={String(poId) === String(selectedPOId)}
-                    onClick={() => setSelectedPOId(String(poId))}
-                  />
-                );
-              })}
+              <div className="max-h-[480px] space-y-3 overflow-auto rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                {availablePOs.map((po) => {
+                  const poId = getPOId(po);
 
-              {!loadingPOs && availablePOs.length === 0 && (
-                <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
-                  <div className="text-sm font-bold text-slate-700">
-                    No available PO records found
+                  return (
+                    <POCard
+                      key={poId}
+                      po={po}
+                      selected={String(poId) === String(selectedPOId)}
+                      onClick={() => setSelectedPOId(String(poId))}
+                    />
+                  );
+                })}
+
+                {!loadingPOs && availablePOs.length === 0 && (
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
+                    <div className="text-sm font-bold text-slate-700">
+                      No available PO records found
+                    </div>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      Try changing your search text or check if there are
+                      approved PO quantities available.
+                    </p>
                   </div>
-
-                  <p className="mt-1 text-sm text-slate-500">
-                    Try changing your search text or check if there are approved
-                    PO quantities available.
-                  </p>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </section>
@@ -660,7 +758,7 @@ export default function POLinkForm({
               </div>
 
               <div className="mt-1 text-lg font-bold text-blue-700">
-                <CurrencyText value={linkedAmount} />
+                <CurrencyText value={linkedAmount} compact />
               </div>
             </div>
           </div>

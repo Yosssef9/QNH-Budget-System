@@ -12,6 +12,7 @@ import budgetAccessAssignmentsRoutes from "./routes/budgetAccessAssignments.rout
 import budgetAccessUsersRoutes from "./routes/budgetAccessUsers.routes.js";
 import budgetAccessDepartmentsRoutes from "./routes/budgetAccessDepartments.routes.js";
 import budgetAccessRolesRoutes from "./routes/budgetAccessRoles.routes.js";
+import poItemMappingsRoutes from "./routes/poItemMappings.routes.js";
 
 // Other features
 import financialYearsRoutes from "./routes/financialYears.routes.js";
@@ -72,6 +73,7 @@ app.use("/api/admin/budget-access/assignments", budgetAccessAssignmentsRoutes);
 app.use("/api/admin/budget-access/users", budgetAccessUsersRoutes);
 app.use("/api/admin/budget-access/departments", budgetAccessDepartmentsRoutes);
 app.use("/api/admin/budget-access/roles", budgetAccessRolesRoutes);
+app.use("/api/admin/po-item-mappings", poItemMappingsRoutes);
 
 // Other features
 app.use("/api/financial-years", financialYearsRoutes);

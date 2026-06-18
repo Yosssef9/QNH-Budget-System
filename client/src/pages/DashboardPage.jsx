@@ -46,6 +46,15 @@ export default function DashboardPage() {
   const pendingCount = itemRequests.filter(
     (item) => item.status === "PENDING",
   ).length;
+  function getDashboardColumns(count) {
+    if (count <= 5) return count;
+
+    if (count <= 10) {
+      return Math.ceil(count / 2);
+    }
+
+    return 4;
+  }
   return (
     <div className="space-y-8 font-sans">
       {/* <section className="overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-sm ">
@@ -199,13 +208,10 @@ export default function DashboardPage() {
         </div>
       </section> */}
       <section
-        className="
-    grid gap-5
-    grid-cols-1
-    md:grid-cols-2
-    lg:grid-cols-3
-    xl:grid-cols-5
-  "
+        className="grid gap-5"
+        style={{
+          gridTemplateColumns: `repeat(${getDashboardColumns(stats.length)}, minmax(0, 1fr))`,
+        }}
       >
         {stats.map((item) => (
           <DashboardStatCard key={item.title} item={item} />
@@ -218,7 +224,15 @@ export default function DashboardPage() {
             Quick Actions
           </h3>
 
-          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div
+            className="
+    mt-5
+    grid
+    gap-4
+    grid-cols-[repeat(auto-fit,minmax(260px,1fr))]
+  "
+          >
+            {" "}
             {quickActions.map((action) => (
               <DashboardQuickActionCard key={action.title} action={action} />
             ))}

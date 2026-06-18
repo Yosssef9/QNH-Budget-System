@@ -29,6 +29,7 @@ bur.can_approve_po_links,
   bur.can_manage_categories,
   bur.can_view_reports,
   bur.can_manage_financial_years,
+  bur.can_manage_po_item_mappings,
   bur.is_active,
   bur.created_by,
   bur.created_at,
@@ -125,6 +126,11 @@ export async function createBudgetAccessAssignmentRepo(payload) {
       sql.Bit,
       payload.can_manage_financial_years,
     )
+    .input(
+      "can_manage_po_item_mappings",
+      sql.Bit,
+      payload.can_manage_po_item_mappings,
+    )
     .input("created_by", sql.Int, payload.created_by).query(`
       INSERT INTO BS_budget_user_roles (
         user_id,
@@ -144,6 +150,7 @@ can_approve_po_links,
         can_manage_categories,
         can_view_reports,
  can_manage_financial_years,
+        can_manage_po_item_mappings,
         created_by
       )
       OUTPUT INSERTED.*
@@ -165,6 +172,7 @@ can_approve_po_links,
         @can_manage_categories,
         @can_view_reports,
 @can_manage_financial_years,
+        @can_manage_po_item_mappings,
         @created_by
       )
     `);
@@ -213,6 +221,11 @@ export async function updateBudgetAccessAssignmentRepo(id, payload) {
       "can_manage_financial_years",
       sql.Bit,
       payload.can_manage_financial_years,
+    )
+    .input(
+      "can_manage_po_item_mappings",
+      sql.Bit,
+      payload.can_manage_po_item_mappings,
     ).query(`
       UPDATE BS_budget_user_roles
       SET
@@ -221,7 +234,10 @@ export async function updateBudgetAccessAssignmentRepo(id, payload) {
 
         can_view_budget = @can_view_budget,
         can_edit_budget = @can_edit_budget,
-        can_link_po = @can_link_po,
+        can_view_po_links = @can_view_po_links,
+        can_request_po_links = @can_request_po_links,
+        can_view_all_po_link_requests = @can_view_all_po_link_requests,
+        can_approve_po_links = @can_approve_po_links,
         can_request_transfer = @can_request_transfer,
         can_approve_budget = @can_approve_budget,
         can_approve_transfer = @can_approve_transfer,
@@ -229,6 +245,7 @@ export async function updateBudgetAccessAssignmentRepo(id, payload) {
         can_manage_categories = @can_manage_categories,
         can_view_reports = @can_view_reports,
 can_manage_financial_years = @can_manage_financial_years,
+        can_manage_po_item_mappings = @can_manage_po_item_mappings,
         updated_at = GETUTCDATE()
       OUTPUT INSERTED.*
       WHERE id = @id

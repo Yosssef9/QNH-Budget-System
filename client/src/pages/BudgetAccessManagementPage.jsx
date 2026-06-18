@@ -43,6 +43,7 @@ const permissionFields = [
   { key: "can_approve_transfer", label: "Approve Transfer" },
   { key: "can_manage_users", label: "Manage Users" },
   { key: "can_manage_categories", label: "Manage Categories" },
+  { key: "can_manage_po_item_mappings", label: "Manage PO Item Mappings" },
   { key: "can_view_reports", label: "View Reports" },
 ];
 
@@ -69,6 +70,7 @@ const emptyForm = {
   can_approve_transfer: "",
   can_manage_users: "",
   can_manage_categories: "",
+  can_manage_po_item_mappings: "",
   can_view_reports: "",
 };
 
@@ -141,6 +143,9 @@ function rowToForm(row) {
     can_approve_transfer: toFormPermissionValue(row.can_approve_transfer),
     can_manage_users: toFormPermissionValue(row.can_manage_users),
     can_manage_categories: toFormPermissionValue(row.can_manage_categories),
+    can_manage_po_item_mappings: toFormPermissionValue(
+      row.can_manage_po_item_mappings,
+    ),
     can_view_reports: toFormPermissionValue(row.can_view_reports),
   };
 }

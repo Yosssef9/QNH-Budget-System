@@ -1,7 +1,8 @@
-import { formatSAR } from "../utils/formatters";
+import { formatCompactSAR, formatSAR } from "../utils/formatters";
 
 export default function CurrencyText({
   value,
+  compact = false,
   className = "",
   currencyClassName = "",
   valueClassName = "",
@@ -14,7 +15,9 @@ export default function CurrencyText({
         SAR
       </span>
 
-      <span className={valueClassName}>{formatSAR(value)}</span>
+      <span className={valueClassName}>
+        {compact ? formatCompactSAR(value) : formatSAR(value)}
+      </span>
     </span>
   );
 }

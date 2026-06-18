@@ -5,6 +5,7 @@ import {
   getMyPOLinks,
   getPODashboard,
   getPOBudgetItems,
+  getPOSuggestions,
   getPOLinksForApproval,
   createPOLink,
   approvePOLink,
@@ -33,6 +34,12 @@ router.get(
   "/budget-items",
   requirePermission("can_request_po_links"),
   getPOBudgetItems,
+);
+
+router.get(
+  "/suggestions",
+  requirePermission("can_request_po_links"),
+  getPOSuggestions,
 );
 
 router.get(

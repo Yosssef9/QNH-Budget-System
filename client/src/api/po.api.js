@@ -26,6 +26,14 @@ export async function getPOBudgetItems() {
   return data.data || [];
 }
 
+export async function getPOSuggestions(budgetItemId) {
+  const { data } = await api.get("/po-links/suggestions", {
+    params: { budgetItemId },
+  });
+
+  return data.data || [];
+}
+
 export async function getPOLinksForApproval(params = {}) {
   const { data } = await api.get("/po-links", {
     params,

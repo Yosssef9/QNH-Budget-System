@@ -10,3 +10,12 @@ export function formatSAR(value) {
     maximumFractionDigits: 2,
   }).format(number);
 }
+export function formatCompactSAR(value) {
+  const number = Number(value || 0);
+
+  return new Intl.NumberFormat("en-US", {
+    notation: "compact",
+    compactDisplay: "short",
+    maximumFractionDigits: 2,
+  }).format(number);
+}

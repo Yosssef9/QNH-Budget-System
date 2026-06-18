@@ -111,3 +111,9 @@ export function validatePOApprovalFilters(query = {}) {
       : null,
   };
 }
+
+export function validatePOSuggestionFilters(query = {}) {
+  return {
+    budgetItemId: toPositiveInteger(query.budgetItemId, "budgetItemId"),
+  };
+}

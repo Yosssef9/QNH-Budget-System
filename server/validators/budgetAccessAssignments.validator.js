@@ -16,6 +16,7 @@ const permissionFields = [
   "can_manage_categories",
   "can_view_reports",
   "can_manage_financial_years",
+  "can_manage_po_item_mappings",
 ];
 
 function isValidNullableBoolean(value) {

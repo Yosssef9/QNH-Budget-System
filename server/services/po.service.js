@@ -13,9 +13,11 @@ import {
   getPOLinkDetailsRepo,
   getPOLinksForApprovalRepo,
   getPurchaseInvoiceLineByIdRepo,
+  getSuggestedPurchaseInvoiceLinesRepo,
   rejectPOLinkRepo,
 } from "../repositories/po.repository.js";
 import { getBudgetItemDetails } from "../repositories/budgetItem.repository.js";
+import { learnPOItemMappingFromApprovedLinkRepo } from "../repositories/poItemMappings.repository.js";
 import { findFinancialYearById as getFinancialYearByIdRepo } from "../repositories/financialYears.repository.js";
 import { NOTIFICATION_TYPES } from "../constants/notificationTypes.js";
 import { queueNotification } from "./notification.service.js";
@@ -76,6 +78,19 @@ async function validatePOLinkBusinessWindow(budgetItem) {
 
 export async function getAvailablePOsService(filters = {}) {
   return getAvailablePurchaseInvoiceLinesRepo(filters);
+}
+
+export async function getPOSuggestionsService({ budgetItemId, budgetAccess }) {
+  const departmentId = budgetAccess?.department?.id;
+
+  if (!departmentId) {
+    throw new ApiError(403, "You are not assigned to any department budget");
+  }
+
+  return getSuggestedPurchaseInvoiceLinesRepo({
+    budgetItemId,
+    departmentId,
+  });
 }
 
 export async function getMyPOLinksService(userId) {
@@ -265,6 +280,11 @@ export async function approvePOLinkService(poLinkId, user) {
   if (!approved) {
     throw new ApiError(409, "PO Link request is no longer pending");
   }
+
+  await learnPOItemMappingFromApprovedLinkRepo({
+    poLinkId: approved.id,
+    userId: user.userId,
+  });
 
   await queueNotification({
     notificationType: NOTIFICATION_TYPES.PO_LINK_APPROVED,

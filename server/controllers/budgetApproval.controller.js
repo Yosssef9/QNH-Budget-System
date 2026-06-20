@@ -4,6 +4,7 @@ import { auditLog } from "../utils/audit.js";
 import {
   getPendingBudgetsService,
   getBudgetReviewService,
+  getBudgetItemPriceIntelligenceService,
   approveBudgetService,
   returnBudgetService,
   getBudgetComparisonService,
@@ -27,6 +28,20 @@ export const getBudgetReview = asyncHandler(async (req, res) => {
   res.json(
     new ApiResponse({
       message: "Budget review fetched successfully",
+      data,
+    }),
+  );
+});
+
+export const getBudgetItemPriceIntelligence = asyncHandler(async (req, res) => {
+  const data = await getBudgetItemPriceIntelligenceService({
+    budgetId: Number(req.params.budgetId),
+    budgetItemId: Number(req.params.budgetItemId),
+  });
+
+  res.json(
+    new ApiResponse({
+      message: "Budget item price intelligence fetched successfully",
       data,
     }),
   );

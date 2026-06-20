@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   approveBudget,
+  getBudgetItemPriceIntelligence,
   getBudgetReview,
   getPendingApprovals,
   returnBudget,
@@ -25,6 +26,23 @@ export function useBudgetReview(budgetId) {
     queryKey: [...APPROVAL_QUERY_KEY, "review", budgetId],
     queryFn: () => getBudgetReview(budgetId),
     enabled: Boolean(budgetId),
+  });
+}
+
+export function useBudgetItemPriceIntelligence(
+  budgetId,
+  budgetItemId,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: [
+      ...APPROVAL_QUERY_KEY,
+      "price-intelligence",
+      budgetId,
+      budgetItemId,
+    ],
+    queryFn: () => getBudgetItemPriceIntelligence(budgetId, budgetItemId),
+    enabled: Boolean(enabled && budgetId && budgetItemId),
   });
 }
 

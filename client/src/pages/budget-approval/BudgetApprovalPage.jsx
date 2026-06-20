@@ -107,6 +107,7 @@ export default function BudgetApprovalPage() {
 
   const selectedBudget = reviewData?.budget;
   const items = reviewData?.items || [];
+  const priceIntelligenceSummary = reviewData?.priceIntelligenceSummary;
 
   const approveMutation = useApproveBudget();
   const returnMutation = useReturnBudget();
@@ -486,6 +487,7 @@ export default function BudgetApprovalPage() {
                     showNotes
                     itemNotes={itemNotes}
                     onItemNoteChange={handleItemNoteChange}
+                    priceIntelligenceSummary={priceIntelligenceSummary}
                   />
 
                   <div>

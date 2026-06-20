@@ -7,6 +7,8 @@ import CurrencyText from "../../components/CurrencyText";
 import BudgetHeaderCard from "../../components/budgets/shared/BudgetHeaderCard";
 import BudgetReviewStatusCard from "../../components/budgets/shared/BudgetReviewStatusCard";
 import BudgetItemsTable from "../../components/budgets/shared/BudgetItemsTable";
+import BudgetPriceIntelligenceDrawer from "../../components/budgets/price-intelligence/BudgetPriceIntelligenceDrawer";
+import PriceIntelligenceSummary from "../../components/budgets/price-intelligence/PriceIntelligenceSummary";
 import useBudgetTotals from "../../hooks/budgets/useBudgetTotals";
 
 
@@ -16,10 +18,15 @@ export default function ReadonlyBudgetGrid({
   itemNotes = {},
   onItemNoteChange,
   showNotes = false,
+  priceIntelligenceSummary,
 }) {
   const [summaryView, setSummaryView] = useState("QUARTER");
+  const [selectedPriceIntelligenceItem, setSelectedPriceIntelligenceItem] =
+    useState(null);
 
   const summary = useBudgetTotals(items);
+  const showPriceIntelligence = showNotes;
+
   return (
     <div className="space-y-5 text-slate-800">
       <BudgetHeaderCard
@@ -34,6 +41,12 @@ export default function ReadonlyBudgetGrid({
       />
 
       <section>
+        {showPriceIntelligence && (
+          <div className="mb-5">
+            <PriceIntelligenceSummary summary={priceIntelligenceSummary} />
+          </div>
+        )}
+
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-xl font-bold text-slate-900">
             Budget Items Review
@@ -49,6 +62,8 @@ export default function ReadonlyBudgetGrid({
           showNotes={showNotes}
           itemNotes={itemNotes}
           onItemNoteChange={onItemNoteChange}
+          showPriceIntelligence={showPriceIntelligence}
+          onViewPriceIntelligence={setSelectedPriceIntelligenceItem}
           readOnly
         />
       </section>
@@ -88,6 +103,13 @@ export default function ReadonlyBudgetGrid({
           />
         </div>
       </section>
+
+      <BudgetPriceIntelligenceDrawer
+        open={showPriceIntelligence && Boolean(selectedPriceIntelligenceItem)}
+        budget={budget}
+        item={selectedPriceIntelligenceItem}
+        onClose={() => setSelectedPriceIntelligenceItem(null)}
+      />
     </div>
   );
 }

@@ -68,6 +68,14 @@ export async function getBudgetReview(budgetId) {
   return response.data?.data;
 }
 
+export async function getBudgetItemPriceIntelligence(budgetId, budgetItemId) {
+  const response = await api.get(
+    `/budget-approval/${budgetId}/items/${budgetItemId}/price-intelligence`,
+  );
+
+  return response.data?.data;
+}
+
 export async function approveBudget(budgetId, payload) {
   const response = await api.patch(
     `/budget-approval/${budgetId}/approve`,

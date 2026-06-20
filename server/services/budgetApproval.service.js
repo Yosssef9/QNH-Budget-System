@@ -4,11 +4,17 @@ import {
   getPendingBudgetsRepo,
   getBudgetHeaderRepo,
   getBudgetItemsForReviewRepo,
+  getBudgetItemPriceIntelligenceRepo,
+  getBudgetItemPriceIntelligenceDetailsRepo,
   approveBudgetRepo,
   returnBudgetRepo,
   getBudgetComparisonRepo,
   getApprovedBudgetsRepo,
 } from "../repositories/budgetApproval.repository.js";
+import {
+  buildPriceIntelligence,
+  summarizePriceIntelligence,
+} from "../helpers/priceIntelligence.helper.js";
 import { findLatestFinancialYearRepo } from "../repositories/financialYears.repository.js";
 import { insertBudgetNoteRepo } from "../repositories/budgetNote.repository.js";
 import { queueNotification } from "./notification.service.js";
@@ -32,10 +38,76 @@ export async function getBudgetReviewService(budgetId) {
   }
 
   const items = await getBudgetItemsForReviewRepo(budgetId);
+  const priceIntelligenceRows =
+    await getBudgetItemPriceIntelligenceRepo(budgetId);
+  const priceIntelligenceByItemId = new Map(
+    priceIntelligenceRows.map((row) => [
+      Number(row.budget_item_id),
+      {
+        ...row,
+        mapped_item_codes: parseMappedItemCodes(row.mapped_item_codes),
+      },
+    ]),
+  );
+
+  const itemsWithPriceIntelligence = items.map((item) => ({
+    ...item,
+    price_intelligence: buildPriceIntelligence(
+      item,
+      priceIntelligenceByItemId.get(Number(item.id)),
+    ),
+  }));
 
   return {
     budget,
-    items,
+    items: itemsWithPriceIntelligence,
+    priceIntelligenceSummary: summarizePriceIntelligence(
+      itemsWithPriceIntelligence,
+    ),
+  };
+}
+
+function parseMappedItemCodes(value) {
+  if (!value) return [];
+
+  if (Array.isArray(value)) return value;
+
+  return String(value)
+    .split(",")
+    .map((code) => code.trim())
+    .filter(Boolean);
+}
+
+export async function getBudgetItemPriceIntelligenceService({
+  budgetId,
+  budgetItemId,
+}) {
+  const { budgetItem, benchmark, recentPurchases } =
+    await getBudgetItemPriceIntelligenceDetailsRepo({
+      budgetId,
+      budgetItemId,
+    });
+
+  if (!budgetItem) {
+    throw new ApiError(
+      404,
+      "Budget item not found for this budget",
+      "BUDGET_ITEM_NOT_FOUND",
+    );
+  }
+
+  const normalizedBenchmark = {
+    ...benchmark,
+    mapped_item_codes: parseMappedItemCodes(benchmark?.mapped_item_codes),
+  };
+
+  return {
+    budgetItem,
+    priceIntelligence: buildPriceIntelligence(
+      budgetItem,
+      normalizedBenchmark,
+    ),
+    historicalPurchases: recentPurchases || [],
   };
 }
 
@@ -135,8 +207,8 @@ export async function returnBudgetService({ budgetId, body, user }) {
     );
   }
 
-  const returned = await withTransaction(async (trx) => {
-    await returnBudgetRepo(
+  await withTransaction(async (trx) => {
+    const returnedBudget = await returnBudgetRepo(
       {
         budgetId,
         returnedBy: user.userId,
@@ -144,7 +216,13 @@ export async function returnBudgetService({ budgetId, body, user }) {
       trx,
     );
 
-    const returned = await getBudgetHeaderRepo(budgetId);
+    if (!returnedBudget) {
+      throw new ApiError(
+        409,
+        "Budget is no longer pending approval",
+        "BUDGET_RETURN_CONFLICT",
+      );
+    }
 
     await insertBudgetNoteRepo(
       {
@@ -177,9 +255,10 @@ export async function returnBudgetService({ budgetId, body, user }) {
         trx,
       );
     }
-
-    return returned;
   });
+
+  const returned = await getBudgetHeaderRepo(budgetId);
+
   await queueNotification({
     notificationType: NOTIFICATION_TYPES.BUDGET_RETURNED,
 

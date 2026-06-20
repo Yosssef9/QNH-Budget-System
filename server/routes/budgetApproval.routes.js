@@ -6,6 +6,7 @@ import { requirePermission } from "../middleware/permission.middleware.js";
 import {
   getPendingBudgets,
   getBudgetReview,
+  getBudgetItemPriceIntelligence,
   getBudgetComparison,
   approveBudget,
   returnBudget,
@@ -20,6 +21,10 @@ router.use(requirePermission("can_approve_budget"));
 router.get("/pending", getPendingBudgets);
 router.get("/comparison", getBudgetComparison);
 router.get("/approved", getApprovedBudgets);
+router.get(
+  "/:budgetId/items/:budgetItemId/price-intelligence",
+  getBudgetItemPriceIntelligence,
+);
 router.get("/:budgetId", getBudgetReview);
 router.patch("/:budgetId/approve", approveBudget);
 router.patch("/:budgetId/return", returnBudget);

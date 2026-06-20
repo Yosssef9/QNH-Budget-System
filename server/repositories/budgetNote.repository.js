@@ -7,7 +7,7 @@ export async function insertBudgetNoteRepo(
 ) {
   const pool = await poolPromise;
 
-  const request = createRequest(pool, transaction)
+  const result = await createRequest(pool, transaction)
     .input("budgetId", sql.BigInt, budgetId)
     .input("budgetItemId", sql.BigInt, budgetItemId)
     .input("noteType", sql.VarChar(50), noteType)

@@ -13,6 +13,7 @@ import budgetAccessUsersRoutes from "./routes/budgetAccessUsers.routes.js";
 import budgetAccessDepartmentsRoutes from "./routes/budgetAccessDepartments.routes.js";
 import budgetAccessRolesRoutes from "./routes/budgetAccessRoles.routes.js";
 import poItemMappingsRoutes from "./routes/poItemMappings.routes.js";
+import projectsRoutes from "./routes/projects.routes.js";
 
 // Other features
 import financialYearsRoutes from "./routes/financialYears.routes.js";
@@ -88,6 +89,7 @@ app.use("/api/transfers", transferRoutes);
 app.use("/api/test", testRoutes);
 app.use("/api/budget-items", budgetItemRoutes);
 app.use("/api/po-links", poRoutes);
+app.use("/api/projects", projectsRoutes);
 // 404
 app.use((req, res, next) => {
   next(new ApiError(404, "Route not found", "NOT_FOUND"));

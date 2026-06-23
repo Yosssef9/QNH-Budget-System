@@ -174,6 +174,27 @@ function BudgetDistributionRow({
           </div>
         )}
       </td>
+      <td className="w-[130px] border border-slate-200 px-3 py-4 text-center">
+        <label
+          className={[
+            "inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition-all duration-200",
+            isBudgetLocked
+              ? "cursor-not-allowed opacity-60"
+              : "cursor-pointer hover:border-blue-300 hover:bg-blue-50",
+          ].join(" ")}
+        >
+          <input
+            type="checkbox"
+            disabled={isBudgetLocked}
+            checked={row.isProject === true}
+            onChange={(e) =>
+              updateRow(row.id, "isProject", e.target.checked)
+            }
+            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+          />
+          <span>Project</span>
+        </label>
+      </td>
       <td className="w-[180px] border border-slate-200 px-3 py-4 align-middle">
         <div className="flex flex-col items-center justify-center gap-2">
           <div className="w-full min-w-[200px]">

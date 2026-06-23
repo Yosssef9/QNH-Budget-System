@@ -69,6 +69,7 @@ export async function createBudgetItemRepo({
   totalAmount,
   distributionMethod,
   distributionLevel,
+  isProject = false,
   createdBy,
 }) {
   const pool = await poolPromise;
@@ -82,6 +83,7 @@ export async function createBudgetItemRepo({
     .input("totalAmount", sql.Decimal(18, 2), totalAmount)
     .input("distributionMethod", sql.VarChar(50), distributionMethod)
     .input("distributionLevel", sql.VarChar(50), distributionLevel)
+    .input("isProject", sql.Bit, isProject ? 1 : 0)
     .input("createdBy", sql.Int, createdBy).query(`
       INSERT INTO BS_budget_items (
         budget_id,
@@ -91,6 +93,7 @@ export async function createBudgetItemRepo({
         total_amount,
         distribution_method,
         distribution_level,
+        is_project,
         created_by
       )
       OUTPUT INSERTED.*
@@ -102,6 +105,7 @@ export async function createBudgetItemRepo({
         @totalAmount,
         @distributionMethod,
         @distributionLevel,
+        @isProject,
         @createdBy
       )
     `);
@@ -163,6 +167,7 @@ SELECT
         bi.quantity,
         bi.unit_price,
        bi.total_amount,
+bi.is_project,
 bi.distribution_method,
 bi.distribution_level,
 
@@ -230,6 +235,12 @@ export async function replaceBudgetItemsRepo({ budgetId, items, createdBy }) {
       unit_price: Number(item.unit_price || 0),
       distribution_method: item.distribution_method,
       distribution_level: item.distribution_level,
+      is_project:
+        item.is_project === undefined || item.is_project === null
+          ? null
+          : item.is_project === true ||
+            item.is_project === 1 ||
+            item.is_project === "1",
       distribution: item.distribution || [],
     }));
 
@@ -248,7 +259,8 @@ export async function replaceBudgetItemsRepo({ budgetId, items, createdBy }) {
     ).query(`
        SELECT
   id,
-  type_id
+  type_id,
+  is_project
 FROM BS_budget_items
 WHERE budget_id = @budgetId
   AND is_active = 1
@@ -259,6 +271,12 @@ WHERE budget_id = @budgetId
       existingResult.recordset.map((row) => [
         Number(row.id),
         Number(row.type_id),
+      ]),
+    );
+    const existingProjectByItemId = new Map(
+      existingResult.recordset.map((row) => [
+        Number(row.id),
+        row.is_project === true || row.is_project === 1,
       ]),
     );
     const sentExistingIds = normalizedItems
@@ -285,6 +303,10 @@ WHERE budget_id = @budgetId
         : null;
 
       const isNewItem = !item.id || !existingIds.includes(Number(item.id));
+      const isProject =
+        item.is_project === null
+          ? existingProjectByItemId.get(Number(item.id)) === true
+          : item.is_project === true;
 
       const typeChanged =
         !isNewItem && Number(existingTypeId) !== Number(item.type_id);
@@ -325,6 +347,7 @@ WHERE budget_id = @budgetId
             item.distribution_method,
           )
           .input("distributionLevel", sql.VarChar(30), item.distribution_level)
+          .input("isProject", sql.Bit, isProject ? 1 : 0)
           .query(`
             UPDATE BS_budget_items
             SET
@@ -334,6 +357,7 @@ WHERE budget_id = @budgetId
               total_amount = @totalAmount,
               distribution_method = @distributionMethod,
               distribution_level = @distributionLevel,
+              is_project = @isProject,
               updated_at = GETUTCDATE()
             WHERE id = @itemId
               AND is_active = 1
@@ -351,6 +375,7 @@ WHERE budget_id = @budgetId
             item.distribution_method,
           )
           .input("distributionLevel", sql.VarChar(30), item.distribution_level)
+          .input("isProject", sql.Bit, isProject ? 1 : 0)
           .input("createdBy", sql.Int, Number(createdBy)).query(`
             INSERT INTO BS_budget_items (
               budget_id,
@@ -360,6 +385,7 @@ WHERE budget_id = @budgetId
               total_amount,
               distribution_method,
               distribution_level,
+              is_project,
               created_by
             )
             OUTPUT INSERTED.id
@@ -371,6 +397,7 @@ WHERE budget_id = @budgetId
               @totalAmount,
               @distributionMethod,
               @distributionLevel,
+              @isProject,
               @createdBy
             )
           `);

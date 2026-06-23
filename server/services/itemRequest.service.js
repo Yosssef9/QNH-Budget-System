@@ -26,13 +26,12 @@ export async function createItemRequestService(payload) {
 
   await queueNotification({
     notificationType: NOTIFICATION_TYPES.ITEM_REQUEST_CREATED,
-
     entityType: "ITEM_REQUEST",
-
     entityId: request.id,
-
     payload: {
       requestId: request.id,
+      itemName: request.requested_type_name,
+      requestedBy: payload.requestedBy,
       actorUserId: payload.requestedBy,
     },
   });

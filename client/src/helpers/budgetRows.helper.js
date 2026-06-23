@@ -8,11 +8,13 @@ export function createRow(
   monthly = [],
   quarterly = [],
   isNew = true,
+  isProject = false,
 ) {
   return {
     id,
     category,
     item,
+    isProject,
     method,
     quantity,
     unitPrice,
@@ -55,6 +57,7 @@ export function mapBudgetItemToRow(item) {
     monthly,
     quarterly,
     false,
+    item.is_project === true || item.is_project === 1,
   );
 
   return {
@@ -70,6 +73,7 @@ export function mapBudgetItemToRow(item) {
     savedSnapshot: JSON.stringify({
       category: row.category,
       item: row.item,
+      isProject: row.isProject,
       method: row.method,
       quantity: row.quantity,
       unitPrice: row.unitPrice,

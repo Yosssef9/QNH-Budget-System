@@ -70,16 +70,16 @@ export function getHodCards(budgetAccess, dashboardData) {
       icon: Wallet,
       route: "/budgets",
     },
-    ...(can(budgetAccess, "can_request_po_links")
-      ? [
-          {
-            title: "PO Link Requests",
-            value: "Open",
-            description: "Submit and track PO link requests during pre-closing.",
-            icon: Link2,
-            route: "/po-linking",
-          },
-        ]
-      : []),
+    // ...(can(budgetAccess, "can_request_po_links")
+    //   ? [
+    //       {
+    //         title: "PO Link Requests",
+    //         value: "Open",
+    //         description: "Submit and track PO link requests during pre-closing.",
+    //         icon: Link2,
+    //         route: "/po-linking",
+    //       },
+    //     ]
+    //   : []),
   ];
 }

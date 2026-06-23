@@ -9,7 +9,13 @@ export default function RequirePermission({ children, permission }) {
     return <PageLoader />;
   }
 
-  const hasPermission = Boolean(budgetAccess?.permissions?.[permission]);
+  const requiredPermissions = Array.isArray(permission)
+    ? permission
+    : [permission];
+
+  const hasPermission = requiredPermissions.some((permissionName) =>
+    Boolean(budgetAccess?.permissions?.[permissionName]),
+  );
 
   if (!hasPermission) {
     return <Navigate to="/" replace />;

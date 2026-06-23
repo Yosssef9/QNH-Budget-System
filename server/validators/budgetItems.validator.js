@@ -31,6 +31,26 @@ function nonNegativeNumber(value, fieldName) {
   return numberValue;
 }
 
+function optionalBoolean(value, fieldName) {
+  if (value === undefined || value === null) {
+    return;
+  }
+
+  if (
+    typeof value !== "boolean" &&
+    value !== 0 &&
+    value !== 1 &&
+    value !== "0" &&
+    value !== "1"
+  ) {
+    throw new ApiError(
+      400,
+      `${fieldName} must be a boolean value`,
+      "VALIDATION_ERROR",
+    );
+  }
+}
+
 export function validateBudgetIdParam(params = {}) {
   return positiveInt(params.budgetId, "budgetId");
 }
@@ -39,6 +59,7 @@ export function validateCreateBudgetItem(body = {}) {
   positiveInt(body.type_id, "type_id");
   nonNegativeNumber(body.quantity, "quantity");
   nonNegativeNumber(body.unit_price, "unit_price");
+  optionalBoolean(body.is_project, "is_project");
 
   if (Number(body.quantity) <= 0) {
     throw new ApiError(

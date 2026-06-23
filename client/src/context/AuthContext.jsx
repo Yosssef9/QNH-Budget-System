@@ -12,7 +12,10 @@ export function AuthProvider({ children }) {
     try {
       const response = await api.get("/auth/me");
       console.log("response data", response.data);
-      console.log("import.meta.env.VITE_API_BASE_URL", import.meta.env.VITE_API_BASE_URL);
+      console.log(
+        "import.meta.env.VITE_API_BASE_URL",
+        import.meta.env.VITE_API_BASE_URL,
+      );
       setUser(response.data.user);
       setBudgetAccess(response.data.budgetAccess);
     } catch {
@@ -28,9 +31,11 @@ export function AuthProvider({ children }) {
   }, []);
 
   function logout() {
-    localStorage.removeItem("token");
-    sessionStorage.removeItem("token");
-    window.location.href = "/login.html";
+    // localStorage.removeItem("token");
+    // sessionStorage.removeItem("token");
+    // Configure VITE_AUTH_LOGOUT_URL with the external auth/portal logout URL when available.
+    const logoutUrl = import.meta.env.VITE_AUTH_LOGOUT_URL || "/login-required";
+    window.location.href = logoutUrl;
   }
 
   const value = useMemo(

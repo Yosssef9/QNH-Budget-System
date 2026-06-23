@@ -308,6 +308,7 @@ export async function getBudgetByIdRepo(budgetId) {
         bi.quantity,
         bi.unit_price,
         bi.total_amount,
+        bi.is_project,
         bi.distribution_method,
         bi.distribution_level
       FROM BS_budget_items bi
@@ -380,6 +381,7 @@ export async function getBudgetHistoryItemsRepo(budgetId, departmentId) {
           bi.quantity,
           bi.unit_price,
           bi.total_amount,
+          bi.is_project,
 
           bi.distribution_method,
           bi.distribution_level

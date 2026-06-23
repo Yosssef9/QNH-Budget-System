@@ -13,7 +13,7 @@ export default function POApprovalTable({
   return (
     <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <table className="min-w-[1200px] border-collapse text-sm">
+        <table className="w-full min-w-[1200px] border-collapse text-sm">
           <thead className="bg-slate-50 text-slate-700">
             <tr>
               <th className="border border-slate-200 px-4 py-4 text-left">

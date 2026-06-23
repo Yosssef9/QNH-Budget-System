@@ -1,0 +1,40 @@
+- generic [ref=e6]:
+  - generic [ref=e7]:
+    - img "QNH" [ref=e8]
+    - generic [ref=e9]:
+      - img [ref=e10]
+      - generic [ref=e13]: Secure Multi-Company Platform
+    - heading "Budget Management Platform" [level=1] [ref=e14]
+    - paragraph [ref=e15]: Select the organization you want to manage and continue to your workspace.
+  - generic [ref=e16]:
+    - button "Qassim National Hospital Healthcare Qassim National Hospital Hospital Budget Management System Click to access workspace Enter Workspace" [ref=e17] [cursor=pointer]:
+      - img "Qassim National Hospital" [ref=e20]
+      - generic [ref=e21]:
+        - generic [ref=e23]:
+          - img [ref=e24]
+          - text: Healthcare
+        - heading "Qassim National Hospital" [level=2] [ref=e28]
+        - paragraph [ref=e29]: Hospital Budget Management System
+        - generic [ref=e30]:
+          - generic [ref=e31]: Click to access workspace
+          - generic [ref=e32]:
+            - text: Enter Workspace
+            - img [ref=e33]
+    - button "Al-Qassim Medical Services Company Corporate Al-Qassim Medical Services Company Corporate Budget Management System Click to access workspace Enter Workspace" [ref=e35] [cursor=pointer]:
+      - img "Al-Qassim Medical Services Company" [ref=e38]
+      - generic [ref=e39]:
+        - generic [ref=e41]:
+          - img [ref=e42]
+          - text: Corporate
+        - heading "Al-Qassim Medical Services Company" [level=2] [ref=e46]
+        - paragraph [ref=e47]: Corporate Budget Management System
+        - generic [ref=e48]:
+          - generic [ref=e49]: Click to access workspace
+          - generic [ref=e50]:
+            - text: Enter Workspace
+            - img [ref=e51]
+  - generic [ref=e54]:
+    - generic [ref=e55]:
+      - heading "Budget Management Platform" [level=3] [ref=e56]
+      - paragraph [ref=e57]: Unified budgeting, approvals, transfers and procurement management.
+    - generic [ref=e60]: Developed by Information Technology Department

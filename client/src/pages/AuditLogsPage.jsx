@@ -15,6 +15,7 @@ import { getAuditLogs, getAuditLogUsers } from "../api/budget.api";
 import { formatDateTime } from "../utils/dateFormatters";
 import SearchableMultiSelect from "../components/SearchableMultiSelect";
 import EnterpriseSearch from "../components/EnterpriseSearch";
+import TablePagination from "../components/TablePagination";
 
 const emptyFilters = {
   search: "",
@@ -64,11 +65,6 @@ const entityTypeDropdownOptions = entityTypeOptions.map((entityType) => ({
   label: entityType,
 }));
 
-const pageSizeOptions = [
-  { value: 25, label: "25 rows" },
-  { value: 50, label: "50 rows" },
-  { value: 100, label: "100 rows" },
-];
 function hasAdvancedFilters(filters) {
   return Boolean(
     filters.user ||
@@ -91,7 +87,7 @@ export default function AuditLogsPage() {
 
   const rows = data?.rows || [];
   const total = data?.total || 0;
-  const totalPages = Math.max(1, Math.ceil(total / filters.pageSize));
+
   const { data: auditUsers = [] } = useQuery({
     queryKey: ["audit-log-users"],
     queryFn: getAuditLogUsers,
@@ -150,7 +146,7 @@ export default function AuditLogsPage() {
             />
           </div>
 
-          <div className="relative lg:col-span-3">
+          <div className="relative lg:col-span-5">
             <User
               size={17}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -167,16 +163,6 @@ export default function AuditLogsPage() {
             </div>
           </div>
 
-          <div className="lg:col-span-2">
-            <SearchableMultiSelect
-              options={pageSizeOptions}
-              value={filters.pageSize}
-              onChange={(e) => updateFilter("pageSize", Number(e.target.value))}
-              placeholder="Rows"
-              multiple={false}
-              disableClear
-            />
-          </div>
           <button
             type="button"
             onClick={resetFilters}
@@ -352,39 +338,18 @@ export default function AuditLogsPage() {
                 </tbody>
               </table>
             </div>
-
-            <div className="flex flex-col gap-3 border-t border-slate-200 p-4 md:flex-row md:items-center md:justify-between">
-              <p className="text-sm font-semibold text-slate-500">
-                Showing page{" "}
-                <span className="text-slate-900">{filters.page}</span> of{" "}
-                <span className="text-slate-900">{totalPages}</span> — Total:{" "}
-                <span className="text-slate-900">{total}</span>
-              </p>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={filters.page <= 1}
-                  onClick={() => updateFilter("page", filters.page - 1)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold disabled:opacity-50"
-                >
-                  Previous
-                </button>
-
-                <span className="rounded-xl bg-slate-50 px-4 py-2 text-sm font-bold">
-                  Page {filters.page} / {totalPages}
-                </span>
-
-                <button
-                  type="button"
-                  disabled={filters.page >= totalPages}
-                  onClick={() => updateFilter("page", filters.page + 1)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
+            <TablePagination
+              page={filters.page}
+              totalPages={Math.max(1, Math.ceil(total / filters.pageSize))}
+              pageSize={filters.pageSize}
+              startRow={
+                total === 0 ? 0 : (filters.page - 1) * filters.pageSize + 1
+              }
+              endRow={Math.min(filters.page * filters.pageSize, total)}
+              totalRows={total}
+              onPageChange={(page) => updateFilter("page", page)}
+              onPageSizeChange={(size) => updateFilter("pageSize", size)}
+            />
           </>
         )}
       </section>

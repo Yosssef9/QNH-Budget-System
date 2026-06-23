@@ -197,6 +197,8 @@ import {
   Repeat2,
   Link2,
   CircleUser,
+  BriefcaseBusiness,
+  LogOut,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useUnsavedChanges } from "../context/UnsavedChangesContext";
@@ -233,6 +235,15 @@ function getSidebarSections(budgetAccess) {
           path: "/budget-analytics",
           icon: BarChart3,
           show: permissions.can_approve_budget,
+        },
+        {
+          label: "Projects",
+          path: "/projects",
+          icon: BriefcaseBusiness,
+          show:
+            permissions.can_view_budget ||
+            permissions.can_edit_budget ||
+            permissions.can_approve_budget,
         },
         {
           label: "Budget Approvals",
@@ -308,7 +319,7 @@ function getSidebarSections(budgetAccess) {
 }
 
 export default function DashboardLayout() {
-  const { user, budgetAccess } = useAuth();
+  const { user, budgetAccess, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const { safeNavigate } = useUnsavedChanges();
@@ -323,12 +334,12 @@ export default function DashboardLayout() {
         onMouseEnter={() => setSidebarOpen(true)}
         onMouseLeave={() => setSidebarOpen(false)}
         className={[
-          "fixed inset-y-0 left-0 z-30 border-r border-blue-200 bg-white shadow-sm",
+          "fixed inset-y-0 left-0 z-30 flex flex-col border-r border-blue-200 bg-white shadow-sm",
           "transition-all duration-300 ease-in-out",
           sidebarWidth,
         ].join(" ")}
       >
-        <div className="flex h-[72px] items-center justify-center border-b border-enterprise-border px-4">
+        <div className="flex h-[90px] items-center justify-center border-b border-enterprise-border px-4">
           {sidebarOpen ? (
             <img
               src="/images/fullLogo.png"
@@ -339,12 +350,23 @@ export default function DashboardLayout() {
             <img
               src="/images/logo.png"
               alt="QNH Logo"
-              className="h-11 w-11 object-contain transition-all duration-300"
+              className="h-14 w-14 object-contain transition-all duration-300"
             />
           )}
         </div>
 
-        <nav className="space-y-6 p-4">
+        <nav
+          className="
+    flex-1
+overflow-y-hidden hover:overflow-y-auto
+    space-y-6
+    p-4
+    scrollbar-thin
+    scrollbar-thumb-slate-300
+    scrollbar-track-transparent
+  "
+        >
+          {" "}
           {sidebarSections.map((section) => (
             <div key={section.title}>
               {sidebarOpen && (
@@ -407,6 +429,37 @@ export default function DashboardLayout() {
             </div>
           ))}
         </nav>
+
+        <div className="border-t border-slate-200 bg-slate-50 p-4">
+          <button
+            type="button"
+            onClick={logout}
+            title={!sidebarOpen ? "Logout" : undefined}
+            className={[
+              "group relative flex w-full items-center rounded-2xl py-3 text-sm font-semibold",
+              "bg-red-50 text-red-700 border border-red-200",
+              "transition-all duration-200",
+              "hover:bg-red-100 hover:border-red-300 hover:text-red-800",
+              sidebarOpen ? "gap-3 px-4" : "justify-center px-0",
+            ].join(" ")}
+          >
+            <LogOut
+              size={20}
+              className="shrink-0 text-red-600 transition-transform duration-200 group-hover:scale-110"
+            />
+
+            <span
+              className={[
+                "whitespace-nowrap tracking-normal transition-all duration-300",
+                sidebarOpen
+                  ? "w-auto translate-x-0 opacity-100"
+                  : "w-0 -translate-x-2 overflow-hidden opacity-0",
+              ].join(" ")}
+            >
+              Logout
+            </span>
+          </button>
+        </div>
       </aside>
 
       <div

@@ -282,7 +282,35 @@ export async function returnBudgetService({ budgetId, body, user }) {
 }
 
 export async function getBudgetComparisonService() {
-  return await getBudgetComparisonRepo();
+  const rows = await getBudgetComparisonRepo();
+
+  return rows.map((row) => {
+    const priceIntelligence = buildPriceIntelligence(row, {
+      historical_benchmark: row.historical_benchmark,
+      average_unit_cost: row.average_unit_cost,
+      min_unit_cost: row.min_unit_cost,
+      max_unit_cost: row.max_unit_cost,
+      last_purchase_unit_cost: row.last_purchase_unit_cost,
+      last_purchase_at: row.last_purchase_at,
+      purchase_count: row.purchase_count,
+      supplier_count: row.supplier_count,
+      mapped_item_codes: parseMappedItemCodes(row.mapped_item_codes),
+      evidence_window_used: row.evidence_window_used,
+    });
+
+    return {
+      ...row,
+      pi_benchmark_price: priceIntelligence.historical_benchmark,
+      pi_variance_amount: priceIntelligence.variance_amount,
+      pi_variance_percent: priceIntelligence.variance_percent,
+      pi_potential_overspend: priceIntelligence.potential_overspend,
+      pi_status: priceIntelligence.status,
+      pi_status_label: priceIntelligence.status_label,
+      pi_severity: priceIntelligence.severity,
+      pi_purchase_count: priceIntelligence.purchase_count,
+      pi_supplier_count: priceIntelligence.supplier_count,
+    };
+  });
 }
 export async function getApprovedBudgetsService() {
   const financialYear = await findLatestFinancialYearRepo();

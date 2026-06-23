@@ -32,6 +32,11 @@ import SortableHeader from "../../components/SortableHeader";
 import CreatedFromTransferBadge from "../../components/CreatedFromTransferBadge";
 import usePagination from "../../hooks/usePagination";
 import TablePagination from "../../components/TablePagination";
+import SmartFilterBar from "../../components/budget-analytics/SmartFilterBar";
+import AppliedFilterChips from "../../components/budget-analytics/AppliedFilterChips";
+import SmartFilterHistory from "../../components/budget-analytics/SmartFilterHistory";
+import { parseBudgetAnalyticsSmartFilter } from "../../helpers/budgetAnalyticsSmartFilterParser.helper";
+import useSmartFilterStorage from "../../hooks/budget-analytics/useSmartFilterStorage";
 const ALL = "ALL";
 function getArrayParam(searchParams, key) {
   return searchParams.get(key)
@@ -53,9 +58,67 @@ function uniqueOptions(rows, key, labelKey = key) {
   return [...map.entries()].map(([value, label]) => ({ value, label }));
 }
 
+function isDateInRange(value, from, to) {
+  if (!from && !to) return true;
+  if (!value) return false;
+
+  const time = new Date(value).getTime();
+  if (Number.isNaN(time)) return false;
+
+  if (from && time < new Date(from).getTime()) return false;
+  if (to && time > new Date(to).getTime()) return false;
+
+  return true;
+}
+
+function clearSmartChipFields(state, chips = []) {
+  const next = { ...state };
+
+  chips.forEach((chip) => {
+    if (chip.field === "financialYear") next.financialYear = ALL;
+    if (chip.field === "statuses") next.statuses = [];
+    if (chip.field === "departmentIds") next.departmentIds = [];
+    if (chip.field === "categoryIds") next.categoryIds = [];
+    if (chip.field === "typeIds") next.typeIds = [];
+    if (chip.field === "expenseTypes") next.expenseTypes = [];
+    if (chip.field === "search") next.search = "";
+    if (chip.field === "amountMin") next.amountMin = null;
+    if (chip.field === "submitted") {
+      next.submittedFrom = null;
+      next.submittedTo = null;
+    }
+    if (chip.field === "returned") {
+      next.returnedFrom = null;
+      next.returnedTo = null;
+    }
+    if (chip.field === "benchmarkVarianceMin") {
+      next.benchmarkVarianceMin = null;
+    }
+    if (chip.field === "potentialOverspendMin") {
+      next.potentialOverspendMin = null;
+    }
+    if (chip.field === "priceIntelligenceStatuses") {
+      next.priceIntelligenceStatuses = [];
+    }
+  });
+
+  return next;
+}
+
 export default function BudgetComparison() {
   const { data = [], isLoading, isError } = useBudgetComparison();
   const [searchParams] = useSearchParams();
+  const [lastSmartQuery, setLastSmartQuery] = useState("");
+  const [saveSearchName, setSaveSearchName] = useState("");
+  const [showSaveSearch, setShowSaveSearch] = useState(false);
+  const {
+    recentSearches,
+    savedSearches,
+    recordRecent,
+    saveSearch,
+    deleteSavedSearch,
+    clearRecent,
+  } = useSmartFilterStorage();
   const [filters, setFilters] = useState({
     financialYear: searchParams.get("financialYear") || ALL,
     statuses: getArrayParam(searchParams, "statuses"),
@@ -64,6 +127,16 @@ export default function BudgetComparison() {
     typeIds: getArrayParam(searchParams, "typeIds"),
     expenseTypes: getArrayParam(searchParams, "expenseTypes"),
     search: searchParams.get("search") || "",
+    amountMin: null,
+    submittedFrom: null,
+    submittedTo: null,
+    returnedFrom: null,
+    returnedTo: null,
+    benchmarkVarianceMin: null,
+    potentialOverspendMin: null,
+    priceIntelligenceStatuses: [],
+    smartFilterChips: [],
+    smartFilterWarnings: [],
   });
 
   const options = useMemo(() => {
@@ -144,6 +217,54 @@ export default function BudgetComparison() {
           .toLowerCase();
 
         if (!text.includes(search)) return false;
+      }
+      if (
+        filters.amountMin !== null &&
+        toNumber(row.current_amount) < toNumber(filters.amountMin)
+      ) {
+        return false;
+      }
+      if (
+        !isDateInRange(
+          row.submitted_at,
+          filters.submittedFrom,
+          filters.submittedTo,
+        )
+      ) {
+        return false;
+      }
+      if (
+        !isDateInRange(
+          row.returned_at,
+          filters.returnedFrom,
+          filters.returnedTo,
+        )
+      ) {
+        return false;
+      }
+      if (
+        filters.benchmarkVarianceMin !== null &&
+        (row.pi_variance_percent === null ||
+          row.pi_variance_percent === undefined ||
+          toNumber(row.pi_variance_percent) <=
+            toNumber(filters.benchmarkVarianceMin))
+      ) {
+        return false;
+      }
+      if (
+        filters.potentialOverspendMin !== null &&
+        (row.pi_potential_overspend === null ||
+          row.pi_potential_overspend === undefined ||
+          toNumber(row.pi_potential_overspend) <=
+            toNumber(filters.potentialOverspendMin))
+      ) {
+        return false;
+      }
+      if (
+        filters.priceIntelligenceStatuses.length > 0 &&
+        !filters.priceIntelligenceStatuses.includes(String(row.pi_status))
+      ) {
+        return false;
       }
 
       return true;
@@ -334,6 +455,9 @@ export default function BudgetComparison() {
     setFilters((prev) => ({
       ...prev,
       [name]: value,
+      smartFilterChips: prev.smartFilterChips.filter(
+        (chip) => chip.field !== name,
+      ),
     }));
   }
 
@@ -348,8 +472,86 @@ export default function BudgetComparison() {
       typeIds: [],
       expenseTypes: [],
       search: "",
+      amountMin: null,
+      submittedFrom: null,
+      submittedTo: null,
+      returnedFrom: null,
+      returnedTo: null,
+      benchmarkVarianceMin: null,
+      potentialOverspendMin: null,
+      priceIntelligenceStatuses: [],
+      smartFilterChips: [],
+      smartFilterWarnings: [],
     });
   }
+  function applySmartFilter(query) {
+    const parsed = parseBudgetAnalyticsSmartFilter(query, options);
+    const normalizedQuery = String(query || "").trim();
+
+    detailedPagination.resetPage();
+    setLastSmartQuery(normalizedQuery);
+    recordRecent(normalizedQuery);
+
+    setFilters((prev) => ({
+      ...clearSmartChipFields(prev, prev.smartFilterChips),
+      ...parsed.filterPatch,
+      smartFilterChips: parsed.chips,
+      smartFilterWarnings: parsed.warnings,
+    }));
+  }
+
+  function openSaveSearch(query) {
+    const normalizedQuery = String(query || lastSmartQuery || "").trim();
+    if (!normalizedQuery) return;
+
+    setLastSmartQuery(normalizedQuery);
+    setSaveSearchName("");
+    setShowSaveSearch(true);
+  }
+
+  function submitSaveSearch(event) {
+    event.preventDefault();
+
+    const saved = saveSearch(saveSearchName, lastSmartQuery);
+    if (!saved) return;
+
+    setShowSaveSearch(false);
+    setSaveSearchName("");
+  }
+
+  function clearSmartFilters() {
+    detailedPagination.resetPage();
+    setLastSmartQuery("");
+    setShowSaveSearch(false);
+    setSaveSearchName("");
+
+    setFilters((prev) => ({
+      ...clearSmartChipFields(prev, prev.smartFilterChips),
+      smartFilterChips: [],
+      smartFilterWarnings: [],
+    }));
+  }
+
+  function removeSmartFilter(chip) {
+    detailedPagination.resetPage();
+
+    setFilters((prev) => {
+      const next = clearSmartChipFields(
+        {
+          ...prev,
+        },
+        [chip],
+      );
+
+      return {
+        ...next,
+        smartFilterChips: prev.smartFilterChips.filter(
+          (item) => item.key !== chip.key,
+        ),
+      };
+    });
+  }
+
   function filterByItem(typeId) {
     detailedPagination.resetPage();
 
@@ -439,6 +641,79 @@ export default function BudgetComparison() {
           </button>
         </div>
 
+        {/* <SmartFilterBar
+          options={{
+            ...options,
+            types: itemOptions,
+          }}
+          onApply={applySmartFilter}
+          onClear={clearSmartFilters}
+          onSave={openSaveSearch}
+          currentQuery={lastSmartQuery}
+        /> */}
+
+        {showSaveSearch && (
+          <form
+            onSubmit={submitSaveSearch}
+            className="mt-3 flex flex-col gap-2 rounded-2xl border border-blue-100 bg-white p-3 md:flex-row md:items-center"
+          >
+            <div className="min-w-0 flex-1">
+              <label className="text-xs font-bold text-slate-600">
+                Save Smart Filter
+              </label>
+              <input
+                value={saveSearchName}
+                onChange={(event) => setSaveSearchName(event.target.value)}
+                placeholder="Example: Approved high-value budgets"
+                className="mt-1 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+              />
+              <p className="mt-1 truncate text-xs font-medium text-slate-500">
+                {lastSmartQuery}
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                className="h-10 rounded-xl bg-blue-700 px-4 text-sm font-extrabold text-white transition hover:bg-blue-800"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSaveSearch(false);
+                  setSaveSearchName("");
+                }}
+                className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-extrabold text-slate-600 transition hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+
+        <AppliedFilterChips
+          chips={filters.smartFilterChips}
+          warnings={filters.smartFilterWarnings}
+          onRemove={removeSmartFilter}
+          onClear={clearSmartFilters}
+        />
+
+        <SmartFilterHistory
+          recentSearches={recentSearches}
+          savedSearches={savedSearches}
+          onApply={applySmartFilter}
+          onDeleteSaved={deleteSavedSearch}
+          onClearRecent={clearRecent}
+        />
+
+        <div className="mt-5">
+          <p className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+            Manual Filters
+          </p>
+        </div>
+
         <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
           <SelectFilter
             label="Year"
@@ -495,7 +770,7 @@ export default function BudgetComparison() {
           </p>
         </div>
 
-        <div className="enterprise-scrollbar max-h-[75vh] overflow-auto scroll-smooth">
+        <div className="enterprise-scrollbar max-h-[100vh] overflow-auto scroll-smooth">
           <table className="min-w-[1200px] w-full border-collapse text-sm">
             <thead className="sticky top-0 z-20 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 shadow-sm">
               <tr>
@@ -642,7 +917,10 @@ export default function BudgetComparison() {
                     colSpan="11"
                     className="border border-slate-200 px-4 py-10 text-center font-semibold text-slate-500"
                   >
-                    No matching comparison results.
+                    <EmptyComparisonState
+                      chips={filters.smartFilterChips}
+                      onClear={clearSmartFilters}
+                    />
                   </td>
                 </tr>
               )}
@@ -660,7 +938,7 @@ export default function BudgetComparison() {
           </p>
         </div>
 
-        <div className="enterprise-scrollbar max-h-[75vh] overflow-auto scroll-smooth">
+        <div className="enterprise-scrollbar max-h-[100vh] overflow-auto scroll-smooth">
           <table className="min-w-[1400px] w-full border-collapse text-sm">
             <thead className="sticky top-0 z-20 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 shadow-sm">
               <tr>
@@ -760,7 +1038,10 @@ export default function BudgetComparison() {
                     colSpan={3 + departmentsInView.length}
                     className="border border-slate-200 px-4 py-10 text-center font-semibold text-slate-500"
                   >
-                    No comparison results.
+                    <EmptyComparisonState
+                      chips={filters.smartFilterChips}
+                      onClear={clearSmartFilters}
+                    />
                   </td>
                 </tr>
               )}
@@ -775,7 +1056,7 @@ export default function BudgetComparison() {
           </h2>
         </div>
 
-        <div className="enterprise-scrollbar max-h-[75vh] overflow-auto scroll-smooth">
+        <div className="enterprise-scrollbar max-h-[100vh] overflow-auto scroll-smooth">
           <table className="min-w-[1300px] w-full border-collapse text-sm">
             <thead className="sticky top-0 z-20 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 shadow-sm">
               <tr>
@@ -934,7 +1215,10 @@ export default function BudgetComparison() {
                     colSpan="11"
                     className="border border-slate-200 px-4 py-10 text-center font-semibold text-slate-500"
                   >
-                    No detailed rows found.
+                    <EmptyComparisonState
+                      chips={filters.smartFilterChips}
+                      onClear={clearSmartFilters}
+                    />
                   </td>
                 </tr>
               )}
@@ -952,6 +1236,42 @@ export default function BudgetComparison() {
           onPageSizeChange={detailedPagination.setPageSize}
         />
       </section>
+    </div>
+  );
+}
+
+function EmptyComparisonState({ chips = [], onClear }) {
+  return (
+    <div className="mx-auto max-w-xl text-center">
+      <p className="text-base font-extrabold text-slate-700">
+        No matching comparison results.
+      </p>
+      <p className="mt-1 text-sm font-medium text-slate-500">
+        Try removing a smart filter or broadening the manual filters.
+      </p>
+
+      {chips.length > 0 && (
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
+          {chips.map((chip) => (
+            <span
+              key={chip.key}
+              className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600"
+            >
+              {chip.label}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {chips.length > 0 && (
+        <button
+          type="button"
+          onClick={onClear}
+          className="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-extrabold text-blue-700 transition hover:bg-blue-100"
+        >
+          Clear Smart Filter
+        </button>
+      )}
     </div>
   );
 }

@@ -1,9 +1,4 @@
-import {
-  AlertTriangle,
-  BarChart3,
-  HelpCircle,
-  TrendingUp,
-} from "lucide-react";
+import { AlertTriangle, BarChart3, HelpCircle, TrendingUp } from "lucide-react";
 
 import CurrencyText from "../../CurrencyText";
 
@@ -127,7 +122,7 @@ export default function PriceIntelligenceSummary({ summary }) {
 
         <SummaryCard
           title="Total Estimated Overspend"
-          value={<CurrencyText value={potentialOverspend} />}
+          value={<CurrencyText compact value={potentialOverspend} />}
           description="Across all benchmarked items in this budget review."
           tooltip="Sum of positive estimated overspend across all benchmarked items in this budget review."
           icon={TrendingUp}

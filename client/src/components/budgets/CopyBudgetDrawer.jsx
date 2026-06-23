@@ -114,7 +114,7 @@ export default function CopyBudgetDrawer({
 
   return (
     <>
-      <AnimatedDrawer open={open} onClose={onClose} maxWidth="max-w-7xl">
+      <AnimatedDrawer open={open} onClose={onClose} fullScreen>
         <div className="flex h-full flex-col">
           <div className="flex items-center justify-between border-b px-6 py-4">
             <div className="flex items-center gap-3">

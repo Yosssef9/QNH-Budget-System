@@ -31,7 +31,7 @@ function BudgetDistributionTable({
   setDeleteRowId,
 }) {
   return (
-    <table className="min-w-[1800px] table-fixed border-collapse text-sm">
+    <table className="min-w-[1930px] table-fixed border-collapse text-sm">
       <thead className="sticky top-0 z-20 bg-white">
         <tr className="text-slate-700">
           <th rowSpan="2" className="border border-slate-200 px-3 py-4">
@@ -48,6 +48,12 @@ function BudgetDistributionTable({
             className="w-[260px] border border-slate-200 px-4 py-4"
           >
             Item / Type
+          </th>
+          <th
+            rowSpan="2"
+            className="w-[130px] border border-slate-200 px-4 py-4"
+          >
+            Project
           </th>
           <th
             rowSpan="2"
@@ -146,7 +152,7 @@ function BudgetDistributionTable({
         {rows.length === 0 && (
           <tr>
             <td
-              colSpan="20"
+              colSpan="21"
               className="border border-slate-200 px-4 py-10 text-center text-sm font-semibold text-slate-500"
             >
               No budget items yet. Click Add Item to start.

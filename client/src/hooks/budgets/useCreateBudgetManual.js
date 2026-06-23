@@ -22,6 +22,7 @@ function getRowSnapshot(row) {
   return JSON.stringify({
     category: row.category,
     item: row.item,
+    isProject: row.isProject,
     method: row.method,
     quantity: row.quantity,
     unitPrice: row.unitPrice,

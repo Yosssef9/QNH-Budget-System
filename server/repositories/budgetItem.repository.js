@@ -13,6 +13,7 @@ export async function getBudgetItemDetails(itemId) {
     bi.quantity,
     bi.unit_price,
     bi.total_amount,
+    bi.is_project,
 
     bi.distribution_method,
     bi.distribution_level,

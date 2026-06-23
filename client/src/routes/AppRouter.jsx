@@ -127,6 +127,48 @@ const router = createBrowserRouter([
       },
 
       {
+        path: "projects",
+        async lazy() {
+          const module = await import("../pages/projects/ProjectsPage");
+
+          return {
+            Component: () => (
+              <RequirePermission
+                permission={[
+                  "can_view_budget",
+                  "can_edit_budget",
+                  "can_approve_budget",
+                ]}
+              >
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
+      },
+
+      {
+        path: "projects/:budgetItemId",
+        async lazy() {
+          const module = await import("../pages/projects/ProjectDetailsPage");
+
+          return {
+            Component: () => (
+              <RequirePermission
+                permission={[
+                  "can_view_budget",
+                  "can_edit_budget",
+                  "can_approve_budget",
+                ]}
+              >
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
+      },
+
+      {
         path: "financial-years",
         async lazy() {
           const module = await import("../pages/FinancialYearsPage");

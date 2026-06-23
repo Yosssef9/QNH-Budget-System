@@ -343,6 +343,7 @@ export default function BudgetEnteryPage() {
         rows.map((row) => ({
           id: row.isNew ? null : Number(row.id),
           type_id: Number(row.item),
+          is_project: row.isProject === true,
           quantity: toNumber(row.quantity),
           unit_price: toNumber(row.unitPrice),
           distribution_method: getApiDistributionMethod(row.method),

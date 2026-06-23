@@ -16,6 +16,14 @@ import {
 } from "../helpers/distribution.helper.js";
 import { validateBudgetModifyPermission } from "../helpers/validateBudgetModifyPermission.js";
 
+function normalizeProjectFlag(value, fallback = false) {
+  if (value === undefined || value === null) {
+    return fallback === true;
+  }
+
+  return value === true || value === 1 || value === "1";
+}
+
 export async function createBudgetItemService({
   budgetId,
   body,
@@ -29,6 +37,7 @@ export async function createBudgetItemService({
     distribution_method,
     distribution_level,
     distribution,
+    is_project,
   } = body;
 
   // 1. Get budget
@@ -107,6 +116,7 @@ export async function createBudgetItemService({
     totalAmount,
     distributionMethod: distribution_method,
     distributionLevel: distribution_level,
+    isProject: normalizeProjectFlag(is_project),
     createdBy: user.userId,
   });
 
@@ -159,6 +169,7 @@ export async function getBudgetItemsService({ budgetId, budgetAccess }) {
         quantity: Number(row.quantity || 0),
         unit_price: Number(row.unit_price || 0),
         total_amount: Number(row.total_amount || 0),
+        is_project: row.is_project === true || row.is_project === 1,
 
         distribution_method: row.distribution_method,
         distribution_level: row.distribution_level,

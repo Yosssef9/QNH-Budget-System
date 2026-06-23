@@ -16,14 +16,17 @@ export default function DatePicker({
         onChange={(newValue) => {
           onChange({
             target: {
-              value: newValue ? newValue.format("YYYY-MM-DD") : "",
+              value: newValue ? newValue.format("YYYY-MM-01") : "",
             },
           });
         }}
         format="DD MMM YYYY"
+        views={["year", "month", "day"]}
+        openTo="year"
+        yearsOrder="desc"
+        yearsPerRow={4}
         minDate={minDate ? dayjs(minDate) : undefined}
         maxDate={maxDate ? dayjs(maxDate) : undefined}
-        yearsOrder="desc"
         slots={{
           openPickerIcon: undefined,
         }}

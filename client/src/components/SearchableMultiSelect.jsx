@@ -240,12 +240,15 @@ export default function SearchableMultiSelect({
   };
 
   const dropdownContent =
-    open && !disabled ? (
+    !disabled && open ? (
       <div
         ref={dropdownRef}
         style={usePortal ? dropdownStyle : undefined}
         className={[
-          "origin-top overflow-hidden rounded-2xl border border-enterprise-border bg-white shadow-card",
+          "origin-top transform-gpu transition-all duration-200 ease-out overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-[0_20px_40px_rgba(15,23,42,0.12)] ring-1 ring-slate-200",
+          open
+            ? "opacity-100 scale-100 translate-y-0 visible"
+            : "opacity-0 scale-95 -translate-y-2 invisible pointer-events-none",
           usePortal
             ? ""
             : "absolute left-0 top-[calc(100%+8px)] z-[9999] w-full",

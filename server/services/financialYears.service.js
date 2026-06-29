@@ -157,7 +157,7 @@ export async function closeFinancialYearService({ id, closedBy }) {
   if (notApprovedCount > 0) {
     throw new ApiError(
       400,
-      `Cannot close financial year. There are ${notApprovedCount} budget(s) not approved yet.`,
+      `Cannot close financial year. There are ${notApprovedCount} active budget workflow item(s) not approved or resolved yet.`,
       "FINANCIAL_YEAR_HAS_NOT_APPROVED_BUDGETS",
       { notApprovedCount },
     );
@@ -244,7 +244,7 @@ export async function preCloseFinancialYearService({ id, preClosedBy }) {
   if (notApprovedCount > 0) {
     throw new ApiError(
       400,
-      `Cannot pre-close financial year. There are ${notApprovedCount} budget(s) not approved yet.`,
+      `Cannot pre-close financial year. There are ${notApprovedCount} active budget workflow item(s) not approved or resolved yet.`,
       "FINANCIAL_YEAR_HAS_NOT_APPROVED_BUDGETS",
       { notApprovedCount },
     );

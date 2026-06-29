@@ -25,6 +25,20 @@ export async function createAuditLogRepo(log) {
     .input("user_name", sql.NVarChar(200), log.userName ?? null)
     .input("department_id", sql.Int, log.departmentId ?? null)
     .input("role_name", sql.NVarChar(100), log.roleName ?? null)
+    .input("workspace_id", sql.NVarChar(100), log.workspaceId ?? null)
+    .input("workspace_type", sql.NVarChar(100), log.workspaceType ?? null)
+    .input("workspace_label", sql.NVarChar(200), log.workspaceLabel ?? null)
+    .input("acting_as", sql.NVarChar(200), log.actingAs ?? null)
+    .input(
+      "workspace_category",
+      sql.NVarChar(100),
+      log.workspaceCategory ?? null,
+    )
+    .input(
+      "workspace_department_id",
+      sql.Int,
+      log.workspaceDepartmentId ?? null,
+    )
     .input("ip_address", sql.NVarChar(100), log.ipAddress ?? null)
     .input("user_agent", sql.NVarChar(500), log.userAgent ?? null).query(`
       INSERT INTO BS_audit_logs (
@@ -40,6 +54,12 @@ description,
         user_name,
         department_id,
         role_name,
+        workspace_id,
+        workspace_type,
+        workspace_label,
+        acting_as,
+        workspace_category,
+        workspace_department_id,
         ip_address,
         user_agent
       )
@@ -56,6 +76,12 @@ description,
         @user_name,
         @department_id,
         @role_name,
+        @workspace_id,
+        @workspace_type,
+        @workspace_label,
+        @acting_as,
+        @workspace_category,
+        @workspace_department_id,
         @ip_address,
         @user_agent
       )
@@ -94,6 +120,12 @@ export async function getAuditLogsRepo(filters = {}) {
       user_name,
       department_id,
       role_name,
+      workspace_id,
+      workspace_type,
+      workspace_label,
+      acting_as,
+      workspace_category,
+      workspace_department_id,
       ip_address,
       user_agent,
      created_at,

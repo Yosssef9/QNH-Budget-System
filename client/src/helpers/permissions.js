@@ -1,5 +1,6 @@
 export function can(access, permission) {
-  return Boolean(access?.permissions?.[permission]);
+  const permissions = access?.activeWorkspace?.permissions || access?.permissions;
+  return Boolean(permissions?.[permission]);
 }
 
 export function isAdmin(access) {
@@ -10,6 +11,10 @@ export function isAdmin(access) {
 }
 
 export function getUserRoleLabel(access) {
+  if (access?.activeWorkspace?.actingAs) {
+    return access.activeWorkspace.actingAs;
+  }
+
   if (access?.isGlobalAdmin) return "Global Admin";
 
   if (access?.permissions?.can_approve_po_links) {

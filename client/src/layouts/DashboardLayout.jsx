@@ -192,6 +192,7 @@ import {
   Settings,
   BarChart3,
   ChevronRight,
+  ClipboardCheck,
   Tags,
   History,
   Repeat2,
@@ -203,9 +204,11 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useUnsavedChanges } from "../context/UnsavedChangesContext";
 import { getUserRoleLabel } from "../helpers/permissions";
+import WorkspaceSwitcher from "../components/workspace/WorkspaceSwitcher";
 
 function getSidebarSections(budgetAccess) {
   const permissions = budgetAccess?.permissions || {};
+  const activeWorkspaceType = budgetAccess?.activeWorkspace?.type;
 
   return [
     {
@@ -219,16 +222,35 @@ function getSidebarSections(budgetAccess) {
           show: permissions.can_manage_financial_years,
         },
         {
-          label: "Budgets",
-          path: "/budgets",
+          label: "Budget Requests",
+          path: "/budget-requests",
           icon: Wallet,
-          show: permissions.can_view_budget && !permissions.can_approve_budget,
+          show:
+            activeWorkspaceType === "DEPARTMENT" &&
+            permissions.can_view_budget &&
+            permissions.can_edit_budget,
+        },
+        {
+          label: "Category Management",
+          path: "/category-reviews",
+          icon: ClipboardCheck,
+          show:
+            activeWorkspaceType === "CATEGORY_BUDGET_MANAGEMENT" &&
+            permissions.can_approve_budget,
         },
         {
           label: "All Budgets",
           path: "/budgets/all",
           icon: Wallet,
           show: permissions.can_view_budget && permissions.can_approve_budget,
+        },
+        {
+          label: "CFO Review",
+          path: "/cfo-reviews",
+          icon: CheckCircle2,
+          show:
+            activeWorkspaceType === "CFO_REVIEW" &&
+            permissions.can_approve_budget,
         },
         {
           label: "Budget Analytics",
@@ -252,26 +274,36 @@ function getSidebarSections(budgetAccess) {
           show: permissions.can_approve_budget,
         },
         {
-          label: "Transfers",
-          path: permissions.can_approve_transfer
-            ? "/transfers/approvals"
-            : "/transfers/requests",
+          label: "Transfer Requests",
+          path: "/transfers/requests",
           icon: Repeat2,
           show:
-            permissions.can_request_transfer ||
+            activeWorkspaceType === "CATEGORY_BUDGET_MANAGEMENT" &&
+            permissions.can_request_transfer,
+        },
+        {
+          label: "Transfer Approvals",
+          path: "/transfers/approvals",
+          icon: Repeat2,
+          show:
+            activeWorkspaceType === "CFO_REVIEW" &&
             permissions.can_approve_transfer,
         },
         {
           label: "PO Link Requests",
           path: "/po-linking",
           icon: Link2,
-          show: permissions.can_request_po_links,
+          show:
+            activeWorkspaceType === "CATEGORY_BUDGET_MANAGEMENT" &&
+            permissions.can_request_po_links,
         },
         {
           label: "PO Link Approvals",
           path: "/po-approvals",
           icon: CheckCircle2,
-          show: permissions.can_approve_po_links,
+          show:
+            activeWorkspaceType === "PO_LINK_APPROVAL" &&
+            permissions.can_approve_po_links,
         },
         {
           label: "Reports",
@@ -319,7 +351,14 @@ function getSidebarSections(budgetAccess) {
 }
 
 export default function DashboardLayout() {
-  const { user, budgetAccess, logout } = useAuth();
+  const {
+    user,
+    budgetAccess,
+    availableWorkspaces,
+    activeWorkspace,
+    switchWorkspace,
+    logout,
+  } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const { safeNavigate } = useUnsavedChanges();
@@ -489,8 +528,15 @@ overflow-y-hidden hover:overflow-y-auto
             </p>
           </div>
 
-          <div
-            className="
+          <div className="flex items-center gap-3">
+            <WorkspaceSwitcher
+              workspaces={availableWorkspaces}
+              activeWorkspace={activeWorkspace}
+              onChange={switchWorkspace}
+            />
+
+            <div
+              className="
     flex items-center gap-3
     rounded-2xl
     border border-slate-200
@@ -521,6 +567,7 @@ overflow-y-hidden hover:overflow-y-auto
             </div>
 
             <div className="hidden h-8 w-px bg-slate-200 sm:block" />
+            </div>
           </div>
         </header>
 

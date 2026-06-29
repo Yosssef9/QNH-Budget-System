@@ -3,10 +3,17 @@ import { NOTIFICATION_TYPES } from "../constants/notificationTypes.js";
 import { transferCreatedTemplate } from "./templates/transferCreated.template.js";
 import { transferApprovedTemplate } from "./templates/transferApproved.template.js";
 import { transferRejectedTemplate } from "./templates/transferRejected.template.js";
+import { categoryTransferSubmittedTemplate } from "./templates/categoryTransferSubmitted.template.js";
+import { categoryTransferApprovedTemplate } from "./templates/categoryTransferApproved.template.js";
+import { categoryTransferRejectedTemplate } from "./templates/categoryTransferRejected.template.js";
+import { categoryPoLinkSubmittedTemplate } from "./templates/categoryPoLinkSubmitted.template.js";
+import { categoryPoLinkApprovedTemplate } from "./templates/categoryPoLinkApproved.template.js";
+import { categoryPoLinkRejectedTemplate } from "./templates/categoryPoLinkRejected.template.js";
 
 import { budgetSubmittedTemplate } from "./templates/budgetSubmitted.template.js";
 import { budgetApprovedTemplate } from "./templates/budgetApproved.template.js";
 import { budgetReturnedTemplate } from "./templates/budgetReturned.template.js";
+import { budgetChangeRequestSubmittedTemplate } from "./templates/budgetChangeRequestSubmitted.template.js";
 
 import { itemRequestCreatedTemplate } from "./templates/itemRequestCreated.template.js";
 import { itemRequestApprovedTemplate } from "./templates/itemRequestApproved.template.js";
@@ -29,6 +36,24 @@ export function resolveTemplate(notificationType, payload) {
     case NOTIFICATION_TYPES.TRANSFER_REJECTED:
       return transferRejectedTemplate(payload);
 
+    case NOTIFICATION_TYPES.CATEGORY_TRANSFER_SUBMITTED:
+      return categoryTransferSubmittedTemplate(payload);
+
+    case NOTIFICATION_TYPES.CATEGORY_TRANSFER_APPROVED:
+      return categoryTransferApprovedTemplate(payload);
+
+    case NOTIFICATION_TYPES.CATEGORY_TRANSFER_REJECTED:
+      return categoryTransferRejectedTemplate(payload);
+
+    case NOTIFICATION_TYPES.CATEGORY_PO_LINK_SUBMITTED:
+      return categoryPoLinkSubmittedTemplate(payload);
+
+    case NOTIFICATION_TYPES.CATEGORY_PO_LINK_APPROVED:
+      return categoryPoLinkApprovedTemplate(payload);
+
+    case NOTIFICATION_TYPES.CATEGORY_PO_LINK_REJECTED:
+      return categoryPoLinkRejectedTemplate(payload);
+
     case NOTIFICATION_TYPES.BUDGET_SUBMITTED:
       return budgetSubmittedTemplate(payload);
 
@@ -37,6 +62,9 @@ export function resolveTemplate(notificationType, payload) {
 
     case NOTIFICATION_TYPES.BUDGET_RETURNED:
       return budgetReturnedTemplate(payload);
+
+    case NOTIFICATION_TYPES.BUDGET_CHANGE_REQUEST_SUBMITTED:
+      return budgetChangeRequestSubmittedTemplate(payload);
 
     case NOTIFICATION_TYPES.ITEM_REQUEST_CREATED:
       return itemRequestCreatedTemplate(payload);

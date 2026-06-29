@@ -21,7 +21,7 @@ export default function POApprovalTable({
               </th>
 
               <th className="border border-slate-200 px-4 py-4 text-left">
-                Department
+                Category
               </th>
 
               <th className="border border-slate-200 px-4 py-4 text-left">
@@ -34,6 +34,10 @@ export default function POApprovalTable({
 
               <th className="border border-slate-200 px-4 py-4 text-left">
                 Budget Type
+              </th>
+
+              <th className="border border-slate-200 px-4 py-4 text-left">
+                Sub Item
               </th>
 
               <th className="border border-slate-200 px-4 py-4 text-left">
@@ -62,7 +66,7 @@ export default function POApprovalTable({
             {loading && (
               <tr>
                 <td
-                  colSpan={10}
+                  colSpan={11}
                   className="border border-slate-200 px-4 py-12 text-center text-slate-500"
                 >
                   Loading PO approval requests...
@@ -73,7 +77,7 @@ export default function POApprovalTable({
             {!loading && requests.length === 0 && (
               <tr>
                 <td
-                  colSpan={10}
+                  colSpan={11}
                   className="border border-slate-200 px-4 py-12 text-center text-slate-500"
                 >
                   No PO approval requests found.
@@ -91,9 +95,9 @@ export default function POApprovalTable({
                       #{request.id}
                     </td>
 
-                    <td className="border border-slate-200 px-4 py-4">
-                      {request.department_name || "-"}
-                    </td>
+                  <td className="border border-slate-200 px-4 py-4">
+                      {request.category_name || "-"}
+                  </td>
 
                     <td className="border border-slate-200 px-4 py-4">
                       {request.financial_year || "-"}
@@ -105,6 +109,10 @@ export default function POApprovalTable({
 
                     <td className="border border-slate-200 px-4 py-4">
                       {request.budget_type_name || "-"}
+                    </td>
+
+                    <td className="border border-slate-200 px-4 py-4">
+                      {request.sub_item_name_snapshot || "-"}
                     </td>
 
                     <td className="border border-slate-200 px-4 py-4">

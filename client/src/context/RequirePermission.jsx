@@ -12,9 +12,11 @@ export default function RequirePermission({ children, permission }) {
   const requiredPermissions = Array.isArray(permission)
     ? permission
     : [permission];
+  const permissions =
+    budgetAccess?.activeWorkspace?.permissions || budgetAccess?.permissions || {};
 
   const hasPermission = requiredPermissions.some((permissionName) =>
-    Boolean(budgetAccess?.permissions?.[permissionName]),
+    Boolean(permissions?.[permissionName]),
   );
 
   if (!hasPermission) {

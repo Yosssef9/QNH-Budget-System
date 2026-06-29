@@ -29,6 +29,7 @@ Thumbs.db
 # Temporary files
 tmp/
 temp/
+uploads/
 
 # Coverage
 coverage/

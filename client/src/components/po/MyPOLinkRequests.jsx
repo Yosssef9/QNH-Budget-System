@@ -65,7 +65,9 @@ export default function MyPOLinkRequests({
           <thead>
             <tr className="border-b bg-slate-50 text-left">
               <th className="px-4 py-3">Request ID</th>
-              <th className="px-4 py-3">Budget Item</th>
+              <th className="px-4 py-3">Category</th>
+              <th className="px-4 py-3">Budget Type</th>
+              <th className="px-4 py-3">Sub Item</th>
               <th className="px-4 py-3">PO Item</th>
               <th className="px-4 py-3">Requested Qty</th>
               <th className="px-4 py-3">Linked Amount</th>
@@ -78,7 +80,7 @@ export default function MyPOLinkRequests({
           <tbody>
             {filteredRequests.length === 0 && (
               <tr>
-                <td colSpan={8} className="py-10 text-center text-slate-500">
+                <td colSpan={10} className="py-10 text-center text-slate-500">
                   No requests found.
                 </td>
               </tr>
@@ -89,7 +91,13 @@ export default function MyPOLinkRequests({
                 <tr key={request.id} className="border-b last:border-b-0">
                   <td className="px-4 py-3">{request.id}</td>
 
+                  <td className="px-4 py-3">{request.category_name}</td>
+
                   <td className="px-4 py-3">{request.budget_type_name}</td>
+
+                  <td className="px-4 py-3">
+                    {request.sub_item_name_snapshot}
+                  </td>
 
                   <td className="px-4 py-3">{request.item_description}</td>
 

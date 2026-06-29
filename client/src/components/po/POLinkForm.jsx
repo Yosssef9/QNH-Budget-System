@@ -7,10 +7,12 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 
-import { useAvailablePOs } from "../../hooks/po/useAvailablePOs";
-import { usePOBudgetItems } from "../../hooks/po/usePOBudgetItems";
-import { useCreatePOLink } from "../../hooks/po/useCreatePOLink";
-import { usePOSuggestions } from "../../hooks/po/usePOSuggestions";
+import {
+  useAvailableCategoryPOs,
+  useCategoryPOSuggestions,
+  useCreateCategoryPoLink,
+  useEligibleCategoryPoSubItems,
+} from "../../hooks/category-po-links/useCategoryPoLinks";
 
 import ConfirmModal from "../ConfirmModal";
 import CurrencyText from "../CurrencyText";
@@ -53,23 +55,29 @@ function getPOLearnedCount(po) {
   return toNumber(po.learned_count);
 }
 
-function getBudgetItemId(item) {
+function getSubItemId(item) {
   return item.id;
 }
 
-function getBudgetItemName(item) {
-  return item.budget_type_name || "-";
+function getSubItemName(item) {
+  return [
+    item.budget_type_name,
+    item.sub_item_name_snapshot,
+    item.specification_snapshot,
+  ]
+    .filter(Boolean)
+    .join(" - ");
 }
 
-function getBudgetApprovedQuantity(item) {
+function getSubItemApprovedQuantity(item) {
   return toNumber(item.approved_qty);
 }
 
-function getBudgetAlreadyLinkedQuantity(item) {
+function getSubItemAlreadyLinkedQuantity(item) {
   return toNumber(item.approved_linked_qty) + toNumber(item.pending_linked_qty);
 }
 
-function getBudgetItemRemainingQuantity(item) {
+function getSubItemRemainingQuantity(item) {
   return toNumber(item.remaining_qty);
 }
 
@@ -107,14 +115,14 @@ function PORecordDetails({ po }) {
             {getPOItemDescription(po)}
           </div>
           <div className="mt-1 text-xs font-semibold text-slate-600">
-            Code: {getPOItemCode(po)} - Supplier: {getPOSupplier(po)}
+            Code: {getPOItemCode(po)} | Supplier: {getPOSupplier(po)}
           </div>
         </div>
         <CheckCircle2 className="shrink-0 text-blue-600" size={20} />
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <SummaryMetric label="Approved Qty" value={toNumber(po.po_qty)} />
+        <SummaryMetric label="PO Qty" value={toNumber(po.po_qty)} />
         <SummaryMetric
           label="Already Linked"
           value={toNumber(po.approved_qty) + toNumber(po.pending_qty)}
@@ -130,26 +138,26 @@ function PORecordDetails({ po }) {
 }
 
 function AllocationSummary({
-  selectedBudgetItem,
+  selectedSubItem,
   selectedPO,
   requestedQty,
   linkedAmount,
 }) {
-  const budgetApprovedQty = selectedBudgetItem
-    ? getBudgetApprovedQuantity(selectedBudgetItem)
+  const subItemApprovedQty = selectedSubItem
+    ? getSubItemApprovedQuantity(selectedSubItem)
     : 0;
-  const budgetAlreadyLinkedQty = selectedBudgetItem
-    ? getBudgetAlreadyLinkedQuantity(selectedBudgetItem)
+  const subItemAlreadyLinkedQty = selectedSubItem
+    ? getSubItemAlreadyLinkedQuantity(selectedSubItem)
     : 0;
-  const budgetRemainingQty = selectedBudgetItem
-    ? getBudgetItemRemainingQuantity(selectedBudgetItem)
+  const subItemRemainingQty = selectedSubItem
+    ? getSubItemRemainingQuantity(selectedSubItem)
     : 0;
   const poRemainingQty = selectedPO ? getPOAvailableQuantity(selectedPO) : 0;
   const requested = toNumber(requestedQty);
-  const remainingAfterBudget = budgetRemainingQty - requested;
+  const remainingAfterSubItem = subItemRemainingQty - requested;
   const remainingAfterPO = poRemainingQty - requested;
   const hasWarning =
-    requested > 0 && (remainingAfterBudget < 0 || remainingAfterPO < 0);
+    requested > 0 && (remainingAfterSubItem < 0 || remainingAfterPO < 0);
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
@@ -168,17 +176,17 @@ function AllocationSummary({
       <div className="space-y-4">
         <div>
           <div className="mb-2 text-xs font-bold uppercase text-slate-500">
-            Budget Item
+            Approved Sub Item
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
-            <SummaryMetric label="Approved Qty" value={budgetApprovedQty} />
+            <SummaryMetric label="Approved Qty" value={subItemApprovedQty} />
             <SummaryMetric
               label="Already Linked"
-              value={budgetAlreadyLinkedQty}
+              value={subItemAlreadyLinkedQty}
             />
             <SummaryMetric
               label="Remaining Available"
-              value={budgetRemainingQty}
+              value={subItemRemainingQty}
               tone="green"
             />
           </div>
@@ -192,8 +200,8 @@ function AllocationSummary({
             <SummaryMetric label="Requested Qty" value={requested || "-"} />
             <SummaryMetric
               label="Remaining After Link"
-              value={requested ? remainingAfterBudget : "-"}
-              tone={remainingAfterBudget < 0 ? "red" : "green"}
+              value={requested ? remainingAfterSubItem : "-"}
+              tone={remainingAfterSubItem < 0 ? "red" : "green"}
             />
             <SummaryMetric
               label="Linked Amount"
@@ -266,11 +274,9 @@ function POCard({ po, selected, onClick, suggestion = false }) {
 
           <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
             <span>Code: {getPOItemCode(po)}</span>
-            <span>•</span>
-
+            <span>|</span>
             <span>Supplier: {getPOSupplier(po)}</span>
-            <span>•</span>
-
+            <span>|</span>
             <span className="font-medium text-amber-700">
               Invoice due {formatDate(po.invoice_due_date)}
             </span>
@@ -288,7 +294,7 @@ function POCard({ po, selected, onClick, suggestion = false }) {
 
           {disabled && (
             <div className="mt-2 text-xs font-semibold text-slate-500">
-              No Available Quantity
+              No available quantity
             </div>
           )}
         </div>
@@ -297,11 +303,9 @@ function POCard({ po, selected, onClick, suggestion = false }) {
           <div className="text-[10px] font-bold uppercase text-slate-400">
             Available Qty
           </div>
-
           <div className="text-sm font-bold text-slate-900">{availableQty}</div>
-
           <div className="mt-1 text-xs font-medium text-slate-500">
-            Unit Price:{" "}
+            Unit Cost:{" "}
             <span className="font-semibold text-slate-700">
               <CurrencyText value={getPOUnitCost(po)} />
             </span>
@@ -317,9 +321,9 @@ export default function POLinkForm({
   onSubmitted,
   className = "",
 }) {
-  const [selectedBudgetItemId, setSelectedBudgetItemId] = useState(() =>
-    initialRequest?.budget_item_id
-      ? String(initialRequest.budget_item_id)
+  const [selectedSubItemLineId, setSelectedSubItemLineId] = useState(() =>
+    initialRequest?.category_type_review_sub_item_id
+      ? String(initialRequest.category_type_review_sub_item_id)
       : null,
   );
   const [selectedPOId, setSelectedPOId] = useState(() =>
@@ -333,33 +337,37 @@ export default function POLinkForm({
   const [poSearch, setPOSearch] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const createMutation = useCreatePOLink();
+  const createMutation = useCreateCategoryPoLink();
 
-  const { data: budgetItems = [], isLoading: loadingBudgetItems } =
-    usePOBudgetItems();
+  const { data: eligibleData, isLoading: loadingSubItems } =
+    useEligibleCategoryPoSubItems();
+  const subItems = eligibleData?.items || [];
 
   const {
     data: availablePOs = [],
     isLoading: loadingPOs,
     isFetching: fetchingPOs,
-  } = useAvailablePOs({
+  } = useAvailableCategoryPOs({
     search: poSearch || undefined,
   });
+
   const { data: suggestedPOs = [], isFetching: fetchingSuggestions } =
-    usePOSuggestions(selectedBudgetItemId);
+    useCategoryPOSuggestions({
+      lineId: selectedSubItemLineId || undefined,
+    });
 
-  const budgetItemOptions = useMemo(() => {
-    return budgetItems.map((item) => ({
-      value: String(getBudgetItemId(item)),
-      label: getBudgetItemName(item),
+  const subItemOptions = useMemo(() => {
+    return subItems.map((item) => ({
+      value: String(getSubItemId(item)),
+      label: getSubItemName(item),
     }));
-  }, [budgetItems]);
+  }, [subItems]);
 
-  const selectedBudgetItem = useMemo(() => {
-    return budgetItems.find(
-      (item) => String(getBudgetItemId(item)) === String(selectedBudgetItemId),
+  const selectedSubItem = useMemo(() => {
+    return subItems.find(
+      (item) => String(getSubItemId(item)) === String(selectedSubItemLineId),
     );
-  }, [budgetItems, selectedBudgetItemId]);
+  }, [selectedSubItemLineId, subItems]);
 
   const selectedPO = useMemo(() => {
     return [...suggestedPOs, ...availablePOs].find(
@@ -371,15 +379,15 @@ export default function POLinkForm({
   const selectedPOAvailableQty = selectedPO
     ? getPOAvailableQuantity(selectedPO)
     : 0;
-  const selectedBudgetRemainingQty = selectedBudgetItem
-    ? getBudgetItemRemainingQuantity(selectedBudgetItem)
+  const selectedSubItemRemainingQty = selectedSubItem
+    ? getSubItemRemainingQuantity(selectedSubItem)
     : 0;
   const selectedPOUnitCost = selectedPO ? getPOUnitCost(selectedPO) : 0;
   const linkedAmount = numericRequestedQty * selectedPOUnitCost;
 
   const validationMessage = useMemo(() => {
-    if (!selectedBudgetItemId) {
-      return "Select a budget item first";
+    if (!selectedSubItemLineId) {
+      return "Select an approved sub-item first";
     }
 
     if (!selectedPOId) {
@@ -395,32 +403,32 @@ export default function POLinkForm({
     }
 
     if (
-      selectedBudgetItem &&
-      numericRequestedQty > selectedBudgetRemainingQty
+      selectedSubItem &&
+      numericRequestedQty > selectedSubItemRemainingQty
     ) {
-      return `Requested quantity exceeds budget item quantity (${selectedBudgetRemainingQty})`;
+      return `Requested quantity exceeds remaining sub-item quantity (${selectedSubItemRemainingQty})`;
     }
 
     return "";
   }, [
     numericRequestedQty,
-    selectedBudgetItem,
-    selectedBudgetItemId,
-    selectedBudgetRemainingQty,
     selectedPO,
     selectedPOAvailableQty,
     selectedPOId,
+    selectedSubItem,
+    selectedSubItemLineId,
+    selectedSubItemRemainingQty,
   ]);
 
   const canSubmit =
     !validationMessage &&
-    selectedBudgetItemId &&
+    selectedSubItemLineId &&
     selectedPOId &&
     numericRequestedQty > 0 &&
     !createMutation.isPending;
 
   function resetForm() {
-    setSelectedBudgetItemId(null);
+    setSelectedSubItemLineId(null);
     setSelectedPOId(null);
     setRequestedQty("");
     setPOSearch("");
@@ -429,19 +437,16 @@ export default function POLinkForm({
   async function handleConfirmSubmit() {
     try {
       await createMutation.mutateAsync({
-        purchase_invoice_line_id: Number(selectedPOId),
-        budget_item_id: Number(selectedBudgetItemId),
-        requested_qty: numericRequestedQty,
+        purchaseInvoiceLineId: Number(selectedPOId),
+        categoryTypeReviewSubItemId: Number(selectedSubItemLineId),
+        requestedQty: numericRequestedQty,
       });
 
       setConfirmOpen(false);
       resetForm();
-
-      if (onSubmitted) {
-        onSubmitted();
-      }
+      onSubmitted?.();
     } catch {
-      // Error toast is handled inside useCreatePOLink.
+      // Error toast is handled by the caller hook/global API handler.
     }
   }
 
@@ -467,38 +472,32 @@ export default function POLinkForm({
             <Link2 size={20} className="text-blue-600" />
             Create PO Link Request
           </h2>
-
           <p className="mt-1 text-sm text-slate-500">
-            Link an approved Purchase Order quantity to an approved budget item.
+            Link a purchase order quantity to an approved sub-item line.
           </p>
         </div>
 
         <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-          Department:{" "}
+          Category:{" "}
           <span className="font-bold text-slate-900">
-            {budgetItems[0]?.department_name || "-"}
+            {eligibleData?.category?.name || "-"}
           </span>
         </div>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[380px_minmax(0,1fr)] lg:items-start">
-        <section
-          className="rounded-2xl border border-blue-400  bg-blue-50/40
- p-4 shadow-sm"
-        >
+        <section className="rounded-2xl border border-blue-400 bg-blue-50/40 p-4 shadow-sm">
           <div className="mb-4 border-b border-slate-200 pb-3">
             <div className="flex items-start gap-3">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
                 1
               </span>
-
               <div>
                 <h3 className="text-sm font-bold text-slate-900">
-                  Budget Allocation Setup
+                  Approved Sub-Item Setup
                 </h3>
-
                 <p className="mt-1 text-xs font-medium text-slate-500">
-                  Select the budget item and quantity to allocate.
+                  Select the approved specification and quantity to link.
                 </p>
               </div>
             </div>
@@ -507,58 +506,54 @@ export default function POLinkForm({
           <div className="space-y-4">
             <div>
               <label className="mb-2 block text-sm font-semibold text-slate-700">
-                Budget Item
+                Approved Sub Item
               </label>
-
               <SearchableMultiSelect
                 multiple={false}
-                value={selectedBudgetItemId}
-                options={budgetItemOptions}
-                onChange={(event) =>
-                  setSelectedBudgetItemId(event.target.value)
-                }
+                value={selectedSubItemLineId}
+                options={subItemOptions}
+                onChange={(event) => {
+                  setSelectedSubItemLineId(event.target.value);
+                  setSelectedPOId(null);
+                }}
                 placeholder={
-                  loadingBudgetItems
-                    ? "Loading budget items..."
-                    : "Select budget item"
+                  loadingSubItems
+                    ? "Loading approved sub-items..."
+                    : "Select approved sub-item"
                 }
-                disabled={loadingBudgetItems}
+                disabled={loadingSubItems}
               />
 
-              {selectedBudgetItem && (
+              {selectedSubItem && (
                 <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
                   <div className="text-xs font-bold uppercase text-slate-400">
-                    Selected Budget Item
+                    Selected Approved Sub Item
                   </div>
-
                   <div className="mt-1 text-sm font-bold text-slate-900">
-                    {getBudgetItemName(selectedBudgetItem)}
+                    {getSubItemName(selectedSubItem)}
                   </div>
-
                   <div className="mt-2 flex items-center justify-between gap-3 text-xs font-semibold text-slate-500">
                     <span>Remaining Qty</span>
                     <span className="text-slate-900">
-                      {selectedBudgetRemainingQty}
+                      {selectedSubItemRemainingQty}
                     </span>
                   </div>
                 </div>
               )}
             </div>
 
-            <div>
-              <Input
-                label="Requested Quantity"
-                type="number"
-                min="0"
-                step="1"
-                value={requestedQty}
-                onChange={(event) => setRequestedQty(event.target.value)}
-                placeholder="Enter quantity to link"
-              />
-            </div>
+            <Input
+              label="Requested Quantity"
+              type="number"
+              min="0"
+              step="1"
+              value={requestedQty}
+              onChange={(event) => setRequestedQty(event.target.value)}
+              placeholder="Enter quantity to link"
+            />
 
             <AllocationSummary
-              selectedBudgetItem={selectedBudgetItem}
+              selectedSubItem={selectedSubItem}
               selectedPO={selectedPO}
               requestedQty={numericRequestedQty}
               linkedAmount={linkedAmount}
@@ -588,13 +583,11 @@ export default function POLinkForm({
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">
                 2
               </span>
-
               <div>
                 <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
                   <PackageSearch size={16} className="text-blue-600" />
                   Purchase Order Selection
                 </h3>
-
                 <p className="mt-1 text-xs font-medium text-slate-500">
                   Search and select the PO record to link.
                 </p>
@@ -617,16 +610,15 @@ export default function POLinkForm({
           <div className="space-y-4">
             <PORecordDetails po={selectedPO} />
 
-            {selectedBudgetItemId && (
+            {selectedSubItemLineId && (
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-3">
                 <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <div className="text-sm font-bold text-slate-900">
                       Suggested PO Records
                     </div>
-
                     <p className="mt-1 text-xs font-medium text-slate-500">
-                      Recommended records generated from mappings.
+                      Recommended records generated from sub-item mappings.
                     </p>
                   </div>
 
@@ -657,9 +649,8 @@ export default function POLinkForm({
                       <div className="text-sm font-bold text-slate-700">
                         No suggested PO records found
                       </div>
-
                       <p className="mt-1 text-sm text-slate-500">
-                        Use All PO Records below to search manually.
+                        Use all PO records below to search manually.
                       </p>
                     </div>
                   )}
@@ -677,7 +668,6 @@ export default function POLinkForm({
               <div className="mb-2 text-sm font-bold text-slate-900">
                 All PO Records
               </div>
-
               <div className="max-h-[480px] space-y-3 overflow-auto rounded-2xl border border-slate-200 bg-slate-50 p-3">
                 {availablePOs.map((po) => {
                   const poId = getPOId(po);
@@ -697,7 +687,6 @@ export default function POLinkForm({
                     <div className="text-sm font-bold text-slate-700">
                       No available PO records found
                     </div>
-
                     <p className="mt-1 text-sm text-slate-500">
                       Try changing your search text or check if there are
                       approved PO quantities available.
@@ -723,11 +712,10 @@ export default function POLinkForm({
         <div className="space-y-4 text-sm">
           <div className="rounded-xl bg-slate-50 p-4">
             <div className="text-xs font-bold uppercase text-slate-500">
-              Budget Item
+              Approved Sub Item
             </div>
-
             <div className="mt-1 font-semibold text-slate-900">
-              {selectedBudgetItem ? getBudgetItemName(selectedBudgetItem) : "-"}
+              {selectedSubItem ? getSubItemName(selectedSubItem) : "-"}
             </div>
           </div>
 
@@ -735,7 +723,6 @@ export default function POLinkForm({
             <div className="text-xs font-bold uppercase text-slate-500">
               PO Item
             </div>
-
             <div className="mt-1 font-semibold text-slate-900">
               {selectedPO ? getPOItemDescription(selectedPO) : "-"}
             </div>
@@ -746,7 +733,6 @@ export default function POLinkForm({
               <div className="text-xs font-bold uppercase text-slate-500">
                 Requested Qty
               </div>
-
               <div className="mt-1 text-lg font-bold text-slate-900">
                 {numericRequestedQty}
               </div>
@@ -756,7 +742,6 @@ export default function POLinkForm({
               <div className="text-xs font-bold uppercase text-slate-500">
                 Linked Amount
               </div>
-
               <div className="mt-1 text-lg font-bold text-blue-700">
                 <CurrencyText value={linkedAmount} compact />
               </div>

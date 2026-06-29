@@ -52,6 +52,22 @@ const router = createBrowserRouter([
       },
 
       {
+        path: "budget-requests",
+        async lazy() {
+          const module =
+            await import("../pages/budget/DepartmentBudgetRequestsPage");
+
+          return {
+            Component: () => (
+              <RequirePermission permission="can_view_budget">
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
+      },
+
+      {
         path: "budgets",
         async lazy() {
           const module = await import("../pages/BudgetsPage");
@@ -176,6 +192,37 @@ const router = createBrowserRouter([
           return {
             Component: () => (
               <RequirePermission permission="can_manage_financial_years">
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
+      },
+
+      {
+        path: "category-reviews",
+        async lazy() {
+          const module =
+            await import("../pages/category-reviews/CategoryBudgetManagementPage");
+
+          return {
+            Component: () => (
+              <RequirePermission permission="can_approve_budget">
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
+      },
+
+      {
+        path: "cfo-reviews",
+        async lazy() {
+          const module = await import("../pages/cfo-reviews/CfoReviewPage");
+
+          return {
+            Component: () => (
+              <RequirePermission permission="can_approve_budget">
                 <module.default />
               </RequirePermission>
             ),

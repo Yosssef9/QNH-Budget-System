@@ -156,11 +156,43 @@ export async function countNotApprovedBudgetsForYearRepo(financialYearId) {
   const result = await pool
     .request()
     .input("financialYearId", sql.Int, financialYearId).query(`
-      SELECT COUNT(*) AS count
-      FROM BS_budgets
-      WHERE financial_year_id = @financialYearId
-        AND is_active = 1
-        AND status <> 'APPROVED'
+      DECLARE @oldWorkflowCount INT = 0;
+      DECLARE @categoryPackageCount INT = 0;
+      DECLARE @departmentCategoryCount INT = 0;
+
+      IF OBJECT_ID('dbo.BS_budgets', 'U') IS NOT NULL
+      BEGIN
+        SELECT @oldWorkflowCount = COUNT(*)
+        FROM dbo.BS_budgets
+        WHERE financial_year_id = @financialYearId
+          AND is_active = 1
+          AND status NOT IN ('APPROVED', 'DRAFT');
+      END;
+
+      IF OBJECT_ID('dbo.BS_category_review_packages', 'U') IS NOT NULL
+      BEGIN
+        SELECT @categoryPackageCount = COUNT(*)
+        FROM dbo.BS_category_review_packages
+        WHERE financial_year_id = @financialYearId
+          AND status NOT IN ('APPROVED', 'CANCELLED');
+      END;
+
+      IF OBJECT_ID('dbo.BS_department_category_budgets', 'U') IS NOT NULL
+         AND OBJECT_ID('dbo.BS_department_budgets', 'U') IS NOT NULL
+      BEGIN
+        SELECT @departmentCategoryCount = COUNT(*)
+        FROM dbo.BS_department_category_budgets dcb
+        INNER JOIN dbo.BS_department_budgets db
+          ON db.id = dcb.department_budget_id
+        WHERE db.financial_year_id = @financialYearId
+          AND db.is_active = 1
+          AND dcb.status IN ('SUBMITTED', 'RETURNED');
+      END;
+
+      SELECT
+        @oldWorkflowCount
+        + @categoryPackageCount
+        + @departmentCategoryCount AS count
     `);
 
   return result.recordset[0]?.count || 0;
@@ -203,20 +235,30 @@ export async function countPendingTransferRequestsForYearRepo(financialYearId) {
   const result = await pool
     .request()
     .input("financialYearId", sql.Int, financialYearId).query(`
-      IF OBJECT_ID('BS_budget_transfers', 'U') IS NULL
+      DECLARE @oldWorkflowCount INT = 0;
+      DECLARE @categoryTransferCount INT = 0;
+
+      IF OBJECT_ID('dbo.BS_budget_transfers', 'U') IS NOT NULL
       BEGIN
-        SELECT 0 AS count;
-        RETURN;
+        SELECT @oldWorkflowCount = COUNT(*)
+        FROM dbo.BS_budget_transfers t
+        INNER JOIN dbo.BS_budget_items bi
+          ON bi.id = t.from_budget_item_id
+        INNER JOIN dbo.BS_budgets b
+          ON b.id = bi.budget_id
+        WHERE b.financial_year_id = @financialYearId
+          AND t.status IN ('PENDING', 'PENDING_APPROVAL');
       END;
 
-      SELECT COUNT(*) AS count
-      FROM BS_budget_transfers t
-      INNER JOIN BS_budget_items bi
-        ON bi.id = t.from_budget_item_id
-      INNER JOIN BS_budgets b
-        ON b.id = bi.budget_id
-      WHERE b.financial_year_id = @financialYearId
-        AND t.status IN ('PENDING', 'PENDING_APPROVAL')
+      IF OBJECT_ID('dbo.BS_category_budget_transfers', 'U') IS NOT NULL
+      BEGIN
+        SELECT @categoryTransferCount = COUNT(*)
+        FROM dbo.BS_category_budget_transfers
+        WHERE financial_year_id = @financialYearId
+          AND status = 'PENDING_APPROVAL';
+      END;
+
+      SELECT @oldWorkflowCount + @categoryTransferCount AS count
     `);
 
   return result.recordset[0]?.count || 0;
@@ -228,14 +270,34 @@ export async function countUnfinishedPOLinksForYearRepo(financialYearId) {
   const result = await pool
     .request()
     .input("financialYearId", sql.Int, financialYearId).query(`
-      SELECT COUNT(*) AS count
-      FROM BS_PO_LINKS pl
+      DECLARE @oldWorkflowCount INT = 0;
+      DECLARE @categoryPoLinkCount INT = 0;
 
-      INNER JOIN BS_budgets b
-        ON b.id = pl.BUDGET_ID
+      IF OBJECT_ID('dbo.BS_PO_LINKS', 'U') IS NOT NULL
+      BEGIN
+        SELECT @oldWorkflowCount = COUNT(*)
+        FROM dbo.BS_PO_LINKS pl
+        INNER JOIN dbo.BS_budgets b
+          ON b.id = pl.BUDGET_ID
+        WHERE b.financial_year_id = @financialYearId
+          AND pl.STATUS = 'PENDING';
+      END;
 
-      WHERE b.financial_year_id = @financialYearId
-        AND pl.STATUS = 'PENDING'
+      IF OBJECT_ID('dbo.BS_category_po_links', 'U') IS NOT NULL
+      BEGIN
+        SELECT @categoryPoLinkCount = COUNT(*)
+        FROM dbo.BS_category_po_links pl
+        INNER JOIN dbo.BS_category_type_review_sub_items rsi
+          ON rsi.id = pl.category_type_review_sub_item_id
+        INNER JOIN dbo.BS_category_type_reviews ctr
+          ON ctr.id = rsi.category_type_review_id
+        INNER JOIN dbo.BS_category_review_packages crp
+          ON crp.id = ctr.category_review_package_id
+        WHERE crp.financial_year_id = @financialYearId
+          AND pl.status = 'PENDING';
+      END;
+
+      SELECT @oldWorkflowCount + @categoryPoLinkCount AS count
     `);
 
   return result.recordset[0]?.count || 0;
@@ -261,10 +323,26 @@ export async function countBudgetsForYearRepo(financialYearId) {
   const result = await pool
     .request()
     .input("financialYearId", sql.Int, financialYearId).query(`
-      SELECT COUNT(*) AS count
-      FROM BS_budgets
-      WHERE financial_year_id = @financialYearId
-        AND is_active = 1
+      DECLARE @oldWorkflowCount INT = 0;
+      DECLARE @departmentBudgetCount INT = 0;
+
+      IF OBJECT_ID('dbo.BS_budgets', 'U') IS NOT NULL
+      BEGIN
+        SELECT @oldWorkflowCount = COUNT(*)
+        FROM dbo.BS_budgets
+        WHERE financial_year_id = @financialYearId
+          AND is_active = 1;
+      END;
+
+      IF OBJECT_ID('dbo.BS_department_budgets', 'U') IS NOT NULL
+      BEGIN
+        SELECT @departmentBudgetCount = COUNT(*)
+        FROM dbo.BS_department_budgets
+        WHERE financial_year_id = @financialYearId
+          AND is_active = 1;
+      END;
+
+      SELECT @oldWorkflowCount + @departmentBudgetCount AS count
     `);
 
   return result.recordset[0]?.count || 0;

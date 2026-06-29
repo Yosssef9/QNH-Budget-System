@@ -1,14 +1,29 @@
 import { poolPromise, sql } from "../config/db.js";
+import {
+  buildPermissions,
+  deriveBudgetWorkspaces,
+  isAdminRole,
+  mergePermissions,
+  selectActiveWorkspace,
+} from "../helpers/budgetWorkspace.helper.js";
 
-export async function getBudgetAccessByUserId(userId) {
+export async function getBudgetAccessByUserId(
+  userId,
+  { activeWorkspaceId } = {},
+) {
   const pool = await poolPromise;
 
   const result = await pool.request().input("userId", sql.Int, userId).query(`
-    SELECT TOP 1
+    SELECT
+      bur.id AS assignment_id,
       bur.user_id,
 
       bur.department_id,
       d.name AS department_name,
+
+      bur.category_id,
+      bc.name AS category_name,
+      bc.code AS category_code,
 
       bur.role_id,
       br.name AS role_name,
@@ -44,6 +59,8 @@ COALESCE(
     FROM BS_budget_user_roles bur
     LEFT JOIN BS_departments d
       ON d.id = bur.department_id
+    LEFT JOIN BS_budget_categories bc
+      ON bc.id = bur.category_id
     LEFT JOIN BS_budget_roles br
       ON br.id = bur.role_id
     LEFT JOIN BS_budget_role_permissions brp
@@ -53,48 +70,76 @@ COALESCE(
     ORDER BY bur.id DESC
   `);
 
-  const row = result.recordset[0];
-  if (!row) return null;
+  const rows = result.recordset || [];
+  if (!rows.length) return null;
 
-  const isGlobalAdmin = row.role_name === "ADMIN" && row.department_id === null;
-
-  return {
-    hasAccess: true,
+  const assignments = rows.map((row) => ({
+    id: row.assignment_id,
     userId: row.user_id,
-
     role: {
       id: row.role_id,
       name: row.role_name,
     },
-
     department: row.department_id
       ? {
           id: row.department_id,
           name: row.department_name,
         }
       : null,
+    category: row.category_id
+      ? {
+          id: row.category_id,
+          name: row.category_name,
+          code: row.category_code,
+        }
+      : null,
+    permissions: buildPermissions(row),
+  }));
+
+  const workspaces = deriveBudgetWorkspaces(assignments);
+  const { activeWorkspace, invalidRequestedWorkspace } = selectActiveWorkspace(
+    workspaces,
+    activeWorkspaceId,
+  );
+  const fallbackAssignment = assignments[0];
+  const activeAssignment =
+    assignments.find(
+      (assignment) => assignment.id === activeWorkspace?.assignmentId,
+    ) || fallbackAssignment;
+
+  const isGlobalAdmin = assignments.some(
+    (assignment) =>
+      isAdminRole(assignment.role?.name) &&
+      !assignment.department &&
+      !assignment.category,
+  );
+
+  return {
+    hasAccess: true,
+    userId: fallbackAssignment.userId,
+
+    role: activeWorkspace?.role || activeAssignment.role,
+
+    department:
+      activeWorkspace?.department !== undefined
+        ? activeWorkspace.department
+        : activeAssignment.department,
+
+    category:
+      activeWorkspace?.categoryScope !== undefined
+        ? activeWorkspace.categoryScope
+        : activeAssignment.category,
 
     isGlobalAdmin,
 
-    permissions: {
-      can_view_budget: Boolean(row.can_view_budget),
-      can_edit_budget: Boolean(row.can_edit_budget),
+    permissions:
+      activeWorkspace?.permissions ||
+      activeAssignment.permissions ||
+      mergePermissions(assignments),
 
-      can_view_po_links: Boolean(row.can_view_po_links),
-      can_request_po_links: Boolean(row.can_request_po_links),
-      can_view_all_po_link_requests: Boolean(row.can_view_all_po_link_requests),
-      can_approve_po_links: Boolean(row.can_approve_po_links),
-
-      can_request_transfer: Boolean(row.can_request_transfer),
-      can_approve_budget: Boolean(row.can_approve_budget),
-      can_approve_transfer: Boolean(row.can_approve_transfer),
-      can_manage_users: Boolean(row.can_manage_users),
-      can_manage_categories: Boolean(row.can_manage_categories),
-      can_view_reports: Boolean(row.can_view_reports),
-      can_manage_financial_years: Boolean(row.can_manage_financial_years),
-      can_manage_po_item_mappings: Boolean(
-        row.can_manage_po_item_mappings,
-      ),
-    },
+    assignments,
+    workspaces,
+    activeWorkspace,
+    invalidRequestedWorkspace,
   };
 }

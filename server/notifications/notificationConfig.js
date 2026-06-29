@@ -16,6 +16,36 @@ export const NOTIFICATION_CONFIG = {
     ownerType: "TRANSFER",
   },
 
+  [NOTIFICATION_TYPES.CATEGORY_TRANSFER_SUBMITTED]: {
+    strategy: "PERMISSION",
+    permission: "can_approve_transfer",
+  },
+
+  [NOTIFICATION_TYPES.CATEGORY_TRANSFER_APPROVED]: {
+    strategy: "OWNER",
+    ownerType: "CATEGORY_TRANSFER",
+  },
+
+  [NOTIFICATION_TYPES.CATEGORY_TRANSFER_REJECTED]: {
+    strategy: "OWNER",
+    ownerType: "CATEGORY_TRANSFER",
+  },
+
+  [NOTIFICATION_TYPES.CATEGORY_PO_LINK_SUBMITTED]: {
+    strategy: "PERMISSION",
+    permission: "can_approve_po_links",
+  },
+
+  [NOTIFICATION_TYPES.CATEGORY_PO_LINK_APPROVED]: {
+    strategy: "OWNER",
+    ownerType: "CATEGORY_PO_LINK",
+  },
+
+  [NOTIFICATION_TYPES.CATEGORY_PO_LINK_REJECTED]: {
+    strategy: "OWNER",
+    ownerType: "CATEGORY_PO_LINK",
+  },
+
   [NOTIFICATION_TYPES.BUDGET_SUBMITTED]: {
     strategy: "PERMISSION",
     permission: "can_approve_budget",
@@ -29,6 +59,10 @@ export const NOTIFICATION_CONFIG = {
   [NOTIFICATION_TYPES.BUDGET_RETURNED]: {
     strategy: "OWNER",
     ownerType: "BUDGET",
+  },
+
+  [NOTIFICATION_TYPES.BUDGET_CHANGE_REQUEST_SUBMITTED]: {
+    strategy: "CHANGE_REQUEST_REVIEWERS",
   },
 
   [NOTIFICATION_TYPES.ITEM_REQUEST_CREATED]: {

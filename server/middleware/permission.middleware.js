@@ -1,7 +1,11 @@
 export function requirePermission(permissionName) {
   return (req, res, next) => {
+    const permissions =
+      req.budgetAccess?.activeWorkspace?.permissions ||
+      req.budgetAccess?.permissions ||
+      {};
     const hasPermission = Boolean(
-      req.budgetAccess?.permissions?.[permissionName],
+      permissions?.[permissionName],
     );
 
     if (!hasPermission) {

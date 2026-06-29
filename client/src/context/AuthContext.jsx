@@ -1,5 +1,10 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import api from "../api/api";
+import {
+  applyWorkspaceToBudgetAccess,
+  resolveActiveWorkspace,
+  setStoredWorkspaceId,
+} from "../helpers/workspaceContext";
 
 const AuthContext = createContext(null);
 
@@ -17,10 +22,14 @@ export function AuthProvider({ children }) {
         import.meta.env.VITE_API_BASE_URL,
       );
       setUser(response.data.user);
-      setBudgetAccess(response.data.budgetAccess);
+      const access = response.data.budgetAccess;
+      const activeWorkspace = resolveActiveWorkspace(access);
+      setStoredWorkspaceId(activeWorkspace?.id || null);
+      setBudgetAccess(applyWorkspaceToBudgetAccess(access, activeWorkspace));
     } catch {
       setUser(null);
       setBudgetAccess(null);
+      setStoredWorkspaceId(null);
     } finally {
       setLoading(false);
     }
@@ -38,17 +47,36 @@ export function AuthProvider({ children }) {
     window.location.href = logoutUrl;
   }
 
+  function switchWorkspace(workspaceId) {
+    const workspace = budgetAccess?.workspaces?.find(
+      (workspace) => workspace.id === workspaceId,
+    );
+
+    if (!workspace) return;
+
+    setStoredWorkspaceId(workspace.id);
+    setBudgetAccess((currentAccess) =>
+      applyWorkspaceToBudgetAccess(currentAccess, workspace),
+    );
+  }
+
+  const availableWorkspaces = budgetAccess?.workspaces || [];
+  const activeWorkspace = budgetAccess?.activeWorkspace || null;
+
   const value = useMemo(
     () => ({
       user,
       budgetAccess,
+      availableWorkspaces,
+      activeWorkspace,
       loading,
       isAuthenticated: !!user,
       hasBudgetAccess: !!budgetAccess,
       logout,
       refreshAuth: bootstrapAuth,
+      switchWorkspace,
     }),
-    [user, budgetAccess, loading],
+    [user, budgetAccess, availableWorkspaces, activeWorkspace, loading],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

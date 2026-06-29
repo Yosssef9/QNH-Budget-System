@@ -1,12 +1,5 @@
 import { useMemo, useState } from "react";
-import {
-  CheckCircle2,
-  Clock3,
-  Filter,
-  Link2,
-  Search,
-  XCircle,
-} from "lucide-react";
+import { CheckCircle2, Clock3, Filter, Link2, Search, XCircle } from "lucide-react";
 import toast from "react-hot-toast";
 
 import Breadcrumbs from "../components/Breadcrumbs";
@@ -18,10 +11,11 @@ import SearchableMultiSelect from "../components/SearchableMultiSelect";
 import Input from "../components/Input";
 import POLinkDetailsDrawer from "../components/po/POLinkDetailsDrawer";
 import POApprovalTable from "../components/po/POApprovalTable";
-import { useFinancialYears } from "../hooks/financial-years/useFinancialYears";
-import { useApprovePOLink } from "../hooks/po/useApprovePOLink";
-import { usePOLinksForApproval } from "../hooks/po/usePendingPOLinks";
-import { useRejectPOLink } from "../hooks/po/useRejectPOLink";
+import {
+  useApproveCategoryPoLink,
+  useCategoryPoLinksForApproval,
+  useRejectCategoryPoLink,
+} from "../hooks/category-po-links/useCategoryPoLinks";
 import { formatDateTime } from "../utils/dateFormatters";
 
 const statusOptions = [
@@ -49,12 +43,16 @@ function POApprovalDecisionSummary({ request }) {
 
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <ApprovalDetailRow label="Department" value={request.department_name} />
+      <ApprovalDetailRow label="Category" value={request.category_name} />
       <ApprovalDetailRow
         label="Financial Year"
         value={request.financial_year ? `FY ${request.financial_year}` : "-"}
       />
       <ApprovalDetailRow label="Budget Type" value={request.budget_type_name} />
+      <ApprovalDetailRow
+        label="Sub Item"
+        value={request.sub_item_name_snapshot}
+      />
       <ApprovalDetailRow label="PO Item" value={request.item_description} />
       <ApprovalDetailRow label="Supplier" value={request.supplier_name} />
       <ApprovalDetailRow
@@ -88,75 +86,34 @@ export default function POApprovalPage() {
   const [rejectReason, setRejectReason] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("PENDING");
-  const [departmentFilter, setDepartmentFilter] = useState("ALL");
-  const [financialYearFilter, setFinancialYearFilter] = useState(null);
 
-  const { data: financialYears = [] } = useFinancialYears();
-  const latestFinancialYear = useMemo(() => {
-    return [...financialYears].sort(
-      (a, b) => Number(b.year) - Number(a.year),
-    )[0];
-  }, [financialYears]);
-  const effectiveFinancialYearId =
-    financialYearFilter || latestFinancialYear?.id || null;
   const queryParams = useMemo(
     () => ({
       status: statusFilter,
-      financialYearId: effectiveFinancialYearId || undefined,
     }),
-    [effectiveFinancialYearId, statusFilter],
+    [statusFilter],
   );
 
   const {
     data: poApprovalRequests = [],
     isLoading,
     isFetching,
-  } = usePOLinksForApproval(queryParams);
+  } = useCategoryPoLinksForApproval(queryParams);
 
-  const approveMutation = useApprovePOLink();
-  const rejectMutation = useRejectPOLink();
-
-  const departmentOptions = useMemo(() => {
-    const departments = new Map();
-
-    poApprovalRequests.forEach((request) => {
-      if (request.department_name) {
-        departments.set(String(request.department_name), {
-          value: String(request.department_name),
-          label: String(request.department_name),
-        });
-      }
-    });
-
-    return [
-      { value: "ALL", label: "All Departments" },
-      ...departments.values(),
-    ];
-  }, [poApprovalRequests]);
-
-  const financialYearOptions = useMemo(() => {
-    return [
-      ...financialYears.map((year) => ({
-        value: String(year.id),
-        label: `FY ${year.year}`,
-      })),
-    ];
-  }, [financialYears]);
+  const approveMutation = useApproveCategoryPoLink();
+  const rejectMutation = useRejectCategoryPoLink();
 
   const filteredRequests = useMemo(() => {
     const query = search.trim().toLowerCase();
 
     return poApprovalRequests.filter((request) => {
-      const matchesDepartment =
-        departmentFilter === "ALL" ||
-        String(request.department_name) === String(departmentFilter);
-
       const matchesSearch =
         !query ||
         [
           request.id,
-          request.department_name,
+          request.category_name,
           request.budget_type_name,
+          request.sub_item_name_snapshot,
           request.item_description,
           request.item_code,
           request.order_id,
@@ -166,9 +123,9 @@ export default function POApprovalPage() {
           .map((value) => String(value || "").toLowerCase())
           .some((value) => value.includes(query));
 
-      return matchesDepartment && matchesSearch;
+      return matchesSearch;
     });
-  }, [departmentFilter, poApprovalRequests, search]);
+  }, [poApprovalRequests, search]);
 
   const pendingCount = poApprovalRequests.filter(
     (request) => request.status === "PENDING",
@@ -184,10 +141,13 @@ export default function POApprovalPage() {
     if (!approveItem) return;
 
     try {
-      await approveMutation.mutateAsync(approveItem.id);
+      await approveMutation.mutateAsync({ poLinkId: approveItem.id });
       setApproveItem(null);
+      toast.success("PO link approved successfully");
     } catch (error) {
-      console.error(error);
+      toast.error(
+        error?.response?.data?.message || "Failed to approve PO link",
+      );
     }
   }
 
@@ -201,14 +161,15 @@ export default function POApprovalPage() {
 
     try {
       await rejectMutation.mutateAsync({
-        id: rejectItem.id,
-        reason: rejectReason.trim(),
+        poLinkId: rejectItem.id,
+        payload: { reason: rejectReason.trim() },
       });
 
       setRejectItem(null);
       setRejectReason("");
+      toast.success("PO link rejected successfully");
     } catch (error) {
-      console.error(error);
+      toast.error(error?.response?.data?.message || "Failed to reject PO link");
     }
   }
 
@@ -229,9 +190,9 @@ export default function POApprovalPage() {
               <h1 className="text-2xl font-bold text-slate-900">
                 PO Approvals
               </h1>
-
               <p className="mt-1 text-sm text-slate-500">
-                Review, approve, or reject Purchase Order link requests.
+                Review, approve, or reject PO links against approved sub-item
+                lines.
               </p>
             </div>
           </div>
@@ -276,12 +237,12 @@ export default function POApprovalPage() {
           <h2 className="text-lg font-bold text-slate-900">Filters</h2>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[1fr_220px_260px_220px]">
+        <div className="grid gap-4 lg:grid-cols-[1fr_220px]">
           <EnterpriseSearch
             value={search}
             onChange={setSearch}
             icon={Search}
-            placeholder="Search by request, department, budget item, PO item..."
+            placeholder="Search by request, category, sub-item, PO item..."
           />
 
           <SearchableMultiSelect
@@ -291,35 +252,6 @@ export default function POApprovalPage() {
             disableClear
             onChange={(event) => setStatusFilter(event.target.value)}
             placeholder="Status"
-          />
-
-          <SearchableMultiSelect
-            multiple={false}
-            value={departmentFilter}
-            options={departmentOptions}
-            disableClear
-            onChange={(event) => setDepartmentFilter(event.target.value)}
-            placeholder="Department"
-          />
-
-          <SearchableMultiSelect
-            multiple={false}
-            value={
-              effectiveFinancialYearId ? String(effectiveFinancialYearId) : ""
-            }
-            options={financialYearOptions}
-            disableClear
-            onChange={(event) => {
-              const selectedYearId = Number(event.target.value);
-              setFinancialYearFilter(selectedYearId);
-
-              if (selectedYearId === latestFinancialYear?.id) {
-                setStatusFilter("PENDING");
-              } else {
-                setStatusFilter("ALL");
-              }
-            }}
-            placeholder="Financial Year"
           />
         </div>
       </section>
@@ -383,11 +315,6 @@ export default function POApprovalPage() {
             value={rejectReason}
             onChange={(event) => setRejectReason(event.target.value)}
             placeholder="Enter rejection reason..."
-            error={
-              !rejectReason.trim() && rejectMutation.isPending
-                ? "Rejection reason is required"
-                : ""
-            }
           />
         </div>
       </ConfirmModal>

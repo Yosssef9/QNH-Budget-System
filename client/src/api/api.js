@@ -1,5 +1,6 @@
 import axios from "axios";
 import { getToken } from "../helpers/getToken";
+import { getStoredWorkspaceId } from "../helpers/workspaceContext";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -15,9 +16,14 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = getToken();
+  const activeWorkspaceId = getStoredWorkspaceId();
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  if (activeWorkspaceId && !String(config.url || "").includes("/auth/me")) {
+    config.headers["x-budget-workspace-id"] = activeWorkspaceId;
   }
 
   return config;

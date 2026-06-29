@@ -36,6 +36,42 @@ export async function getUsersByPermissionRepo(permissionColumn) {
   return result.recordset;
 }
 
+export async function getBudgetChangeRequestReviewersRepo({ categoryId }) {
+  const pool = await poolPromise;
+
+  const result = await pool
+    .request()
+    .input("categoryId", sql.Int, categoryId)
+    .query(`
+      SELECT DISTINCT
+        u.USER_ID,
+        u.USER_NAME,
+        u.email
+      FROM BS_budget_user_roles r
+      LEFT JOIN BS_budget_role_permissions brp
+        ON brp.role_id = r.role_id
+      INNER JOIN BS_budget_roles br
+        ON br.id = r.role_id
+      INNER JOIN USERS u
+        ON u.USER_ID = r.user_id
+      INNER JOIN BS_budget_categories c
+        ON c.id = @categoryId
+      WHERE
+        r.is_active = 1
+        AND u.IS_ACTIVE = 1
+        AND u.email IS NOT NULL
+        AND (
+          COALESCE(r.can_approve_budget, brp.can_approve_budget, 0) = 1
+          OR (
+            UPPER(br.name) = 'CATEGORY BUDGET MANAGER'
+            AND r.category_id = c.id
+          )
+        )
+    `);
+
+  return result.recordset;
+}
+
 export async function getAllActiveUsersExceptRepo(actorUserId) {
   const pool = await poolPromise;
 
@@ -68,6 +104,46 @@ export async function getTransferRequesterRepo(transferId) {
       INNER JOIN USERS u
         ON u.USER_ID = t.requested_by
       WHERE t.id = @transferId
+    `);
+
+  return result.recordset;
+}
+
+export async function getCategoryTransferRequesterRepo(categoryTransferId) {
+  const pool = await poolPromise;
+
+  const result = await pool
+    .request()
+    .input("categoryTransferId", sql.BigInt, categoryTransferId)
+    .query(`
+      SELECT TOP 1
+        u.USER_ID,
+        u.USER_NAME,
+        u.email
+      FROM BS_category_budget_transfers t
+      INNER JOIN USERS u
+        ON u.USER_ID = t.requested_by
+      WHERE t.id = @categoryTransferId
+    `);
+
+  return result.recordset;
+}
+
+export async function getCategoryPoLinkRequesterRepo(categoryPoLinkId) {
+  const pool = await poolPromise;
+
+  const result = await pool
+    .request()
+    .input("categoryPoLinkId", sql.BigInt, categoryPoLinkId)
+    .query(`
+      SELECT TOP 1
+        u.USER_ID,
+        u.USER_NAME,
+        u.email
+      FROM BS_category_po_links pl
+      INNER JOIN USERS u
+        ON u.USER_ID = pl.requested_by
+      WHERE pl.id = @categoryPoLinkId
     `);
 
   return result.recordset;

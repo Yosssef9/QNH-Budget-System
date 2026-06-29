@@ -4,7 +4,7 @@ import AnimatedDrawer from "../budgets/shared/drawers/AnimatedDrawer";
 import CurrencyText from "../CurrencyText";
 import LoadingSpinner from "../LoadingSpinner";
 import POLinkStatusBadge from "./POLinkStatusBadge";
-import { usePOLinkDetails } from "../../hooks/po/usePOLinkDetails";
+import { useCategoryPoLinkDetails } from "../../hooks/category-po-links/useCategoryPoLinks";
 import { formatDateTime } from "../../utils/dateFormatters";
 
 function DetailRow({ label, value }) {
@@ -46,7 +46,7 @@ export default function POLinkDetailsDrawer({
     data: details,
     isLoading,
     isError,
-  } = usePOLinkDetails(open ? requestId : null);
+  } = useCategoryPoLinkDetails(open ? requestId : null);
 
   const rejected = details?.status === "REJECTED" && !canApprove;
   return (
@@ -59,7 +59,7 @@ export default function POLinkDetailsDrawer({
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              Full request details, budget item, PO information, and approval
+              Full request details, approved sub-item, PO information, and approval
               status.
             </p>
           </div>
@@ -119,9 +119,13 @@ export default function POLinkDetailsDrawer({
               >
                 <DetailRow label="Request ID" value={details.id} />
 
+                <DetailRow label="Category" value={details.category_name} />
+
+                <DetailRow label="Budget Type" value={details.budget_type_name} />
+
                 <DetailRow
-                  label="Parent Budget Item"
-                  value={details.parent_item_name}
+                  label="Approved Sub Item"
+                  value={details.sub_item_name_snapshot}
                 />
 
                 <DetailRow
@@ -154,55 +158,45 @@ export default function POLinkDetailsDrawer({
                 title="Budget Information"
                 icon={<Building2 size={18} />}
               >
-                <DetailRow label="Department" value={details.department_name} />
-
                 <DetailRow
                   label="Financial Year"
                   value={details.financial_year}
                 />
 
                 <DetailRow
-                  label="Budget Status"
-                  value={details.budget_status}
+                  label="Financial Year Status"
+                  value={details.financial_year_status}
+                />
+
+                <DetailRow label="Category Code" value={details.category_code} />
+
+                <DetailRow
+                  label="Review Sub-Item Line ID"
+                  value={details.category_type_review_sub_item_id}
                 />
 
                 <DetailRow
-                  label="Budget Type"
-                  value={details.budget_type_name}
-                />
-
-                <DetailRow label="Expense Type" value={details.expense_type} />
-
-                <DetailRow label="Budget ID" value={details.budget_id} />
-
-                <DetailRow
-                  label="Budget Item ID"
-                  value={details.budget_item_id}
+                  label="Reusable Sub-Item ID"
+                  value={details.budget_sub_item_id}
                 />
               </DetailSection>
               <DetailSection
-                title="Budget Allocation"
+                title="Sub-Item Allocation"
                 icon={<Building2 size={18} />}
               >
                 <DetailRow
-                  label="Approved Quantity"
-                  value={details.budget_item_quantity}
+                  label="Approved Sub-Item Quantity"
+                  value={details.sub_item_quantity}
                 />
 
                 <DetailRow
-                  label="Budget Unit Price"
-                  value={
-                    <CurrencyText value={details.budget_item_unit_price || 0} />
-                  }
+                  label="Budgeted Unit Cost"
+                  value={<CurrencyText value={details.unit_cost || 0} />}
                 />
 
                 <DetailRow
-                  label="Budget Total Amount"
-                  value={
-                    <CurrencyText
-                      value={details.budget_item_total_amount || 0}
-                    />
-                  }
+                  label="Linked Amount"
+                  value={<CurrencyText value={details.linked_amount || 0} />}
                 />
               </DetailSection>
               <DetailSection

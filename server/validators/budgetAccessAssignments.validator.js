@@ -23,6 +23,13 @@ function isValidNullableBoolean(value) {
   return value === null || value === undefined || value === true || value === false;
 }
 
+function isValidNullablePositiveInteger(value) {
+  if (value === null || value === undefined || value === "") return true;
+
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0;
+}
+
 export function validateCreateBudgetAccessAssignment(body) {
   if (!body.user_id) {
     throw new ApiError(400, "user_id is required", "VALIDATION_ERROR");
@@ -30,6 +37,22 @@ export function validateCreateBudgetAccessAssignment(body) {
 
   if (!body.role_id) {
     throw new ApiError(400, "role_id is required", "VALIDATION_ERROR");
+  }
+
+  if (!isValidNullablePositiveInteger(body.department_id)) {
+    throw new ApiError(
+      400,
+      "department_id must be a positive integer or null",
+      "VALIDATION_ERROR",
+    );
+  }
+
+  if (!isValidNullablePositiveInteger(body.category_id)) {
+    throw new ApiError(
+      400,
+      "category_id must be a positive integer or null",
+      "VALIDATION_ERROR",
+    );
   }
 
   for (const field of permissionFields) {
@@ -46,6 +69,22 @@ export function validateCreateBudgetAccessAssignment(body) {
 export function validateUpdateBudgetAccessAssignment(body) {
   if (!body.role_id) {
     throw new ApiError(400, "role_id is required", "VALIDATION_ERROR");
+  }
+
+  if (!isValidNullablePositiveInteger(body.department_id)) {
+    throw new ApiError(
+      400,
+      "department_id must be a positive integer or null",
+      "VALIDATION_ERROR",
+    );
+  }
+
+  if (!isValidNullablePositiveInteger(body.category_id)) {
+    throw new ApiError(
+      400,
+      "category_id must be a positive integer or null",
+      "VALIDATION_ERROR",
+    );
   }
 
   for (const field of permissionFields) {

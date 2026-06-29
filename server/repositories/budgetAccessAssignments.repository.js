@@ -13,6 +13,10 @@ export async function getBudgetAccessAssignmentsRepo() {
   bur.department_id,
   d.name AS department_name,
 
+  bur.category_id,
+  c.name AS category_name,
+  c.code AS category_code,
+
   bur.role_id,
   r.name AS role_name,
 
@@ -39,6 +43,8 @@ LEFT JOIN users u
   ON u.USER_ID = bur.user_id
 LEFT JOIN BS_departments d
   ON d.id = bur.department_id
+LEFT JOIN BS_budget_categories c
+  ON c.id = bur.category_id
 LEFT JOIN BS_budget_roles r
   ON r.id = bur.role_id
 ORDER BY bur.created_at DESC
@@ -62,6 +68,7 @@ export async function findBudgetAccessAssignmentByIdRepo(id) {
 export async function findDuplicateBudgetAccessAssignmentRepo({
   user_id,
   department_id,
+  category_id,
   role_id,
 }) {
   const pool = await poolPromise;
@@ -70,6 +77,7 @@ export async function findDuplicateBudgetAccessAssignmentRepo({
     .request()
     .input("user_id", sql.Int, user_id)
     .input("department_id", sql.Int, department_id)
+    .input("category_id", sql.Int, category_id)
     .input("role_id", sql.Int, role_id).query(`
       SELECT TOP 1 id
       FROM BS_budget_user_roles
@@ -78,6 +86,10 @@ export async function findDuplicateBudgetAccessAssignmentRepo({
         AND (
           department_id = @department_id
           OR (department_id IS NULL AND @department_id IS NULL)
+        )
+        AND (
+          category_id = @category_id
+          OR (category_id IS NULL AND @category_id IS NULL)
         )
     `);
 
@@ -91,6 +103,7 @@ export async function createBudgetAccessAssignmentRepo(payload) {
     .request()
     .input("user_id", sql.Int, payload.user_id)
     .input("department_id", sql.Int, payload.department_id)
+    .input("category_id", sql.Int, payload.category_id)
     .input("role_id", sql.Int, payload.role_id)
 
     .input("can_view_budget", sql.Bit, payload.can_view_budget)
@@ -135,6 +148,7 @@ export async function createBudgetAccessAssignmentRepo(payload) {
       INSERT INTO BS_budget_user_roles (
         user_id,
         department_id,
+        category_id,
         role_id,
 
         can_view_budget,
@@ -157,6 +171,7 @@ can_approve_po_links,
       VALUES (
         @user_id,
         @department_id,
+        @category_id,
         @role_id,
 
         @can_view_budget,
@@ -187,6 +202,7 @@ export async function updateBudgetAccessAssignmentRepo(id, payload) {
     .request()
     .input("id", sql.BigInt, id)
     .input("department_id", sql.Int, payload.department_id)
+    .input("category_id", sql.Int, payload.category_id)
     .input("role_id", sql.Int, payload.role_id)
 
     .input("can_view_budget", sql.Bit, payload.can_view_budget)
@@ -230,6 +246,7 @@ export async function updateBudgetAccessAssignmentRepo(id, payload) {
       UPDATE BS_budget_user_roles
       SET
         department_id = @department_id,
+        category_id = @category_id,
         role_id = @role_id,
 
         can_view_budget = @can_view_budget,

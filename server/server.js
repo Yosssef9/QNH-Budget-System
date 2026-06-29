@@ -14,6 +14,13 @@ import budgetAccessDepartmentsRoutes from "./routes/budgetAccessDepartments.rout
 import budgetAccessRolesRoutes from "./routes/budgetAccessRoles.routes.js";
 import poItemMappingsRoutes from "./routes/poItemMappings.routes.js";
 import projectsRoutes from "./routes/projects.routes.js";
+import budgetRequestsRoutes from "./routes/budgetRequests.routes.js";
+import categoryReviewsRoutes from "./routes/categoryReviews.routes.js";
+import budgetSubItemsRoutes from "./routes/budgetSubItems.routes.js";
+import cfoReviewsRoutes from "./routes/cfoReviews.routes.js";
+import budgetChangeRequestsRoutes from "./routes/budgetChangeRequests.routes.js";
+import categoryTransfersRoutes from "./routes/categoryTransfers.routes.js";
+import categoryPoLinksRoutes from "./routes/categoryPoLinks.routes.js";
 
 // Other features
 import financialYearsRoutes from "./routes/financialYears.routes.js";
@@ -78,6 +85,13 @@ app.use("/api/admin/po-item-mappings", poItemMappingsRoutes);
 
 // Other features
 app.use("/api/financial-years", financialYearsRoutes);
+app.use("/api/budget-requests", budgetRequestsRoutes);
+app.use("/api/category-reviews", categoryReviewsRoutes);
+app.use("/api/budget-sub-items", budgetSubItemsRoutes);
+app.use("/api/cfo-reviews", cfoReviewsRoutes);
+app.use("/api/budget-change-requests", budgetChangeRequestsRoutes);
+app.use("/api/category-transfers", categoryTransfersRoutes);
+app.use("/api/category-po-links", categoryPoLinksRoutes);
 app.use("/api/budgets", budgetsRoutes);
 app.use("/api/budgets", budgetItemsRoutes);
 app.use("/api/categories", categoryRoutes);

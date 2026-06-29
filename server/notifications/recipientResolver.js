@@ -3,8 +3,11 @@ import { NOTIFICATION_CONFIG } from "./notificationConfig.js";
 import {
   getUsersByPermissionRepo,
   getAllActiveUsersExceptRepo,
+  getCategoryPoLinkRequesterRepo,
+  getCategoryTransferRequesterRepo,
   getTransferRequesterRepo,
   getBudgetOwnerRepo,
+  getBudgetChangeRequestReviewersRepo,
   getItemRequestOwnerRepo,
   getPOLinkRequesterRepo,
 } from "../repositories/notificationRecipients.repository.js";
@@ -28,6 +31,12 @@ export async function resolveRecipients(notificationType, payload) {
         case "TRANSFER":
           return getTransferRequesterRepo(payload.transferId);
 
+        case "CATEGORY_TRANSFER":
+          return getCategoryTransferRequesterRepo(payload.categoryTransferId);
+
+        case "CATEGORY_PO_LINK":
+          return getCategoryPoLinkRequesterRepo(payload.categoryPoLinkId);
+
         case "BUDGET":
           return getBudgetOwnerRepo(payload.budgetId);
 
@@ -39,6 +48,11 @@ export async function resolveRecipients(notificationType, payload) {
         default:
           return [];
       }
+
+    case "CHANGE_REQUEST_REVIEWERS":
+      return getBudgetChangeRequestReviewersRepo({
+        categoryId: payload.categoryId,
+      });
 
     default:
       return [];

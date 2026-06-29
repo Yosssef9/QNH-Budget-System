@@ -1,24 +1,19 @@
-import { useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link2 } from "lucide-react";
 
 import Breadcrumbs from "../components/Breadcrumbs";
-import LoadingSpinner from "../components/LoadingSpinner";
-import LockedPage from "../components/LockedPage";
 
 import MyPOLinkRequests from "../components/po/MyPOLinkRequests";
 import POLinkDetailsDrawer from "../components/po/POLinkDetailsDrawer";
 import POLinkForm from "../components/po/POLinkForm";
 import POSummaryCards from "../components/po/POSummaryCards";
 
-import { getMyBudgets } from "../api/budget.api";
-
-import { useAvailablePOs } from "../hooks/po/useAvailablePOs";
-import { useMyPOLinks } from "../hooks/po/useMyPOLinks";
-
-import { getPOLinkPageLock } from "../helpers/pageLockRules";
-import useLockToast from "../hooks/useLockToast";
-import { PO_QUERY_KEY } from "../hooks/po/usePOQueryKeys";
+import {
+  CATEGORY_PO_LINKS_QUERY_KEY,
+  useAvailableCategoryPOs,
+  useMyCategoryPoLinks,
+} from "../hooks/category-po-links/useCategoryPoLinks";
 
 export default function POLinkingPage() {
   const queryClient = useQueryClient();
@@ -27,23 +22,14 @@ export default function POLinkingPage() {
   const [formTemplate, setFormTemplate] = useState(null);
   const [formVersion, setFormVersion] = useState(0);
 
-  const { data: budgets = [], isLoading: loadingBudgets } = useQuery({
-    queryKey: ["my-budgets"],
-    queryFn: getMyBudgets,
-  });
-
   const { data: availablePOs = [], isFetching: fetchingPOs } =
-    useAvailablePOs();
+    useAvailableCategoryPOs();
 
-  const { data: myPOLinks = [] } = useMyPOLinks();
-
-  const lock = useMemo(() => getPOLinkPageLock(budgets), [budgets]);
-
-  useLockToast(lock.locked && !loadingBudgets, lock.message);
+  const { data: myPOLinks = [] } = useMyCategoryPoLinks({ status: "ALL" });
 
   function handleSubmitted() {
     queryClient.invalidateQueries({
-      queryKey: PO_QUERY_KEY,
+      queryKey: CATEGORY_PO_LINKS_QUERY_KEY,
     });
 
     setFormTemplate(null);
@@ -69,46 +55,6 @@ export default function POLinkingPage() {
     });
   }
 
-  if (loadingBudgets) {
-    return (
-      <LoadingSpinner
-        fullPage
-        title="Loading PO Linking"
-        subtitle="Checking current financial year and available budgets."
-      />
-    );
-  }
-
-  if (lock.locked) {
-    return (
-      <div className="space-y-6">
-        <Breadcrumbs
-          items={[
-            {
-              label: "Dashboard",
-              path: "/",
-            },
-            {
-              label: "PO Linking",
-            },
-          ]}
-        />
-
-        <LockedPage
-          title={lock.title}
-          message={lock.message}
-          reasons={lock.reasons}
-        />
-
-        <MyPOLinkRequests
-          requests={myPOLinks}
-          onView={handleViewRequest}
-          onCreateFromRejected={handleCreateFromRejected}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <Breadcrumbs
@@ -126,7 +72,7 @@ export default function POLinkingPage() {
       <div>
         <h1 className="text-3xl font-bold"> PO Linking</h1>
         <p className="text-slate-500 mt-2">
-          Link purchase orders to approved budget items.
+          Link purchase orders to approved sub-item lines.
         </p>
       </div>
       <POSummaryCards availablePOs={availablePOs} myLinks={myPOLinks} />

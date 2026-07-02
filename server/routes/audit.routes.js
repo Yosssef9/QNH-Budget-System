@@ -11,7 +11,7 @@ import { requirePermission } from "../middleware/permission.middleware.js";
 const router = express.Router();
 
 router.use(verifyPortalJwt, verifyBudgetAccess);
-router.use(requirePermission("can_manage_users"));
+router.use(requirePermission("can_view_audit_logs"));
 router.get("/users", getAuditLogUsers);
 router.get("/", getAuditLogs);
 

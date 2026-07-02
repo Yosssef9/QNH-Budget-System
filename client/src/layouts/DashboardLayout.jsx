@@ -182,8 +182,9 @@
 //   );
 // }
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -196,13 +197,16 @@ import {
   History,
   Repeat2,
   Link2,
-  CircleUser,
   BriefcaseBusiness,
   LogOut,
+  ChevronDown,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useUnsavedChanges } from "../context/UnsavedChangesContext";
-import { getUserRoleLabel } from "../helpers/permissions";
+import { can } from "../helpers/permissions";
+import WorkspaceSelectionDialog from "../components/WorkspaceSelectionDialog";
+import { formatWorkspaceSummary } from "../helpers/workspaceLabels";
+import toast from "react-hot-toast";
 
 function getSidebarSections(budgetAccess) {
   const permissions = budgetAccess?.permissions || {};
@@ -318,15 +322,96 @@ function getSidebarSections(budgetAccess) {
     .filter((section) => section.items.length > 0);
 }
 
+function canAccessPath(pathname, budgetAccess) {
+  const checks = [
+    { path: "/admin/users", permission: "can_manage_users" },
+    { path: "/budgets/entry", permission: "can_edit_budget" },
+    { path: "/budgets/my", permission: "can_view_budget" },
+    { path: "/budgets/all", permission: "can_approve_budget" },
+    { path: "/budgets/view", permission: "can_view_budget" },
+    {
+      path: "/projects",
+      permission: ["can_view_budget", "can_edit_budget", "can_approve_budget"],
+    },
+    {
+      path: "/financial-years",
+      permission: "can_manage_financial_years",
+    },
+    { path: "/budget-approval", permission: "can_approve_budget" },
+    { path: "/admin/budget-setup", permission: "can_manage_categories" },
+    {
+      path: "/admin/po-item-mappings",
+      permission: "can_manage_po_item_mappings",
+    },
+    { path: "/admin/audit-logs", permission: "can_manage_users" },
+    { path: "/transfers/requests", permission: "can_request_transfer" },
+    { path: "/transfers/approvals", permission: "can_approve_transfer" },
+    { path: "/po-linking", permission: "can_request_po_links" },
+    { path: "/po-approvals", permission: "can_approve_po_links" },
+    { path: "/budget-analytics", permission: "can_approve_budget" },
+    { path: "/reports", permission: "can_view_reports" },
+  ];
+  const matchedCheck = checks.find((check) =>
+    pathname === check.path || pathname.startsWith(`${check.path}/`),
+  );
+
+  if (!matchedCheck) return true;
+  return can(budgetAccess, matchedCheck.permission);
+}
+
 export default function DashboardLayout() {
-  const { user, budgetAccess, logout } = useAuth();
+  const {
+    user,
+    budgetAccess,
+    logout,
+    availableWorkspaces,
+    selectedWorkspaceId,
+    switchWorkspace,
+    workspaceSwitching,
+    workspaceSelectionRequired,
+    dismissWorkspaceSelection,
+  } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [workspaceDialogOpen, setWorkspaceDialogOpen] = useState(false);
+  const workspaceButtonRef = useRef(null);
+  const queryClient = useQueryClient();
   const location = useLocation();
   const { safeNavigate } = useUnsavedChanges();
-  const roleLabel = getUserRoleLabel(budgetAccess);
   const sidebarSections = getSidebarSections(budgetAccess);
   const sidebarWidth = sidebarOpen ? "w-[280px]" : "w-[86px]";
   const contentPadding = sidebarOpen ? "pl-[280px]" : "pl-[86px]";
+  const activeWorkspace =
+    budgetAccess?.selectedWorkspace || budgetAccess?.workspace || budgetAccess;
+  const workspaceSummary = formatWorkspaceSummary(activeWorkspace);
+  const isWorkspaceDialogOpen =
+    workspaceDialogOpen || workspaceSelectionRequired;
+
+  async function handleWorkspaceSelect(userRoleId) {
+    if (
+      Number(userRoleId) === Number(selectedWorkspaceId) &&
+      !workspaceSelectionRequired
+    ) {
+      setWorkspaceDialogOpen(false);
+      dismissWorkspaceSelection();
+      return;
+    }
+
+    try {
+      const nextAccess = await switchWorkspace(userRoleId);
+      queryClient.clear();
+
+      if (!canAccessPath(location.pathname, nextAccess)) {
+        safeNavigate("/");
+      }
+
+      setWorkspaceDialogOpen(false);
+      dismissWorkspaceSelection();
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message || "Failed to switch workspace",
+      );
+    }
+  }
 
   return (
     <div className="min-h-screen bg-enterprise-bg font-sans text-enterprise-text">
@@ -489,7 +574,13 @@ overflow-y-hidden hover:overflow-y-auto
             </p>
           </div>
 
-          <div
+          <button
+            ref={workspaceButtonRef}
+            type="button"
+            aria-haspopup="dialog"
+            aria-expanded={isWorkspaceDialogOpen}
+            aria-label={`Switch budget workspace. Current workspace: ${workspaceSummary}`}
+            onClick={() => setWorkspaceDialogOpen(true)}
             className="
     flex items-center gap-3
     rounded-2xl
@@ -497,6 +588,10 @@ overflow-y-hidden hover:overflow-y-auto
     bg-slate-50
     px-4 py-2.5
     shadow-sm
+    cursor-pointer
+    transition
+    hover:border-primary-300 hover:bg-primary-50
+    focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500
   "
           >
             <div
@@ -515,19 +610,38 @@ overflow-y-hidden hover:overflow-y-auto
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
 
                 <p className="truncate text-xs font-semibold leading-4 text-slate-500">
-                  {roleLabel}
+                  {workspaceSummary}
                 </p>
               </div>
             </div>
 
             <div className="hidden h-8 w-px bg-slate-200 sm:block" />
-          </div>
+            <ChevronDown
+              size={16}
+              className="shrink-0 text-slate-400"
+              aria-hidden="true"
+            />
+          </button>
         </header>
 
         <main className="p-8">
           <Outlet />
         </main>
       </div>
+
+      <WorkspaceSelectionDialog
+        open={isWorkspaceDialogOpen}
+        workspaces={availableWorkspaces}
+        selectedWorkspaceId={selectedWorkspaceId}
+        switching={workspaceSwitching}
+        requireSelection={workspaceSelectionRequired}
+        onSelect={handleWorkspaceSelect}
+        onClose={() => {
+          setWorkspaceDialogOpen(false);
+          dismissWorkspaceSelection();
+        }}
+        returnFocusRef={workspaceButtonRef}
+      />
     </div>
   );
 }

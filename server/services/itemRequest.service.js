@@ -9,9 +9,13 @@ import {
   getDashboardItemRequestsRepo,
 } from "../repositories/itemRequest.repository.js";
 import {
+  createCatalogItemService,
   createCategoryService,
-  createTypeService,
-} from "./category.service.js";
+} from "../modules/master-catalog/masterCatalog.service.js";
+import {
+  categoryCodeFromName,
+  normalizeCatalogCode,
+} from "../modules/master-catalog/masterCatalog.constants.js";
 import { queueNotification } from "./notification.service.js";
 import { NOTIFICATION_TYPES } from "../constants/notificationTypes.js";
 export async function getItemRequestsService(status) {
@@ -62,16 +66,24 @@ export async function approveItemRequestService({
 
   if (!categoryId) {
     const category = await createCategoryService({
+      category_code: categoryCodeFromName(request.requested_category_name),
       name: request.requested_category_name,
-    });
+      description: null,
+    }, reviewedBy);
 
     categoryId = category.id;
   }
 
-  await createTypeService({
+  await createCatalogItemService({
     categoryId,
-    name: request.requested_type_name,
-    expenseType: request.requested_expense_type,
+    actorUserId: reviewedBy,
+    payload: {
+      item_code: normalizeCatalogCode(request.requested_type_name),
+      name: request.requested_type_name,
+      expense_type: request.requested_expense_type,
+      unit_of_measure_id: null,
+      description: null,
+    },
   });
 
   const result = await approveItemRequestRepo({

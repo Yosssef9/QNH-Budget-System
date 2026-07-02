@@ -1,6 +1,6 @@
 import express from "express";
-import { verifyPortalJwt } from "../middleware/verifyPortalJwt.middleware.js";
-import { verifyBudgetAccess } from "../middleware/verifyBudgetAccess.middleware.js";
+import { verifyPortalJwt } from "../shared/auth/verifyPortalJwt.js";
+import { resolveBudgetWorkspace as verifyBudgetAccess } from "../shared/middleware/resolveBudgetWorkspace.js";
 
 const router = express.Router();
 

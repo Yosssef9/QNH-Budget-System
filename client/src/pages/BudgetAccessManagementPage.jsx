@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import {
   Plus,
-  RefreshCcw,
   Save,
   X,
   ShieldCheck,
@@ -11,8 +10,6 @@ import {
   CheckCircle2,
   XCircle,
   Search,
-  PanelLeftClose,
-  PanelLeftOpen,
   Trash2,
 } from "lucide-react";
 import PageLoader from "../components/PageLoader";
@@ -25,32 +22,22 @@ import {
   useUpdateBudgetAccessAssignment,
   useToggleBudgetAccessAssignmentStatus,
   useDeleteBudgetAccessAssignment,
+  useBudgetAccessAssignmentPermissionOverrides,
+  useReplaceBudgetAccessAssignmentPermissionOverrides,
 } from "../hooks/budget-access/useBudgetAccessAssignments";
 import CollapsiblePanelToggle from "../components/layout/CollapsiblePanelToggle";
 import { useBudgetAccessUsers } from "../hooks/budget-access/useBudgetAccessUsers";
 import { useBudgetAccessDepartments } from "../hooks/budget-access/useBudgetAccessDepartments";
 import { useBudgetAccessRoles } from "../hooks/budget-access/useBudgetAccessRoles";
+import { useSetupCategories } from "../hooks/budgets/useBudgetSetup";
 import toast from "react-hot-toast";
-const permissionFields = [
-  { key: "can_view_budget", label: "View Budget" },
-  { key: "can_edit_budget", label: "Edit Budget" },
-  { key: "can_view_po_links", label: "View his department PO Links" },
-  { key: "can_request_po_links", label: "Request PO Links" },
-  { key: "can_view_all_po_link_requests", label: "View All PO Link Requests" },
-  { key: "can_approve_po_links", label: "Approve PO Links" },
-  { key: "can_request_transfer", label: "Request Transfer" },
-  { key: "can_approve_budget", label: "Approve Budget" },
-  { key: "can_approve_transfer", label: "Approve Transfer" },
-  { key: "can_manage_users", label: "Manage Users" },
-  { key: "can_manage_categories", label: "Manage Categories" },
-  { key: "can_manage_po_item_mappings", label: "Manage PO Item Mappings" },
-  { key: "can_view_reports", label: "View Reports" },
+
+const departmentScopedRoles = [
+  "DEPARTMENT_BUDGET_MANAGER",
+  "DEPARTMENT_USER",
 ];
 
-const permissionOptions = [
-  { id: "", name: "Inherit from role" },
-  { id: "1", name: "Allow" },
-];
+const emptyPermissionRows = [];
 
 const emptyForm = {
   id: null,
@@ -58,64 +45,19 @@ const emptyForm = {
   user_code: "",
   user_name: "",
   department_id: null,
+  budget_category_id: null,
   role_id: null,
-  can_view_budget: "",
-  can_edit_budget: "",
-  can_view_po_links: "",
-  can_request_po_links: "",
-  can_view_all_po_link_requests: "",
-  can_approve_po_links: "",
-  can_request_transfer: "",
-  can_approve_budget: "",
-  can_approve_transfer: "",
-  can_manage_users: "",
-  can_manage_categories: "",
-  can_manage_po_item_mappings: "",
-  can_view_reports: "",
 };
 
-function normalizePermissionValue(value) {
-  if (value === "" || value == null) {
-    return null;
-  }
-
-  if (value === "1") {
-    return true;
-  }
-
-  return null;
-}
-
 function buildPayload(form) {
-  const payload = {
+  return {
     user_id: Number(form.user_id),
     department_id: form.department_id ? Number(form.department_id) : null,
+    budget_category_id: form.budget_category_id
+      ? Number(form.budget_category_id)
+      : null,
     role_id: Number(form.role_id),
   };
-
-  for (const field of permissionFields) {
-    payload[field.key] = normalizePermissionValue(form[field.key]);
-  }
-
-  return payload;
-}
-
-function permissionText(value) {
-  if (value === true || value === 1) return "Allow";
-  return "Inherit";
-}
-
-function permissionClass(value) {
-  if (value === true || value === 1) {
-    return "border-success-50 bg-success-50 text-success-700";
-  }
-
-  return "border-enterprise-border bg-enterprise-soft text-enterprise-muted";
-}
-
-function toFormPermissionValue(value) {
-  if (value === true || value === 1) return "1";
-  return "";
 }
 
 function extractRows(data) {
@@ -129,29 +71,34 @@ function rowToForm(row) {
     user_code: row.user_code || row.userCode || "",
     user_name: row.user_name || row.userName || "",
     department_id: row.department_id ?? null,
+    budget_category_id: row.budget_category_id ?? null,
     role_id: row.role_id ?? null,
-    can_view_budget: toFormPermissionValue(row.can_view_budget),
-    can_edit_budget: toFormPermissionValue(row.can_edit_budget),
-    can_view_po_links: toFormPermissionValue(row.can_view_po_links),
-    can_request_po_links: toFormPermissionValue(row.can_request_po_links),
-    can_view_all_po_link_requests: toFormPermissionValue(
-      row.can_view_all_po_link_requests,
-    ),
-    can_approve_po_links: toFormPermissionValue(row.can_approve_po_links),
-    can_request_transfer: toFormPermissionValue(row.can_request_transfer),
-    can_approve_budget: toFormPermissionValue(row.can_approve_budget),
-    can_approve_transfer: toFormPermissionValue(row.can_approve_transfer),
-    can_manage_users: toFormPermissionValue(row.can_manage_users),
-    can_manage_categories: toFormPermissionValue(row.can_manage_categories),
-    can_manage_po_item_mappings: toFormPermissionValue(
-      row.can_manage_po_item_mappings,
-    ),
-    can_view_reports: toFormPermissionValue(row.can_view_reports),
   };
+}
+
+function roleScope(role) {
+  const roleCode = role?.role_code;
+
+  if (departmentScopedRoles.includes(roleCode)) {
+    return "DEPARTMENT";
+  }
+
+  if (roleCode === "CATEGORY_BUDGET_MANAGER") {
+    return "CATEGORY";
+  }
+
+  return "GLOBAL";
+}
+
+function scopeLabel(row) {
+  if (row.department_name) return `Department: ${row.department_name}`;
+  if (row.budget_category_name) return `Category: ${row.budget_category_name}`;
+  return "Global";
 }
 
 export default function BudgetAccessManagementPage() {
   const [form, setForm] = useState(emptyForm);
+  const [permissionOverrideDraft, setPermissionOverrideDraft] = useState({});
   const [userSearch, setUserSearch] = useState("");
   const [tableSearch, setTableSearch] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(true);
@@ -165,11 +112,16 @@ export default function BudgetAccessManagementPage() {
 
   const departmentsQuery = useBudgetAccessDepartments();
   const rolesQuery = useBudgetAccessRoles();
+  const categoriesQuery = useSetupCategories();
 
   const createAssignmentMutation = useCreateBudgetAccessAssignment();
   const updateAssignmentMutation = useUpdateBudgetAccessAssignment();
   const updateStatusMutation = useToggleBudgetAccessAssignmentStatus();
   const deleteAssignmentMutation = useDeleteBudgetAccessAssignment();
+  const permissionOverridesQuery =
+    useBudgetAccessAssignmentPermissionOverrides(form.id);
+  const replacePermissionOverridesMutation =
+    useReplaceBudgetAccessAssignmentPermissionOverrides();
   const rows = extractRows(assignmentsQuery.data);
   const adminUsers =
     usersQuery.data?.pages.flatMap((page) => page?.data?.users || []) || [];
@@ -196,7 +148,19 @@ export default function BudgetAccessManagementPage() {
   ];
 
   const departmentOptions = departmentsQuery.data?.data || [];
+  const categoryOptions = categoriesQuery.data || [];
   const roleOptions = rolesQuery.data?.data || [];
+  const permissionOverrideState = permissionOverridesQuery.data?.data;
+  const permissionRows =
+    permissionOverrideState?.permissions || emptyPermissionRows;
+  const groupedPermissionRows = useMemo(() => {
+    return permissionRows.reduce((groups, permission) => {
+      const group = permission.permission_group || "OTHER";
+      groups[group] = groups[group] || [];
+      groups[group].push(permission);
+      return groups;
+    }, {});
+  }, [permissionRows]);
 
   const filteredRows = useMemo(() => {
     const q = tableSearch.trim().toLowerCase();
@@ -206,13 +170,17 @@ export default function BudgetAccessManagementPage() {
       const code = String(row.user_code || row.userCode || "").toLowerCase();
       const name = String(row.user_name || row.userName || "").toLowerCase();
       const role = String(row.role_name || "").toLowerCase();
-      const department = String(row.department_name || "global").toLowerCase();
+      const department = String(row.department_name || "").toLowerCase();
+      const category = String(row.budget_category_name || "").toLowerCase();
+      const scope = scopeLabel(row).toLowerCase();
 
       return (
         code.includes(q) ||
         name.includes(q) ||
         role.includes(q) ||
-        department.includes(q)
+        department.includes(q) ||
+        category.includes(q) ||
+        scope.includes(q)
       );
     });
   }, [rows, tableSearch]);
@@ -223,7 +191,8 @@ export default function BudgetAccessManagementPage() {
     createAssignmentMutation.isPending ||
     updateAssignmentMutation.isPending ||
     updateStatusMutation.isPending ||
-    deleteAssignmentMutation.isPending;
+    deleteAssignmentMutation.isPending ||
+    replacePermissionOverridesMutation.isPending;
   const activeCount = useMemo(
     () => rows.filter((row) => row.is_active).length,
     [rows],
@@ -231,6 +200,7 @@ export default function BudgetAccessManagementPage() {
 
   function resetForm() {
     setForm(emptyForm);
+    setPermissionOverrideDraft({});
   }
 
   function handleEdit(row) {
@@ -239,13 +209,6 @@ export default function BudgetAccessManagementPage() {
 
   function handleUserSelect(userId) {
     const selectedUser = mergedUserOptions.find((user) => user.id === userId);
-
-    const existingAccess = rows.find((row) => row.user_id === userId);
-
-    if (existingAccess) {
-      setForm(rowToForm(existingAccess));
-      return;
-    }
 
     setForm({
       ...emptyForm,
@@ -258,41 +221,26 @@ export default function BudgetAccessManagementPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     const selectedRole = roleOptions.find((r) => r.id === form.role_id);
+    const scope = roleScope(selectedRole);
 
-    const isHod = selectedRole?.name?.toUpperCase() === "HOD";
-
-    if (isHod && !form.department_id) {
-      toast.error("Department is required for HOD role");
+    if (scope === "DEPARTMENT" && !form.department_id) {
+      toast.error("Department is required for this role");
 
       return;
     }
-    console.log("FORM BEFORE SUBMIT");
-    console.log(form);
 
-    console.log("PO PERMISSIONS");
-    console.log({
-      can_view_po_links: form.can_view_po_links,
-      can_request_po_links: form.can_request_po_links,
-      can_view_all_po_link_requests: form.can_view_all_po_link_requests,
-      can_approve_po_links: form.can_approve_po_links,
+    if (scope === "CATEGORY" && !form.budget_category_id) {
+      toast.error("Budget category is required for this role");
+
+      return;
+    }
+
+    const payload = buildPayload({
+      ...form,
+      department_id: scope === "DEPARTMENT" ? form.department_id : null,
+      budget_category_id:
+        scope === "CATEGORY" ? form.budget_category_id : null,
     });
-    console.log("RAW VALUES", {
-      can_view_po_links: form.can_view_po_links,
-      can_request_po_links: form.can_request_po_links,
-      can_view_all_po_link_requests: form.can_view_all_po_link_requests,
-      can_approve_po_links: form.can_approve_po_links,
-    });
-
-    console.log("RAW TYPES", {
-      can_view_po_links: typeof form.can_view_po_links,
-      can_request_po_links: typeof form.can_request_po_links,
-      can_view_all_po_link_requests: typeof form.can_view_all_po_link_requests,
-      can_approve_po_links: typeof form.can_approve_po_links,
-    });
-
-    const payload = buildPayload(form);
-
-    console.log("FINAL PAYLOAD", payload);
 
     if (isEditing) {
       await updateAssignmentMutation.mutateAsync({
@@ -307,10 +255,12 @@ export default function BudgetAccessManagementPage() {
     resetForm();
   }
   const selectedRole = roleOptions.find((r) => r.id === form.role_id);
-
-  const isHod = selectedRole?.name?.toUpperCase() === "HOD";
-
-  const isHodWithoutDepartment = isHod && !form.department_id;
+  const selectedRoleScope = roleScope(selectedRole);
+  const requiresDepartment = selectedRoleScope === "DEPARTMENT";
+  const requiresCategory = selectedRoleScope === "CATEGORY";
+  const isMissingRequiredScope =
+    (requiresDepartment && !form.department_id) ||
+    (requiresCategory && !form.budget_category_id);
   async function handleToggleStatus(row) {
     await updateStatusMutation.mutateAsync({
       id: row.id,
@@ -337,6 +287,36 @@ export default function BudgetAccessManagementPage() {
     setDeleteTarget(null);
   }
 
+  function handlePermissionOverrideChange(permissionId, action) {
+    setPermissionOverrideDraft((prev) => ({
+      ...prev,
+      [permissionId]: action,
+    }));
+  }
+
+  async function handleSavePermissionOverrides() {
+    if (!form.id) return;
+
+    const overrides = permissionRows
+      .map((permission) => ({
+        permission_id: permission.permission_id,
+        action:
+          permissionOverrideDraft[permission.permission_id] ??
+          permission.override_action ??
+          "INHERIT",
+      }))
+      .filter((override) => ["GRANT", "DENY"].includes(override.action));
+
+    await replacePermissionOverridesMutation.mutateAsync({
+      id: form.id,
+      overrides,
+    });
+
+    await permissionOverridesQuery.refetch();
+    await assignmentsQuery.refetch();
+    setPermissionOverrideDraft({});
+  }
+
   if (assignmentsQuery.isLoading) {
     return (
       <PageLoader
@@ -360,9 +340,8 @@ export default function BudgetAccessManagementPage() {
             </h2>
 
             <p className="mt-3 max-w-3xl text-sm leading-6 text-enterprise-muted">
-              Add hospital users to the Budget System, assign their department
-              and role, and optionally allow specific permissions. Permissions
-              are either inherited from the role or explicitly allowed.
+              Add hospital users to the Budget System and assign each active
+              workspace by role and required department or category scope.
             </p>
           </div>
         </div>
@@ -429,8 +408,8 @@ export default function BudgetAccessManagementPage() {
                     </h3>
 
                     <p className="mt-1 text-sm text-enterprise-muted">
-                      Search by user name or user code. Existing users will load
-                      automatically for editing.
+                      Search by user name or user code. A user may have more
+                      than one active workspace when the role and scope differ.
                     </p>
                   </div>
 
@@ -531,7 +510,7 @@ export default function BudgetAccessManagementPage() {
                   <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-1">
                     <div>
                       <label className="text-sm font-medium text-enterprise-text">
-                        Department
+                        Department Scope
                       </label>
 
                       <div className="mt-2">
@@ -540,7 +519,12 @@ export default function BudgetAccessManagementPage() {
                           multiple={false}
                           value={form.department_id}
                           options={departmentOptions}
-                          placeholder="Global access / select department"
+                          disabled={!requiresDepartment}
+                          placeholder={
+                            requiresDepartment
+                              ? "Select department"
+                              : "Not used for this role"
+                          }
                           searchPlaceholder="Search department..."
                           noResultsText="No departments found"
                           maxVisibleBadges={1}
@@ -555,9 +539,50 @@ export default function BudgetAccessManagementPage() {
                             }));
                           }}
                         />
-                        {isHodWithoutDepartment && (
+                        {requiresDepartment && !form.department_id && (
                           <p className="mt-2 text-sm font-medium text-danger-600">
-                            Department is required for HOD role
+                            Department is required for this role.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-enterprise-text">
+                        Category Scope
+                      </label>
+
+                      <div className="mt-2">
+                        <SearchableMultiSelect
+                          name="budget_category_id"
+                          multiple={false}
+                          value={form.budget_category_id}
+                          options={categoryOptions}
+                          disabled={!requiresCategory}
+                          placeholder={
+                            requiresCategory
+                              ? "Select category"
+                              : "Not used for this role"
+                          }
+                          searchPlaceholder="Search category..."
+                          noResultsText="No categories found"
+                          maxVisibleBadges={1}
+                          getOptionValue={(category) => category.id}
+                          getOptionLabel={(category) =>
+                            category.name || category.category_name
+                          }
+                          onChange={(e) => {
+                            setForm((prev) => ({
+                              ...prev,
+                              budget_category_id: e.target.value
+                                ? Number(e.target.value)
+                                : null,
+                            }));
+                          }}
+                        />
+                        {requiresCategory && !form.budget_category_id && (
+                          <p className="mt-2 text-sm font-medium text-danger-600">
+                            Budget category is required for this role.
                           </p>
                         )}
                       </div>
@@ -581,11 +606,25 @@ export default function BudgetAccessManagementPage() {
                           getOptionValue={(role) => role.id}
                           getOptionLabel={(role) => role.name}
                           onChange={(e) => {
+                            const roleId = e.target.value
+                              ? Number(e.target.value)
+                              : null;
+                            const nextRole = roleOptions.find(
+                              (role) => role.id === roleId,
+                            );
+                            const nextScope = roleScope(nextRole);
+
                             setForm((prev) => ({
                               ...prev,
-                              role_id: e.target.value
-                                ? Number(e.target.value)
-                                : null,
+                              role_id: roleId,
+                              department_id:
+                                nextScope === "DEPARTMENT"
+                                  ? prev.department_id
+                                  : null,
+                              budget_category_id:
+                                nextScope === "CATEGORY"
+                                  ? prev.budget_category_id
+                                  : null,
                             }));
                           }}
                         />
@@ -594,13 +633,14 @@ export default function BudgetAccessManagementPage() {
                   </div>
                 </div>
 
+                {isEditing && (
                 <div className="rounded-2xl border border-enterprise-border bg-enterprise-soft p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-primary-700">
                     Step 3
                   </p>
 
                   <h3 className="mt-1 text-base font-semibold text-enterprise-text">
-                    Optional Permission Allows
+                    Permission Overrides
                   </h3>
 
                   <p className="mt-1 text-xs leading-5 text-enterprise-muted">
@@ -608,38 +648,104 @@ export default function BudgetAccessManagementPage() {
                     needs a specific extra permission.
                   </p>
 
-                  <div className="mt-4 grid gap-3">
-                    {permissionFields.map((permission) => (
-                      <div
-                        key={permission.key}
-                        className="grid grid-cols-[1fr_170px] items-center gap-3 rounded-xl bg-white p-3"
-                      >
-                        <span className="text-sm font-medium text-enterprise-text">
-                          {permission.label}
-                        </span>
-
-                        <SearchableMultiSelect
-                          name={permission.key}
-                          multiple={false}
-                          value={form[permission.key]}
-                          options={permissionOptions}
-                          placeholder="Inherit"
-                          searchPlaceholder="Search..."
-                          noResultsText="No options found"
-                          maxVisibleBadges={1}
-                          getOptionValue={(option) => option.id}
-                          getOptionLabel={(option) => option.name}
-                          onChange={(e) =>
-                            setForm((prev) => ({
-                              ...prev,
-                              [permission.key]: e.target.value,
-                            }))
-                          }
-                        />
+                  <div className="mt-4 max-h-[420px] overflow-y-auto pr-1">
+                    {permissionOverridesQuery.isFetching ? (
+                      <div className="rounded-xl bg-white p-4 text-sm text-enterprise-muted">
+                        Loading permission overrides...
                       </div>
-                    ))}
+                    ) : (
+                      <div className="space-y-4">
+                        {Object.entries(groupedPermissionRows).map(
+                          ([group, permissions]) => (
+                            <div key={group} className="space-y-2">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-enterprise-muted">
+                                {group.replaceAll("_", " ")}
+                              </p>
+
+                              {permissions.map((permission) => {
+                                const selectedAction =
+                                  permissionOverrideDraft[
+                                    permission.permission_id
+                                  ] ||
+                                  permission.override_action ||
+                                  "INHERIT";
+                                const effectiveAllowed =
+                                  selectedAction === "GRANT"
+                                    ? true
+                                    : selectedAction === "DENY"
+                                      ? false
+                                      : permission.role_default;
+
+                                return (
+                                  <div
+                                    key={permission.permission_id}
+                                    className="grid gap-3 rounded-xl bg-white p-3 md:grid-cols-[minmax(0,1fr)_150px]"
+                                  >
+                                    <div className="min-w-0">
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <p className="text-sm font-semibold text-enterprise-text">
+                                          {permission.name}
+                                        </p>
+                                        <span
+                                          className={[
+                                            "rounded-full px-2 py-0.5 text-xs font-semibold",
+                                            effectiveAllowed
+                                              ? "bg-success-50 text-success-700"
+                                              : "bg-danger-50 text-danger-700",
+                                          ].join(" ")}
+                                        >
+                                          {effectiveAllowed
+                                            ? "Allowed"
+                                            : "Denied"}
+                                        </span>
+                                      </div>
+
+                                      <p className="mt-1 break-words text-xs text-enterprise-muted">
+                                        {permission.permission_code}
+                                      </p>
+                                    </div>
+
+                                    <select
+                                      value={selectedAction}
+                                      onChange={(e) =>
+                                        handlePermissionOverrideChange(
+                                          permission.permission_id,
+                                          e.target.value,
+                                        )
+                                      }
+                                      className="h-10 rounded-lg border border-enterprise-border bg-white px-3 text-sm font-medium text-enterprise-text outline-none transition focus:border-primary-300 focus:ring-4 focus:ring-primary-50"
+                                    >
+                                      <option value="INHERIT">Inherit</option>
+                                      <option value="GRANT">Grant</option>
+                                      <option value="DENY">Deny</option>
+                                    </select>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ),
+                        )}
+                      </div>
+                    )}
                   </div>
+
+                  <button
+                    type="button"
+                    disabled={
+                      saving ||
+                      permissionOverridesQuery.isFetching ||
+                      !permissionRows.length
+                    }
+                    onClick={handleSavePermissionOverrides}
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary-200 bg-white px-4 py-3 text-sm font-semibold text-primary-700 shadow-soft transition hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Save size={17} />
+                    {replacePermissionOverridesMutation.isPending
+                      ? "Saving Overrides..."
+                      : "Save Permission Overrides"}
+                  </button>
                 </div>
+                )}
 
                 <button
                   type="submit"
@@ -647,7 +753,7 @@ export default function BudgetAccessManagementPage() {
                     saving ||
                     !form.user_id ||
                     !form.role_id ||
-                    isHodWithoutDepartment
+                    isMissingRequiredScope
                   }
                   className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -699,20 +805,17 @@ export default function BudgetAccessManagementPage() {
 
           <div className="max-w-full overflow-x-auto">
             <div className="max-h-[800px] overflow-y-auto">
-              <table className="w-full min-w-[1000px] border-separate border-spacing-0 text-left text-sm">
+              <table className="w-full min-w-[900px] border-separate border-spacing-0 text-left text-sm">
                 <thead className="sticky top-0 z-10 bg-enterprise-soft">
                   <tr className="bg-enterprise-soft text-xs font-semibold uppercase tracking-wide text-enterprise-muted">
                     <th className="border-b border-enterprise-border px-4 py-3">
                       User
                     </th>
                     <th className="border-b border-enterprise-border px-4 py-3">
-                      Department
+                      Scope
                     </th>
                     <th className="border-b border-enterprise-border px-4 py-3">
                       Role
-                    </th>
-                    <th className="border-b border-enterprise-border px-4 py-3">
-                      Extra Allows
                     </th>
                     <th className="border-b border-enterprise-border px-4 py-3">
                       Status
@@ -754,7 +857,7 @@ export default function BudgetAccessManagementPage() {
                       </td>
 
                       <td className="border-b border-enterprise-border px-4 py-4">
-                        {row.department_name || "Global"}
+                        {scopeLabel(row)}
                       </td>
 
                       <td className="border-b border-enterprise-border px-4 py-4">
@@ -762,39 +865,6 @@ export default function BudgetAccessManagementPage() {
                           <ShieldCheck size={14} />
                           {row.role_name || `Role #${row.role_id}`}
                         </span>
-                      </td>
-
-                      <td className="border-b border-enterprise-border px-4 py-4">
-                        <div className="flex flex-wrap gap-2">
-                          {permissionFields
-                            .filter(
-                              (permission) =>
-                                row[permission.key] === true ||
-                                row[permission.key] === 1,
-                            )
-                            .slice(0, 4)
-                            .map((permission) => (
-                              <span
-                                key={permission.key}
-                                className={[
-                                  "rounded-full border px-2.5 py-1 text-xs font-medium",
-                                  permissionClass(row[permission.key]),
-                                ].join(" ")}
-                              >
-                                {permission.label}
-                              </span>
-                            ))}
-
-                          {permissionFields.filter(
-                            (permission) =>
-                              row[permission.key] === true ||
-                              row[permission.key] === 1,
-                          ).length === 0 && (
-                            <span className="rounded-full border border-enterprise-border bg-enterprise-soft px-2.5 py-1 text-xs font-medium text-enterprise-muted">
-                              Role defaults
-                            </span>
-                          )}
-                        </div>
                       </td>
 
                       <td className="border-b border-enterprise-border px-4 py-4">
@@ -856,7 +926,7 @@ export default function BudgetAccessManagementPage() {
                   {filteredRows.length === 0 && (
                     <tr>
                       <td
-                        colSpan="6"
+                        colSpan="5"
                         className="px-4 py-12 text-center text-sm text-enterprise-muted"
                       >
                         No matching users found.

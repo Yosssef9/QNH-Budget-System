@@ -8,10 +8,8 @@ import compression from "compression";
 import authRoutes from "./routes/auth.routes.js";
 import { poolPromise } from "./config/db.js";
 // ✅ Budget Access feature (grouped clearly)
-import budgetAccessAssignmentsRoutes from "./routes/budgetAccessAssignments.routes.js";
-import budgetAccessUsersRoutes from "./routes/budgetAccessUsers.routes.js";
-import budgetAccessDepartmentsRoutes from "./routes/budgetAccessDepartments.routes.js";
-import budgetAccessRolesRoutes from "./routes/budgetAccessRoles.routes.js";
+import accessManagementRoutes from "./modules/access-management/access.routes.js";
+import masterCatalogRoutes from "./modules/master-catalog/masterCatalog.routes.js";
 import poItemMappingsRoutes from "./routes/poItemMappings.routes.js";
 import projectsRoutes from "./routes/projects.routes.js";
 
@@ -20,7 +18,6 @@ import financialYearsRoutes from "./routes/financialYears.routes.js";
 import budgetsRoutes from "./routes/budgets.routes.js";
 import budgetItemsRoutes from "./routes/budgetItems.routes.js";
 import budgetApprovalRoutes from "./routes/budgetApproval.routes.js";
-import categoryRoutes from "./routes/category.routes.js";
 import itemRequestRoutes from "./routes/itemRequest.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import auditRoutes from "./routes/audit.routes.js";
@@ -70,17 +67,14 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 
 // ✅ Budget Access routes (grouped under one feature)
-app.use("/api/admin/budget-access/assignments", budgetAccessAssignmentsRoutes);
-app.use("/api/admin/budget-access/users", budgetAccessUsersRoutes);
-app.use("/api/admin/budget-access/departments", budgetAccessDepartmentsRoutes);
-app.use("/api/admin/budget-access/roles", budgetAccessRolesRoutes);
+app.use("/api/admin/budget-access", accessManagementRoutes);
+app.use("/api/master-catalog", masterCatalogRoutes);
 app.use("/api/admin/po-item-mappings", poItemMappingsRoutes);
 
 // Other features
 app.use("/api/financial-years", financialYearsRoutes);
 app.use("/api/budgets", budgetsRoutes);
 app.use("/api/budgets", budgetItemsRoutes);
-app.use("/api/categories", categoryRoutes);
 app.use("/api/budget-approval", budgetApprovalRoutes);
 app.use("/api/item-requests", itemRequestRoutes);
 app.use("/api/dashboard", dashboardRoutes);

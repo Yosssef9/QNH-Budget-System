@@ -29,7 +29,7 @@ export function useCreateFinancialYear() {
     mutationFn: createFinancialYear,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["financial-years"] });
-      queryClient.invalidateQueries({ queryKey: ["financial-years", "open"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-years", "active"] });
     },
   });
 }
@@ -41,7 +41,7 @@ export function useCloseFinancialYear() {
     mutationFn: closeFinancialYear,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["financial-years"] });
-      queryClient.invalidateQueries({ queryKey: ["financial-years", "open"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-years", "active"] });
       queryClient.invalidateQueries({ queryKey: ["budgets"] });
     },
   });
@@ -53,7 +53,7 @@ export function usePreCloseFinancialYear() {
     mutationFn: preCloseFinancialYear,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["financial-years"] });
-      queryClient.invalidateQueries({ queryKey: ["financial-years", "open"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-years", "active"] });
       queryClient.invalidateQueries({ queryKey: ["budgets"] });
     },
   });

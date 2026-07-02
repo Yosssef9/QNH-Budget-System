@@ -1,19 +1,20 @@
-import { asyncHandler } from "../utils/asyncHandler.js";
-import { ApiResponse } from "../utils/apiResponse.js";
+import { ApiResponse } from "../../utils/apiResponse.js";
+import { asyncHandler } from "../../utils/asyncHandler.js";
+import { auditLog } from "../../utils/audit.js";
 import {
+  closeFinancialYearService,
+  createFinancialYearService,
+  getCurrentFinancialYearService,
+  getFinancialYearByIdService,
   getFinancialYearsService,
   getOpenFinancialYearService,
-  createFinancialYearService,
-  closeFinancialYearService,
   preCloseFinancialYearService,
-  getFinancialYearByIdService,
-  getCurrentFinancialYearService,
-} from "../services/financialYears.service.js";
+} from "./financialYears.service.js";
 import {
   validateCreateFinancialYear,
   validateFinancialYearId,
-} from "../validators/financialYears.validator.js";
-import { auditLog } from "../utils/audit.js";
+} from "./financialYears.validators.js";
+
 export const getFinancialYears = asyncHandler(async (req, res) => {
   const years = await getFinancialYearsService();
 
@@ -25,13 +26,24 @@ export const getFinancialYears = asyncHandler(async (req, res) => {
   );
 });
 
+export const getCurrentFinancialYear = asyncHandler(async (req, res) => {
+  const financialYear = await getCurrentFinancialYearService();
+
+  return res.json(
+    new ApiResponse({
+      message: "Current financial year fetched successfully",
+      data: financialYear,
+    }),
+  );
+});
+
 export const getOpenFinancialYear = asyncHandler(async (req, res) => {
-  const openYear = await getOpenFinancialYearService();
+  const financialYear = await getOpenFinancialYearService();
 
   return res.json(
     new ApiResponse({
       message: "Open financial year fetched successfully",
-      data: openYear,
+      data: financialYear,
     }),
   );
 });
@@ -41,16 +53,19 @@ export const createFinancialYear = asyncHandler(async (req, res) => {
 
   const financialYear = await createFinancialYearService({
     year: body.year,
-    startedBy: req.user.userId,
+    actorUserId: req.user.userId,
+    budgetAccess: req.budgetAccess,
   });
+
   await auditLog(req, {
     action: "CREATE_FINANCIAL_YEAR",
     entityName: `Financial Year ${financialYear.year}`,
     entityType: "FINANCIAL_YEAR",
     entityId: String(financialYear.id),
-    description: `Created financial year ${financialYear.year}`,
+    description: `Opened financial year ${financialYear.year}`,
     newValues: financialYear,
   });
+
   return res.status(201).json(
     new ApiResponse({
       message: `Financial year ${body.year} opened successfully`,
@@ -59,14 +74,42 @@ export const createFinancialYear = asyncHandler(async (req, res) => {
   );
 });
 
+export const preCloseFinancialYear = asyncHandler(async (req, res) => {
+  const id = validateFinancialYearId(req.params.id);
+  const oldFinancialYear = await getFinancialYearByIdService(id);
+
+  const financialYear = await preCloseFinancialYearService({
+    id,
+    actorUserId: req.user.userId,
+    budgetAccess: req.budgetAccess,
+  });
+
+  await auditLog(req, {
+    action: "PRE_CLOSE_FINANCIAL_YEAR",
+    entityName: `Financial Year ${financialYear.year}`,
+    entityType: "FINANCIAL_YEAR",
+    entityId: String(financialYear.id),
+    description: `Moved financial year ${financialYear.year} from OPEN to PRE_CLOSING`,
+    oldValues: oldFinancialYear,
+    newValues: financialYear,
+  });
+
+  return res.json(
+    new ApiResponse({
+      message: `Financial year ${financialYear.year} moved to pre-closing successfully`,
+      data: financialYear,
+    }),
+  );
+});
+
 export const closeFinancialYear = asyncHandler(async (req, res) => {
   const id = validateFinancialYearId(req.params.id);
-
   const oldFinancialYear = await getFinancialYearByIdService(id);
 
   const financialYear = await closeFinancialYearService({
     id,
-    closedBy: req.user.userId,
+    actorUserId: req.user.userId,
+    budgetAccess: req.budgetAccess,
   });
 
   await auditLog(req, {
@@ -82,42 +125,6 @@ export const closeFinancialYear = asyncHandler(async (req, res) => {
   return res.json(
     new ApiResponse({
       message: `Financial year ${financialYear.year} closed successfully`,
-      data: financialYear,
-    }),
-  );
-});
-export const preCloseFinancialYear = asyncHandler(async (req, res) => {
-  const id = validateFinancialYearId(req.params.id);
-
-  const oldFinancialYear = await getFinancialYearByIdService(id);
-
-  const financialYear = await preCloseFinancialYearService({
-    id,
-    preClosedBy: req.user.userId,
-  });
-
-  await auditLog(req, {
-    action: "PRE_CLOSE_FINANCIAL_YEAR",
-    entityName: `Financial Year ${financialYear.year}`,
-    entityType: "FINANCIAL_YEAR",
-    entityId: String(financialYear.id),
-    description: `Moved financial year ${financialYear.year} from OPEN to PRE_CLOSING`,
-    oldValues: oldFinancialYear,
-    newValues: financialYear,
-  });
-  return res.json(
-    new ApiResponse({
-      message: `Financial year ${financialYear.year} moved to pre-closing successfully`,
-      data: financialYear,
-    }),
-  );
-});
-export const getCurrentFinancialYear = asyncHandler(async (req, res) => {
-  const financialYear = await getCurrentFinancialYearService();
-
-  return res.json(
-    new ApiResponse({
-      message: "Current financial year fetched successfully",
       data: financialYear,
     }),
   );

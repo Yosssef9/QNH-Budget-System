@@ -1,6 +1,6 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { CalendarDays, CheckCircle2, LockKeyhole, Plus } from "lucide-react";
+import { CheckCircle2, LockKeyhole, Plus } from "lucide-react";
 import {
   useCloseFinancialYear,
   useCreateFinancialYear,
@@ -108,7 +108,7 @@ export default function FinancialYearsPage() {
           <input
             type="number"
             min="2000"
-            max="2100"
+            max="2200"
             value={year}
             onChange={(e) => setYear(e.target.value)}
             className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-4 text-sm font-semibold outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
@@ -131,8 +131,8 @@ export default function FinancialYearsPage() {
             <tr>
               <th className="px-4 py-3">Year</th>
               <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Started By</th>
-              <th className="px-4 py-3">Started At</th>
+              <th className="px-4 py-3">Opened By</th>
+              <th className="px-4 py-3">Opened At</th>
               <th className="px-4 py-3">Pre-Closed By</th>
               <th className="px-4 py-3">Pre-Closed At</th>
               <th className="px-4 py-3">Closed By</th>
@@ -179,10 +179,16 @@ export default function FinancialYearsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-4 text-slate-600">
-                    {item.started_by_name || item.started_by || "-"}
+                    {item.opened_by_name ||
+                      item.opened_by ||
+                      item.started_by_name ||
+                      item.started_by ||
+                      "-"}
                   </td>
                   <td className="px-4 py-4 text-slate-600">
-                    {item.started_at ? formatDateTime(item.started_at) : "-"}
+                    {item.opened_at || item.started_at
+                      ? formatDateTime(item.opened_at || item.started_at)
+                      : "-"}
                   </td>
                   <td className="px-4 py-4 text-slate-600">
                     {item.pre_closed_by_name || item.pre_closed_by || "-"}
@@ -248,12 +254,10 @@ export default function FinancialYearsPage() {
           setSelectedYear(null);
         }}
         onConfirm={async () => {
-          try {
-            await handlePreClose(selectedYear.id);
+          await handlePreClose(selectedYear.id);
 
-            setShowPreCloseModal(false);
-            setSelectedYear(null);
-          } catch {}
+          setShowPreCloseModal(false);
+          setSelectedYear(null);
         }}
       >
         <div className="space-y-4">
@@ -287,12 +291,10 @@ export default function FinancialYearsPage() {
           setSelectedYear(null);
         }}
         onConfirm={async () => {
-          try {
-            await handleClose(selectedYear.id);
+          await handleClose(selectedYear.id);
 
-            setShowCloseModal(false);
-            setSelectedYear(null);
-          } catch {}
+          setShowCloseModal(false);
+          setSelectedYear(null);
         }}
       >
         <div className="space-y-4">

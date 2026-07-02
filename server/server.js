@@ -14,7 +14,7 @@ import poItemMappingsRoutes from "./routes/poItemMappings.routes.js";
 import projectsRoutes from "./routes/projects.routes.js";
 
 // Other features
-import financialYearsRoutes from "./routes/financialYears.routes.js";
+import financialYearsRoutes from "./modules/financial-years/financialYears.routes.js";
 import budgetsRoutes from "./routes/budgets.routes.js";
 import budgetItemsRoutes from "./routes/budgetItems.routes.js";
 import budgetApprovalRoutes from "./routes/budgetApproval.routes.js";

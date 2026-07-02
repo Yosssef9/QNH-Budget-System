@@ -15,8 +15,8 @@ Authority order:
 5. Existing implementation patterns that do not conflict with the redesigned workflow.
 
 Date created: 2026-07-01  
-Last updated: 2026-07-01  
-Current migration status: Phase 1 access-management is complete. Phase 2 master-catalog is approved complete by user decision. Phase 3 financial-years is planned and waiting for approval before implementation.
+Last updated: 2026-07-02  
+Current migration status: Phase 1 access-management is complete. Phase 2 master-catalog is approved complete by user decision. Phase 3 financial-years implementation and automated validation are complete; Phase 3 remains IN_REVIEW pending live DB/UI verification of real financial-year opening and initialization counts.
 
 Development migration isolation policy:
 
@@ -477,7 +477,7 @@ can_manage_po_item_mappings
 | Planning | Repository and architecture analysis | APPROVED | Planning only | 2026-07-01 | 2026-07-01 | Repository inspected, no app code changed | User approved implementation |
 | Phase 1 | Access management and workspace foundation | COMPLETED | Runtime access resolution, normalized permissions, GRANT/DENY override administration, frontend compatibility, module-owned backend vertical slice | 2026-07-01 | 2026-07-01 | Targeted access-management tests passed; client build passed; targeted frontend lint passed; backend syntax checks passed; old wrapper scan passed; removed permission-column SQL scan passed for access paths; live HOD to Category Manager workspace switching passed | Completed after live browser verification confirmed workspace switching |
 | Phase 2 | Master catalog | COMPLETED | Master Catalog backend module, existing setup frontend integration, tests, validation, and legacy category/type cleanup | 2026-07-01 | 2026-07-02 | Backend tests, syntax checks, targeted frontend lint, client build passed; user approved phase closure | Completed by user approval after authorization simplification and sub-item planning updates |
-| Phase 3 | Financial years | IN_REVIEW | Planning only; no implementation until explicit approval | - | - | - | Recommended next module; plan added for review |
+| Phase 3 | Financial years | IN_REVIEW | Financial Years backend module, redesigned year initialization, lifecycle transitions, connected frontend updates, tests, validation, and legacy wrapper cleanup | 2026-07-02 | - | `npm.cmd test -- tests/modules/financial-years` passed; Financial Years module `node --check` passed; focused frontend lint passed; client build passed; old-table scan passed; old wrapper import scan passed | Implementation complete; waiting for live DB/UI verification of open-year initialization counts before marking completed |
 | Phase 4 | Department budgets | NOT_STARTED | - | - | - | - | Depends on Phase 3 |
 | Phase 5 | Category review/windows/packages/CFO | NOT_STARTED | - | - | - | - | Split if review size requires |
 | Phase 6 | Change requests and PRE_CLOSING | NOT_STARTED | - | - | - | - | Depends on package review |
@@ -504,6 +504,7 @@ can_manage_po_item_mappings
 | 2026-07-01 | Keep Phase 2 in review after code validation | Automated Phase 2 checks pass, but module completion requires live DB/UI validation of the setup page against `BS_budget_categories`, `BS_units_of_measure`, `BS_budget_catalog_items`, and `BS_budget_catalog_sub_items` | Master catalog | Codex review |
 | 2026-07-02 | Simplify Master Catalog authorization | Removed cross-module permission arrays and repository-backed authorization middleware; operational lookups are scoped in the service, while administration routes use `MASTER_CATALOG_PERMISSION` at the route boundary | Master catalog | User |
 | 2026-07-02 | Approve Phase 2 and plan Phase 3 | User approved the current Master Catalog phase and requested the next phase plan with no implementation until approval | Master catalog, financial years | User |
+| 2026-07-02 | Start and complete Phase 3 Financial Years | User approved continuing until the phase is completed; module now initializes redesigned financial-year workflow records and removes old route/controller/service/validator wrappers | Financial years | User |
 
 ## 17. Validation Log
 
@@ -2116,4 +2117,166 @@ Phase 3 may be marked `COMPLETED` only when:
 
 ### Next Approved Action
 
-Wait for explicit user approval before starting Phase 3 implementation.
+Phase 3 implementation is complete. Do not start Phase 4 until the user approves the Phase 4 plan.
+
+## 28. Phase 3 Implementation Summary - Financial Years
+
+Status: `IN_REVIEW`  
+Started: 2026-07-02  
+Completed: -
+
+### Final Backend Module Tree
+
+```text
+server/modules/financial-years/
+  financialYears.constants.js
+  financialYears.controller.js
+  financialYears.mapper.js
+  financialYears.repository.js
+  financialYears.routes.js
+  financialYears.service.js
+  financialYears.validators.js
+```
+
+### Final Test Tree
+
+```text
+server/tests/modules/financial-years/
+  financialYears.constants.test.js
+  financialYears.routes.test.js
+  financialYears.service.test.js
+  financialYears.validators.test.js
+```
+
+### Files Created
+
+- `server/modules/financial-years/financialYears.constants.js`
+- `server/modules/financial-years/financialYears.controller.js`
+- `server/modules/financial-years/financialYears.mapper.js`
+- `server/modules/financial-years/financialYears.repository.js`
+- `server/modules/financial-years/financialYears.routes.js`
+- `server/modules/financial-years/financialYears.service.js`
+- `server/modules/financial-years/financialYears.validators.js`
+- `server/tests/modules/financial-years/financialYears.constants.test.js`
+- `server/tests/modules/financial-years/financialYears.routes.test.js`
+- `server/tests/modules/financial-years/financialYears.service.test.js`
+- `server/tests/modules/financial-years/financialYears.validators.test.js`
+
+### Files Modified
+
+- `server/server.js`: mounts `server/modules/financial-years/financialYears.routes.js`.
+- `server/repositories/financialYears.repository.js`: replaced legacy repository implementation with a temporary read-only compatibility adapter for unmigrated legacy services.
+- `client/src/hooks/financial-years/useFinancialYears.js`: invalidates the actual active financial-year query key after lifecycle mutations.
+- `client/src/pages/FinancialYearsPage.jsx`: uses database-supported year range through 2200, shows opened labels, supports `opened_*` response fields, and removes focused lint blockers.
+- `docs/codexContext/newWorkFlow/QNH_New_Workflow_Modular_Refactor_Plan.md`: records Phase 3 implementation and validation.
+
+### Files Removed
+
+- `server/routes/financialYears.routes.js`
+- `server/controllers/financialYears.controller.js`
+- `server/services/financialYears.service.js`
+- `server/validators/financialYears.validator.js`
+
+### Temporary Compatibility Adapter
+
+| File | Why It Remains | Current Importers | Replacement Owner | Removal Phase | Validation Before Removal |
+|---|---|---|---|---|---|
+| `server/repositories/financialYears.repository.js` | Unmigrated legacy services import read helpers from the old path during server startup | `server/services/budgetApproval.service.js`, `server/services/budgetItem.service.js`, `server/services/budgets.service.js`, `server/services/po.service.js` | `server/modules/financial-years/financialYears.repository.js` plus future owning modules | Remove each import during the owning module phase; final deletion no later than the last phase that migrates these legacy services | `rg "financialYears.repository" server` shows no legacy service imports; server starts; owning module tests pass |
+
+The adapter exports only read helpers from the new module. It does not contain lifecycle write logic, old workflow checks, or legacy table queries.
+
+### APIs Implemented
+
+| Method | Route | Authorization |
+|---|---|---|
+| `GET` | `/api/financial-years/current` | Authenticated active budget workspace |
+| `GET` | `/api/financial-years/open` | Authenticated active budget workspace |
+| `GET` | `/api/financial-years` | `can_manage_financial_years` |
+| `POST` | `/api/financial-years` | `can_manage_financial_years` |
+| `PATCH` | `/api/financial-years/:id/pre-close` | `can_manage_financial_years` |
+| `PATCH` | `/api/financial-years/:id/close` | `can_manage_financial_years` |
+
+### Database Tables Used
+
+- `BS_financial_years`
+- `BS_departments`
+- `BS_budget_categories`
+- `BS_department_budgets`
+- `BS_department_category_budgets`
+- `BS_category_submission_windows`
+- `BS_category_budget_packages`
+- `BS_budget_workflow_history`
+- `BS_budget_change_requests`
+- `BS_category_budget_transfers`
+- `BS_category_po_links`
+- `BS_category_budget_package_items`
+- `BS_category_budget_package_sub_items`
+
+No Financial Years module code references removed legacy tables:
+
+- `BS_budgets`
+- `BS_budget_items`
+- `BS_budget_transfers`
+- `BS_PO_LINKS`
+- `BS_financial_year_budget_approvals`
+
+### Implemented Behavior
+
+- Opening a financial year rejects duplicates, invalid sequence, or an existing `OPEN`/`PRE_CLOSING` year.
+- Opening a financial year requires active departments and exactly the approved active categories: `IT`, `BIOMEDICAL`, `GENERAL`.
+- Opening a financial year runs in one SQL transaction and creates:
+  - one `BS_financial_years` row with `OPEN`;
+  - one `BS_department_budgets` row per active department;
+  - three `BS_department_category_budgets` rows per department with `DRAFT`;
+  - three `BS_category_submission_windows` rows with `OPEN`;
+  - three `BS_category_budget_packages` rows with `DRAFT`;
+  - one `BS_budget_workflow_history` event.
+- Writes use trigger-safe `OUTPUT ... INTO` patterns.
+- PRE_CLOSING requires `OPEN`, existing department budgets, all category packages completed by CFO, and no open change requests.
+- PRE_CLOSING readiness is checked before and inside the transition transaction.
+- CLOSED requires `PRE_CLOSING`, no pending category transfers, and no pending PO links.
+- CLOSED readiness is checked before and inside the transition transaction.
+- Technical audit remains in controllers through existing `auditLog`.
+- Notifications are queued through existing notification infrastructure after the transaction commits. Durable notification queue insertion inside the same transaction remains a shared infrastructure limitation to revisit when notification infrastructure is migrated.
+
+### Validation Log
+
+| Date | Phase | Command or Scenario | Result | Notes |
+|---|---|---|---|---|
+| 2026-07-02 | Phase 3 | `node --check server\modules\financial-years\financialYears.constants.js` | Passed | Syntax check |
+| 2026-07-02 | Phase 3 | `node --check server\modules\financial-years\financialYears.validators.js` | Passed | Syntax check |
+| 2026-07-02 | Phase 3 | `node --check server\modules\financial-years\financialYears.mapper.js` | Passed | Syntax check |
+| 2026-07-02 | Phase 3 | `node --check server\modules\financial-years\financialYears.repository.js` | Passed | Syntax check |
+| 2026-07-02 | Phase 3 | `node --check server\modules\financial-years\financialYears.service.js` | Passed | Syntax check |
+| 2026-07-02 | Phase 3 | `node --check server\modules\financial-years\financialYears.controller.js` | Passed | Syntax check |
+| 2026-07-02 | Phase 3 | `node --check server\modules\financial-years\financialYears.routes.js` | Passed | Syntax check |
+| 2026-07-02 | Phase 3 | `node --check server\repositories\financialYears.repository.js` | Passed | Temporary adapter syntax check |
+| 2026-07-02 | Phase 3 | `node --check server\server.js` | Passed | Application composition syntax check |
+| 2026-07-02 | Phase 3 | `npm.cmd test -- tests/modules/financial-years` | Passed | 4 test files, 14 tests |
+| 2026-07-02 | Phase 3 | `npx.cmd eslint src/pages/FinancialYearsPage.jsx src/api/financialYears.api.js src/hooks/financial-years/useFinancialYears.js` | Passed | Focused frontend lint |
+| 2026-07-02 | Phase 3 | `npm.cmd run build` in `client` | Passed | Vite production build |
+| 2026-07-02 | Phase 3 | `rg "BS_budgets|BS_budget_items|BS_budget_transfers|BS_PO_LINKS|BS_financial_year_budget_approvals" server\modules\financial-years` | Passed | No matches |
+| 2026-07-02 | Phase 3 | `rg "routes/financialYears|controllers/financialYears|services/financialYears|validators/financialYears" server client\src` | Passed | No deleted wrapper imports |
+| 2026-07-02 | Phase 3 | `rg "financialYears.repository" server -g "!node_modules"` | Passed with documented temporary imports | Only new module, tests, adapter, and four unmigrated legacy service imports remain |
+
+### Remaining Phase 3 Completion Blocker
+
+- Live DB/UI verification has not been run because opening a financial year would create real development database records. Before marking Phase 3 `COMPLETED`, verify through the UI/API that opening a safe test financial year creates:
+  - one `BS_financial_years` row;
+  - one `BS_department_budgets` row per active department;
+  - three `BS_department_category_budgets` rows per department;
+  - three `BS_category_submission_windows` rows;
+  - three `BS_category_budget_packages` rows;
+  - one `BS_budget_workflow_history` row for the open event;
+  - no package items.
+
+### Known Deferred/Unrelated Items
+
+- Same-transaction notification queue insertion is not implemented because the current shared notification infrastructure does not accept a SQL transaction. Existing queue behavior is preserved after successful business commit.
+- Unmigrated legacy services still import the temporary `server/repositories/financialYears.repository.js` read adapter. These imports belong to future module phases and were not partially refactored during Phase 3.
+
+### Next Recommended Phase
+
+Phase 4 should be `department-budgets`, because it depends on active financial years, initialized `BS_department_budgets`, initialized `BS_department_category_budgets`, active catalog lookups, and Access Management workspace resolution.
+
+Do not start Phase 4 until the user approves its detailed plan.

@@ -11,6 +11,7 @@ import {
 import CurrencyText from "../../components/CurrencyText";
 
 import { can } from "../../helpers/permissions";
+import { PERMISSION_CODES } from "@qnh/permissions";
 
 import { createFinancialYearCard } from "./commonCards";
 
@@ -34,7 +35,7 @@ export function getAdminCards(budgetAccess, dashboardData) {
       route: "/budget-approval",
       highlight:
         (dashboardStats?.budgets?.pending_budgets || 0) > 0 ? "pending" : null,
-      show: can(budgetAccess, "can_approve_budget"),
+      show: can(budgetAccess, PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES),
     },
 
     {
@@ -51,7 +52,7 @@ export function getAdminCards(budgetAccess, dashboardData) {
 
       route: "/budgets/all",
 
-      show: can(budgetAccess, "can_approve_budget"),
+      show: can(budgetAccess, PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES),
     },
 
     {
@@ -64,7 +65,7 @@ export function getAdminCards(budgetAccess, dashboardData) {
 
       route: "/budgets/all",
 
-      show: can(budgetAccess, "can_approve_budget"),
+      show: can(budgetAccess, PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES),
     },
 
     {
@@ -81,7 +82,7 @@ export function getAdminCards(budgetAccess, dashboardData) {
         (dashboardStats?.itemRequests?.pending_item_requests || 0) > 0
           ? "pending"
           : null,
-      show: can(budgetAccess, "can_manage_categories"),
+      show: can(budgetAccess, PERMISSION_CODES.MANAGE_BUDGET_CATALOG),
     },
     {
       title: "Pending Transfer Requests",
@@ -97,7 +98,7 @@ export function getAdminCards(budgetAccess, dashboardData) {
         (dashboardStats?.transferRequests?.pending_transfer_requests || 0) > 0
           ? "pending"
           : null,
-      show: can(budgetAccess, "can_approve_transfer"),
+      show: can(budgetAccess, PERMISSION_CODES.APPROVE_CATEGORY_TRANSFERS),
     },
     {
       title: "Pending PO Link Requests",
@@ -110,7 +111,7 @@ export function getAdminCards(budgetAccess, dashboardData) {
 
       route: "/po-approvals",
       highlight: pendingPOLinkCount > 0 ? "pending" : null,
-      show: can(budgetAccess, "can_approve_po_links"),
+      show: can(budgetAccess, PERMISSION_CODES.APPROVE_CATEGORY_PO_LINKS),
     },
     {
       title: "System Users",
@@ -123,7 +124,7 @@ export function getAdminCards(budgetAccess, dashboardData) {
 
       route: "/admin/users",
 
-      show: can(budgetAccess, "can_manage_users"),
+      show: can(budgetAccess, PERMISSION_CODES.MANAGE_BUDGET_ACCESS),
     },
   ].filter((item) => item.show);
 }

@@ -44,30 +44,6 @@ export async function createSetupSubItem({ catalogItemId, payload }) {
   return response.data?.data;
 }
 
-export async function getItemRequests(status = "PENDING") {
-  const response = await api.get("/item-requests", {
-    params: { status },
-  });
-
-  return response.data?.data || [];
-}
-
-export async function approveItemRequest({ requestId, adminNote }) {
-  const response = await api.post(`/item-requests/${requestId}/approve`, {
-    adminNote,
-  });
-
-  return response.data?.data;
-}
-
-export async function rejectItemRequest({ requestId, adminNote }) {
-  const response = await api.post(`/item-requests/${requestId}/reject`, {
-    adminNote,
-  });
-
-  return response.data?.data;
-}
-
 export async function updateSetupCategory({ categoryId, payload }) {
   const response = await api.patch(
     `/master-catalog/categories/${categoryId}`,
@@ -124,20 +100,6 @@ export async function updateSetupSubItemStatus({ subItemId, isActive }) {
     `/master-catalog/catalog-sub-items/${subItemId}/status`,
     { is_active: Boolean(isActive) },
   );
-  return response.data?.data;
-}
-export async function createItemRequest(payload) {
-  const response = await api.post("/item-requests", payload);
-  return response.data?.data;
-}
-export async function approveItemRequestManual({ requestId, adminNote }) {
-  const response = await api.post(
-    `/item-requests/${requestId}/approve-manual`,
-    {
-      adminNote,
-    },
-  );
-
   return response.data?.data;
 }
 export async function getBudgetTypes() {

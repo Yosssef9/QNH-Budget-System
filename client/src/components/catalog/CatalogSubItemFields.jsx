@@ -18,20 +18,17 @@ export default function CatalogSubItemFields({
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
-        <label className="block">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
           <span className="text-xs font-bold uppercase text-slate-500">
-            Sub-item code
+            Reusable code
           </span>
-          <input
-            value={value.sub_item_code}
-            onChange={(event) =>
-              updateField("sub_item_code", event.target.value)
-            }
-            disabled={disabled || lockIdentity}
-            placeholder="Example: DELL-LATITUDE-5450"
-            className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100 disabled:text-slate-500"
-          />
-        </label>
+          <p className="mt-1 text-sm font-black text-slate-900">
+            {value.sub_item_code || "Generated automatically after save"}
+          </p>
+          <p className="mt-1 text-xs font-semibold text-slate-500">
+            Read-only reference; the database ID remains the system identifier.
+          </p>
+        </div>
 
         <label className="block">
           <span className="text-xs font-bold uppercase text-slate-500">

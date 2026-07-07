@@ -13,6 +13,8 @@ import BudgetItemPOLinksDrawer from "../../components/budgets/shared/drawers/Bud
 import CollapsibleSection from "../../components/CollapsibleSection";
 
 import { useAuth } from "../../context/AuthContext";
+import { can } from "../../helpers/permissions";
+import { PERMISSION_CODES } from "@qnh/permissions";
 import useBudgetBalanceSummary from "../../hooks/budgets/useBudgetBalanceSummary";
 import { useBudgetView } from "../../hooks/budgets/useBudgetView";
 import useBudgetTotals from "../../hooks/budgets/useBudgetTotals";
@@ -22,8 +24,10 @@ export default function BudgetViewPage() {
   const { data, isLoading } = useBudgetView();
 
   const budget = data;
-  const permissions = budgetAccess?.permissions || budgetAccess || {};
-  const isBudgetApprover = Boolean(permissions.can_approve_budget);
+  const isBudgetApprover = can(
+    budgetAccess,
+    PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES,
+  );
   const budgetListBreadcrumb = isBudgetApprover
     ? {
         label: "All Budgets",
@@ -307,7 +311,7 @@ export default function BudgetViewPage() {
           </div>
         </div>
 
-        <BudgetItemsTable items={filteredItems} readOnly />
+        <BudgetItemsTable items={filteredItems} readOnly showFinancialColumns={false} />
       </CollapsibleSection>
 
       <BudgetItemPOLinksDrawer

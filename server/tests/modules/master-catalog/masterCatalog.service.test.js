@@ -59,6 +59,7 @@ import {
   updateCatalogItemService,
   updateSubItemStatusService,
 } from "../../../modules/master-catalog/masterCatalog.service.js";
+import { PERMISSION_CODES } from "../../../../shared/permissions/permissionCodes.js";
 
 const departmentWorkspace = {
   department: { id: 10 },
@@ -71,7 +72,7 @@ const categoryWorkspace = {
 };
 
 const catalogAdminWorkspace = {
-  permissions: { can_manage_budget_catalog: true },
+  permissionCodes: [PERMISSION_CODES.MANAGE_BUDGET_CATALOG],
 };
 
 const unrelatedGlobalWorkspace = {
@@ -372,8 +373,56 @@ describe("master catalog service", () => {
           default_unit_of_measure_id: 2,
           is_default_general: true,
         },
+        budgetAccess: catalogAdminWorkspace,
       }),
     ).rejects.toThrow("already has an active General sub-item");
+  });
+
+  it("creates non-General reusable sub-items without a client-supplied code", async () => {
+    findCatalogItemByIdRepo.mockResolvedValue({
+      id: 10,
+      budget_category_id: 1,
+      is_active: true,
+    });
+    findUnitByIdRepo.mockResolvedValue({ id: 2, is_active: true });
+    findSubItemByNameRepo.mockResolvedValue(null);
+    createSubItemRepo.mockResolvedValue({ id: 101 });
+    findSubItemByIdRepo.mockResolvedValue({
+      id: 101,
+      catalog_item_id: 10,
+      sub_item_code: "SUB-00000001",
+      name: "Dell Latitude 5450",
+      default_specification: "Core i7",
+      default_unit_of_measure_id: 2,
+      unit_name: "Each",
+      unit_code: "EA",
+      is_default_general: false,
+      is_active: true,
+    });
+
+    const result = await createSubItemService({
+      catalogItemId: 10,
+      payload: {
+        sub_item_code: null,
+        name: "Dell Latitude 5450",
+        default_specification: "Core i7",
+        default_unit_of_measure_id: 2,
+        is_default_general: false,
+      },
+      budgetAccess: catalogAdminWorkspace,
+    });
+
+    expect(findSubItemByCodeRepo).not.toHaveBeenCalled();
+    expect(createSubItemRepo).toHaveBeenCalledWith(
+      { transaction: true },
+      expect.objectContaining({
+        catalog_item_id: 10,
+        sub_item_code: null,
+        name: "Dell Latitude 5450",
+        is_default_general: false,
+      }),
+    );
+    expect(result.sub_item_code).toBe("SUB-00000001");
   });
 
   it("blocks deactivating the default General sub-item", async () => {

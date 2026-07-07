@@ -70,7 +70,6 @@ export function getHodCards(budgetAccess, dashboardData) {
       icon: Wallet,
       route: "/budgets",
     },
-    // ...(can(budgetAccess, "can_request_po_links")
     //   ? [
     //       {
     //         title: "PO Link Requests",

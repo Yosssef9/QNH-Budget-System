@@ -72,7 +72,6 @@ export default function CatalogSubItemDialog({
   function handleSubmit(event) {
     event.preventDefault();
     onSubmit({
-      sub_item_code: formValue.sub_item_code.trim(),
       name: formValue.name.trim(),
       default_specification: formValue.default_specification.trim() || null,
       default_unit_of_measure_id: Number(
@@ -151,7 +150,6 @@ export default function CatalogSubItemDialog({
             disabled={
               loading ||
               loadingUnitsOfMeasure ||
-              !formValue.sub_item_code.trim() ||
               !formValue.name.trim() ||
               !formValue.default_unit_of_measure_id
             }

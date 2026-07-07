@@ -535,6 +535,18 @@ Use exact permission codes from the database scope document.
 
 Never invent a new permission code without an approved database and access-control change.
 
+For the implemented new-workflow boundary, use the canonical shared contract in
+`shared/permissions/permissionCodes.js`. Do not add raw `can_*` strings,
+legacy aliases, or permission-column SQL to new-workflow code. See
+`docs/codexContext/newWorkFlow/QNH_New_Workflow_Modular_Refactor_Plan.md`
+and `QNH_Backend_Modular_Architecture_Target.md` for the current permission
+boundary and validation commands.
+
+New-workflow modules must use canonical `PERMISSION_CODES` and
+`server/shared/middleware/requireBudgetPermission.js`.
+`server/middleware/permission.middleware.js` is a temporary adapter for
+existing old-workflow routes only. Do not add new consumers.
+
 ---
 
 ## 14. Financial-Year Rules
@@ -620,7 +632,6 @@ Stored header statuses:
 ```text
 DRAFT
 IN_CATEGORY_REVIEW
-RETURNED_TO_DEPARTMENT
 CATEGORY_REVIEW_COMPLETED
 ```
 
@@ -633,14 +644,14 @@ Stored item statuses:
 ```text
 DRAFT
 PENDING_CATEGORY_REVIEW
-CATEGORY_ACCEPTED
-NEEDS_MODIFICATION
+CATEGORY_REVIEW_COMPLETED
 ```
 
-On return:
+After submission:
 
-- only `NEEDS_MODIFICATION` items are editable;
-- `CATEGORY_ACCEPTED` items remain locked.
+- the HOD Budget Entry view is read-only;
+- Category Manager decisions are shown as read-only requested quantity, approved quantity, difference, note, reviewer, and timestamp;
+- there is no active return-to-HOD correction cycle in Category Manager review.
 
 The distribution total must equal the requested quantity.
 
@@ -677,23 +688,15 @@ requested_quantity
 category_approved_quantity
 ```
 
-The approved quantity may be less than, equal to, or greater than the requested quantity.
+The approved quantity may be less than, equal to, or greater than the requested quantity. Approved quantity `0` means the item was reviewed and not approved for package demand.
 
-The manager marks each item:
+The manager may edit only the approved quantity and review note for submitted department items. The original HOD requested quantity, distribution rows, catalog item identity, department ownership, and submission metadata remain preserved.
 
-```text
-CATEGORY_ACCEPTED
-```
+Each reviewed department item becomes `CATEGORY_REVIEW_COMPLETED`.
 
-or:
+A department category budget becomes `CATEGORY_REVIEW_COMPLETED` only when every active submitted item is reviewed.
 
-```text
-NEEDS_MODIFICATION
-```
-
-A department category budget becomes `CATEGORY_REVIEW_COMPLETED` only when every active item is accepted.
-
-The Category Manager, not the CFO, returns a department category budget to its HOD.
+The Category Manager does not return a department category budget to its HOD in the revised active workflow.
 
 ---
 
@@ -826,8 +829,6 @@ Return path:
 
 ```text
 CFO
-→ Category Budget Manager
-→ Department User, only when department input is required
 → Category Budget Manager
 → CFO
 ```

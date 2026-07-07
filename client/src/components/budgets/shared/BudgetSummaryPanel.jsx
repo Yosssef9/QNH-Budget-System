@@ -1,5 +1,4 @@
 import BudgetSummaryCard from "./BudgetSummaryCard";
-import CurrencyText from "../../../components/CurrencyText";
 import { formatNumber } from "../../../utils/formatters";
 import { MONTHS as months } from "../../../constants/months.constants";
 import { AnimatePresence, motion } from "framer-motion";
@@ -14,7 +13,7 @@ export default function BudgetSummaryPanel({ summary, summaryView }) {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.25 }}
-          className="grid md:grid-cols-6"
+          className="grid md:grid-cols-5"
         >
           <BudgetSummaryCard
             label="Total Quantity"
@@ -22,29 +21,23 @@ export default function BudgetSummaryPanel({ summary, summaryView }) {
           />
 
           <BudgetSummaryCard
-            label="Total Amount"
-            value={<CurrencyText value={summary.totalAmount} />}
-            blue
-          />
-
-          <BudgetSummaryCard
             label="Q1"
-            value={<CurrencyText value={summary.quarterTotals[0]} />}
+            value={formatNumber(summary.quarterTotals[0])}
           />
 
           <BudgetSummaryCard
             label="Q2"
-            value={<CurrencyText value={summary.quarterTotals[1]} />}
+            value={formatNumber(summary.quarterTotals[1])}
           />
 
           <BudgetSummaryCard
             label="Q3"
-            value={<CurrencyText value={summary.quarterTotals[2]} />}
+            value={formatNumber(summary.quarterTotals[2])}
           />
 
           <BudgetSummaryCard
             label="Q4"
-            value={<CurrencyText value={summary.quarterTotals[3]} />}
+            value={formatNumber(summary.quarterTotals[3])}
           />
         </motion.div>
       ) : (
@@ -63,26 +56,26 @@ export default function BudgetSummaryPanel({ summary, summaryView }) {
               </p>
 
               <p className="mt-1 text-sm font-medium text-slate-600">
-                Quarterly and annual amounts are placed in the first month of
+                Quarterly and annual quantities are placed in the first month of
                 their period.
               </p>
             </div>
 
             <div className="text-right">
               <p className="text-xs font-semibold text-slate-500">
-                Total Amount
+                Total Quantity
               </p>
 
               <p className="text-xl font-bold text-blue-600">
-                <CurrencyText value={summary.totalAmount} />
+                {formatNumber(summary.totalQuantity)}
               </p>
             </div>
           </div>
 
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {months.map((month, index) => {
-              const amount = summary.monthTotals[index];
-              const hasAmount = amount > 0;
+              const quantity = summary.monthTotals[index];
+              const hasQuantity = quantity > 0;
 
               return (
                 <motion.div
@@ -92,7 +85,7 @@ export default function BudgetSummaryPanel({ summary, summaryView }) {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.2 }}
                   className={`rounded-xl border p-4 ${
-                    hasAmount
+                    hasQuantity
                       ? "border-blue-100 bg-white shadow-sm"
                       : "border-slate-200 bg-slate-50"
                   }`}
@@ -104,16 +97,16 @@ export default function BudgetSummaryPanel({ summary, summaryView }) {
                       </p>
 
                       <p className="mt-1 text-xs font-medium text-slate-500">
-                        {hasAmount ? "Allocated amount" : "No allocation"}
+                        {hasQuantity ? "Allocated quantity" : "No allocation"}
                       </p>
                     </div>
 
                     <p
                       className={`text-base font-bold ${
-                        hasAmount ? "text-blue-600" : "text-slate-400"
+                        hasQuantity ? "text-blue-600" : "text-slate-400"
                       }`}
                     >
-                      <CurrencyText value={amount} />
+                      {formatNumber(quantity)}
                     </p>
                   </div>
 
@@ -122,9 +115,9 @@ export default function BudgetSummaryPanel({ summary, summaryView }) {
                       className="h-full rounded-full bg-blue-500"
                       animate={{
                         width: `${
-                          summary.totalAmount > 0
+                          summary.totalQuantity > 0
                             ? Math.min(
-                                (amount / summary.totalAmount) * 100,
+                                (quantity / summary.totalQuantity) * 100,
                                 100
                               )
                             : 0

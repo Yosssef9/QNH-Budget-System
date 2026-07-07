@@ -15,8 +15,8 @@ Authority order:
 5. Existing implementation patterns that do not conflict with the redesigned workflow.
 
 Date created: 2026-07-01  
-Last updated: 2026-07-02  
-Current migration status: Phase 1 access-management is complete. Phase 2 master-catalog is approved complete by user decision. Phase 3 financial-years implementation and automated validation are complete; Phase 3 remains IN_REVIEW pending live DB/UI verification of real financial-year opening and initialization counts.
+Last updated: 2026-07-03
+Current migration status: Phase 1 access-management is complete. Phase 2 master-catalog is approved complete by user decision. Phase 3 financial-years is complete by user approval. Phase 4 department-budgets is complete by user approval after implementation, automated validation, and review. Phase 5 is in progress: 5A Category Manager Review and 5B Category Submission Windows are complete; 5C Category Package Preparation and Reconciliation is not started.
 
 Development migration isolation policy:
 
@@ -26,6 +26,17 @@ Development migration isolation policy:
 - Only minimal containment required for server startup is allowed.
 - Each module is made functional when its own approved phase begins.
 
+Frontend refactoring clarification:
+
+- The new workflow implementation is not required to preserve the existing frontend file structure.
+- Frontend restrictions that protect backend module boundaries or prevent unrelated backend work must not be interpreted as protection for old-workflow frontend files.
+- Frontend pages, hooks, components, utilities, routes, and API wrappers may be modified, renamed, moved, split, merged, replaced, or deleted when doing so produces a cleaner implementation of the approved new workflow.
+- Existing old-workflow frontend files are not permanent compatibility boundaries. They should be cleaned up when their owning workflow area is migrated and verified.
+- API clients should follow new-workflow domain boundaries. New APIs must not be forced into legacy files such as `client/src/api/budget.api.js` merely because those files already exist.
+- Before deleting, renaming, moving, or merging a frontend file, search all imports and routes, determine whether it is used by the new workflow, preserve genuinely shared reusable behavior, remove obsolete workflow-specific behavior, update consumers, and validate the affected feature.
+- Generic shared frontend code may remain when it is still useful, including common modals, tables, formatting utilities, authentication utilities, permission helpers, layout components, and reusable form controls. Old workflow-specific assumptions must be removed before shared code is reused by the new workflow.
+- This frontend flexibility does not override backend modular architecture rules. Backend business code must still move module by module into `server/modules`, and reusable backend infrastructure must stay in `server/shared`.
+
 ## 2. Repository Understanding
 
 - Backend is currently layer-based under `server/routes`, `server/controllers`, `server/services`, `server/repositories`, `server/validators`, `server/middleware`, `server/notifications`, and `server/utils`.
@@ -33,7 +44,7 @@ Development migration isolation policy:
 - Database access uses `mssql` through `server/config/db.js`; `server/database/transaction.js` provides a generic transaction helper.
 - Authentication now uses `server/shared/auth/verifyPortalJwt.js`; workspace and permission middleware are in `server/shared/middleware`.
 - Phase 1 replaced obsolete access resolution. Access Management now resolves workspaces and effective permissions through `server/modules/access-management`; the old `server/repositories/userRole.repository.js` wrapper was removed.
-- Frontend architecture is page/hook/API based under `client/src` and must not be reorganized during this backend refactor.
+- Frontend architecture is currently page/hook/API based under `client/src`, but this structure is not protected. Future phases may reorganize frontend files, API clients, hooks, routes, and components around the new workflow domains when the owning module is migrated.
 - Current frontend route guards, API clients, and pages still use old permission names and old budget workflow contracts.
 - Test setup is minimal: server uses Vitest; client has build and lint commands but no test command.
 - App-level scans found no current `server` or `client` references to the redesigned workflow tables such as `BS_department_category_budgets`, `BS_category_budget_packages`, `BS_budget_workflow_history`, `BS_category_po_links`, or `BS_category_budget_transfers`.
@@ -92,6 +103,7 @@ Only folders needed by the active phase are created. Business-specific SQL, stat
 - `master-catalog`: departments, categories, UOM, generic catalog items, reusable catalog sub-items.
 - `financial-years`: lifecycle, open/pre-close/close readiness, initialization.
 - `department-budgets`: HOD entry, category budgets, requested items, distributions, category submission.
+- `item-requests`: Department-user/HOD requests for missing catalog items under an existing fixed category; admin approval/rejection of those requests.
 - `category-review`: category manager review and department returns.
 - `category-submission-windows`: close/reopen category windows.
 - `category-packages`: package items, sub-items, pricing, attachments, reconciliation, CFO review.
@@ -110,7 +122,62 @@ Only folders needed by the active phase are created. Business-specific SQL, stat
 - `shared/notifications`: durable notification queue infrastructure.
 - `shared/errors`, `shared/validation`, `shared/utilities`: generic helpers only.
 
-## 6A. Backend Architecture Migration and Legacy Folder Retirement
+## 6A. Frontend New-Workflow Refactoring Authority
+
+The frontend is not required to preserve old workflow file names, folders, page boundaries, hook boundaries, or API wrapper boundaries.
+
+Final frontend target state:
+
+```text
+Clean new-workflow frontend
++ clear feature ownership
++ domain-specific API modules
++ reusable shared components
++ no duplicate implementations
++ no unused pages
++ no obsolete hooks
++ no unused API wrappers
++ no dead routes
++ no old-workflow compatibility code unless still genuinely required
+```
+
+Allowed frontend actions during the owning module phase:
+
+- Modify existing old-workflow frontend files.
+- Rename frontend files.
+- Move frontend files into better folders.
+- Split large frontend files into smaller modules.
+- Merge duplicated frontend files.
+- Replace legacy pages, hooks, components, utilities, and API wrappers.
+- Delete old-workflow frontend files that are no longer needed.
+- Delete unused legacy code after verifying that it has no remaining consumers.
+- Create new API client files, hooks, services, components, pages, and feature folders when this produces a cleaner architecture.
+- Reorganize the budget frontend structure when needed for the new workflow.
+
+API-client rule:
+
+- Do not force every new-workflow API function into an existing legacy file such as `client/src/api/budget.api.js`.
+- Frontend API modules should follow new-workflow domain boundaries where appropriate, for example `departmentBudgets.api.js`, `categoryBudgets.api.js`, `budgetPackages.api.js`, or `budgetApprovals.api.js`.
+- Existing files such as `budget.api.js` may be reduced to shared functionality, split, renamed, replaced, or deleted if they become obsolete.
+- Do not preserve a legacy API file merely to avoid changing imports.
+
+Required judgment before deleting, renaming, moving, splitting, or merging frontend files:
+
+1. Search all imports, routes, and references.
+2. Determine whether the file is used by the new workflow.
+3. Determine whether it is a genuinely shared component used by another active module.
+4. Preserve reusable generic behavior where appropriate.
+5. Remove workflow-specific legacy behavior that is no longer required.
+6. Update all affected imports and routes.
+7. Verify that no active page or feature is broken.
+
+Shared frontend code may remain when it is still useful, including common modal components, shared table components, generic formatting utilities, authentication utilities, permission helpers, reusable layout components, and shared form controls.
+
+Old workflow-specific assumptions must be removed from shared frontend files before those files are reused by the new workflow.
+
+This frontend authority does not change backend rules. Backend business implementation must still be migrated into `server/modules/<feature>`, reusable backend infrastructure must remain under `server/shared`, and backend route wrappers must still be retired according to the module migration plan.
+
+## 6B. Backend Architecture Migration and Legacy Folder Retirement
 
 Final approved backend folder structure is documented in `QNH_Backend_Modular_Architecture_Target.md`.
 
@@ -198,13 +265,13 @@ Remaining old-folder migration tracker:
 |---|---|---|---|---|---|---|---|
 | `server/routes/auth.routes.js` | routes | shared/auth or access-management auth adapter | Move/replace | Auth/shared cleanup | No | Auth/shared cleanup | PLANNED |
 | `server/routes/financialYears.routes.js` | routes | modules/financial-years | Move/replace | Phase 3 | No | Phase 3 | PLANNED |
-| `server/routes/budgets.routes.js` | routes | modules/department-budgets | Rewrite/replace | Phase 4 | No | Phase 4 | PLANNED |
-| `server/routes/budgetItems.routes.js` | routes | modules/department-budgets | Rewrite/replace | Phase 4 | No | Phase 4 | PLANNED |
-| `server/routes/budgetItem.routes.js` | routes | modules/department-budgets | Rewrite/replace | Phase 4 | No | Phase 4 | PLANNED |
+| `server/routes/budgets.routes.js` | routes | modules/department-budgets | Deleted; replaced by `server/modules/department-budgets/departmentBudgets.routes.js` | Phase 4 | No | Phase 4 | REMOVED |
+| `server/routes/budgetItems.routes.js` | routes | modules/department-budgets | Deleted; replaced by `server/modules/department-budgets/departmentBudgets.routes.js` | Phase 4 | No | Phase 4 | REMOVED |
+| `server/routes/budgetItem.routes.js` | routes | future PO/transfer/project module cleanup | Keep temporarily for unrelated legacy startup path | Future PO/transfer/project phase | Yes | Owning future module phase | TEMPORARY |
 | `server/routes/budgetDistribution.routes.js` | routes | modules/department-budgets | Rewrite/merge | Phase 4 | No | Phase 4 | PLANNED |
 | `server/routes/budgetApproval.routes.js` | routes | modules/category-packages | Rewrite/replace | Phase 5 | No | Phase 5 | PLANNED |
 | `server/routes/category.routes.js` | routes | modules/master-catalog | Rewrite/replace | Phase 2 | No | Phase 2 | PLANNED |
-| `server/routes/itemRequest.routes.js` | routes | modules/master-catalog or category-review | Rewrite/replace | Phase 2 or Phase 5 | No | Owning phase | PLANNED |
+| `server/routes/itemRequest.routes.js` | routes | modules/item-requests | Deleted; replaced by `server/modules/item-requests/itemRequests.routes.js` | Phase 4 item-request restoration | No | Phase 4 | REMOVED |
 | `server/routes/dashboard.routes.js` | routes | modules/dashboard | Move/rewrite | Reports/dashboard phase | No | Reports/dashboard phase | PLANNED |
 | `server/routes/audit.routes.js` | routes | shared/audit | Move/replace | Shared audit cleanup | No | Shared audit cleanup | PLANNED |
 | `server/routes/transfer.routes.js` | routes | modules/transfers | Rewrite/replace | Phase 7 | No | Phase 7 | PLANNED |
@@ -216,13 +283,13 @@ Remaining old-folder migration tracker:
 | `server/routes/test.routes.js` | routes | test/dev support | Delete or move to dev support | Final cleanup | No | Final cleanup | NEEDS_REVIEW |
 | `server/controllers/auth.controller.js` | controllers | shared/auth | Move/review | Auth/shared cleanup | No | Auth/shared cleanup | PLANNED |
 | `server/controllers/financialYears.controller.js` | controllers | modules/financial-years | Move/rewrite | Phase 3 | No | Phase 3 | PLANNED |
-| `server/controllers/budgets.controller.js` | controllers | modules/department-budgets | Rewrite/replace | Phase 4 | No | Phase 4 | PLANNED |
-| `server/controllers/budgetItems.controller.js` | controllers | modules/department-budgets | Rewrite/replace | Phase 4 | No | Phase 4 | PLANNED |
-| `server/controllers/budgetItem.controller.js` | controllers | modules/department-budgets | Rewrite/replace | Phase 4 | No | Phase 4 | PLANNED |
+| `server/controllers/budgets.controller.js` | controllers | modules/department-budgets | Deleted; replaced by `server/modules/department-budgets/departmentBudgets.controller.js` | Phase 4 | No | Phase 4 | REMOVED |
+| `server/controllers/budgetItems.controller.js` | controllers | modules/department-budgets | Deleted; replaced by `server/modules/department-budgets/departmentBudgets.controller.js` | Phase 4 | No | Phase 4 | REMOVED |
+| `server/controllers/budgetItem.controller.js` | controllers | future PO/transfer/project module cleanup | Keep temporarily for unrelated legacy startup path | Future PO/transfer/project phase | Yes | Owning future module phase | TEMPORARY |
 | `server/controllers/budgetDistribution.controller.js` | controllers | modules/department-budgets | Rewrite/merge | Phase 4 | No | Phase 4 | PLANNED |
 | `server/controllers/budgetApproval.controller.js` | controllers | modules/category-packages | Rewrite/replace | Phase 5 | No | Phase 5 | PLANNED |
 | `server/controllers/category.controller.js` | controllers | modules/master-catalog | Rewrite/replace | Phase 2 | No | Phase 2 | PLANNED |
-| `server/controllers/itemRequest.controller.js` | controllers | modules/master-catalog or category-review | Rewrite/replace | Phase 2 or Phase 5 | No | Owning phase | PLANNED |
+| `server/controllers/itemRequest.controller.js` | controllers | modules/item-requests | Deleted; replaced by `server/modules/item-requests/itemRequests.controller.js` | Phase 4 item-request restoration | No | Phase 4 | REMOVED |
 | `server/controllers/dashboard.controller.js` | controllers | modules/dashboard | Move/rewrite | Reports/dashboard phase | No | Reports/dashboard phase | PLANNED |
 | `server/controllers/audit.controller.js` | controllers | shared/audit | Move/replace | Shared audit cleanup | No | Shared audit cleanup | PLANNED |
 | `server/controllers/transfer.controller.js` | controllers | modules/transfers | Rewrite/replace | Phase 7 | No | Phase 7 | PLANNED |
@@ -233,9 +300,9 @@ Remaining old-folder migration tracker:
 | `server/controllers/userRole.controller.js` | controllers | modules/access-management or delete | Deleted; file was empty and unimported | Phase 1 architecture cleanup | No | Phase 1 | REMOVED |
 | `server/services/auth.service.js` | services | shared/auth | Move/review | Auth/shared cleanup | No | Auth/shared cleanup | PLANNED |
 | `server/services/financialYears.service.js` | services | modules/financial-years | Move/rewrite | Phase 3 | No | Phase 3 | PLANNED |
-| `server/services/budgets.service.js` | services | modules/department-budgets | Rewrite/replace | Phase 4 | No | Phase 4 | PLANNED |
-| `server/services/budgetItems.service.js` | services | modules/department-budgets | Rewrite/replace | Phase 4 | No | Phase 4 | PLANNED |
-| `server/services/budgetItem.service.js` | services | modules/department-budgets | Rewrite/replace | Phase 4 | No | Phase 4 | PLANNED |
+| `server/services/budgets.service.js` | services | modules/department-budgets | Deleted; replaced by `server/modules/department-budgets/departmentBudgets.service.js` | Phase 4 | No | Phase 4 | REMOVED |
+| `server/services/budgetItems.service.js` | services | modules/department-budgets | Deleted; replaced by `server/modules/department-budgets/departmentBudgets.service.js` | Phase 4 | No | Phase 4 | REMOVED |
+| `server/services/budgetItem.service.js` | services | future PO/transfer/project module cleanup | Keep temporarily for unrelated legacy startup path | Future PO/transfer/project phase | Yes | Owning future module phase | TEMPORARY |
 | `server/services/budgetDistribution.service.js` | services | modules/department-budgets | Rewrite/merge | Phase 4 | No | Phase 4 | PLANNED |
 | `server/services/budgetBalance.service.js` | services | modules/reports or shared balance read model | Move/rewrite | Reports/dashboard phase | No | Reports/dashboard phase | PLANNED |
 | `server/services/budgetTimeline.service.js` | services | shared/workflow-history or reports | Move/replace | Shared history or reports phase | No | Owning phase | PLANNED |
@@ -243,7 +310,7 @@ Remaining old-folder migration tracker:
 | `server/services/budgetApproval.service.js` | services | modules/category-packages | Rewrite/replace | Phase 5 | No | Phase 5 | PLANNED |
 | `server/services/balance.service.js` | services | modules/reports or shared balance read model | Move/review | Reports/dashboard phase | No | Reports/dashboard phase | PLANNED |
 | `server/services/category.service.js` | services | modules/master-catalog | Rewrite/replace | Phase 2 | No | Phase 2 | PLANNED |
-| `server/services/itemRequest.service.js` | services | modules/master-catalog or category-review | Rewrite/replace | Phase 2 or Phase 5 | No | Owning phase | PLANNED |
+| `server/services/itemRequest.service.js` | services | modules/item-requests | Deleted; replaced by `server/modules/item-requests/itemRequests.service.js` | Phase 4 item-request restoration | No | Phase 4 | REMOVED |
 | `server/services/dashboard.service.js` | services | modules/dashboard | Move/rewrite | Reports/dashboard phase | No | Reports/dashboard phase | PLANNED |
 | `server/services/audit.service.js` | services | shared/audit | Move/replace | Shared audit cleanup | No | Shared audit cleanup | PLANNED |
 | `server/services/transfer.service.js` | services | modules/transfers | Rewrite/replace | Phase 7 | No | Phase 7 | PLANNED |
@@ -328,7 +395,7 @@ Scope:
 - Refactor runtime budget access resolution to use normalized permission tables.
 - Preserve existing route paths where practical.
 - Keep temporary frontend compatibility booleans mapped from new permission codes.
-- Update frontend auth/permission helpers without changing frontend folder architecture.
+- Update frontend auth/permission helpers in the cleanest current structure for the migrated access workflow. Frontend files may be reorganized when the owning workflow area is migrated and imports are verified.
 - Update the persistent plan file after implementation and validation.
 
 Excluded:
@@ -336,7 +403,7 @@ Excluded:
 - No financial-year, department-budget, catalog, package, transfer, or PO business migration.
 - No schema changes.
 - No dependency changes.
-- No frontend feature-folder refactor.
+- Frontend feature folders may be introduced when they support the migrated workflow and do not create duplicate old/new implementations. During Phase 1, no broad frontend reorganization was required.
 
 Tables used:
 
@@ -477,19 +544,22 @@ can_manage_po_item_mappings
 | Planning | Repository and architecture analysis | APPROVED | Planning only | 2026-07-01 | 2026-07-01 | Repository inspected, no app code changed | User approved implementation |
 | Phase 1 | Access management and workspace foundation | COMPLETED | Runtime access resolution, normalized permissions, GRANT/DENY override administration, frontend compatibility, module-owned backend vertical slice | 2026-07-01 | 2026-07-01 | Targeted access-management tests passed; client build passed; targeted frontend lint passed; backend syntax checks passed; old wrapper scan passed; removed permission-column SQL scan passed for access paths; live HOD to Category Manager workspace switching passed | Completed after live browser verification confirmed workspace switching |
 | Phase 2 | Master catalog | COMPLETED | Master Catalog backend module, existing setup frontend integration, tests, validation, and legacy category/type cleanup | 2026-07-01 | 2026-07-02 | Backend tests, syntax checks, targeted frontend lint, client build passed; user approved phase closure | Completed by user approval after authorization simplification and sub-item planning updates |
-| Phase 3 | Financial years | IN_REVIEW | Financial Years backend module, redesigned year initialization, lifecycle transitions, connected frontend updates, tests, validation, and legacy wrapper cleanup | 2026-07-02 | - | `npm.cmd test -- tests/modules/financial-years` passed; Financial Years module `node --check` passed; focused frontend lint passed; client build passed; old-table scan passed; old wrapper import scan passed | Implementation complete; waiting for live DB/UI verification of open-year initialization counts before marking completed |
-| Phase 4 | Department budgets | NOT_STARTED | - | - | - | - | Depends on Phase 3 |
-| Phase 5 | Category review/windows/packages/CFO | NOT_STARTED | - | - | - | - | Split if review size requires |
+| Phase 3 | Financial years | COMPLETED | Financial Years backend module, redesigned year initialization, lifecycle transitions, connected frontend updates, tests, validation, and legacy wrapper cleanup | 2026-07-02 | 2026-07-02 | `npm.cmd test -- tests/modules/financial-years` passed; Financial Years module `node --check` passed; focused frontend lint passed; client build passed; old-table scan passed; old wrapper import scan passed; live DB/UI approval provided by user | Completed by user approval |
+| Phase 4 | Department budgets | COMPLETED | Department Budget Entry and Department Budget listing against redesigned department-budget tables, approved UI/UX direction, backend module, frontend integration, tests, validation, and legacy cleanup | 2026-07-02 | 2026-07-04 | Automated backend tests, backend syntax checks, focused frontend lint, client build, old table scan, permission alias scan, and deleted wrapper import scan passed; completion accepted by user approval | Completed by user approval |
+| Phase 5 | Category review/windows/packages/CFO | IN_PROGRESS | Execute as 5A Category Review, 5B Submission Windows, 5C Category Packages/Reconciliation, 5D CFO Review | 2026-07-04 | - | 5A, 5B, and focused 5C backend tests, syntax checks, focused frontend lint, and client build passed | 5C is IN_REVIEW; attachment management and live DB/UI validation remain before 5C completion |
+| Phase 5A | Category Manager Review | COMPLETED | Category Manager review queue, approved-quantity decisions, review completion, audit/history/notifications, frontend page | 2026-07-04 | 2026-07-04 | `npm.cmd test -- tests/modules/category-review` passed; focused lint passed; client build passed | Completed; revised before 5C to remove return-to-HOD cycle |
+| Phase 5B | Category Submission Windows | COMPLETED | Category Manager control of assigned-category submission window close/reopen, backend enforcement, audit/history/notifications, UI control, tests, validation | 2026-07-05 | 2026-07-05 | `npm.cmd test -- tests/modules/category-review/categoryReview.service.test.js` passed; notification resolver test passed; focused lint passed; client build passed; old-table and legacy-permission scans passed | Completed; 5C not started |
 | Phase 6 | Change requests and PRE_CLOSING | NOT_STARTED | - | - | - | - | Depends on package review |
 | Phase 7 | Transfers | NOT_STARTED | - | - | - | - | Depends on PRE_CLOSING/package sub-items |
 | Phase 8 | PO linking and PO mappings | NOT_STARTED | - | - | - | - | Depends on package sub-items |
+| Phase 9 | Production Readiness and Operational Monitoring | PLANNED | Upcoming documentation only: SQL Server backup/recovery strategy, liveness/readiness endpoints, protected system-health API, and read-only administrator System Health page | - | - | - | Must occur after core workflow modules are stable and before production deployment, go-live validation, and final handover |
 
 ## 16. Decision Log
 
 | Date | Decision | Reason | Affected Modules | Approved By |
 |---|---|---|---|---|
 | 2026-07-01 | Use vertical module migration, one complete business module at a time | Prevents unsafe horizontal rewrite and mixed workflows | All modules | User |
-| 2026-07-01 | Backend becomes modular; frontend folder architecture remains unchanged | Requested architecture boundary | Backend and frontend integration | User |
+| 2026-07-01 | Backend becomes modular; frontend folder architecture remains unchanged | Requested architecture boundary at the time; frontend-folder-preservation guidance is superseded by the 2026-07-03 frontend refactoring authority decision, while backend modular rules remain active | Backend and frontend integration | User |
 | 2026-07-01 | Start with access-management/workspace foundation | Later modules depend on exact assignment, normalized permissions, and scope | Access management, all protected modules | User |
 | 2026-07-01 | Follow database scope over quick guide for transfer target | Source-of-truth priority; database scope says transfers target package sub-items | Transfers, PO linking, category packages | User-approved documentation |
 | 2026-07-01 | Keep legacy permission names only as temporary compatibility aliases mapped from normalized permission codes | Existing route guards and frontend pages still use old names; replacing all business modules in Phase 1 would violate vertical migration | Access management, current legacy modules, frontend route guards | User-approved Phase 1 scope |
@@ -505,6 +575,15 @@ can_manage_po_item_mappings
 | 2026-07-02 | Simplify Master Catalog authorization | Removed cross-module permission arrays and repository-backed authorization middleware; operational lookups are scoped in the service, while administration routes use `MASTER_CATALOG_PERMISSION` at the route boundary | Master catalog | User |
 | 2026-07-02 | Approve Phase 2 and plan Phase 3 | User approved the current Master Catalog phase and requested the next phase plan with no implementation until approval | Master catalog, financial years | User |
 | 2026-07-02 | Start and complete Phase 3 Financial Years | User approved continuing until the phase is completed; module now initializes redesigned financial-year workflow records and removes old route/controller/service/validator wrappers | Financial years | User |
+| 2026-07-02 | Mark Phase 3 complete and prepare Phase 4 overview | User approved Phase 3 Financial Years and requested only the Phase 4 overview with no implementation | Financial years, department budgets | User |
+| 2026-07-02 | Start Phase 4 Department Budgets implementation | User approved implementing Phase 4 after the business scope and Budget Entry UI/UX direction were documented | Department budgets | User |
+| 2026-07-02 | Keep Phase 4 in review after automated validation | Automated checks pass, but module completion requires live DB/UI verification of Department Budget Entry against initialized redesigned tables | Department budgets | Codex review |
+| 2026-07-04 | Mark Phase 4 Department Budgets complete | User explicitly approved marking Phase 4 finished after implementation, automated validation, documentation updates, and review | Department budgets | User |
+| 2026-07-04 | Split Phase 5 into separately validated subphases | User requested smaller testable slices because the combined Category Review, Package, and CFO workflow is too large for one implementation pass | Phase 5A, 5B, 5C, 5D | User |
+| 2026-07-04 | Complete Phase 5A Category Manager Review | Implemented category-scoped review queue, item decisions, completion, frontend page, notifications, tests, and validation | Category review | User-approved Phase 5A scope |
+| 2026-07-05 | Revise Phase 5 workflow before 5C | Removed the active return-to-HOD correction cycle; Category Manager now records approved quantities and notes, HOD sees reviewed decisions read-only, and package demand will use approved quantities | Department budgets, category review, future category packages | User-approved revised workflow |
+| 2026-07-05 | Complete Phase 5B Category Submission Windows | Implemented assigned-category submission window read/close/reopen controls in the category-review module, with backend scope enforcement, audit, workflow history, notifications, frontend UI, tests, and validation | Category review, category submission windows | User-approved Phase 5B scope |
+| 2026-07-03 | Frontend may be refactored freely by workflow domain during owning module phases | The new workflow should not be layered on top of old frontend architecture; old frontend files, API wrappers, hooks, pages, and components may be moved, split, renamed, replaced, or deleted after import/reference checks and validation. This supersedes earlier frontend-folder-preservation guidance while leaving backend modular rules unchanged. | All frontend workflow areas; backend unaffected | User |
 
 ## 17. Validation Log
 
@@ -870,7 +949,7 @@ The item-request path may be obsolete catalog-request workflow or may need to be
 | Sub-items | Old `BS_budget_sub_items` concepts are not owned by current setup path | `BS_budget_catalog_sub_items` reusable records | Add sub-item APIs and UI controls |
 | General sub-item | Not enforced by current setup path | Exactly one active reusable `General` sub-item per catalog item | Service transaction on catalog item creation; validation tests |
 | Units | Not represented in old type setup | `BS_units_of_measure` supports catalog item/sub-item UOM | Add read APIs and UI selection where required |
-| Terminology | "type/item" | "catalog item" and "reusable sub-item" | Update UI labels/API DTOs while preserving frontend architecture |
+| Terminology | "type/item" | "catalog item" and "reusable sub-item" | Update UI labels/API DTOs and reorganize frontend API/component boundaries when useful for the new workflow |
 | Permissions | Legacy `can_manage_categories` in old routes/navigation | Normalized `can_manage_budget_catalog` | Module routes use exact normalized permission; legacy alias remains only for unmigrated navigation until its owning route phase |
 
 ### Target Backend Module Tree
@@ -973,7 +1052,7 @@ Expected files:
 - `client/src/helpers/permissions.js` only if alias documentation/removal tracking must be updated
 - `client/src/layouts/DashboardLayout.jsx` only if changing navigation permission from legacy alias to normalized catalog permission is in-scope and does not partially migrate unrelated pages
 
-Frontend architecture remains unchanged.
+Frontend architecture was not reorganized during this phase because the existing setup page could be updated safely in place. This is not a permanent restriction; future frontend cleanup may split, rename, move, replace, or delete old workflow files after import/reference checks and validation.
 
 ### Tests
 
@@ -1093,13 +1172,13 @@ Phase 2 implementation is code-complete for the Master Catalog vertical slice. T
 
 ```text
 server/modules/master-catalog/
-├── masterCatalog.constants.js
-├── masterCatalog.controller.js
-├── masterCatalog.mapper.js
-├── masterCatalog.repository.js
-├── masterCatalog.routes.js
-├── masterCatalog.service.js
-└── masterCatalog.validators.js
+â”œâ”€â”€ masterCatalog.constants.js
+â”œâ”€â”€ masterCatalog.controller.js
+â”œâ”€â”€ masterCatalog.mapper.js
+â”œâ”€â”€ masterCatalog.repository.js
+â”œâ”€â”€ masterCatalog.routes.js
+â”œâ”€â”€ masterCatalog.service.js
+â””â”€â”€ masterCatalog.validators.js
 ```
 
 ### Backend Files Created
@@ -1375,8 +1454,8 @@ Date updated: 2026-07-02
 | Reject malformed Unit of Measure | Yes | Partially handled only if provided | Implemented | Implemented via select value | Covered by validator test | IN_REVIEW |
 | Reject invalid or inactive Unit of Measure | Yes | Active lookup existed, but missing value defaulted | Implemented via `findUnitByIdRepo` active-only lookup | Selector loads active units only | Covered by service test | IN_REVIEW |
 | List reusable sub-items under catalog item | Yes; `BS_budget_catalog_sub_items` reusable master records | Backend implemented; frontend missing before 2026-07-02 sub-item update | Implemented through `GET /catalog-items/:itemId/sub-items` | Implemented in Budget Setup reusable model panel | Covered by targeted lint/build and existing module tests | IN_REVIEW |
-| Create reusable sub-item | Yes | Backend implemented; frontend missing before 2026-07-02 sub-item update | Implemented through `POST /catalog-items/:itemId/sub-items` with default UOM validation | Implemented through reusable model dialog | Covered by targeted lint/build and existing module tests | IN_REVIEW |
-| Edit reusable sub-item | Yes | Backend implemented; frontend missing before 2026-07-02 sub-item update | Implemented through `PATCH /catalog-sub-items/:subItemId`; protected `General` identity remains locked | Implemented through reusable model dialog; `General` code/name locked | Covered by targeted lint/build and existing module tests | IN_REVIEW |
+| Create reusable sub-item | Yes | Backend implemented; frontend missing before 2026-07-02 sub-item update | Implemented through `POST /catalog-items/:itemId/sub-items` with default UOM validation; `sub_item_code` is generated by the backend for non-General models | Implemented through reusable model dialog without manual code entry | Covered by targeted lint/build and existing module tests | IN_REVIEW |
+| Edit reusable sub-item | Yes | Backend implemented; frontend missing before 2026-07-02 sub-item update | Implemented through `PATCH /catalog-sub-items/:subItemId`; generated `sub_item_code` is read-only and protected `General` identity remains locked | Implemented through reusable model dialog; `General` code/name locked | Covered by targeted lint/build and existing module tests | IN_REVIEW |
 | Activate/deactivate reusable sub-item | Yes | Backend implemented; frontend missing before 2026-07-02 sub-item update | Implemented through `PATCH /catalog-sub-items/:subItemId/status`; service blocks deactivating `General` | Implemented; `General` deactivate button disabled | Covered by targeted lint/build and existing module tests | IN_REVIEW |
 | Protect default `General` reusable sub-item | Yes; exactly one active `General` per catalog item | Service implemented; frontend did not expose the rule | Implemented in create/update/status service rules | Implemented as protected badge, locked identity, disabled deactivate | Covered by targeted lint/build and existing module tests | IN_REVIEW |
 | Package sub-item quantity, unit price, notes, attachments, reconciliation | Yes, but belongs to Category Packages, not Master Catalog | Not implemented in Master Catalog | Deferred to future `category-packages` module | Deferred to future Category Package UI | Future package tests required | DEFERRED_WITH_APPROVED_SCOPE |
@@ -1483,12 +1562,18 @@ Reusable catalog sub-items and year-specific package sub-items are separate enti
 `BS_budget_catalog_sub_items` is the reusable model/specification master below a generic catalog item. It owns reusable/default fields only:
 
 - `catalog_item_id`
-- `sub_item_code`
+- `sub_item_code` as a generated read-only reference code; users must not type or edit it manually.
 - `name`
 - `default_specification`
 - `default_unit_of_measure_id`
 - `is_default_general`
 - `is_active`
+
+Reusable sub-item identity is the database `id`. The code remains for display,
+audit, search, and integrations, but the Master Catalog and Category Package
+Workbench must create normal reusable models without a manual code field.
+The backend generates codes for non-General reusable models and preserves the
+fixed `GENERAL` code only for default General sub-items.
 
 `BS_category_budget_package_sub_items` is the year-specific package detail record. It owns package-specific snapshots and execution data:
 
@@ -1792,7 +1877,7 @@ Phase 3 includes:
   - `BS_budget_workflow_history`
   - `BS_Notifications`
   - `BS_audit_logs`
-- Keep existing frontend folder architecture.
+- Frontend files may be reorganized when implementing this module if it improves the new workflow structure. Do not preserve old filenames or folders merely for compatibility; update imports and routes and validate affected pages.
 - Update existing Financial Years page/API/hooks only as needed for the new API contract and lifecycle behavior.
 - Add module tests for repository/service/route authorization behavior.
 - Remove old Financial Years backend wrappers after validation.
@@ -1977,7 +2062,7 @@ If new transfer/PO tables are not implemented enough to verify closure safely, c
 
 ### Existing Frontend Changes
 
-Keep current frontend folder architecture.
+The current frontend files may be updated in place or reorganized if that produces a cleaner Financial Years workflow. Preserve only genuinely reusable shared behavior; remove old workflow assumptions when the owning frontend area is migrated.
 
 Expected changes:
 
@@ -2280,3 +2365,1752 @@ No Financial Years module code references removed legacy tables:
 Phase 4 should be `department-budgets`, because it depends on active financial years, initialized `BS_department_budgets`, initialized `BS_department_category_budgets`, active catalog lookups, and Access Management workspace resolution.
 
 Do not start Phase 4 until the user approves its detailed plan.
+
+## 29. Phase 9 Plan - Production Readiness and Operational Monitoring
+
+Status: `PLANNED` / `UPCOMING` / `NOT STARTED`
+Position: after all core business and workflow modules are stable, before production deployment, go-live validation, and final handover.
+
+This section records approved upcoming work only. Implementation must not start until the roadmap reaches the Production Readiness and Operational Monitoring phase.
+
+Do not implement these requirements during earlier business-module phases unless the user explicitly changes the roadmap. Do not create health routes, a system-health module, administrator pages, permissions, SQL backup scripts, SQL Server Agent jobs, environment variables, tests, database changes, or server bootstrapping changes before Phase 9 approval.
+
+### Scope
+
+Phase 9 must cover:
+
+- SQL Server database backup and recovery strategy.
+- Public backend liveness and readiness endpoints.
+- Protected administrator system-health API.
+- Read-only administrator System Health page.
+- Operational acceptance checks required before production deployment and final go-live approval.
+
+### SQL Server Backup And Recovery Strategy
+
+Database backup and recovery is an infrastructure and database-administration responsibility. The Node.js API must not directly perform SQL Server backup or restore operations.
+
+The final backup strategy must be agreed with hospital IT and the database administrator. Before implementation or operational sign-off, Phase 9 must determine:
+
+- whether SQL Server Agent is available;
+- whether the database uses `SIMPLE`, `FULL`, or `BULK_LOGGED` recovery;
+- whether backups are already configured by hospital infrastructure;
+- where existing backups are stored;
+- how long backups are retained;
+- whether transaction-log backups are running;
+- whether restore tests are performed;
+- who monitors backup failures;
+- SQL Server edition;
+- required recovery point objective;
+- required recovery time objective;
+- available backup storage;
+- retention requirements;
+- off-server, separate, or isolated backup copies;
+- database size and growth;
+- production maintenance window;
+- hospital security and compliance requirements.
+
+Do not create a second backup system before checking whether the database server already has a managed backup plan.
+
+The final strategy should consider:
+
+- full database backups;
+- differential backups;
+- transaction-log backups when the recovery model requires them;
+- backup compression where supported;
+- backup checksums;
+- backup verification;
+- backup retention and cleanup;
+- separate or isolated backup copies;
+- backup failure notifications;
+- regular restore testing;
+- a documented recovery procedure.
+
+Provisional example only, not final production values:
+
+```text
+Full backup: daily
+Differential backup: several times per day
+Transaction-log backup: every 15-30 minutes under FULL recovery
+Retention: based on hospital policy
+Restore test: scheduled regularly in a non-production environment
+```
+
+Preferred scheduling mechanism: SQL Server Agent when supported. If SQL Server Agent is unavailable, such as with some SQL Server Express installations, use Windows Task Scheduler plus `sqlcmd` as the fallback. The application must not rely on a manually copied `.bak` file inside the Git repository or project directory.
+
+`RESTORE VERIFYONLY` is useful but does not replace an actual restore test. Phase 9 must include a tested restore to a separate non-production database and verification that important application tables and queries work after restoration.
+
+### Backup Monitoring Data
+
+The future administration UI may display backup status, but it must be read-only.
+
+It may show:
+
+- last successful full backup;
+- last successful differential backup;
+- last successful transaction-log backup;
+- backup age;
+- backup type;
+- backup duration;
+- backup size;
+- verification status;
+- last restore-test date;
+- current recovery model;
+- backup warning status.
+
+The first version must not provide:
+
+- run backup;
+- delete backup;
+- restore database;
+- change recovery model;
+- change retention policy.
+
+Backup status should come from a controlled backend service that reads approved SQL Server backup history or a dedicated monitoring table. The browser must not query SQL Server system databases directly. Do not expose physical backup paths, credentials, server names, or infrastructure secrets to the frontend.
+
+### Health And Readiness Endpoints
+
+Public health responses must be minimal and non-sensitive.
+
+Target liveness endpoint:
+
+```http
+GET /health/live
+```
+
+Purpose: confirm that the Node.js process is alive and can respond.
+
+Liveness should:
+
+- return quickly;
+- avoid database queries;
+- return HTTP 200 while the process is healthy;
+- include only minimal non-sensitive information.
+
+Example liveness response:
+
+```json
+{
+  "status": "alive",
+  "service": "qnh-budget-api",
+  "timestamp": "ISO timestamp",
+  "uptimeSeconds": 1234
+}
+```
+
+Target readiness endpoint:
+
+```http
+GET /health/ready
+```
+
+Purpose: confirm that the API can currently serve normal Budget System requests.
+
+Readiness should check essential dependencies such as:
+
+- SQL Server connection;
+- required application configuration;
+- critical initialization state.
+
+Optional integrations should affect readiness only when they are essential to safe normal system operation. A temporary optional integration failure must not automatically make the entire API unavailable if the main Budget System can still operate safely.
+
+Example ready response:
+
+```json
+{
+  "status": "ready",
+  "checks": {
+    "sqlServer": "ok"
+  },
+  "timestamp": "ISO timestamp"
+}
+```
+
+Example unavailable response:
+
+```json
+{
+  "status": "not_ready",
+  "checks": {
+    "sqlServer": "failed"
+  },
+  "timestamp": "ISO timestamp"
+}
+```
+
+Unavailable readiness must return HTTP 503 Service Unavailable.
+
+Public health responses must not expose SQL Server hostnames, database names unless explicitly approved, connection strings, credentials, internal IP addresses, file-system paths, stack traces, raw SQL errors, JWT information, or environment variables.
+
+### Protected System Health API
+
+Future protected endpoint:
+
+```http
+GET /api/admin/system-health
+```
+
+The final route name may be adjusted to match approved module conventions.
+
+Access must be limited to global administrators or users with an explicit system-health viewing permission. Do not reuse an unrelated permission merely to avoid creating the correct authorization rule. During Phase 9, determine whether a dedicated normalized permission such as `can_view_system_health` is required, and update database seeds/documentation only after approval.
+
+The detailed endpoint may return:
+
+- overall system status;
+- API process status;
+- SQL Server connectivity status;
+- SQL response latency;
+- application uptime;
+- application version or commit version;
+- environment name;
+- notification worker status;
+- last successful notification-worker execution;
+- backup status summary;
+- last successful backup timestamps;
+- backup warning state;
+- health-check execution timestamp.
+
+Use clear statuses:
+
+```text
+HEALTHY
+WARNING
+UNAVAILABLE
+UNKNOWN
+```
+
+Do not report a component as healthy when it has not actually been checked. If a check cannot be performed because required database permissions are missing, report `UNKNOWN` with a safe administrative message.
+
+Never return secrets or raw infrastructure errors.
+
+### Administrator System Health Page
+
+Add a future protected frontend page:
+
+```text
+Administration -> System Health
+```
+
+Suggested page title:
+
+```text
+System Health
+```
+
+The page should provide an operational overview, not raw developer logs.
+
+Suggested summary cards:
+
+- Overall Status
+- API Status
+- Database Status
+- Notification Worker Status
+- Database Backup Status
+
+Suggested sections:
+
+- API: current status, uptime, application version, last health check, API response latency.
+- Database: connection status, response latency, recovery model, last successful connectivity check.
+- Notification worker: worker status, last successful run, last failed run, pending notification count, failed notification count, only when reliably available.
+- Database backups: last full backup, last differential backup, last transaction-log backup, backup age, latest backup result, last restore-test date, warning when backup is older than the approved threshold.
+
+The page must:
+
+- load health information on entry;
+- provide a manual Refresh button;
+- show last refresh timestamp;
+- use clear status badges;
+- display safe error messages;
+- remain read-only in its first version;
+- be permission-protected in both frontend and backend.
+
+Optional auto-refresh may be added at a reasonable interval. Do not create aggressive polling that adds unnecessary load.
+
+### Suggested Module Placement
+
+During Phase 9 implementation, prefer a small dedicated operational module:
+
+```text
+server/modules/system-health/
+  systemHealth.constants.js
+  systemHealth.controller.js
+  systemHealth.repository.js
+  systemHealth.routes.js
+  systemHealth.service.js
+```
+
+The repository may read SQL connectivity, application-owned worker status tables, and approved SQL Server backup-history information. The service should calculate component status, overall status, warning thresholds, and safe administrative messages. The controller should return only the safe mapped response.
+
+Do not put all health logic directly inside `server.js`.
+
+Basic `/health/live` and `/health/ready` routes may remain in a lightweight shared health component because they are infrastructure endpoints rather than normal business-module routes.
+
+### Future Configuration
+
+Document future environment variables during Phase 9 without committing secret or machine-specific values:
+
+```text
+HEALTH_SQL_TIMEOUT_MS
+HEALTH_CACHE_SECONDS
+BACKUP_FULL_WARNING_HOURS
+BACKUP_LOG_WARNING_MINUTES
+SYSTEM_VERSION
+```
+
+Do not store database passwords, backup credentials, or infrastructure secrets in documentation or committed `.env` files. Warning thresholds must match the approved backup policy.
+
+### Testing Requirements
+
+Phase 9 must include tests for:
+
+- liveness returns HTTP 200 without requiring SQL Server;
+- readiness returns HTTP 200 when SQL Server is available;
+- readiness returns HTTP 503 when SQL Server is unavailable;
+- readiness respects a short timeout;
+- public responses contain no sensitive details;
+- unauthorized users cannot access detailed system health;
+- authorized administrators can access detailed system health;
+- overall status is calculated correctly;
+- `UNKNOWN` is returned when a check cannot be performed;
+- backup warnings are calculated from approved thresholds;
+- frontend hides the page without permission;
+- frontend handles `HEALTHY`, `WARNING`, `UNAVAILABLE`, and `UNKNOWN` states.
+
+Mocks are acceptable inside automated tests. Do not use fake permanent production data for backup status.
+
+### Operational Acceptance Criteria
+
+Do not mark Phase 9 complete until:
+
+- health endpoints are implemented;
+- detailed health endpoint is permission-protected;
+- administrator System Health page is implemented;
+- SQL Server edition and recovery model are documented;
+- the approved backup schedule is documented;
+- backup jobs are configured by the responsible administrator;
+- backup failure alerting is configured;
+- retention and cleanup are configured;
+- a separate or isolated backup copy exists;
+- at least one actual restore test succeeds;
+- the recovery procedure is documented;
+- sensitive infrastructure details are not exposed.
+
+Application code completion alone is not sufficient to mark the database backup requirement complete. Infrastructure configuration and restore testing must also be verified.
+
+## 30. Phase 4 Overview - Department Budgets
+
+Status: `IN_PROGRESS`
+Implementation status: `STARTED`
+Approval required before implementation: `APPROVED`
+
+This section is the approved Phase 4 implementation scope. Do not start Phase 5 until Phase 4 is validated and documented.
+
+### Recommended Module
+
+Phase 4 should implement `department-budgets`.
+
+Reason:
+
+- Phase 1 provides exact user assignment/workspace and normalized permissions.
+- Phase 2 provides active catalog categories and generic catalog items.
+- Phase 3 creates `BS_department_budgets` and three `BS_department_category_budgets` per department/year.
+- Department Budget Entry is the next core workflow step after opening a financial year.
+
+### Business Goal
+
+Replace the legacy department budget workflow with the redesigned department planning workflow:
+
+```text
+Department User / HOD
+â†’ create or update generic item requests
+â†’ distribute requested quantities
+â†’ submit one department category budget to Category Manager
+-> view Category Manager decisions after submission as read-only updates
+```
+
+Departments request generic catalog items only. They must not enter unit price, total amount, vendor, model, detailed specification, package sub-items, PO links, or transfers.
+
+### Backend Target Module
+
+```text
+server/modules/department-budgets/
+  departmentBudgets.constants.js
+  departmentBudgets.controller.js
+  departmentBudgets.mapper.js
+  departmentBudgets.repository.js
+  departmentBudgets.routes.js
+  departmentBudgets.service.js
+  departmentBudgets.validators.js
+```
+
+Possible module tests:
+
+```text
+server/tests/modules/department-budgets/
+  departmentBudgets.constants.test.js
+  departmentBudgets.validators.test.js
+  departmentBudgets.service.test.js
+  departmentBudgets.routes.test.js
+```
+
+### Owned Database Tables
+
+- `BS_department_budgets`
+- `BS_department_category_budgets`
+- `BS_department_category_budget_items`
+- `BS_department_category_budget_item_distributions`
+
+Read dependencies:
+
+- `BS_financial_years`
+- `BS_departments`
+- `BS_budget_categories`
+- `BS_budget_catalog_items`
+- `BS_category_submission_windows`
+- `BS_category_budget_packages`
+- `BS_category_budget_package_items`
+- `BS_budget_catalog_sub_items`
+
+Write dependencies during submission:
+
+- `BS_category_budget_package_items`
+- `BS_category_budget_package_sub_items` for the year-specific `General` sub-item when first required
+- `BS_budget_workflow_history`
+- `BS_Notifications` through existing shared notification infrastructure where supported
+- `BS_audit_logs` through existing audit infrastructure
+
+### Current Legacy Implementation To Replace
+
+Backend legacy paths:
+
+- `server/routes/budgets.routes.js`
+- `server/routes/budgetItems.routes.js`
+- `server/routes/budgetItem.routes.js`
+- `server/routes/budgetDistribution.routes.js`
+- `server/controllers/budgets.controller.js`
+- `server/controllers/budgetItems.controller.js`
+- `server/controllers/budgetItem.controller.js`
+- `server/controllers/budgetDistribution.controller.js`
+- `server/services/budgets.service.js`
+- `server/services/budgetItems.service.js`
+- `server/services/budgetItem.service.js`
+- `server/services/budgetDistribution.service.js`
+- `server/repositories/budgets.repository.js`
+- `server/repositories/budgetItems.repository.js`
+- `server/repositories/budgetItem.repository.js`
+- `server/validators/budgetItems.validator.js`
+- `server/helpers/distribution.helper.js` if reusable after review, otherwise replace with module-local validation
+- `server/helpers/validateBudgetModifyPermission.js` if still needed after workspace-scoped service rules
+
+Frontend files likely affected:
+
+- `client/src/api/budget.api.js`
+- `client/src/pages/BudgetsPage.jsx`
+- `client/src/pages/budget/MyBudgetsPage.jsx`
+- `client/src/pages/budget/AllBudgetsPage.jsx`
+- `client/src/pages/budget/BudgetEnteryPage.jsx`
+- `client/src/pages/budget/BudgetViewPage.jsx`
+- `client/src/components/budgets/shared/BudgetItemsTable.jsx`
+- `client/src/helpers/budgetRows.helper.js`
+- `client/src/helpers/pageLockRules.js`
+- `client/src/config/dashboard/quickActions.js`
+- `client/src/config/dashboard/hodCards.jsx`
+- `client/src/routes/AppRouter.jsx` only if route permission wiring needs exact normalized permission adjustment
+
+Frontend folder reorganization is allowed during Phase 4 when it improves the new Department Budget workflow. The implementation may split `budget.api.js`, move budget pages/hooks/components, delete obsolete old-workflow frontend files, and create domain-specific frontend modules after checking import consumers and validating affected routes.
+
+### Required Feature Inventory Before Implementation
+
+The detailed Phase 4 plan must include a row-by-row inventory for at least:
+
+| Feature / User Action | Required By Workflow | Current Implementation | Backend | Frontend | Tests | Status |
+|---|---|---|---|---|---|---|
+| View current department annual budget | Yes | Legacy `BS_budgets` | Pending | Existing pages need remap | Pending | PLANNED |
+| View three category budgets | Yes | Missing/new workflow only | Pending | Existing UI needs category structure | Pending | PLANNED |
+| Add generic catalog item request | Yes | Legacy budget item | Pending | Existing entry page needs payload update | Pending | PLANNED |
+| Edit draft requested item | Yes | Legacy budget item | Pending | Existing entry page needs update | Pending | PLANNED |
+| Delete/deactivate draft requested item | Yes, where supported | Legacy active flags | Pending | Existing UI review | Pending | PLANNED |
+| Distribution total equals requested quantity | Yes | Existing helper likely reusable after review | Pending | Existing entry page has distribution UI | Pending | PLANNED |
+| Submit category budget | Yes | Legacy submit/approval flow | Pending | Existing UI needs status/action update | Pending | PLANNED |
+| View Category Manager decisions after submission | Yes | Missing/new workflow only | Pending | Entry page needs read-only decision display | Pending | PLANNED |
+| Prevent edits after submission | Yes | Legacy approval concepts differ | Pending | Existing UI lock logic needs rewrite | Pending | PLANNED |
+| Lazy package item and General sub-item creation on first submission | Yes | Missing | Pending | No direct UI | Pending | PLANNED |
+
+### Route Authorization Overview
+
+The detailed Phase 4 plan must include a route authorization matrix. Initial direction:
+
+| Operation Type | Likely Permission | Workspace Scope |
+|---|---|---|
+| View own department budgets | `can_view_department_budget_requests` or `can_manage_department_budget_requests` | Department workspace only; active assignment department must match budget department |
+| Create/edit/delete draft requests | `can_manage_department_budget_requests` | Department workspace only; active assignment department must match |
+| Submit department category budget | `can_manage_department_budget_requests` | Department workspace only; category window must be open |
+| View read-only submitted/reviewed records | `can_view_department_budget_requests` or manage permission | Department workspace only |
+
+Do not infer role from permissions. Use `req.budgetAccess.userRoleId`, department scope, exact permissions, and object ownership checks.
+
+### Key Business Rules
+
+- Use exact header statuses:
+  - `DRAFT`
+  - `IN_CATEGORY_REVIEW`
+  - `CATEGORY_REVIEW_COMPLETED`
+- Use exact item statuses:
+  - `DRAFT`
+  - `PENDING_CATEGORY_REVIEW`
+  - `CATEGORY_REVIEW_COMPLETED`
+- Do not create `SUBMITTED`, `UNDER_CATEGORY_REVIEW`, or legacy approval statuses.
+- Department users request generic catalog items only.
+- Requested quantity must be positive.
+- Distribution rows must sum exactly to requested quantity.
+- Draft department items do not create package records.
+- On first submission of a catalog item in a financial year/category, create or reuse a `BS_category_budget_package_items` row and create the year-specific `General` package sub-item if missing.
+- After submission, HOD users cannot edit, add, delete, import, copy, or resubmit the submitted category budget during Category Manager review.
+- Budget Entry shows Category Manager decisions read-only: requested quantity, approved quantity, difference, review note, review status, reviewed by, and reviewed at.
+
+### Explicit Exclusions
+
+Phase 4 does not implement:
+
+- Category Manager review decisions.
+- Category submission window administration.
+- Category package detailed sub-items, pricing, attachments, or reconciliation UI.
+- CFO review.
+- Change requests after CFO review.
+- Transfers.
+- PO linking.
+- Reports.
+- Production-readiness health endpoints or backup monitoring.
+
+### Budget Entry UI/UX Requirement
+
+The Department Budget Entry page is the primary operational page of the Budget System.
+
+It must receive deliberate UI/UX design attention and must not be implemented as a collection of generic white containers or a minimally styled form.
+
+The approved direction must preserve the familiar existing `BudgetEnteryPage` design while improving its visual hierarchy, category navigation, table usability, distribution entry, draft visibility, validation, Import Excel, Copy From History, and submission experience.
+
+The design must remain simple and professional and must not become overengineered.
+
+A UI/UX proposal must be presented and explicitly approved before frontend implementation begins. Approval of the Phase 4 business scope is not approval of the UI design.
+
+### Current Page Visual Assessment
+
+Existing `client/src/pages/budget/BudgetEnteryPage.jsx` strengths to preserve:
+
+- Familiar HOD workflow with page title, action bar, budget context, main item table, validation, summary, and legends.
+- Existing `BudgetDistributionTable` keeps the table as the main workspace and supports wide distribution entry.
+- Excel import/download entry point already exists and is familiar.
+- Copy From History drawer already exists and is useful for repeated annual budget preparation.
+- Unsaved-change feedback already exists and should remain visible.
+- Validation feedback exists and should be made more contextual rather than removed.
+- Distribution controls for annual, quarterly, monthly, and custom entry are already familiar and should evolve rather than be replaced.
+- Existing dialogs for submit, delete, and import summary provide recognizable interaction patterns.
+
+Elements that need improvement:
+
+- The current page uses many independent white rounded containers, which can make the workflow feel fragmented.
+- The current action area gives several commands similar visual weight.
+- The page does not yet communicate the new three-category workflow clearly.
+- The old status language such as `PENDING_APPROVAL`, returned approval notes, unit price, and total amount concepts must be removed or renamed for the new workflow.
+- The page currently assumes one department budget table rather than IT, Biomedical, and General category budgets.
+- Import and Copy From History are visually large compared with their supporting role.
+- Validation is separated from the row context; Phase 4 should make row/category validation easier to understand.
+- Distribution entry is powerful but can feel wide and dense; it needs clearer totals, remaining quantity, and mismatch feedback.
+
+### Proposed Page Hierarchy
+
+The Phase 4 design should use one connected work area with a clear hierarchy:
+
+1. Compact page identity and budget context:
+   - department name;
+   - financial year;
+   - active workspace label;
+   - overall status.
+2. Overall completion/progress:
+   - three category completion summary;
+   - unsaved-change state;
+   - validation status.
+3. Category navigation:
+   - IT;
+   - Biomedical;
+   - General;
+   - item count and simple status per category.
+4. Active category item-entry table:
+   - generic catalog item;
+   - requested quantity;
+   - distribution method;
+   - distribution rows;
+   - row validation and actions.
+5. Supporting tools:
+   - Import Excel;
+   - Download Template;
+   - Copy From History.
+6. Stable action area:
+   - primary Review and Submit;
+   - secondary Save Draft;
+   - secondary Add Item;
+   - tertiary import/history/template actions.
+
+### Desktop Wireframe
+
+```text
+Department Budget Entry
+Information Technology Department Â· FY 2027 Â· HOD Workspace
+[Draft saved/unsaved indicator]                         [Save Draft] [Review and Submit]
+
+Progress: 2 of 3 categories have items Â· 1 category needs attention
+
+[ IT                    12 items Â· Complete      ]
+[ Biomedical             5 items Â· Draft         ]
+[ General                0 items Â· Not started   ]
+
+Active Category: IT
+Toolbar: [Add Item] [Import Excel] [Copy From History] [Download Template]
+
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚ Generic Item              Requested Qty   Distribution     Status   Actions â”‚
+â”‚ Computers & Laptops       [ 24 ]          Monthly          Complete Edit    â”‚
+â”‚ Office Equipment          [ 10 ]          Quarterly        Needs attention  â”‚
+â”‚   Distribution: Q1 [2] Q2 [3] Q3 [3] Q4 [2]  Total 10 / 10                 â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+
+Validation: Office Equipment distribution is incomplete.
+```
+
+### Smaller-Screen Wireframe
+
+```text
+Department Budget Entry
+Information Technology Department
+FY 2027 Â· HOD Workspace
+
+[Review and Submit]
+[Save Draft] [Add Item]
+
+Categories
+[IT Â· 12 Â· Complete]
+[Biomedical Â· 5 Â· Draft]
+[General Â· 0 Â· Not started]
+
+Active Category: IT
+[Import Excel] [Copy History]
+
+Scrollable item workspace
+Item row
+  Generic item
+  Quantity
+  Distribution method
+  Distribution controls
+  Row actions
+```
+
+On smaller screens, the category controls may become horizontally scrollable segmented controls or stacked compact buttons. The active category must remain textually clear, not color-only.
+
+### Category Navigation Design
+
+Use compact connected category controls, not detached large cards.
+
+Each category should show:
+
+```text
+Category name
+Item count
+Simple status text
+Optional unsaved or warning indicator
+```
+
+Examples:
+
+```text
+IT Â· 12 items Â· Complete
+Biomedical Â· 5 items Â· Draft
+General Â· 0 items Â· Not started
+```
+
+Active category state should use typography, border/indicator, background contrast, and `aria-selected` or equivalent semantics. Do not rely only on color.
+
+### Table Design
+
+The table remains the main workspace.
+
+Design direction:
+
+- Keep a wide, readable table with sticky header where useful.
+- Keep stable row height and clear row separation.
+- Use compact but readable quantity inputs.
+- Preserve familiar item/distribution editing patterns.
+- Remove old price/amount columns for Department Budget Entry because departments no longer enter price or total amount.
+- Make row-level validation visible near the row and summarized above/below the table.
+- Use a clear empty state in the table area when a category has no items.
+
+Avoid large sidebars, decorative panels, oversized headers, and excessive summary cards that reduce table width.
+
+### Distribution Design
+
+Preserve the familiar distribution behavior where it already works.
+
+Improve clarity by showing:
+
+- distribution total;
+- requested quantity;
+- remaining or over/under amount;
+- mismatch warning in text;
+- clear month/quarter grouping;
+- consistent input sizing.
+
+Do not hide frequently used distribution fields behind multiple clicks. Do not put each month inside a decorative card. Do not add charts or animations.
+
+### Action Hierarchy
+
+Primary:
+
+- `Review and Submit`
+
+Secondary:
+
+- `Save Draft`
+- `Add Item`
+
+Supporting:
+
+- `Import Excel`
+- `Copy From History`
+- `Download Template`
+
+Do not use multiple large primary-colored buttons. Supporting tools should remain discoverable but visually quieter than submission and saving.
+
+### Draft, Unsaved, And Validation Presentation
+
+The page should immediately answer:
+
+- Which department/year is being edited?
+- Which category is active?
+- Are there unsaved changes?
+- Are distributions complete?
+- Which category or row needs attention?
+- What is the next action?
+
+Use user-facing labels:
+
+- `Not started`
+- `Draft`
+- `Needs attention`
+- `Complete`
+- `Unsaved changes`
+
+Do not expose internal workflow codes directly unless formatted.
+
+### Required Page States To Design Before Coding
+
+Phase 4 UI approval must cover:
+
+- initial loading;
+- empty department budget;
+- category with no items;
+- category with entered items;
+- unsaved changes;
+- validation errors;
+- invalid distribution totals;
+- import preview;
+- Copy From History preview;
+- saving;
+- save success;
+- save failure;
+- submission review;
+- submitted/read-only state;
+- returned editable state;
+- backend unavailable.
+
+### Accessibility Requirements
+
+The Phase 4 UI must include:
+
+- visible keyboard focus;
+- sufficient contrast;
+- readable input labels;
+- clear error association;
+- accessible category navigation;
+- status text in addition to color;
+- reasonable control sizes;
+- logical keyboard order.
+
+Do not remove focus outlines unless an equally visible replacement is provided.
+
+### Design Tokens Using Existing Styles
+
+Use existing project Tailwind conventions:
+
+- Page background: current light slate background / `text-slate-*` palette.
+- Main workspace background: white only for meaningful grouped areas, especially the primary table workspace.
+- Borders: subtle `border-slate-200` with restrained contrast.
+- Radius: keep existing rounded style, but avoid unnecessary nested rounded containers.
+- Spacing: compact enterprise spacing, generally `p-4` to `p-6`, with tighter table rows.
+- Heading hierarchy: page title remains clear but not hero-sized.
+- Table density: optimized for many rows, not marketing spacing.
+- Status badges: compact, text + color, using existing warning/success/slate treatments.
+- Primary action: existing blue primary style.
+- Secondary actions: white or subtle tinted buttons.
+- Supporting tools: compact controls or menu actions.
+
+### Elements Intentionally Not Added
+
+Do not add:
+
+- a new UI library;
+- an unrelated frontend architecture rewrite outside the approved workflow scope;
+- large hero sections;
+- decorative illustrations;
+- glassmorphism;
+- animated backgrounds;
+- many separate white cards;
+- charts for distribution entry;
+- unrelated dashboard redesigns;
+- advanced keyboard shortcuts unless documented and discoverable.
+
+### Recommended UI Direction
+
+Recommended direction:
+
+```text
+Evolve the existing BudgetEnteryPage into a connected three-category
+budget-entry workspace.
+```
+
+This preserves the current page identity and its familiar table/distribution workflow, while improving:
+
+- context visibility;
+- category navigation;
+- action priority;
+- draft/validation clarity;
+- table usability;
+- distribution feedback;
+- import/history placement;
+- empty/error/submitted states.
+
+The page should feel polished, professional, and practical for repeated HOD use, without becoming overdesigned or visually fragmented.
+
+### Validation Overview
+
+Expected validation commands after implementation approval:
+
+```powershell
+cd D:\QNH-Budget-System-V2-Clean\server
+npm.cmd test -- tests/modules/department-budgets
+node --check server\modules\department-budgets\departmentBudgets.routes.js
+node --check server\modules\department-budgets\departmentBudgets.controller.js
+node --check server\modules\department-budgets\departmentBudgets.service.js
+node --check server\modules\department-budgets\departmentBudgets.repository.js
+node --check server\modules\department-budgets\departmentBudgets.validators.js
+
+cd D:\QNH-Budget-System-V2-Clean\client
+npx.cmd eslint src/pages/BudgetsPage.jsx src/pages/budget/MyBudgetsPage.jsx src/pages/budget/BudgetEnteryPage.jsx src/pages/budget/BudgetViewPage.jsx src/api/budget.api.js
+npm.cmd run build
+```
+
+Focused scans:
+
+```powershell
+rg "BS_budgets|BS_budget_items|BS_budget_item_distribution|BS_budget_notes|BS_budget_types" server\modules\department-budgets client\src
+rg "routes/budgets|controllers/budgets|services/budgets|repositories/budgets|budgetItems|budgetItem|budgetDistribution" server client\src
+```
+
+Manual scenarios:
+
+- HOD views current department budget with three categories.
+- HOD adds a generic IT catalog item request with quantity and distribution.
+- Missing distribution or mismatched distribution total is rejected.
+- HOD submits one category budget.
+- API creates/reuses package parent item and General package sub-item on submission.
+- HOD cannot edit submitted items.
+- Submitted/reviewed category budgets are read-only to the HOD.
+- Category Manager decisions appear in Budget Entry as read-only requested quantity, approved quantity, difference, note, reviewer, and timestamp.
+- Department workspace cannot access another department budget.
+- Category/global workspace cannot perform department-entry commands.
+
+### Main Risks
+
+| Risk | Control |
+|---|---|
+| Existing frontend depends on legacy response shape | Preserve compatible fields where safe, but map from redesigned tables |
+| Package-item lazy creation crosses module boundaries | Use an explicit service/domain operation or carefully scoped repository logic; document ownership |
+| Distribution decimal precision errors | Validate with decimal-safe backend logic and database constraints |
+| Mixed old/new budget routes remain mounted | Mount new module router and remove old department-budget wrappers only after validation |
+| Unmigrated Transfer/PO pages import old budget API | Do not patch those future modules except for minimal containment if server startup breaks |
+| Incorrect department scope | Enforce department ownership in service using active `BS_budget_user_roles.id` |
+
+### Completion Criteria
+
+Phase 4 can be completed only when:
+
+- Department Budget backend business code is owned by `server/modules/department-budgets`.
+- Old Department Budget route/controller/service/repository/validator wrappers are removed or explicitly documented as temporary with exact removal phase.
+- All Phase 4 feature inventory rows are complete or explicitly deferred with approval.
+- No Phase 4 code uses removed legacy tables.
+- Existing frontend department-budget pages work with the new API.
+- Authorization and department-scope tests pass.
+- Distribution and status-transition tests pass.
+- Submission creates/reuses package parent and General sub-item correctly.
+- Client build passes.
+- Live browser/API validation confirms the HOD workflow end to end.
+
+## 31. Phase 4 Implementation Summary - Department Budgets
+
+Status: `COMPLETED`
+
+Implementation date: 2026-07-02
+
+Phase 4 implementation has passed automated validation and is marked `COMPLETED` by user approval on 2026-07-04.
+
+### Backend Module Tree
+
+```text
+server/modules/department-budgets/
+  departmentBudgets.constants.js
+  departmentBudgets.controller.js
+  departmentBudgets.mapper.js
+  departmentBudgets.repository.js
+  departmentBudgets.routes.js
+  departmentBudgets.service.js
+  departmentBudgets.validators.js
+```
+
+### Backend APIs Implemented
+
+- `GET /api/budgets/current`
+- `GET /api/budgets/my`
+- `GET /api/budgets/history/approved`
+- `GET /api/budgets/history/:departmentCategoryBudgetId/items`
+- `GET /api/budgets/:departmentBudgetId`
+- `PUT /api/budgets/categories/:departmentCategoryBudgetId/items`
+- `PATCH /api/budgets/categories/:departmentCategoryBudgetId/submit`
+
+### Database Tables Used
+
+- `BS_department_budgets`
+- `BS_department_category_budgets`
+- `BS_department_category_budget_items`
+- `BS_department_category_budget_item_distributions`
+- `BS_category_submission_windows`
+- `BS_category_budget_packages`
+- `BS_category_budget_package_items`
+- `BS_budget_catalog_sub_items`
+- `BS_category_budget_package_sub_items`
+- `BS_budget_workflow_history`
+
+### Implemented Business Behavior
+
+- Department workspaces view only their own initialized annual budget and three category budgets.
+- Budget Entry works one category budget at a time: IT, Biomedical, and General.
+- Each Budget Entry category tab is permanently locked to its own category. The row category is derived from the active tab/category budget context, not from a user-editable row field.
+- The Budget Entry row category control is read-only and displays the active category with a "Locked to selected tab" helper label.
+- Local draft rows and Copy From History rows are normalized to the active tab category before being displayed or saved.
+- Department users request generic catalog items, requested quantity, and distributions only.
+- Unit price, total amount, vendor, model, specification, package sub-items, transfers, and PO links are not part of Department Budget Entry.
+- The three main categories are fixed system categories: IT, Biomedical, and General.
+- Department users cannot request new categories or modify the fixed category definitions.
+- Department users can request a missing catalog item under one existing fixed category through the restored Budget Entry `Request Item` action.
+- Budget Entry table rows remain locked to the active category tab. The separate Add Item Request modal defaults to the active tab category but allows the user to choose IT, Biomedical, or General from a controlled dropdown.
+- Item-request backend validation rejects missing, inactive, invalid, unsupported, or custom category submissions and never creates a new main category.
+- Draft category budgets can add/edit/remove requested items.
+- Submitted category budgets are read-only to HOD users; Category Manager decisions are displayed as read-only review results.
+- Distribution total must equal requested quantity.
+- Submitting a category budget moves it to `IN_CATEGORY_REVIEW`.
+- Submission creates or reuses package parent records and creates the year-specific `General` package sub-item if missing.
+- The submission confirmation modal names the exact active category budget, for example `IT Category Budget`, and states that only the currently selected category budget is submitted.
+- Workflow history is written for draft save and category submission.
+- Technical audit records are written for save and submit controller actions.
+- A durable notification queue record is inserted after category submission using existing notification infrastructure.
+
+### Frontend Files Updated
+
+- `client/src/api/budget.api.js`
+- `client/src/pages/budget/BudgetEnteryPage.jsx`
+- `client/src/pages/budget/MyBudgetsPage.jsx`
+- `client/src/pages/budget/BudgetViewPage.jsx`
+- `client/src/hooks/budgets/useCreateBudgetManual.js`
+- `client/src/hooks/budgets/useBudgetSummary.js`
+- `client/src/hooks/budgets/useBudgetTotals.js`
+- `client/src/helpers/budgetRows.helper.js`
+- `client/src/helpers/budgetValidation.helper.js`
+- `client/src/helpers/budgetCalculations.helper.js`
+- `client/src/components/budgets/shared/BudgetDistributionTable.jsx`
+- `client/src/components/budgets/shared/BudgetDistributionRow.jsx`
+- `client/src/components/budgets/shared/BudgetSummaryPanel.jsx`
+- `client/src/components/budgets/shared/BudgetCompactSummaryPanel.jsx`
+- `client/src/components/budgets/shared/BudgetItemsTable.jsx`
+- `client/src/components/budgets/CopyBudgetHistoryList.jsx`
+- `client/src/components/budgets/CopyBudgetPreview.jsx`
+
+### Legacy Files Removed
+
+- `server/routes/budgets.routes.js`
+- `server/routes/budgetItems.routes.js`
+- `server/controllers/budgets.controller.js`
+- `server/controllers/budgetItems.controller.js`
+- `server/services/budgets.service.js`
+- `server/services/budgetItems.service.js`
+- `server/repositories/budgetItems.repository.js`
+- `server/validators/budgetItems.validator.js`
+
+### Temporary Legacy Files Remaining
+
+- `server/repositories/budgets.repository.js` remains because unrelated legacy `server/services/budgetItem.service.js` still imports `getCurrentBudgetRepo`. That route belongs to future PO/transfer/project cleanup and was not partially refactored during Phase 4.
+- `server/routes/budgetItem.routes.js`, `server/controllers/budgetItem.controller.js`, `server/services/budgetItem.service.js`, `server/repositories/budgetItem.repository.js`, and legacy transfer/PO/project paths remain for their own future phases.
+
+### Validation Log
+
+| Date | Phase | Command or Scenario | Result | Notes |
+|---|---|---|---|---|
+| 2026-07-02 | Phase 4 | `node --check server\server.js` | Passed | Application composition imports the department-budgets module router directly |
+| 2026-07-02 | Phase 4 | `node --check server\modules\department-budgets\departmentBudgets.constants.js` | Passed | Syntax check |
+| 2026-07-02 | Phase 4 | `node --check server\modules\department-budgets\departmentBudgets.validators.js` | Passed | Syntax check |
+| 2026-07-02 | Phase 4 | `node --check server\modules\department-budgets\departmentBudgets.mapper.js` | Passed | Syntax check |
+| 2026-07-02 | Phase 4 | `node --check server\modules\department-budgets\departmentBudgets.repository.js` | Passed | Syntax check |
+| 2026-07-02 | Phase 4 | `node --check server\modules\department-budgets\departmentBudgets.service.js` | Passed | Syntax check |
+| 2026-07-02 | Phase 4 | `node --check server\modules\department-budgets\departmentBudgets.controller.js` | Passed | Syntax check |
+| 2026-07-02 | Phase 4 | `node --check server\modules\department-budgets\departmentBudgets.routes.js` | Passed | Syntax check |
+| 2026-07-02 | Phase 4 | `npm.cmd test -- tests/modules/department-budgets` | Passed | 2 test files, 7 tests |
+| 2026-07-02 | Phase 4 | `npx.cmd eslint src/pages/budget/BudgetEnteryPage.jsx src/pages/budget/MyBudgetsPage.jsx src/pages/budget/BudgetViewPage.jsx src/api/budget.api.js src/hooks/budgets/useCreateBudgetManual.js src/helpers/budgetRows.helper.js src/helpers/budgetValidation.helper.js src/components/budgets/shared/BudgetDistributionTable.jsx src/components/budgets/shared/BudgetDistributionRow.jsx src/components/budgets/shared/BudgetSummaryPanel.jsx src/components/budgets/shared/BudgetCompactSummaryPanel.jsx src/components/budgets/CopyBudgetPreview.jsx src/components/budgets/CopyBudgetHistoryList.jsx src/components/budgets/shared/BudgetItemsTable.jsx` | Passed | Focused frontend lint |
+| 2026-07-02 | Phase 4 | `npm.cmd run build` in `client` | Passed | Vite v8.0.10 transformed 3173 modules and built successfully |
+| 2026-07-02 | Phase 4 | `rg "BS_budgets|BS_budget_items|BS_budget_item_distribution|BS_budget_notes|BS_budget_types|BS_department_budget_request_items" server\modules\department-budgets client\src\pages\budget\BudgetEnteryPage.jsx client\src\hooks\budgets\useCreateBudgetManual.js client\src\api\budget.api.js client\src\helpers\budgetRows.helper.js client\src\helpers\budgetValidation.helper.js client\src\components\budgets\shared\BudgetDistributionRow.jsx client\src\components\budgets\shared\BudgetDistributionTable.jsx` | Passed | No removed old-table references in Phase 4 paths |
+| 2026-07-02 | Phase 4 | `rg "can_view_budget|can_edit_budget|can_approve_budget|can_manage_categories" server\modules\department-budgets client\src\pages\budget\BudgetEnteryPage.jsx client\src\hooks\budgets\useCreateBudgetManual.js client\src\api\budget.api.js` | Passed | No legacy permission aliases in Phase 4 paths |
+| 2026-07-02 | Phase 4 | `rg "budgetItems.validator|budgetItems.repository|budgetItems.service|budgets.service|budgets.controller|budgetItems.controller|budgets.routes|budgetItems.routes" server client\src` | Passed with expected test-name match | Only `departmentBudgets.service.test.js` contains the words "department budgets service" |
+| 2026-07-02 | Phase 4 category-tab lock correction | `npx.cmd eslint src/pages/budget/BudgetEnteryPage.jsx src/hooks/budgets/useCreateBudgetManual.js src/components/budgets/shared/BudgetDistributionRow.jsx src/components/budgets/shared/BudgetDistributionTable.jsx` | Passed | Focused lint for the locked-category Budget Entry correction |
+| 2026-07-02 | Phase 4 category-tab lock correction | `rg -n "Locked to selected tab|Category being submitted|Search category|name=.category.|onChange=.*category" client\src\pages\budget\BudgetEnteryPage.jsx client\src\hooks\budgets\useCreateBudgetManual.js client\src\components\budgets\shared\BudgetDistributionRow.jsx` | Passed | Found only the intended locked-category helper and submission-modal text; no editable category search/control pattern remained in the affected row path |
+| 2026-07-02 | Phase 4 category-tab lock correction | `npm.cmd run build` in `client` | Passed | Vite v8.0.10 transformed 3173 modules and built successfully |
+| 2026-07-02 | Phase 4 category-tab lock correction | `npm.cmd test -- tests/modules/department-budgets` in `server` | Passed | 2 test files, 7 tests |
+| 2026-07-05 | Phase 4 returned-budget correction | `node --check server\modules\department-budgets\departmentBudgets.service.js` | Passed | Returned-budget save enforcement syntax |
+| 2026-07-05 | Phase 4 returned-budget correction | `node --check server\modules\department-budgets\departmentBudgets.controller.js` | Passed | Review-feedback controller syntax |
+| 2026-07-05 | Phase 4 returned-budget correction | `node --check server\modules\department-budgets\departmentBudgets.routes.js` | Passed | Review-feedback route syntax |
+| 2026-07-05 | Phase 4 returned-budget correction | `node --check server\tests\modules\department-budgets\departmentBudgets.service.test.js` | Passed | Department-budget service test syntax |
+| 2026-07-05 | Phase 4 returned-budget correction | `node --check server\modules\department-budgets\departmentBudgets.repository.js` | Passed | Repository syntax unchanged but rechecked |
+| 2026-07-05 | Phase 4 returned-budget correction | `npm.cmd test -- tests/modules/department-budgets/departmentBudgets.service.test.js` in `server` | Passed | 1 file, 11 tests; covers DRAFT omission, returned new-item rejection, returned omission rejection, catalog-change rejection, accepted-item read-only, needs-modification correction, and restored review-feedback mapping |
+| 2026-07-05 | Phase 4 returned-budget correction | `npx.cmd eslint src\pages\budget\BudgetEnteryPage.jsx src\hooks\budgets\useCreateBudgetManual.js src\components\budgets\shared\BudgetDistributionTable.jsx src\components\budgets\shared\BudgetDistributionRow.jsx` in `client` | Passed | Focused frontend lint |
+| 2026-07-05 | Phase 4 returned-budget correction | `npm.cmd run build` in `client` | Passed | Vite v8.0.10 transformed 3178 modules and built successfully |
+
+### Phase 4 Returned-Budget Correction - Superseded 2026-07-05
+
+The temporary returned-budget correction behavior was superseded by the revised Phase 5 workflow before Phase 5C began. It must not be treated as active workflow behavior.
+
+Active Department Budget rules after the revised workflow:
+
+- `DRAFT` category budgets keep the replacement-based Save Draft behavior: added rows, catalog-item changes, quantity/distribution edits, and removed saved rows are persisted only on Save Draft. Omitted saved rows may be soft-deactivated by `deactivateCategoryBudgetItemsNotInListRepo`.
+- Removing a persisted row in `DRAFT` is tracked as a structural unsaved change so the page does not incorrectly show "All changes are saved" before Save Draft.
+- Submission moves the category budget from `DRAFT` to `IN_CATEGORY_REVIEW`.
+- After submission, the HOD Budget Entry view is read-only. HOD users cannot add rows, import rows, copy from history, request an item from the submitted-entry toolbar, delete rows, replace catalog items, change quantities, change distributions, or resubmit in the same review cycle.
+- Category Manager decisions are visible to the HOD in Budget Entry as read-only decision data: requested quantity, approved quantity, difference, review note, review status, reviewed by, and reviewed at.
+- There is no active `RETURNED_TO_DEPARTMENT` or `NEEDS_MODIFICATION` department correction flow between Category Manager and HOD.
+- A reviewed department item uses `CATEGORY_REVIEW_COMPLETED`; approved quantity `0` means the item was reviewed and not approved for package demand.
+- `GET /api/budgets/:departmentBudgetId/review-feedback` was removed from the new `department-budgets` module. Any remaining old feedback components are deferred legacy code and must not be used by the new workflow.
+
+Files changed:
+
+- `client/src/pages/budget/BudgetEnteryPage.jsx`
+- `client/src/hooks/budgets/useCreateBudgetManual.js`
+- `client/src/components/budgets/shared/BudgetDistributionTable.jsx`
+- `client/src/components/budgets/shared/BudgetDistributionRow.jsx`
+- `server/modules/department-budgets/departmentBudgets.service.js`
+- `server/tests/modules/department-budgets/departmentBudgets.service.test.js`
+
+### Phase 4 Completion Record
+
+Phase 4 was completed by user approval after implementation, automated validation, and review. The following live scenarios remain useful regression checks for future phases and releases:
+
+- HOD opens Budget Entry and sees the initialized department annual budget.
+- IT, Biomedical, and General category tabs show the correct category budgets.
+- Row category is locked to the active tab and cannot be changed by the HOD.
+- Switching tabs loads and saves rows only for the selected tab's category budget.
+- Submit confirmation clearly names the active category budget and states that only that category is submitted.
+- HOD adds a generic catalog item request with requested quantity and valid distribution.
+- Missing or mismatched distributions are rejected.
+- Save Draft persists to `BS_department_category_budget_items` and `BS_department_category_budget_item_distributions`.
+- Refresh preserves saved rows from the database.
+- Submit moves only the active category budget to `IN_CATEGORY_REVIEW`.
+- Submission creates or reuses `BS_category_budget_package_items`.
+- Submission creates the year-specific `General` row in `BS_category_budget_package_sub_items` when missing.
+- Submitted rows become read-only.
+- Submitted category budgets are read-only to HOD users.
+- Reviewed Category Manager decisions are visible in Budget Entry as read-only requested quantity, approved quantity, difference, note, reviewer, and timestamp.
+- Workflow-history and audit rows exist for save and submit.
+- Copy From History loads new-workflow category history and copies rows into the active category.
+- Department workspace cannot access another department budget.
+
+Phase 5A and Phase 5B are complete. Phase 5C has not started. Prepare and review/approve the Phase 5C Category Package Preparation and Reconciliation plan before implementation.
+
+### Revised Department-to-Category Workflow Before Phase 5C - 2026-07-05
+
+Approved before Phase 5C implementation.
+
+The active workflow is:
+
+```text
+HOD submits department category budget
+-> Category Manager reviews submitted items
+-> Category Manager records approved quantities and notes
+-> HOD sees decisions in Budget Entry as read-only updates
+-> Category Manager closes the category submission window
+-> Category Manager completes reviews for submitted departments
+-> Category Manager prepares/reconciles the category package from approved quantities
+-> Category Manager submits package to CFO
+-> CFO approves package or returns it to Category Manager
+-> Category Manager updates the package and resubmits to CFO when required
+```
+
+Rules:
+
+- There is no active return-to-HOD correction cycle in Category Manager review.
+- Department category budgets use `DRAFT`, `IN_CATEGORY_REVIEW`, and `CATEGORY_REVIEW_COMPLETED`.
+- Department budget items use `DRAFT`, `PENDING_CATEGORY_REVIEW`, and `CATEGORY_REVIEW_COMPLETED`.
+- `RETURNED_TO_DEPARTMENT`, department-level `CATEGORY_ACCEPTED`, and department-level `NEEDS_MODIFICATION` are retired from the active department review model.
+- `requested_quantity` remains the HOD's original request and is never overwritten by Category Manager review.
+- `category_approved_quantity` is the Category Manager's decision and may be less than, equal to, greater than, or `0` compared with requested quantity.
+- Approved quantity `0` means the item was reviewed and not approved for package demand; no separate department-level rejected status is required.
+- Category Manager may update only approved quantity and review note for submitted department items.
+- HOD Budget Entry remains editable only in `DRAFT`; after submission it is informational/read-only.
+- Budget Entry shows each reviewed item with requested quantity, approved quantity, difference, review status, Category Manager note, reviewed by, and reviewed at.
+- If a previously reviewed decision changes, affected department users are notified through `DEPARTMENT_BUDGET_APPROVAL_UPDATED`.
+- Phase 5C package demand and reconciliation must use `SUM(category_approved_quantity)`, not `SUM(requested_quantity)`.
+- CFO returns are package-level returns to the Category Manager only; CFO does not return a department budget directly to HOD.
+
+Database/reset note:
+
+- Because the system is still in development, the clean active model is preferred over preserving old test data statuses.
+- `server/scripts/migrate-simplified-department-review-workflow.sql` documents the development migration/reset path for existing test databases by converting old department review statuses and replacing the old check constraints.
+- Do not run the script automatically from application code. Apply it deliberately during environment migration/reset.
+
+Validation recorded for the revised workflow cleanup:
+
+| Date | Command | Result | Notes |
+|---|---|---|---|
+| 2026-07-05 | `npm.cmd test -- tests/modules/category-review/categoryReview.service.test.js` in `server` | Passed | 1 file, 11 tests |
+| 2026-07-05 | `npm.cmd test -- tests/modules/department-budgets/departmentBudgets.service.test.js` in `server` | Passed | 1 file, 7 tests |
+| 2026-07-05 | `npm.cmd test -- tests/notifications/recipientResolver.test.js` in `server` | Passed | 1 file, 2 tests |
+| 2026-07-05 | `npx.cmd eslint src/pages/category-review/CategoryReviewPage.jsx src/pages/budget/BudgetEnteryPage.jsx src/components/budgets/shared/BudgetDistributionRow.jsx src/components/budgets/shared/BudgetDistributionTable.jsx src/helpers/budgetRows.helper.js src/hooks/budgets/useCreateBudgetManual.js src/api/categoryReview.api.js` in `client` | Passed | Focused frontend lint |
+| 2026-07-05 | `npm.cmd run build` in `client` | Passed | Vite build completed; 3177 modules transformed |
+| 2026-07-05 | `rg -n "RETURNED_TO_DEPARTMENT|NEEDS_MODIFICATION|CATEGORY_ACCEPTED|DEPARTMENT_CATEGORY_BUDGET_RETURNED|Return to Department|Needs Modification|returnDepartmentCategoryBudget|markCategoryBudgetReturnedRepo|getDepartmentBudgetReviewFeedback" server\modules server\notifications client\src\pages\category-review client\src\pages\budget client\src\components\budgets\shared client\src\hooks\budgets client\src\helpers server\tests\modules\category-review server\tests\modules\department-budgets -g !node_modules -g !dist` | Passed | No retired department-return symbols in the active new-workflow boundary |
+
+## 31A. Phase 5A Plan - Category Manager Review
+
+Status: `COMPLETED`
+
+Started: 2026-07-04
+Completed: 2026-07-04
+
+Phase 5 remains one roadmap phase, but it is executed as separately validated subphases:
+
+```text
+5A - Category Manager Review
+5B - Category Submission Windows
+5C - Category Package Preparation and Reconciliation
+5D - CFO Review
+```
+
+Phase 5A owns only the Category Manager review of submitted department category budgets.
+
+### Scope
+
+- Create `server/modules/category-review`.
+- Add Category Manager review APIs for assigned-category queue, department category budget detail, approved-quantity item decisions, and review completion.
+- Enforce selected Category Manager workspace scope through `BS_budget_user_roles.budget_category_id`.
+- Use canonical permissions only:
+  - `PERMISSION_CODES.VIEW_CATEGORY_BUDGET_REQUESTS`
+  - `PERMISSION_CODES.REVIEW_DEPARTMENT_CATEGORY_REQUESTS`
+- Replace old frontend review/approval access for Category Manager with a new Category Review page.
+- Show assigned category, financial year, department review queue, item decisions, distribution details, pending/reviewed counts, approved quantity differences, and completion actions.
+- Write workflow history, audit logs, and notifications for review decisions, decision updates, and completion.
+- Add targeted backend tests and focused frontend lint/build validation.
+
+### Explicit Exclusions
+
+- No category submission window close/reopen commands in 5A.
+- No package sub-item editing, pricing, attachments, or reconciliation in 5A.
+- No package submission to CFO in 5A.
+- No CFO review in 5A.
+- No change requests, transfers, PO linking, reports, or production-readiness work.
+- No broad old workflow refactor outside files directly replaced by Category Review navigation/routes.
+
+### Database Tables
+
+- `BS_department_category_budgets`
+- `BS_department_category_budget_items`
+- `BS_department_category_budget_item_distributions`
+- `BS_department_budgets`
+- `BS_departments`
+- `BS_budget_categories`
+- `BS_budget_catalog_items`
+- `BS_financial_years`
+- `BS_budget_workflow_history`
+- `BS_audit_logs`
+- `BS_Notifications`
+
+### Route Authorization Matrix
+
+| Method | Route | Business Purpose | Consumer | Permission | Workspace Scope | Object Scope |
+|---|---|---|---|---|---|---|
+| `GET` | `/api/category-review/queue` | Review queue and summary | Category Manager | `VIEW_CATEGORY_BUDGET_REQUESTS` | Category workspace | Active assignment category only |
+| `GET` | `/api/category-review/budgets/:departmentCategoryBudgetId` | Department category budget review detail | Category Manager | `VIEW_CATEGORY_BUDGET_REQUESTS` | Category workspace | Budget category must match workspace category |
+| `PATCH` | `/api/category-review/items/:itemId/decision` | Record approved quantity and review note | Category Manager | `REVIEW_DEPARTMENT_CATEGORY_REQUESTS` | Category workspace | Item's parent category must match workspace category |
+| `PATCH` | `/api/category-review/budgets/:departmentCategoryBudgetId/complete` | Mark category review completed | Category Manager | `REVIEW_DEPARTMENT_CATEGORY_REQUESTS` | Category workspace | Every active item must be `CATEGORY_REVIEW_COMPLETED` |
+
+### Completion Criteria
+
+- Category Manager sees only their assigned category.
+- Category Manager cannot view or modify another category.
+- Submitted department category budgets appear in the review queue.
+- Item decisions record `category_approved_quantity`, optional review note, reviewer, and timestamp.
+- Approved quantity may be `0`; this means reviewed and not approved for package demand.
+- Completion requires every active submitted item to be reviewed.
+- HOD submitted/reviewed Budget Entry remains read-only and displays Category Manager decisions.
+- Workflow history, audit, and notification behavior is recorded.
+- New frontend page is polished enough for operational review and does not reuse old CFO approval terminology.
+- Targeted backend tests, syntax checks, focused frontend lint, client build, and old-permission scan pass for 5A paths.
+
+### Implemented Backend Module Tree
+
+```text
+server/modules/category-review/
+  categoryReview.constants.js
+  categoryReview.controller.js
+  categoryReview.mapper.js
+  categoryReview.repository.js
+  categoryReview.routes.js
+  categoryReview.service.js
+  categoryReview.validators.js
+```
+
+### Implemented APIs
+
+- `GET /api/category-review/queue`
+- `GET /api/category-review/budgets/:departmentCategoryBudgetId`
+- `PATCH /api/category-review/items/:itemId/decision`
+- `PATCH /api/category-review/budgets/:departmentCategoryBudgetId/complete`
+
+### Frontend Files
+
+- `client/src/api/categoryReview.api.js`
+- `client/src/pages/category-review/CategoryReviewPage.jsx`
+- `client/src/routes/AppRouter.jsx`
+- `client/src/layouts/DashboardLayout.jsx`
+
+### Notification Updates
+
+- Added `DEPARTMENT_CATEGORY_BUDGET_RETURNED`.
+- Added `CATEGORY_REVIEW_COMPLETED`.
+- Return notifications use canonical department-scoped permission resolution with `PERMISSION_CODES.MANAGE_DEPARTMENT_BUDGET_REQUESTS`.
+- Completion notifications use canonical category-scoped permission resolution with `PERMISSION_CODES.VIEW_CATEGORY_BUDGET_REQUESTS`.
+- No legacy permission middleware or old permission aliases were introduced.
+
+### Validation Log
+
+| Date | Command | Result | Notes |
+|---|---|---|---|
+| 2026-07-04 | `node --check server\modules\category-review\categoryReview.constants.js` | Passed | Syntax check |
+| 2026-07-04 | `node --check server\modules\category-review\categoryReview.mapper.js` | Passed | Syntax check |
+| 2026-07-04 | `node --check server\modules\category-review\categoryReview.validators.js` | Passed | Syntax check |
+| 2026-07-04 | `node --check server\modules\category-review\categoryReview.repository.js` | Passed | Syntax check |
+| 2026-07-04 | `node --check server\modules\category-review\categoryReview.service.js` | Passed | Syntax check |
+| 2026-07-04 | `node --check server\modules\category-review\categoryReview.controller.js` | Passed | Syntax check |
+| 2026-07-04 | `node --check server\modules\category-review\categoryReview.routes.js` | Passed | Syntax check |
+| 2026-07-04 | `node --check server\server.js` | Passed | Module router mounted |
+| 2026-07-04 | `npm.cmd test -- tests/modules/category-review` | Passed | 1 test file, 8 tests |
+| 2026-07-04 | `npm.cmd test -- tests/notifications/recipientResolver.test.js` | Passed | Existing notification resolver tests still pass |
+| 2026-07-04 | `npx.cmd eslint src/pages/category-review/CategoryReviewPage.jsx src/api/categoryReview.api.js src/routes/AppRouter.jsx src/layouts/DashboardLayout.jsx` | Passed | Focused frontend lint |
+| 2026-07-04 | `npm.cmd run build` in `client` | Passed | Vite built successfully; `CategoryReviewPage` bundle generated |
+| 2026-07-04 | `rg -n "can_view_budget|can_edit_budget|can_approve_budget|can_manage_categories|can_manage_financial_years|requirePermission\(" server\modules\category-review client\src\pages\category-review client\src\api\categoryReview.api.js` | Passed | No matches; no legacy permissions in 5A paths |
+| 2026-07-04 | `rg -n "BS_budgets|BS_budget_items|BS_budget_item_distribution|BS_budget_types|BS_category_review_packages|BS_category_type_reviews" server\modules\category-review client\src\pages\category-review client\src\api\categoryReview.api.js` | Passed | No matches; no removed old tables in 5A paths |
+
+## 31B. Phase 5B Plan - Category Submission Windows
+
+Status: `COMPLETED`
+
+Started: 2026-07-05
+Completed: 2026-07-05
+
+Phase 5B owns Category Manager control of the assigned category's submission window for the active `OPEN` financial year.
+
+### Scope Completed
+
+- Kept the implementation inside `server/modules/category-review` because the window control is a Category Manager operation tied to the selected category workspace.
+- Added API support to read, close, and reopen the active category submission window.
+- Enforced selected `CATEGORY_BUDGET_MANAGER` workspace scope through the active assignment's `budget_category_id`.
+- Used canonical permissions only:
+  - `PERMISSION_CODES.VIEW_CATEGORY_BUDGET_REQUESTS`
+  - `PERMISSION_CODES.CONTROL_CATEGORY_SUBMISSION_WINDOW`
+- Required a reopen reason.
+- Allowed an optional close reason.
+- Blocked close/reopen while the financial year is not `OPEN`.
+- Kept department submission blocking authoritative in `departmentBudgets.service.js`, which already rejects category submissions when the matching `BS_category_submission_windows.status` is not `OPEN`.
+- Added workflow history and audit records for close and reopen.
+- Added durable notifications for close and reopen using the canonical notification recipient resolver.
+- Added a visible Category Submission Window panel to the Category Review page.
+
+### APIs Implemented
+
+```text
+GET   /api/category-review/submission-window
+PATCH /api/category-review/submission-window/close
+PATCH /api/category-review/submission-window/reopen
+```
+
+### Database Tables Used
+
+- `BS_category_submission_windows`
+- `BS_financial_years`
+- `BS_budget_categories`
+- `BS_budget_workflow_history`
+- `BS_audit_logs`
+- `BS_Notifications`
+- `BS_budget_user_roles`
+- `BS_budget_permissions`
+- `BS_budget_role_permissions`
+- `BS_budget_user_permission_overrides`
+
+No schema changes were made.
+
+### Route Authorization Matrix
+
+| Method | Route | Business Purpose | Consumer | Permission | Workspace Scope | Object Scope |
+|---|---|---|---|---|---|---|
+| `GET` | `/api/category-review/submission-window` | View assigned category window | Category Manager | `VIEW_CATEGORY_BUDGET_REQUESTS` | Category workspace | Active assignment category only |
+| `PATCH` | `/api/category-review/submission-window/close` | Close assigned category submissions | Category Manager | `CONTROL_CATEGORY_SUBMISSION_WINDOW` | Category workspace | Active assignment category only; financial year must be `OPEN`; window must be `OPEN` |
+| `PATCH` | `/api/category-review/submission-window/reopen` | Reopen assigned category submissions | Category Manager | `CONTROL_CATEGORY_SUBMISSION_WINDOW` | Category workspace | Active assignment category only; financial year must be `OPEN`; window must be `CLOSED`; reason required |
+
+### Frontend Files
+
+- `client/src/pages/category-review/CategoryReviewPage.jsx`
+- `client/src/api/categoryReview.api.js`
+
+The UI displays:
+
+- current category;
+- financial year;
+- window status;
+- last closer and close timestamp;
+- reopen reason;
+- Close submissions action;
+- Reopen submissions action;
+- confirmation modal explaining the impact of closing;
+- required reopen-reason modal.
+
+### Backend Files
+
+- `server/modules/category-review/categoryReview.constants.js`
+- `server/modules/category-review/categoryReview.validators.js`
+- `server/modules/category-review/categoryReview.mapper.js`
+- `server/modules/category-review/categoryReview.repository.js`
+- `server/modules/category-review/categoryReview.service.js`
+- `server/modules/category-review/categoryReview.controller.js`
+- `server/modules/category-review/categoryReview.routes.js`
+
+### Notification Updates
+
+- Added `CATEGORY_SUBMISSION_WINDOW_CLOSED`.
+- Added `CATEGORY_SUBMISSION_WINDOW_REOPENED`.
+- Added `server/notifications/templates/categorySubmissionWindow.template.js`.
+- Close/reopen notifications use `PERMISSION_CODES.MANAGE_DEPARTMENT_BUDGET_REQUESTS` with `GLOBAL` scope because the current notification resolver supports `GLOBAL`, `CATEGORY`, and `DEPARTMENT`; department assignments are not category-scoped. This notifies department-budget managers that the category-wide submission state changed.
+
+### Validation Log
+
+| Date | Command | Result | Notes |
+|---|---|---|---|
+| 2026-07-05 | `node --check server\modules\category-review\categoryReview.constants.js` | Passed | Syntax check |
+| 2026-07-05 | `node --check server\modules\category-review\categoryReview.validators.js` | Passed | Syntax check |
+| 2026-07-05 | `node --check server\modules\category-review\categoryReview.mapper.js` | Passed | Syntax check |
+| 2026-07-05 | `node --check server\modules\category-review\categoryReview.repository.js` | Passed | Syntax check |
+| 2026-07-05 | `node --check server\modules\category-review\categoryReview.service.js` | Passed | Syntax check |
+| 2026-07-05 | `node --check server\modules\category-review\categoryReview.controller.js` | Passed | Syntax check |
+| 2026-07-05 | `node --check server\modules\category-review\categoryReview.routes.js` | Passed | Syntax check |
+| 2026-07-05 | `node --check server\constants\notificationTypes.js` | Passed | Syntax check |
+| 2026-07-05 | `node --check server\notifications\notificationConfig.js` | Passed | Syntax check |
+| 2026-07-05 | `node --check server\notifications\buildNotificationPayload.js` | Passed | Syntax check |
+| 2026-07-05 | `node --check server\notifications\templateResolver.js` | Passed | Syntax check |
+| 2026-07-05 | `node --check server\notifications\templates\categorySubmissionWindow.template.js` | Passed | Syntax check |
+| 2026-07-05 | `npm.cmd test -- tests/modules/category-review/categoryReview.service.test.js` in `server` | Passed | 1 file, 12 tests |
+| 2026-07-05 | `npm.cmd test -- tests/notifications/recipientResolver.test.js` in `server` | Passed | 1 file, 2 tests |
+| 2026-07-05 | `npx.cmd eslint src\pages\category-review\CategoryReviewPage.jsx src\api\categoryReview.api.js` in `client` | Passed | Focused frontend lint |
+| 2026-07-05 | `npm.cmd run build` in `client` | Passed | Vite v8.0.10 transformed 3178 modules and built successfully |
+| 2026-07-05 | `rg -n "BS_budgets|BS_budget_items|BS_budget_item_distribution|BS_budget_types|BS_category_review_packages|BS_category_type_reviews|BS_category_type_review" server\modules\category-review client\src\pages\category-review client\src\api\categoryReview.api.js` | Passed | No removed old-table references in Phase 5B paths |
+| 2026-07-05 | `rg -n "can_view_budget|can_edit_budget|can_approve_budget|can_manage_categories|can_manage_financial_years|requirePermission\(" server\modules\category-review client\src\pages\category-review client\src\api\categoryReview.api.js` | Passed | No legacy permission aliases in Phase 5B paths |
+| 2026-07-05 | `git diff --check -- server\modules\category-review server\tests\modules\category-review server\constants\notificationTypes.js server\notifications\notificationConfig.js server\notifications\buildNotificationPayload.js server\notifications\templateResolver.js server\notifications\templates\categorySubmissionWindow.template.js client\src\pages\category-review\CategoryReviewPage.jsx client\src\api\categoryReview.api.js` | Passed | Scoped whitespace check |
+
+## 31C. Phase 5C Plan - Category Package Preparation and Reconciliation
+
+Status: `IN_REVIEW`
+
+Started: 2026-07-06
+
+Phase 5C owns the Category Manager hospital-wide package-preparation workflow for the assigned category and active `OPEN` financial year.
+
+### Scope Implemented
+
+- Created `server/modules/category-packages`.
+- Added the category package API under `/api/category-packages`.
+- Added the package allocation relationship script:
+  - `server/scripts/add-category-package-sub-item-allocations.sql`
+- Added the frontend API:
+  - `client/src/api/categoryPackages.api.js`
+- Added the package workbench component:
+  - `client/src/components/category-packages/CategoryPackageWorkbench.jsx`
+- Embedded the package workbench into the existing Category Manager page:
+  - `client/src/pages/category-review/CategoryReviewPage.jsx`
+
+### Allocation Database Rule
+
+Phase 5C adds one normalized allocation relationship:
+
+```text
+BS_department_category_budget_items
+        |
+        | allocated_quantity
+        v
+BS_category_budget_package_sub_item_allocations
+        |
+        v
+BS_category_budget_package_sub_items
+```
+
+The allocation row owns only:
+
+```text
+department category budget item
+package sub-item
+allocated quantity
+audit/concurrency metadata
+```
+
+It must not own price, specification, unit, note, attachment, reusable-model identity, or package-sub-item identity.
+
+Zero allocations are not stored. Saving zero removes the allocation row.
+
+### Shared Package Sub-Item Rule
+
+One year-specific package sub-item is shared across the hospital package.
+
+For example:
+
+```text
+Dell Latitude 5450
+```
+
+has one shared:
+
+```text
+unit price
+specification snapshot
+unit of measure
+package note
+attachment set
+system-maintained quantity
+```
+
+Departments allocated to Dell must not have different Dell prices, specifications, units, notes, or attachments.
+
+### Quantity and Reconciliation Rules
+
+- `BS_category_budget_package_sub_items.quantity` remains.
+- It is system-maintained from department allocations while the package is editable.
+- It is not exposed as an independent editable field.
+- Package demand uses `SUM(BS_department_category_budget_items.category_approved_quantity)`.
+- Reconciliation is enforced at:
+  - department item level;
+  - package sub-item level;
+  - generic package item level.
+- Under-allocation can be saved while the package remains editable.
+- A new save that overallocates a department item is rejected.
+- Existing excess caused by a later approved-quantity reduction is preserved and shown as needing reconciliation until manually corrected.
+
+### UI/UX Direction
+
+The Category Manager uses one coherent page:
+
+```text
+CategoryReviewPage
+  -> Department Review workspace
+  -> Category Package Workbench
+```
+
+The package workbench shows:
+
+- assigned category and financial year context;
+- package readiness blockers;
+- approved demand, allocated demand, remaining demand;
+- requested generic item list;
+- shared models and pricing table;
+- department demand breakdown;
+- allocation drawer that edits only allocated quantity;
+- CFO submission confirmation.
+
+The UI intentionally keeps shared model details and department allocations separate:
+
+- shared model details are edited once per package sub-item;
+- department allocation drawer edits only allocation quantity;
+- model identity is locked after package sub-item creation.
+
+### APIs Implemented
+
+```text
+GET    /api/category-packages/current
+GET    /api/category-packages/readiness
+GET    /api/category-packages/items/:packageItemId
+POST   /api/category-packages/items/:packageItemId/sub-items
+PATCH  /api/category-packages/sub-items/:packageSubItemId
+DELETE /api/category-packages/sub-items/:packageSubItemId
+PUT    /api/category-packages/department-items/:departmentItemId/allocations
+PATCH  /api/category-packages/:packageId/submit-to-cfo
+```
+
+### Route Authorization Matrix
+
+| Method | Route | Business Purpose | Consumer | Permission | Workspace Scope | Object Scope |
+|---|---|---|---|---|---|---|
+| `GET` | `/api/category-packages/current` | View assigned category package | Category Manager | `MANAGE_CATEGORY_BUDGET_PACKAGES` | Category workspace | Active assignment category only |
+| `GET` | `/api/category-packages/readiness` | View CFO submission blockers | Category Manager | `MANAGE_CATEGORY_BUDGET_PACKAGES` | Category workspace | Active assignment category only |
+| `GET` | `/api/category-packages/items/:packageItemId` | View package item detail | Category Manager | `MANAGE_CATEGORY_BUDGET_PACKAGES` | Category workspace | Package item category must match assignment |
+| `POST` | `/api/category-packages/items/:packageItemId/sub-items` | Add shared package model | Category Manager | `MANAGE_CATEGORY_BUDGET_SUB_ITEMS` | Category workspace | Package item category must match assignment |
+| `PATCH` | `/api/category-packages/sub-items/:packageSubItemId` | Edit shared price/spec/note | Category Manager | `MANAGE_CATEGORY_BUDGET_SUB_ITEMS` | Category workspace | Package sub-item category must match assignment |
+| `DELETE` | `/api/category-packages/sub-items/:packageSubItemId` | Remove shared package model and allocations while editable | Category Manager | `MANAGE_CATEGORY_BUDGET_SUB_ITEMS` | Category workspace | Package sub-item category must match assignment |
+| `PUT` | `/api/category-packages/department-items/:departmentItemId/allocations` | Replace department allocation split | Category Manager | `MANAGE_CATEGORY_BUDGET_SUB_ITEMS` | Category workspace | Department item category must match assignment and selected package sub-items |
+| `PATCH` | `/api/category-packages/:packageId/submit-to-cfo` | Submit reconciled package to CFO | Category Manager | `SUBMIT_CATEGORY_BUDGET_PACKAGES_TO_CFO` | Category workspace | Package category must match assignment |
+
+### Backend Files
+
+- `server/modules/category-packages/categoryPackages.constants.js`
+- `server/modules/category-packages/categoryPackages.validators.js`
+- `server/modules/category-packages/categoryPackages.mapper.js`
+- `server/modules/category-packages/categoryPackages.repository.js`
+- `server/modules/category-packages/categoryPackages.service.js`
+- `server/modules/category-packages/categoryPackages.controller.js`
+- `server/modules/category-packages/categoryPackages.routes.js`
+- `server/server.js`
+
+### Validation Log
+
+| Date | Command | Result | Notes |
+|---|---|---|---|
+| 2026-07-06 | `node --check server\modules\category-packages\categoryPackages.constants.js` | Passed | Syntax check |
+| 2026-07-06 | `node --check server\modules\category-packages\categoryPackages.validators.js` | Passed | Syntax check |
+| 2026-07-06 | `node --check server\modules\category-packages\categoryPackages.repository.js` | Passed | Syntax check |
+| 2026-07-06 | `node --check server\modules\category-packages\categoryPackages.service.js` | Passed | Syntax check |
+| 2026-07-06 | `node --check server\modules\category-packages\categoryPackages.controller.js` | Passed | Syntax check |
+| 2026-07-06 | `node --check server\modules\category-packages\categoryPackages.routes.js` | Passed | Syntax check |
+| 2026-07-06 | `node --check server\server.js` | Passed | Syntax check |
+| 2026-07-06 | `npm.cmd test -- tests/modules/category-packages/categoryPackages.service.test.js` in `server` | Passed | 1 file, 3 tests |
+| 2026-07-06 | `npx.cmd eslint client/src/components/category-packages/CategoryPackageWorkbench.jsx client/src/api/categoryPackages.api.js` | Passed | Focused lint for new Phase 5C frontend files |
+| 2026-07-06 | `npm.cmd run build` in `client` | Passed | Vite v8.0.10 built successfully |
+
+### Remaining Phase 5C Blocker
+
+Package sub-item attachment upload/download/remove is still blocked by missing active shared file-storage/upload implementation in the current new-workflow backend. The table exists and the workbench displays attachment counts from `BS_category_budget_package_sub_item_attachments`, but attachment management must be completed before Phase 5C can be marked `COMPLETED`.
+
+### Remaining Phase 5 Work
+
+- Complete Phase 5C attachment management and live DB/UI validation.
+- Phase 5D: CFO Review.
+
+## 32. Canonical Permission Architecture Boundary Refactor
+
+Status: `IN_REVIEW`
+
+Implementation date: 2026-07-04
+
+Scope boundary:
+
+- Canonical permission architecture is applied now to new-workflow modules and shared infrastructure they require.
+- Deferred old workflow modules may temporarily keep their legacy permission path until their owning module is migrated or deleted.
+- Do not claim the entire repository is legacy-free until the final old-module retirement scan passes.
+- The live database contains no legacy permission bit columns. Legacy permission names exist only in temporary application compatibility code and existing deferred old-route consumers.
+
+Implemented new-workflow boundary:
+
+- `server/modules/access-management`
+- `server/modules/department-budgets`
+- `server/modules/financial-years`
+- `server/modules/item-requests`
+- `server/modules/master-catalog`
+- `server/shared/middleware/requireBudgetPermission.js`
+- `server/notifications`
+- `server/services/notification.service.js`
+- new-workflow frontend route guards, layout navigation, dashboard actions, and shared permission helper
+
+Canonical contract:
+
+```text
+shared/permissions/permissionCodes.js
+```
+
+The shared contract exports `PERMISSION_CODES`, `PERMISSION_CODE_VALUES`,
+`assertCanonicalPermissionCode`, `hasPermission`, `hasAnyPermission`, and
+`hasAllPermissions`.
+
+Application code in the implemented new-workflow boundary must import canonical constants instead of repeating raw `can_*` strings.
+
+### Temporary Legacy Permission Compatibility Boundary
+
+The new-workflow enforcement boundary is canonical-only.
+
+A temporary isolated compatibility adapter remains for mounted old-workflow routes that have not reached their owning refactor phase:
+
+```text
+server/middleware/permission.middleware.js
+```
+
+This file is not part of the target architecture. It exists only to prevent existing mounted old-workflow routes from crashing while they await migration, replacement, or deletion. It maps legacy route names such as:
+
+```text
+can_approve_budget
+can_edit_budget
+can_manage_categories
+```
+
+to one or more canonical permissions from:
+
+```text
+shared/permissions/permissionCodes.js
+```
+
+The adapter:
+
+- does not restore legacy permission columns;
+- does not add legacy permissions to the database;
+- does not add legacy names to `PERMISSION_CODES`;
+- checks the canonical `req.budgetAccess.permissionCodes` produced by Access Management;
+- must not be imported by new-workflow modules;
+- must not be used by newly written routes.
+
+New-workflow permission path:
+
+```text
+New-workflow route
+-> server/shared/middleware/requireBudgetPermission.js
+-> PERMISSION_CODES.*
+-> req.budgetAccess.permissionCodes
+-> strict canonical permission helper
+```
+
+Example:
+
+```js
+requireBudgetPermission(
+  PERMISSION_CODES.MANAGE_BUDGET_CATALOG,
+)
+```
+
+Deferred old-workflow compatibility path:
+
+```text
+Old mounted route
+-> server/middleware/permission.middleware.js
+-> temporary legacy-name mapping
+-> canonical PERMISSION_CODES
+-> req.budgetAccess.permissionCodes
+```
+
+Example:
+
+```js
+requirePermission("can_approve_budget")
+```
+
+This second path is permitted only for existing deferred old-workflow consumers. Do not copy it into new files.
+
+Security limitation:
+
+- Some broad legacy permissions map to several canonical permissions using "any permission" behavior.
+- For example, `can_approve_budget` may temporarily correspond to multiple CFO-related canonical permissions.
+- This mapping is an approximation for operational continuity only. It is not precise enough for final route authorization.
+- When the owning module is refactored, broad router-level legacy protection must be replaced with precise route-specific permissions such as `PERMISSION_CODES.VIEW_CFO_CATEGORY_BUDGET_PACKAGES` for reads and `PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES` for approval commands.
+
+Removal conditions:
+
+The compatibility middleware can be deleted only after every import of `server/middleware/permission.middleware.js` has been removed. Each old consumer must first be deleted, unmounted as obsolete, or migrated to `requireBudgetPermission(PERMISSION_CODES.*)` with precise route-level permissions.
+
+Before deletion, verify:
+
+```powershell
+rg -n "middleware/permission.middleware|requirePermission\(" server
+```
+
+There must be no active consumer remaining.
+
+Repository scans should report deferred old-workflow consumers separately instead of treating them as canonical new-workflow code. The enforcement boundary expands as each old module is migrated or removed.
+
+Serialized access representation:
+
+```text
+budgetAccess.permissionCodes
+```
+
+`budgetAccess.permissions` is no longer serialized by Access Management for the new workflow. Helpers may create an in-memory `Set` from `permissionCodes`, but they must not maintain a second serialized permission map.
+
+Notification recipient architecture:
+
+```text
+New-workflow emitter
+-> notificationConfig using PERMISSION_CODES
+-> recipientResolver
+-> access-management getUsersByEffectivePermission
+-> normalized parameterized SQL where permission_code = @permissionCode
+```
+
+Permission codes are SQL values, not SQL identifiers. Notification permission lookup must not use dynamic SQL column names such as `r.${permissionColumn}` or `brp.${permissionColumn}`.
+
+Notification scope types currently supported:
+
+```text
+GLOBAL
+CATEGORY
+DEPARTMENT
+```
+
+Implemented mappings:
+
+| Notification | Permission | Scope |
+|---|---|---|
+| `ITEM_REQUEST_CREATED` | `PERMISSION_CODES.MANAGE_BUDGET_CATALOG` | `GLOBAL` |
+| `DEPARTMENT_CATEGORY_BUDGET_SUBMITTED` | `PERMISSION_CODES.REVIEW_DEPARTMENT_CATEGORY_REQUESTS` | `CATEGORY` by `payload.categoryId` |
+| `CATEGORY_BUDGET_PACKAGE_SUBMITTED` | `PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES` | `GLOBAL` |
+| `TRANSFER_CREATED` | `PERMISSION_CODES.APPROVE_CATEGORY_TRANSFERS` | `GLOBAL`, to be refined when Transfers is migrated |
+| `PO_LINK_SUBMITTED` | `PERMISSION_CODES.APPROVE_CATEGORY_PO_LINKS` | `GLOBAL`, to be refined when PO Linking is migrated |
+
+Deferred legacy inventory:
+
+- Old global route/controller/service/repository files outside implemented new-workflow modules may still contain old permission names.
+- Those files are not part of this enforcement boundary and must be migrated or deleted during their owning module phase.
+- `server/middleware/permission.middleware.js` remains deferred legacy infrastructure only for old workflow routes. New-workflow modules must not import it.
+
+Validation commands:
+
+```powershell
+cd D:\QNH-Budget-System-V2-Clean\server
+npm.cmd test -- tests/modules/access-management tests/modules/department-budgets tests/modules/item-requests tests/notifications/recipientResolver.test.js
+npm.cmd run scan:permission-boundary
+npm.cmd run validate:permissions
+
+cd D:\QNH-Budget-System-V2-Clean\client
+npx.cmd eslint src/helpers/permissions.js src/routes/AppRouter.jsx src/layouts/DashboardLayout.jsx src/config/dashboard/quickActions.js src/config/dashboard/dashboardCards.jsx src/config/dashboard/adminCards.jsx src/config/dashboard/workPanels.js src/pages/budget/MyBudgetsPage.jsx src/pages/budget/BudgetViewPage.jsx vite.config.js
+npm.cmd run build
+```
+
+Validation log:
+
+| Date | Command | Result | Notes |
+|---|---|---|---|
+| 2026-07-04 | `node --check shared\permissions\permissionCodes.js` | Passed | Canonical shared contract syntax |
+| 2026-07-04 | `node --check server\modules\access-management\access.constants.js` | Passed | Access constants syntax |
+| 2026-07-04 | `node --check server\modules\access-management\access.mapper.js` | Passed | Access mapper syntax |
+| 2026-07-04 | `node --check server\modules\access-management\access.service.js` | Passed | Access service syntax |
+| 2026-07-04 | `node --check server\modules\access-management\access.repository.js` | Passed | Access repository syntax |
+| 2026-07-04 | `node --check server\notifications\recipientResolver.js` | Passed | Recipient resolver syntax |
+| 2026-07-04 | `node --check server\notifications\notificationConfig.js` | Passed | Notification config syntax |
+| 2026-07-04 | `node --check server\repositories\notificationRecipients.repository.js` | Passed | Legacy permission-column lookup removed |
+| 2026-07-04 | `npm.cmd test -- tests/modules/access-management tests/modules/department-budgets tests/modules/item-requests tests/notifications/recipientResolver.test.js` | Passed | 7 files, 24 tests |
+| 2026-07-04 | Focused frontend ESLint command listed above | Passed | No output from ESLint |
+| 2026-07-04 | `npm.cmd run scan:permission-boundary` | Passed | Raw legacy permission scan passed in the implemented boundary |
+| 2026-07-04 | `npm.cmd run build` in `client` | Passed | Vite build succeeded |
+| 2026-07-04 | `npm.cmd run validate:permissions` | Timed out | Command was added, but live DB comparison did not complete within 120 seconds in this run |
+
+Remaining permission architecture follow-up:
+
+- Run `npm.cmd run validate:permissions` successfully against the live SQL Server connection before production readiness.
+- Expand `scan:permission-boundary` when each old module is migrated or deleted.
+- Remove deferred legacy permission infrastructure when no old route imports it.

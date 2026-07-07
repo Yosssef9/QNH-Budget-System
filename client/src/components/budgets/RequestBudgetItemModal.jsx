@@ -1,30 +1,53 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { Loader2, PackagePlus, X } from "lucide-react";
+import { PackagePlus, X } from "lucide-react";
 
 import Input from "../Input";
 import SearchableMultiSelect from "../SearchableMultiSelect";
 import { useCreateItemRequest } from "../../hooks/budgets/useBudgetSetup";
-import LoadingSpinner from "../LoadingSpinner";
 
 export default function RequestBudgetItemModal({
   open,
   onClose,
   categories = [],
+  defaultCategoryId = "",
 }) {
-  const [requestCategoryMode, setRequestCategoryMode] = useState("EXISTING");
   const [requestExistingCategoryId, setRequestExistingCategoryId] =
     useState("");
-  const [requestNewCategoryName, setRequestNewCategoryName] = useState("");
   const [requestTypeName, setRequestTypeName] = useState("");
   const [requestExpenseType, setRequestExpenseType] = useState("OPEX");
 
   const createItemRequestMutation = useCreateItemRequest();
+  const supportedCategories = useMemo(
+    () =>
+      categories.filter((category) => {
+        const code = String(category.category_code || category.code || "")
+          .trim()
+          .toUpperCase();
+        const name = String(category.name || "")
+          .trim()
+          .toUpperCase();
+
+        return (
+          ["IT", "BIOMEDICAL", "GENERAL"].includes(code) ||
+          ["IT", "BIOMEDICAL", "GENERAL"].includes(name)
+        );
+      }),
+    [categories],
+  );
+  const defaultSupportedCategoryId = useMemo(() => {
+    const defaultId = defaultCategoryId ? String(defaultCategoryId) : "";
+    const hasDefault = supportedCategories.some(
+      (category) => String(category.id) === defaultId,
+    );
+
+    return hasDefault ? defaultId : String(supportedCategories[0]?.id || "");
+  }, [defaultCategoryId, supportedCategories]);
+  const selectedCategoryId =
+    requestExistingCategoryId || defaultSupportedCategoryId;
 
   function resetForm() {
-    setRequestCategoryMode("EXISTING");
     setRequestExistingCategoryId("");
-    setRequestNewCategoryName("");
     setRequestTypeName("");
     setRequestExpenseType("OPEX");
   }
@@ -40,44 +63,52 @@ export default function RequestBudgetItemModal({
     e.preventDefault();
 
     const typeName = requestTypeName.trim();
-    const newCategoryName = requestNewCategoryName.trim();
 
     if (!typeName) {
-      toast.error("Requested item/type name is required");
+      toast.error("Requested item name is required");
       return;
     }
 
-    if (requestCategoryMode === "EXISTING" && !requestExistingCategoryId) {
-      toast.error("Please select an existing category");
+    if (!selectedCategoryId) {
+      toast.error("Please select IT, Biomedical, or General");
       return;
     }
 
-    if (requestCategoryMode === "NEW" && !newCategoryName) {
-      toast.error("New category name is required");
+    const selectedCategory = supportedCategories.find(
+      (category) => String(category.id) === String(selectedCategoryId),
+    );
+
+    if (!selectedCategory) {
+      toast.error("Select a supported category");
       return;
     }
+
+    const loadingToastId = toast.loading("Sending item request...");
 
     try {
       await createItemRequestMutation.mutateAsync({
-        existingCategoryId:
-          requestCategoryMode === "EXISTING"
-            ? Number(requestExistingCategoryId)
-            : null,
-
-        requestedCategoryName:
-          requestCategoryMode === "NEW" ? newCategoryName : null,
-
+        existingCategoryId: Number(selectedCategoryId),
         requestedTypeName: typeName,
-
         expenseType: requestExpenseType,
       });
 
-      toast.success("Item request sent to admin successfully");
-      handleClose();
-      return;
+      toast.success("Item request sent to admin successfully", {
+        id: loadingToastId,
+      });
+
+      /*
+       * Close directly instead of calling handleClose().
+       * handleClose() may still see the previous isPending value
+       * during the current render.
+       */
+      resetForm();
+      onClose?.();
     } catch (error) {
       toast.error(
         error?.response?.data?.message || "Failed to send item request",
+        {
+          id: loadingToastId,
+        },
       );
     }
   }
@@ -97,8 +128,8 @@ export default function RequestBudgetItemModal({
             </h2>
 
             <p className="mt-1 text-sm leading-6 text-slate-500">
-              Send a request to admin to add a new item/type under an existing
-              category or a new category.
+              Send a request to admin to add a new catalog item under IT,
+              Biomedical, or General.
             </p>
           </div>
 
@@ -114,77 +145,32 @@ export default function RequestBudgetItemModal({
 
         <form onSubmit={handleCreateItemRequest} className="space-y-5 p-6">
           <div>
-            <label className="text-sm font-bold text-slate-900">
-              Request Type
-            </label>
+            <label className="text-sm font-bold text-slate-900">Category</label>
 
-            <div className="mt-2 grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setRequestCategoryMode("EXISTING")}
-                className={[
-                  "rounded-2xl border px-4 py-3 text-sm font-bold transition",
-                  requestCategoryMode === "EXISTING"
-                    ? "border-blue-300 bg-blue-50 text-blue-700"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
-                ].join(" ")}
-              >
-                Existing Category
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setRequestCategoryMode("NEW")}
-                className={[
-                  "rounded-2xl border px-4 py-3 text-sm font-bold transition",
-                  requestCategoryMode === "NEW"
-                    ? "border-blue-300 bg-blue-50 text-blue-700"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
-                ].join(" ")}
-              >
-                New Category
-              </button>
-            </div>
-          </div>
-
-          {requestCategoryMode === "EXISTING" ? (
-            <div>
-              <label className="text-sm font-bold text-slate-900">
-                Existing Category
-              </label>
-
-              <div className="mt-2">
-                <SearchableMultiSelect
-                  usePortal={false}
-                  multiple={false}
-                  disableClear
-                  value={requestExistingCategoryId}
-                  onChange={(e) => setRequestExistingCategoryId(e.target.value)}
-                  options={categories}
-                  placeholder="Select existing category"
-                  searchPlaceholder="Search categories..."
-                  getOptionValue={(option) => String(option.id)}
-                  getOptionLabel={(option) => option.name}
-                />
-              </div>
-            </div>
-          ) : (
-            <div>
-              <label className="text-sm font-bold text-slate-900">
-                New Category Name
-              </label>
-
-              <Input
-                value={requestNewCategoryName}
-                onChange={(e) => setRequestNewCategoryName(e.target.value)}
-                placeholder="Example: Medical Equipment"
+            <div className="mt-2">
+              <SearchableMultiSelect
+                usePortal={false}
+                multiple={false}
+                disableClear
+                value={selectedCategoryId}
+                onChange={(e) => setRequestExistingCategoryId(e.target.value)}
+                options={supportedCategories}
+                placeholder="Select category"
+                searchPlaceholder="Search categories..."
+                getOptionValue={(option) => String(option.id)}
+                getOptionLabel={(option) => option.name}
               />
             </div>
-          )}
+
+            <p className="mt-2 text-xs font-semibold text-slate-500">
+              Defaults to the active Budget Entry tab. You may choose only IT,
+              Biomedical, or General.
+            </p>
+          </div>
 
           <div>
             <label className="text-sm font-bold text-slate-900">
-              Requested Item / Type Name
+              Requested Item Name
             </label>
 
             <Input
@@ -224,7 +210,8 @@ export default function RequestBudgetItemModal({
           </div>
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-800">
             This request will be sent to admin. After admin approval, the new
-            item/type will appear in the budget item dropdown.
+            item will be handled in the catalog workflow. New main categories
+            cannot be requested from this form.
           </div>
 
           <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
@@ -240,14 +227,13 @@ export default function RequestBudgetItemModal({
             <button
               type="submit"
               disabled={createItemRequestMutation.isPending}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {createItemRequestMutation.isPending ? (
-                <LoadingSpinner />
-              ) : (
-                <PackagePlus size={18} />
-              )}
-              Send Request
+              <PackagePlus size={18} />
+
+              {createItemRequestMutation.isPending
+                ? "Sending..."
+                : "Send Request"}
             </button>
           </div>
         </form>

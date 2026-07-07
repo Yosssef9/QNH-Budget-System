@@ -2,9 +2,10 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import Breadcrumbs from "../../components/Breadcrumbs";
-import CurrencyText from "../../components/CurrencyText";
 import { getMyBudgets } from "../../api/budget.api";
 import { useAuth } from "../../context/AuthContext";
+import { can } from "../../helpers/permissions";
+import { PERMISSION_CODES } from "@qnh/permissions";
 import { formatDateTime } from "../../utils/dateFormatters";
 import {
   getBudgetStatusLabel,
@@ -14,8 +15,10 @@ import { Eye } from "lucide-react";
 export default function MyBudgetsPage() {
   const { budgetAccess } = useAuth();
   const navigate = useNavigate();
-  const permissions = budgetAccess?.permissions || budgetAccess || {};
-  const isBudgetApprover = Boolean(permissions.can_approve_budget);
+  const isBudgetApprover = can(
+    budgetAccess,
+    PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES,
+  );
 
   const { data = [], isLoading } = useQuery({
     queryKey: ["my-budgets"],
@@ -52,7 +55,7 @@ export default function MyBudgetsPage() {
               <th className="p-4 text-left">Department</th>
               <th className="p-4 text-left">Status</th>
               <th className="p-4 text-left">Items</th>
-              <th className="p-4 text-left">Total Amount</th>
+              <th className="p-4 text-left">Requested Quantity</th>
               <th className="p-4 text-left">Created</th>
               <th className="p-4 text-left">Actions</th>
             </tr>
@@ -100,7 +103,7 @@ export default function MyBudgetsPage() {
                   <td className="p-4">{budget.items_count}</td>
 
                   <td className="p-4 font-semibold text-blue-600">
-                    <CurrencyText value={budget.total_amount} />
+                    {budget.total_requested_quantity || 0}
                   </td>
 
                   <td className="p-4">{formatDateTime(budget.created_at)}</td>

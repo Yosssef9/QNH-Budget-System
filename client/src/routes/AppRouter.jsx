@@ -4,9 +4,9 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { UnsavedChangesProvider } from "../context/UnsavedChangesContext";
 import RequireAuth from "../context/RequireAuth";
 import RequirePermission from "../context/RequirePermission";
+import { PERMISSION_CODES } from "@qnh/permissions";
 
 import DashboardLayout from "../layouts/DashboardLayout";
-import ErrorPage from "../pages/ErrorPage";
 
 import LoadingSpinner from "../components/LoadingSpinner";
 
@@ -43,7 +43,7 @@ const router = createBrowserRouter([
 
           return {
             Component: () => (
-              <RequirePermission permission="can_manage_users">
+              <RequirePermission permission={PERMISSION_CODES.MANAGE_BUDGET_ACCESS}>
                 <module.default />
               </RequirePermission>
             ),
@@ -58,7 +58,9 @@ const router = createBrowserRouter([
 
           return {
             Component: () => (
-              <RequirePermission permission="can_view_budget">
+              <RequirePermission
+                permission={PERMISSION_CODES.VIEW_DEPARTMENT_BUDGET_REQUESTS}
+              >
                 <module.default />
               </RequirePermission>
             ),
@@ -73,7 +75,9 @@ const router = createBrowserRouter([
 
           return {
             Component: () => (
-              <RequirePermission permission="can_edit_budget">
+              <RequirePermission
+                permission={PERMISSION_CODES.MANAGE_DEPARTMENT_BUDGET_REQUESTS}
+              >
                 <module.default />
               </RequirePermission>
             ),
@@ -88,7 +92,9 @@ const router = createBrowserRouter([
 
           return {
             Component: () => (
-              <RequirePermission permission="can_view_budget">
+              <RequirePermission
+                permission={PERMISSION_CODES.VIEW_DEPARTMENT_BUDGET_REQUESTS}
+              >
                 <module.default />
               </RequirePermission>
             ),
@@ -103,7 +109,9 @@ const router = createBrowserRouter([
 
           return {
             Component: () => (
-              <RequirePermission permission="can_approve_budget">
+              <RequirePermission
+                permission={PERMISSION_CODES.VIEW_CFO_CATEGORY_BUDGET_PACKAGES}
+              >
                 <module.default />
               </RequirePermission>
             ),
@@ -118,7 +126,9 @@ const router = createBrowserRouter([
 
           return {
             Component: () => (
-              <RequirePermission permission="can_view_budget">
+              <RequirePermission
+                permission={PERMISSION_CODES.VIEW_DEPARTMENT_BUDGET_REQUESTS}
+              >
                 <module.default />
               </RequirePermission>
             ),
@@ -135,9 +145,9 @@ const router = createBrowserRouter([
             Component: () => (
               <RequirePermission
                 permission={[
-                  "can_view_budget",
-                  "can_edit_budget",
-                  "can_approve_budget",
+                  PERMISSION_CODES.VIEW_DEPARTMENT_BUDGET_REQUESTS,
+                  PERMISSION_CODES.MANAGE_DEPARTMENT_BUDGET_REQUESTS,
+                  PERMISSION_CODES.VIEW_CFO_CATEGORY_BUDGET_PACKAGES,
                 ]}
               >
                 <module.default />
@@ -156,9 +166,9 @@ const router = createBrowserRouter([
             Component: () => (
               <RequirePermission
                 permission={[
-                  "can_view_budget",
-                  "can_edit_budget",
-                  "can_approve_budget",
+                  PERMISSION_CODES.VIEW_DEPARTMENT_BUDGET_REQUESTS,
+                  PERMISSION_CODES.MANAGE_DEPARTMENT_BUDGET_REQUESTS,
+                  PERMISSION_CODES.VIEW_CFO_CATEGORY_BUDGET_PACKAGES,
                 ]}
               >
                 <module.default />
@@ -175,7 +185,27 @@ const router = createBrowserRouter([
 
           return {
             Component: () => (
-              <RequirePermission permission="can_manage_financial_years">
+              <RequirePermission
+                permission={PERMISSION_CODES.MANAGE_FINANCIAL_YEAR_LIFECYCLE}
+              >
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
+      },
+
+      {
+        path: "category-review",
+        async lazy() {
+          const module =
+            await import("../pages/category-review/CategoryReviewPage");
+
+          return {
+            Component: () => (
+              <RequirePermission
+                permission={PERMISSION_CODES.VIEW_CATEGORY_BUDGET_REQUESTS}
+              >
                 <module.default />
               </RequirePermission>
             ),
@@ -191,7 +221,9 @@ const router = createBrowserRouter([
 
           return {
             Component: () => (
-              <RequirePermission permission="can_approve_budget">
+              <RequirePermission
+                permission={PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES}
+              >
                 <module.default />
               </RequirePermission>
             ),
@@ -206,7 +238,7 @@ const router = createBrowserRouter([
 
           return {
             Component: () => (
-              <RequirePermission permission="can_manage_categories">
+              <RequirePermission permission={PERMISSION_CODES.MANAGE_BUDGET_CATALOG}>
                 <module.default />
               </RequirePermission>
             ),
@@ -221,7 +253,7 @@ const router = createBrowserRouter([
 
           return {
             Component: () => (
-              <RequirePermission permission="can_manage_po_item_mappings">
+              <RequirePermission permission={PERMISSION_CODES.MANAGE_PO_ITEM_MAPPINGS}>
                 <module.default />
               </RequirePermission>
             ),
@@ -236,7 +268,7 @@ const router = createBrowserRouter([
 
           return {
             Component: () => (
-              <RequirePermission permission="can_manage_users">
+              <RequirePermission permission={PERMISSION_CODES.VIEW_AUDIT_LOGS}>
                 <module.default />
               </RequirePermission>
             ),
@@ -251,7 +283,7 @@ const router = createBrowserRouter([
 
           return {
             Component: () => (
-              <RequirePermission permission="can_request_transfer">
+              <RequirePermission permission={PERMISSION_CODES.CREATE_CATEGORY_TRANSFERS}>
                 <module.default />
               </RequirePermission>
             ),
@@ -266,7 +298,7 @@ const router = createBrowserRouter([
 
           return {
             Component: () => (
-              <RequirePermission permission="can_approve_transfer">
+              <RequirePermission permission={PERMISSION_CODES.APPROVE_CATEGORY_TRANSFERS}>
                 <module.default />
               </RequirePermission>
             ),
@@ -281,7 +313,7 @@ const router = createBrowserRouter([
 
           return {
             Component: () => (
-              <RequirePermission permission="can_request_po_links">
+              <RequirePermission permission={PERMISSION_CODES.REQUEST_CATEGORY_PO_LINKS}>
                 <module.default />
               </RequirePermission>
             ),
@@ -296,7 +328,7 @@ const router = createBrowserRouter([
 
           return {
             Component: () => (
-              <RequirePermission permission="can_approve_po_links">
+              <RequirePermission permission={PERMISSION_CODES.APPROVE_CATEGORY_PO_LINKS}>
                 <module.default />
               </RequirePermission>
             ),
@@ -311,7 +343,9 @@ const router = createBrowserRouter([
 
           return {
             Component: () => (
-              <RequirePermission permission="can_approve_budget">
+              <RequirePermission
+                permission={PERMISSION_CODES.VIEW_CFO_CATEGORY_BUDGET_PACKAGES}
+              >
                 <module.default />
               </RequirePermission>
             ),
@@ -326,7 +360,7 @@ const router = createBrowserRouter([
 
           return {
             Component: () => (
-              <RequirePermission permission="can_view_reports">
+              <RequirePermission permission={PERMISSION_CODES.VIEW_BUDGET_REPORTS}>
                 <module.default />
               </RequirePermission>
             ),

@@ -453,13 +453,28 @@ export async function createSubItemRepo(transaction, payload) {
   const request = new sql.Request(transaction);
   const result = await request
     .input("catalogItemId", sql.Int, payload.catalog_item_id)
-    .input("subItemCode", sql.VarChar(100), payload.sub_item_code)
+    .input("subItemCode", sql.VarChar(100), payload.sub_item_code ?? null)
     .input("name", sql.NVarChar(300), payload.name)
     .input("defaultSpecification", sql.NVarChar(2000), payload.default_specification)
     .input("defaultUnitOfMeasureId", sql.Int, payload.default_unit_of_measure_id)
     .input("isDefaultGeneral", sql.Bit, payload.is_default_general)
     .input("createdBy", sql.Int, payload.created_by ?? null).query(`
       DECLARE @Inserted TABLE (id INT NOT NULL);
+      DECLARE @ResolvedSubItemCode VARCHAR(100) = @subItemCode;
+
+      IF @ResolvedSubItemCode IS NULL
+      BEGIN
+        SELECT @ResolvedSubItemCode = CONCAT(
+          'SUB-',
+          RIGHT(
+            CONCAT(
+              '00000000',
+              CAST(NEXT VALUE FOR dbo.BS_budget_catalog_sub_item_code_seq AS VARCHAR(20))
+            ),
+            8
+          )
+        );
+      END;
 
       INSERT INTO dbo.BS_budget_catalog_sub_items
       (
@@ -476,7 +491,7 @@ export async function createSubItemRepo(transaction, payload) {
       VALUES
       (
         @catalogItemId,
-        @subItemCode,
+        @ResolvedSubItemCode,
         @name,
         @defaultSpecification,
         @defaultUnitOfMeasureId,
@@ -495,7 +510,6 @@ export async function updateSubItemRepo(id, payload) {
   const result = await pool
     .request()
     .input("id", sql.Int, id)
-    .input("subItemCode", sql.VarChar(100), payload.sub_item_code)
     .input("name", sql.NVarChar(300), payload.name)
     .input("defaultSpecification", sql.NVarChar(2000), payload.default_specification)
     .input("defaultUnitOfMeasureId", sql.Int, payload.default_unit_of_measure_id)
@@ -505,7 +519,6 @@ export async function updateSubItemRepo(id, payload) {
 
       UPDATE dbo.BS_budget_catalog_sub_items
       SET
-        sub_item_code = @subItemCode,
         name = @name,
         default_specification = @defaultSpecification,
         default_unit_of_measure_id = @defaultUnitOfMeasureId,

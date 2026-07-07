@@ -8,19 +8,9 @@ export default function useBudgetTotals(items = []) {
       0,
     );
 
-    const totalAmount = items.reduce(
-      (sum, item) =>
-        sum +
-        toNumber(
-          item.total_amount ??
-            toNumber(item.quantity) * toNumber(item.unitPrice),
-        ),
-      0,
-    );
-
     return {
       totalQuantity,
-      totalAmount,
+      totalAmount: 0,
     };
   }, [items]);
 }

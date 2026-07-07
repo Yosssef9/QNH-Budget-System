@@ -45,7 +45,6 @@ import {
   useUpdateSetupSubItem,
   useUpdateSetupSubItemStatus,
   useUpdateSetupType,
-  useApproveItemRequestManual,
 } from "../hooks/budgets/useBudgetSetup";
 import { formatDateTime } from "../utils/dateFormatters";
 import CatalogSubItemDialog from "../components/catalog/CatalogSubItemDialog";
@@ -133,7 +132,6 @@ export default function BudgetSetupPage() {
   const deleteTypeMutation = useDeleteSetupType();
   const approveMutation = useApproveItemRequest();
   const rejectMutation = useRejectItemRequest();
-  const approveManualMutation = useApproveItemRequestManual();
   const filteredTypes = useMemo(() => {
     const keyword = deferredItemSearch.trim().toLowerCase();
 
@@ -257,23 +255,9 @@ export default function BudgetSetupPage() {
       message:
         'Approve "' +
         request.requested_type_name +
-        '" without creating the item automatically? You will need to create it manually later.',
+        '"? Create the catalog item separately with its Unit of Measure after approval.',
       danger: false,
-      confirmText: "Approve Only",
-    });
-  }
-
-  function confirmApproveAuto(request) {
-    setRequestAction({
-      type: "APPROVE_AUTO",
-      request: request,
-      title: "Approve & Auto Create?",
-      message:
-        'Approve "' +
-        request.requested_type_name +
-        '" and automatically create the catalog item in the setup master data?',
-      danger: false,
-      confirmText: "Approve & Auto Create",
+      confirmText: "Approve Request",
     });
   }
 
@@ -289,10 +273,6 @@ export default function BudgetSetupPage() {
           break;
 
         case "APPROVE_ONLY":
-          await handleApproveRequestManual(requestAction.request);
-          break;
-
-        case "APPROVE_AUTO":
           await handleApproveRequest(requestAction.request);
           break;
 
@@ -612,20 +592,6 @@ export default function BudgetSetupPage() {
       );
     }
   }
-  async function handleApproveRequestManual(request) {
-    try {
-      await approveManualMutation.mutateAsync({
-        requestId: request.id,
-        adminNote: adminNotes[request.id] || null,
-      });
-
-      toast.success("Request approved. You can create the item manually.");
-    } catch (error) {
-      toast.error(
-        error?.response?.data?.message || "Failed to approve request",
-      );
-    }
-  }
   async function handleRejectRequest(request) {
     try {
       await rejectMutation.mutateAsync({
@@ -709,8 +675,8 @@ export default function BudgetSetupPage() {
             </div>
 
             <p className="mt-1 text-sm text-slate-500">
-              Approve requests to create the missing category/item, or reject
-              them with an admin note.
+              Approve requests for missing catalog items, or reject them with an
+              admin note. New main categories are not requested from this flow.
             </p>
           </div>
 
@@ -842,8 +808,8 @@ export default function BudgetSetupPage() {
                                         ].join(" ")}
                                       >
                                         {request.existing_category_id
-                                          ? "Existing Category"
-                                          : "New Category Requested"}
+                                          ? "Catalog Item Category"
+                                          : "Unsupported Category Request"}
                                       </p>
 
                                       <p className="mt-1 font-bold text-slate-900">
@@ -946,24 +912,12 @@ export default function BudgetSetupPage() {
                                           confirmApproveOnly(request)
                                         }
                                         disabled={
-                                          approveManualMutation.isPending
+                                          approveMutation.isPending
                                         }
                                         className="inline-flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-700 transition hover:bg-blue-100 disabled:opacity-60"
                                       >
                                         <CheckCircle2 size={17} />
-                                        Approve Only
-                                      </button>
-
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          confirmApproveAuto(request)
-                                        }
-                                        disabled={approveMutation.isPending}
-                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-                                      >
-                                        <CheckCircle2 size={17} />
-                                        Approve & Auto Create
+                                        Approve Request
                                       </button>
                                     </div>
                                   ) : (
@@ -1631,7 +1585,6 @@ export default function BudgetSetupPage() {
         confirmText={requestAction?.confirmText}
         loading={
           approveMutation.isPending ||
-          approveManualMutation.isPending ||
           rejectMutation.isPending
         }
         onCancel={() => setRequestAction(null)}

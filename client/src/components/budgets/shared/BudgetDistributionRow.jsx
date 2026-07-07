@@ -1,7 +1,6 @@
-import CurrencyText from "../../../components/CurrencyText";
 import SearchableMultiSelect from "../../../components/SearchableMultiSelect";
 
-import { AlertCircle, Trash2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Trash2 } from "lucide-react";
 
 import { toNumber } from "../../../utils/number";
 
@@ -24,8 +23,6 @@ function BudgetDistributionRow({
   duplicateTypeRowIds,
   deletingRowIds,
 
-  returnedItemNotesByItemId,
-
   isBudgetLocked,
 
   getMonthlyDistribution,
@@ -39,8 +36,6 @@ function BudgetDistributionRow({
 
   setDeleteRowId,
 }) {
-  const totalAmount = toNumber(row.quantity) * toNumber(row.unitPrice);
-
   const monthly = getMonthlyDistribution(row);
 
   const quarterly = getQuarterlyDistribution(row);
@@ -49,16 +44,27 @@ function BudgetDistributionRow({
 
   const isRowValid =
     toNumber(row.quantity) > 0 &&
-    toNumber(row.unitPrice) > 0 &&
     (row.method === "ANNUAL" || distributedQuantity === toNumber(row.quantity));
 
   const selectedType = getSelectedType(row);
 
   const isDuplicateTypeRow = duplicateTypeRowIds.has(row.id);
 
-  const rowReturnNotes = returnedItemNotesByItemId.get(Number(row.id)) || [];
-
-  const hasReturnNotes = rowReturnNotes.length > 0;
+  const isReviewedRow = row.reviewStatus === "CATEGORY_REVIEW_COMPLETED";
+  const isPendingReviewRow = row.reviewStatus === "PENDING_CATEGORY_REVIEW";
+  const isRowLocked = isBudgetLocked || isReviewedRow || isPendingReviewRow;
+  const isCatalogLocked = isRowLocked;
+  const isDeleteLocked = isRowLocked;
+  const deleteLockMessage = "Submitted category budgets are read-only.";
+  const approvedQuantity =
+    row.approvedQuantity === null || row.approvedQuantity === undefined
+      ? null
+      : toNumber(row.approvedQuantity);
+  const quantityDifference =
+    approvedQuantity === null ? null : approvedQuantity - toNumber(row.quantity);
+  const selectedCategory = categories.find(
+    (category) => Number(category.id) === Number(row.category),
+  );
 
   return (
     <tr
@@ -68,8 +74,8 @@ function BudgetDistributionRow({
         deletingRowIds.includes(row.id)
           ? "opacity-0 scale-[0.995]"
           : "opacity-100 scale-100",
-        hasReturnNotes
-          ? "bg-amber-50 border-l-4 border-amber-500 shadow-[0_0_0_1px_rgba(245,158,11,0.25)]"
+        isReviewedRow && quantityDifference !== 0
+          ? "bg-blue-50 border-l-4 border-blue-500 shadow-[0_0_0_1px_rgba(59,130,246,0.18)]"
           : !isRowValid || isDuplicateTypeRow
             ? "bg-red-50 border-l-4 border-red-500 shadow-[0_0_0_1px_rgba(239,68,68,0.3)]"
             : "",
@@ -85,43 +91,33 @@ function BudgetDistributionRow({
               Unsaved
             </span>
           )}
+          {isReviewedRow && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+              <CheckCircle2 size={10} />
+              Reviewed
+            </span>
+          )}
         </div>
       </td>
       <td className="w-[220px] border border-slate-200 px-3 py-4">
-        <div className="w-full min-w-[200px]">
-          <SearchableMultiSelect
-            disabled={isBudgetLocked}
-            name="category"
-            multiple={false}
-            disableClear
-            value={row.category}
-            options={categories}
-            placeholder="Category"
-            searchPlaceholder="Search category..."
-            maxVisibleBadges={1}
-            getOptionValue={(option) => option.id}
-            getOptionLabel={(option) => option.name}
-            onChange={(e) =>
-              updateRow(
-                row.id,
-                "category",
-                e.target.value ? Number(e.target.value) : null,
-              )
-            }
-          />
+        <div className="min-w-[180px] rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
+          {selectedCategory?.name || row.categoryName || "Active category"}
+          <div className="mt-1 text-[11px] font-medium text-slate-500">
+            Locked to selected tab
+          </div>
         </div>
       </td>
 
       <td className="w-[260px] border border-slate-200 px-3 py-4">
         <div className="w-full min-w-[200px]">
           <SearchableMultiSelect
-            disabled={isBudgetLocked}
+            disabled={isCatalogLocked}
             name="item"
             multiple={false}
             disableClear
             value={row.item}
             options={typesByCategory[row.category]}
-            placeholder="Item / Type"
+            placeholder="Generic item"
             searchPlaceholder="Search item..."
             maxVisibleBadges={1}
             getOptionValue={(option) => option.id}
@@ -164,42 +160,52 @@ function BudgetDistributionRow({
             </span>
           </div>
         )}
-        {hasReturnNotes && (
-          <div className="mt-2 space-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-            {rowReturnNotes.map((note) => (
-              <div key={note.id}>
-                <span className="font-bold">Approver note:</span> {note.note}
+        {(isPendingReviewRow || isReviewedRow) && (
+          <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+            {isPendingReviewRow && (
+              <div className="font-semibold text-amber-700">
+                Pending Category Manager review
               </div>
-            ))}
+            )}
+            {isReviewedRow && (
+              <div className="space-y-1">
+                <div className="font-bold text-slate-900">
+                  Review result:{" "}
+                  {approvedQuantity === 0
+                    ? "Not approved"
+                    : quantityDifference === 0
+                      ? "Approved as requested"
+                      : "Approved with changes"}
+                </div>
+                <div>
+                  Requested {row.quantity} · Approved {approvedQuantity} ·
+                  Difference {quantityDifference > 0 ? "+" : ""}
+                  {quantityDifference}
+                </div>
+                {row.reviewNote && (
+                  <div>
+                    <span className="font-semibold">Category Manager note:</span>{" "}
+                    {row.reviewNote}
+                  </div>
+                )}
+                {(row.reviewedByName || row.reviewedAt) && (
+                  <div className="text-slate-500">
+                    Reviewed {row.reviewedByName ? `by ${row.reviewedByName}` : ""}
+                    {row.reviewedAt
+                      ? ` on ${new Date(row.reviewedAt).toLocaleString()}`
+                      : ""}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
-      </td>
-      <td className="w-[130px] border border-slate-200 px-3 py-4 text-center">
-        <label
-          className={[
-            "inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition-all duration-200",
-            isBudgetLocked
-              ? "cursor-not-allowed opacity-60"
-              : "cursor-pointer hover:border-blue-300 hover:bg-blue-50",
-          ].join(" ")}
-        >
-          <input
-            type="checkbox"
-            disabled={isBudgetLocked}
-            checked={row.isProject === true}
-            onChange={(e) =>
-              updateRow(row.id, "isProject", e.target.checked)
-            }
-            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-          />
-          <span>Project</span>
-        </label>
       </td>
       <td className="w-[180px] border border-slate-200 px-3 py-4 align-middle">
         <div className="flex flex-col items-center justify-center gap-2">
           <div className="w-full min-w-[200px]">
             <SearchableMultiSelect
-              disabled={isBudgetLocked}
+              disabled={isRowLocked}
               name="method"
               multiple={false}
               disableClear
@@ -220,7 +226,7 @@ function BudgetDistributionRow({
       <td className="border border-slate-200 px-3 py-4 text-center">
         <input
           type="number"
-          disabled={isBudgetLocked}
+          disabled={isRowLocked}
           min="0"
           value={row.quantity === 0 ? "" : row.quantity}
           onChange={(e) =>
@@ -239,32 +245,6 @@ function BudgetDistributionRow({
         />
       </td>
 
-      <td className="border border-slate-200 px-3 py-4 text-center">
-        <input
-          type="number"
-          disabled={isBudgetLocked}
-          min="0"
-          value={row.unitPrice === 0 ? "" : row.unitPrice}
-          onChange={(e) =>
-            updateRow(row.id, "unitPrice", toNumber(e.target.value))
-          }
-          onBlur={(e) =>
-            updateRow(row.id, "unitPrice", toNumber(e.target.value))
-          }
-          className={`h-9 w-20 rounded-md border text-center text-xs font-semibold transition-all duration-200 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed
-  ${
-    row.unitPrice <= 0
-      ? "border-red-400 bg-red-50 text-red-600"
-      : "border-slate-200 bg-white text-slate-700"
-  }
-`}
-        />
-      </td>
-
-      <td className="truncate border border-slate-200 px-3 py-4 text-center font-bold text-blue-600">
-        <CurrencyText value={totalAmount} />
-      </td>
-
       {(row.method === "MONTHLY" || row.method === "CUSTOM_MONTHLY") &&
         monthly.map((qty, index) => (
           <td
@@ -275,12 +255,12 @@ function BudgetDistributionRow({
               type="number"
               min="0"
               value={qty === 0 ? "" : qty}
-              disabled={isBudgetLocked || row.method === "MONTHLY"}
+              disabled={isRowLocked || row.method === "MONTHLY"}
               onChange={(e) => updateMonthly(row.id, index, e.target.value)}
               className="mx-auto h-8 w-16 rounded-md border border-slate-200 bg-slate-50 text-center text-xs font-semibold text-slate-700 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed transition-all duration-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
             />
             <p className="mt-1 text-[11px] font-semibold text-slate-500">
-              <CurrencyText value={qty * toNumber(row.unitPrice)} />
+              Qty {qty}
             </p>
           </td>
         ))}
@@ -296,12 +276,12 @@ function BudgetDistributionRow({
               type="number"
               min="0"
               value={qty === 0 ? "" : qty}
-              disabled={isBudgetLocked || row.method === "QUARTERLY"}
+              disabled={isRowLocked || row.method === "QUARTERLY"}
               onChange={(e) => updateQuarterly(row.id, index, e.target.value)}
               className="mx-auto h-8 w-28 rounded-md border border-slate-200 bg-slate-50 text-center text-xs font-semibold text-slate-700 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed transition-all duration-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
             />
             <p className="mt-1 text-[11px] font-semibold text-slate-500">
-              <CurrencyText value={qty * toNumber(row.unitPrice)} />
+              Qty {qty}
             </p>
           </td>
         ))}
@@ -319,8 +299,7 @@ function BudgetDistributionRow({
 
             {/* Total */}
             <span className="text-sm font-bold text-blue-600">
-              Total:{" "}
-              <CurrencyText value={row.quantity * toNumber(row.unitPrice)} />
+              Distributed quantity: {row.quantity}
             </span>
           </div>
         </td>
@@ -329,8 +308,9 @@ function BudgetDistributionRow({
       <td className="border border-slate-200 px-3 py-4 text-center">
         <button
           type="button"
-          disabled={isBudgetLocked}
+          disabled={isDeleteLocked}
           onClick={() => setDeleteRowId(row.id)}
+          title={isDeleteLocked ? deleteLockMessage : "Remove item"}
           className="rounded-lg bg-red-50 p-2 text-red-500 transition-all duration-200 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Trash2 size={17} />

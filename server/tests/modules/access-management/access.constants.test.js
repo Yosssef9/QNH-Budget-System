@@ -1,31 +1,52 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildPermissionMap,
+  PERMISSION_CODES,
+  hasAnyPermission,
   hasPermission,
-} from "../../../modules/access-management/access.constants.js";
+} from "../../../../shared/permissions/permissionCodes.js";
+import { normalizePermissionCodes } from "../../../modules/access-management/access.constants.js";
 
-describe("access-management permission compatibility", () => {
-  it("builds normalized permission entries and temporary legacy aliases", () => {
+describe("canonical budget permission helpers", () => {
+  it("checks canonical permission codes from permissionCodes", () => {
     const access = {
-      permissions: buildPermissionMap([
-        "can_manage_budget_access",
-        "can_approve_category_po_links",
-      ]),
+      permissionCodes: [
+        PERMISSION_CODES.MANAGE_BUDGET_ACCESS,
+        PERMISSION_CODES.APPROVE_CATEGORY_PO_LINKS,
+      ],
     };
 
-    expect(access.permissions.can_manage_budget_access).toBe(true);
-    expect(access.permissions.can_manage_users).toBe(true);
-    expect(access.permissions.can_approve_po_links).toBe(true);
-    expect(hasPermission(access, "can_manage_users")).toBe(true);
+    expect(hasPermission(access, PERMISSION_CODES.MANAGE_BUDGET_ACCESS)).toBe(
+      true,
+    );
+    expect(
+      hasAnyPermission(access, [
+        PERMISSION_CODES.MANAGE_BUDGET_CATALOG,
+        PERMISSION_CODES.APPROVE_CATEGORY_PO_LINKS,
+      ]),
+    ).toBe(true);
+    expect(hasPermission(access, PERMISSION_CODES.MANAGE_BUDGET_CATALOG)).toBe(
+      false,
+    );
   });
 
-  it("does not grant unrelated legacy aliases", () => {
+  it("rejects legacy permission aliases", () => {
     const access = {
-      permissions: buildPermissionMap(["can_view_budget_reports"]),
+      permissionCodes: [PERMISSION_CODES.MANAGE_BUDGET_ACCESS],
     };
 
-    expect(access.permissions.can_view_budget).toBe(true);
-    expect(access.permissions.can_edit_budget).toBe(false);
-    expect(hasPermission(access, "can_edit_budget")).toBe(false);
+    expect(() => hasPermission(access, "can_manage_users")).toThrow(
+      "Unknown budget permission code",
+    );
+  });
+
+  it("normalizes duplicate permission code rows from the database", () => {
+    expect(
+      normalizePermissionCodes([
+        PERMISSION_CODES.MANAGE_BUDGET_ACCESS,
+        PERMISSION_CODES.MANAGE_BUDGET_ACCESS,
+        "",
+        null,
+      ]),
+    ).toEqual([PERMISSION_CODES.MANAGE_BUDGET_ACCESS]);
   });
 });

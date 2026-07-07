@@ -4,20 +4,16 @@ export function createRow(
   item = "",
   method = "MONTHLY",
   quantity = 0,
-  unitPrice = 0,
   monthly = [],
   quarterly = [],
   isNew = true,
-  isProject = false,
 ) {
   return {
     id,
     category,
     item,
-    isProject,
     method,
     quantity,
-    unitPrice,
     monthly,
     quarterly,
     isSaved: false,
@@ -27,10 +23,11 @@ export function createRow(
 
 export function mapBudgetItemToRow(item) {
   const method =
-    item.distribution_method === "CUSTOM" && item.distribution_level === "MONTH"
+    item.distribution_method === "CUSTOM" &&
+    item.distribution?.some((period) => period.period_type === "MONTH")
       ? "CUSTOM_MONTHLY"
       : item.distribution_method === "CUSTOM" &&
-          item.distribution_level === "QUARTER"
+          item.distribution?.some((period) => period.period_type === "QUARTER")
         ? "CUSTOM_QUARTERLY"
         : item.distribution_method;
 
@@ -50,33 +47,39 @@ export function mapBudgetItemToRow(item) {
   const row = createRow(
     item.id,
     item.category_id,
-    item.type_id,
+    item.catalog_item_id ?? item.type_id,
     method,
-    Number(item.quantity || 0),
-    Number(item.unit_price || 0),
+    Number(item.requested_quantity ?? item.quantity ?? 0),
     monthly,
     quarterly,
     false,
-    item.is_project === true || item.is_project === 1,
   );
 
   return {
     ...row,
     categoryName: item.category_name,
-    typeName: item.type_name,
+    typeName: item.catalog_item_name ?? item.type_name,
     categoryIsActive:
       item.category_is_active === true || item.category_is_active === 1,
     typeIsActive: item.type_is_active === true || item.type_is_active === 1,
     expenseType: item.expense_type,
+    reviewStatus: item.review_status,
+    reviewNote: item.review_note,
+    approvedQuantity:
+      item.category_approved_quantity === null ||
+      item.category_approved_quantity === undefined
+        ? null
+        : Number(item.category_approved_quantity),
+    reviewedBy: item.reviewed_by,
+    reviewedByName: item.reviewed_by_name,
+    reviewedAt: item.reviewed_at,
     isSaved: true,
     isNew: false,
     savedSnapshot: JSON.stringify({
       category: row.category,
       item: row.item,
-      isProject: row.isProject,
       method: row.method,
       quantity: row.quantity,
-      unitPrice: row.unitPrice,
       monthly: row.monthly,
       quarterly: row.quarterly,
     }),

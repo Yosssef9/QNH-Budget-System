@@ -10,6 +10,8 @@
     "test:email": "node scripts/testEmail.js",
     "worker:notifications": "node jobs/notification.worker.js",
     "start": "node server.js",
+    "scan:permission-boundary": "node scripts/scanPermissionBoundary.js",
+    "validate:permissions": "node scripts/validateCanonicalPermissions.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",

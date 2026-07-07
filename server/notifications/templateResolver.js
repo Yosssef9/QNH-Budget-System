@@ -15,6 +15,8 @@ import { itemRequestRejectedTemplate } from "./templates/itemRequestRejected.tem
 import { financialYearOpenedTemplate } from "./templates/financialYearOpened.template.js";
 import { financialYearPreClosingTemplate } from "./templates/financialYearPreClosing.template.js";
 import { financialYearClosedTemplate } from "./templates/financialYearClosed.template.js";
+import { categorySubmissionWindowTemplate } from "./templates/categorySubmissionWindow.template.js";
+import { departmentBudgetApprovalUpdatedTemplate } from "./templates/departmentBudgetApprovalUpdated.template.js";
 import { poLinkSubmittedTemplate } from "./templates/poLinkSubmitted.template.js";
 import { poLinkApprovedTemplate } from "./templates/poLinkApproved.template.js";
 import { poLinkRejectedTemplate } from "./templates/poLinkRejected.template.js";
@@ -30,13 +32,23 @@ export function resolveTemplate(notificationType, payload) {
       return transferRejectedTemplate(payload);
 
     case NOTIFICATION_TYPES.BUDGET_SUBMITTED:
+    case NOTIFICATION_TYPES.DEPARTMENT_CATEGORY_BUDGET_SUBMITTED:
+    case NOTIFICATION_TYPES.CATEGORY_BUDGET_PACKAGE_SUBMITTED:
       return budgetSubmittedTemplate(payload);
 
     case NOTIFICATION_TYPES.BUDGET_APPROVED:
+    case NOTIFICATION_TYPES.CATEGORY_REVIEW_COMPLETED:
       return budgetApprovedTemplate(payload);
 
     case NOTIFICATION_TYPES.BUDGET_RETURNED:
       return budgetReturnedTemplate(payload);
+
+    case NOTIFICATION_TYPES.DEPARTMENT_BUDGET_APPROVAL_UPDATED:
+      return departmentBudgetApprovalUpdatedTemplate(payload);
+
+    case NOTIFICATION_TYPES.CATEGORY_SUBMISSION_WINDOW_CLOSED:
+    case NOTIFICATION_TYPES.CATEGORY_SUBMISSION_WINDOW_REOPENED:
+      return categorySubmissionWindowTemplate(payload);
 
     case NOTIFICATION_TYPES.ITEM_REQUEST_CREATED:
       return itemRequestCreatedTemplate(payload);

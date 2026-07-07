@@ -1,41 +1,6 @@
 import sql from "mssql";
 import { poolPromise } from "../config/db.js";
 
-export async function getUsersByPermissionRepo(permissionColumn) {
-  const allowedPermissions = [
-    "can_approve_transfer",
-    "can_approve_budget",
-    "can_manage_categories",
-    "can_manage_financial_years",
-    "can_approve_po_links",
-  ];
-
-  if (!allowedPermissions.includes(permissionColumn)) {
-    throw new Error(`Invalid permission column: ${permissionColumn}`);
-  }
-
-  const pool = await poolPromise;
-
-  const result = await pool.request().query(`
-    SELECT DISTINCT
-      u.USER_ID,
-      u.USER_NAME,
-      u.email
-    FROM BS_budget_user_roles r
-    LEFT JOIN BS_budget_role_permissions brp
-      ON brp.role_id = r.role_id
-    INNER JOIN USERS u
-      ON u.USER_ID = r.user_id
-    WHERE
-      r.is_active = 1
-      AND u.IS_ACTIVE = 1
-      AND u.email IS NOT NULL
-      AND COALESCE(r.${permissionColumn}, brp.${permissionColumn}, 0) = 1
-  `);
-
-  return result.recordset;
-}
-
 export async function getAllActiveUsersExceptRepo(actorUserId) {
   const pool = await poolPromise;
 

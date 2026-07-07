@@ -1,14 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  approveItemRequest,
   createSetupCategory,
   createSetupSubItem,
   createSetupType,
-  getItemRequests,
   getSetupCategories,
   getSetupSubItemsByCatalogItem,
   getSetupTypesByCategory,
-  rejectItemRequest,
   updateSetupCategory,
   updateSetupSubItem,
   updateSetupSubItemStatus,
@@ -18,9 +15,13 @@ import {
   getSetupUnitsOfMeasure,
   getSetupCategoryUsage,
   getSetupTypeUsage,
-  createItemRequest,
-  approveItemRequestManual,
 } from "../../api/budgetSetup.api";
+import {
+  approveItemRequest,
+  createItemRequest,
+  getItemRequests,
+  rejectItemRequest,
+} from "../../api/itemRequests.api";
 
 export function useSetupCategories() {
   return useQuery({
@@ -216,16 +217,6 @@ export function useCreateItemRequest() {
       queryClient.invalidateQueries({
         queryKey: ["budget-setup", "item-requests"],
       });
-    },
-  });
-}
-export function useApproveItemRequestManual() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: approveItemRequestManual,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["budget-setup"] });
     },
   });
 }

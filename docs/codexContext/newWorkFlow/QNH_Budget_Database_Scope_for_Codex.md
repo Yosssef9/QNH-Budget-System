@@ -26,6 +26,7 @@
 - Use `row_version` for optimistic concurrency on mutable workflow rows.
 - Use one SQL transaction for every command that updates multiple business tables.
 - Before changing schema or code outside the requested module, report the required dependency and explain why it is necessary.
+- Production-readiness note: SQL Server backup and recovery planning, backup-history monitoring, restore testing, and related read-only System Health display requirements are tracked in `QNH_New_Workflow_Modular_Refactor_Plan.md` under the future `Production Readiness and Operational Monitoring` phase. This database-scope document remains focused on application schema, relationships, statuses, permissions, and removed legacy database objects.
 
 ---
 
@@ -105,6 +106,7 @@ The CFO returns a complete category package to the Category Budget Manager. The 
 - `BS_category_budget_packages` — One hospital-wide package per financial year and budget category.
 - `BS_category_budget_package_items` — Hospital-wide year/category/catalog-item workflow record; parent of package sub-items and CFO item decision.
 - `BS_category_budget_package_sub_items` — Year-specific detailed model/specification, quantity, unit price, and execution balance target.
+- `BS_category_budget_package_sub_item_allocations` — Phase 5C allocation relationship from a reviewed department item to a package sub-item quantity.
 - `BS_category_budget_package_sub_item_attachments` — Documents attached to a year-specific package sub-item.
 
 ## 3.5 Controlled changes and history
@@ -157,6 +159,8 @@ erDiagram
     BS_budget_catalog_items ||--o{ BS_category_budget_package_items : consolidates
     BS_category_budget_package_items ||--o{ BS_category_budget_package_sub_items : detailed_by
     BS_budget_catalog_sub_items ||--o{ BS_category_budget_package_sub_items : instantiated_as
+    BS_department_category_budget_items ||--o{ BS_category_budget_package_sub_item_allocations : allocated_from
+    BS_category_budget_package_sub_items ||--o{ BS_category_budget_package_sub_item_allocations : allocated_to
     BS_category_budget_package_sub_items ||--o{ BS_category_budget_package_sub_item_attachments : documented_by
 
     BS_department_category_budgets ||--o{ BS_budget_change_requests : changes
@@ -224,6 +228,14 @@ Overrides reference `BS_budget_user_roles.id`, not only `user_id`, so the permis
 26. `can_view_budget_reports`
 27. `can_view_audit_logs`
 
+Application permission contract:
+
+- JavaScript application code in the new-workflow boundary uses `shared/permissions/permissionCodes.js`.
+- `BS_budget_permissions.permission_code` remains the database source of truth.
+- Permission codes are SQL values and must be passed as parameters.
+- Permission codes must never be treated as physical database column names.
+- Legacy permission aliases and legacy permission bit columns are not part of the redesigned database model.
+
 ## 5.3 Scope validation
 
 The backend must validate the role-scope matrix on create and update. A database trigger may also enforce it. The uploaded table-only DDL does not include trigger definitions, so Codex must not assume trigger coverage without checking the live database.
@@ -235,8 +247,8 @@ The backend must validate the role-scope matrix on create and update. A database
 | Field | Allowed values |
 |---|---|
 | `BS_financial_years.status` | `OPEN`, `PRE_CLOSING`, `CLOSED` |
-| `BS_department_category_budgets.status` | `DRAFT`, `IN_CATEGORY_REVIEW`, `RETURNED_TO_DEPARTMENT`, `CATEGORY_REVIEW_COMPLETED` |
-| `BS_department_category_budget_items.review_status` | `DRAFT`, `PENDING_CATEGORY_REVIEW`, `CATEGORY_ACCEPTED`, `NEEDS_MODIFICATION` |
+| `BS_department_category_budgets.status` | `DRAFT`, `IN_CATEGORY_REVIEW`, `CATEGORY_REVIEW_COMPLETED` |
+| `BS_department_category_budget_items.review_status` | `DRAFT`, `PENDING_CATEGORY_REVIEW`, `CATEGORY_REVIEW_COMPLETED` |
 | `BS_category_submission_windows.status` | `OPEN`, `CLOSED` |
 | `BS_category_budget_packages.status` | `DRAFT`, `IN_CFO_REVIEW`, `RETURNED_BY_CFO`, `CFO_REVIEW_COMPLETED` |
 | `BS_category_budget_package_items.cfo_review_status` | `NULL before CFO submission`, `PENDING_CFO_REVIEW`, `CFO_ACCEPTED`, `NEEDS_MODIFICATION` |
@@ -277,23 +289,25 @@ One transaction must:
 - Draft department items do not create package items.
 - On first submission of a catalog item, create or reuse one `BS_category_budget_package_items` row for that year/category/catalog item.
 - When a package item is first created, also create its year-specific `General` package sub-item from the reusable General master.
-- Header moves directly from `DRAFT` or `RETURNED_TO_DEPARTMENT` to `IN_CATEGORY_REVIEW`; there is no separate `SUBMITTED` status.
-- Only `NEEDS_MODIFICATION` items are editable after a return; accepted items remain locked.
+- Header moves directly from `DRAFT` to `IN_CATEGORY_REVIEW`; there is no separate `SUBMITTED` status.
+- After submission, the HOD view is read-only. The HOD can see Category Manager decisions but cannot add, delete, edit, or resubmit department items in this review cycle.
 
 ## 7.3 Category Manager review
 
-- The manager records `category_approved_quantity`, which may differ from requested quantity.
-- An item becomes `CATEGORY_ACCEPTED` or `NEEDS_MODIFICATION`.
-- The header becomes `RETURNED_TO_DEPARTMENT` when at least one decided item needs correction.
-- The header becomes `CATEGORY_REVIEW_COMPLETED` only when every active item is accepted.
+- The manager records `category_approved_quantity`, which may be less than, equal to, or greater than requested quantity. A value of `0` means the item was reviewed and not approved for package demand.
+- The manager may record `review_note`, `reviewed_by`, and `reviewed_at`.
+- The manager does not overwrite `requested_quantity`, distribution rows, catalog item identity, department ownership, or original submission metadata.
+- A reviewed department item becomes `CATEGORY_REVIEW_COMPLETED`.
+- The header becomes `CATEGORY_REVIEW_COMPLETED` only when every active submitted item is reviewed.
+- There is no department-level return/correction cycle between Category Manager and HOD in the revised workflow.
 
 ## 7.4 Package preparation
 
 - `BS_category_budget_package_items` is a stable workflow parent, not a stored total.
 - Requested and approved hospital totals are calculated from department items.
 - Models/specifications, package quantity, unit price, attachments, transfers, and PO linking belong at package-sub-item level.
-- Active package sub-item quantity must reconcile with the total accepted department quantity before CFO submission.
-- Set `needs_reconciliation = 1` whenever accepted source quantities or package details become inconsistent.
+- Active package sub-item quantity must reconcile with the total Category Manager approved department quantity before CFO submission.
+- Set `needs_reconciliation = 1` whenever approved source quantities or package details become inconsistent.
 
 ## 7.5 CFO review
 
@@ -311,8 +325,8 @@ Pre-closing is blocked if any of the following exists:
 
 - an open category submission window;
 - a nonempty package not in `CFO_REVIEW_COMPLETED`;
-- a department category in review or returned;
-- a department item pending review or needing modification;
+- a department category in review;
+- a department item pending Category Manager review;
 - a package item pending CFO review, needing modification, or needing reconciliation;
 - an open change request.
 
@@ -784,13 +798,19 @@ Reusable generic budget item master grouped by IT, Biomedical, or General catego
 
 Reusable model/specification master below a generic catalog item; every catalog item must have one active General sub-item.
 
+`id` is the authoritative system identifier. `sub_item_code` is a generated,
+read-only reference used for display, search, audit, and integration labels.
+Catalog administrators and Category Managers must not manually enter or edit
+normal reusable model codes. Non-General codes are generated by the backend;
+the default General sub-item keeps the fixed `GENERAL` code.
+
 **Keys:** PK `PK_BS_budget_catalog_sub_items` (id); UNIQUE `UQ_BS_budget_catalog_sub_items_code` (catalog_item_id, sub_item_code); UNIQUE `UQ_BS_budget_catalog_sub_items_name` (catalog_item_id, name)
 
 | Column | SQL type | Null | Reference / default |
 |---|---|---:|---|
 | `id` | `INT IDENTITY(1,1)` | No |  |
 | `catalog_item_id` | `INT` | No | FK → `BS_budget_catalog_items.id` |
-| `sub_item_code` | `VARCHAR(100)` | No |  |
+| `sub_item_code` | `VARCHAR(100)` | No | Generated read-only reference code; fixed as `GENERAL` for default General sub-items |
 | `name` | `NVARCHAR(300)` | No |  |
 | `default_specification` | `NVARCHAR(2000)` | Yes |  |
 | `default_unit_of_measure_id` | `INT` | No | FK → `BS_units_of_measure.id` |
@@ -881,7 +901,7 @@ One IT, Biomedical, or General child budget under a department annual budget.
 | `row_version` | `ROWVERSION (scripted as TIMESTAMP)` | No |  |
 
 **Important checks:**
-- `CK_BS_department_category_budgets_status`: `[status]='CATEGORY_REVIEW_COMPLETED' OR [status]='RETURNED_TO_DEPARTMENT' OR [status]='IN_CATEGORY_REVIEW' OR [status]='DRAFT'`
+- `CK_BS_department_category_budgets_status`: `[status]='CATEGORY_REVIEW_COMPLETED' OR [status]='IN_CATEGORY_REVIEW' OR [status]='DRAFT'`
 
 ### `BS_department_category_budget_items`
 
@@ -912,8 +932,7 @@ Generic item requested by one department in one category budget.
 - `CK_BS_department_category_budget_items_approved_quantity`: `[category_approved_quantity] IS NULL OR [category_approved_quantity]>=(0)`
 - `CK_BS_department_category_budget_items_distribution_method`: `[distribution_method]='CUSTOM' OR [distribution_method]='MONTHLY' OR [distribution_method]='QUARTERLY' OR [distribution_method]='ANNUAL'`
 - `CK_BS_department_category_budget_items_requested_quantity`: `[requested_quantity]>(0)`
-- `CK_BS_department_category_budget_items_review_note`: `[review_status]<>'NEEDS_MODIFICATION' OR len(ltrim(rtrim([review_note])))>(0)`
-- `CK_BS_department_category_budget_items_review_status`: `[review_status]='NEEDS_MODIFICATION' OR [review_status]='CATEGORY_ACCEPTED' OR [review_status]='PENDING_CATEGORY_REVIEW' OR [review_status]='DRAFT'`
+- `CK_BS_department_category_budget_items_review_status`: `[review_status]='CATEGORY_REVIEW_COMPLETED' OR [review_status]='PENDING_CATEGORY_REVIEW' OR [review_status]='DRAFT'`
 
 ### `BS_department_category_budget_item_distributions`
 
@@ -1048,6 +1067,29 @@ Year-specific detailed model/specification, quantity, unit price, and execution 
 - `CK_BS_category_budget_package_sub_items_quantity`: `[quantity] IS NULL OR [quantity]>=(0)`
 - `CK_BS_category_budget_package_sub_items_unit_price`: `[unit_price] IS NULL OR [unit_price]>=(0)`
 
+### `BS_category_budget_package_sub_item_allocations`
+
+Phase 5C allocation relationship from a reviewed department budget item to a shared year-specific package sub-item.
+
+**Keys:** PK `PK_BS_category_budget_package_sub_item_allocations` (id); UNIQUE `UQ_BS_category_budget_package_sub_item_allocations_pair` (category_budget_package_sub_item_id, department_category_budget_item_id)
+
+| Column | SQL type | Null | Reference / default |
+|---|---|---:|---|
+| `id` | `BIGINT IDENTITY(1,1)` | No |  |
+| `category_budget_package_sub_item_id` | `BIGINT` | No | FK -> `BS_category_budget_package_sub_items.id` |
+| `department_category_budget_item_id` | `BIGINT` | No | FK -> `BS_department_category_budget_items.id` |
+| `allocated_quantity` | `DECIMAL(18,4)` | No |  |
+| `created_by` | `INT` | Yes | FK -> `users.USER_ID` |
+| `created_at` | `DATETIME2(3)` | No | default `sysutcdatetime()` |
+| `updated_by` | `INT` | Yes | FK -> `users.USER_ID` |
+| `updated_at` | `DATETIME2(3)` | Yes |  |
+| `row_version` | `ROWVERSION (scripted as TIMESTAMP)` | No |  |
+
+**Important checks:**
+- `CK_BS_category_budget_package_sub_item_allocations_quantity`: `[allocated_quantity]>(0)`
+
+Zero allocations are not stored. Removing an allocation deletes the relationship row. Shared price/specification/unit/note/attachments remain owned only by `BS_category_budget_package_sub_items`.
+
 ### `BS_category_budget_package_sub_item_attachments`
 
 Documents attached to a year-specific package sub-item.
@@ -1070,6 +1112,7 @@ Documents attached to a year-specific package sub-item.
 | `disabled_by` | `INT` | Yes | FK → `users.USER_ID` |
 | `disabled_at` | `DATETIME2(3)` | Yes |  |
 | `disabled_reason` | `NVARCHAR(500)` | Yes |  |
+| `row_version` | `ROWVERSION (scripted as TIMESTAMP)` | No | Added for attachment remove concurrency |
 
 **Important checks:**
 - `CK_BS_category_budget_package_sub_item_attachments_disable_data`: `[is_active]=(1) OR [disabled_by] IS NOT NULL AND [disabled_at] IS NOT NULL AND len(ltrim(rtrim([disabled_reason])))>(0)`
@@ -1445,4 +1488,3 @@ Any older document mentioning a separate annual approval table, parent-level att
 - `rowversion` values are concurrency tokens and are not timestamps.
 - Foreign-key creation does not automatically create an index on the child column; add query-driven indexes separately.
 - Keep SQL transactions short and avoid holding them open during email delivery or file transfer.
-

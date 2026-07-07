@@ -106,17 +106,16 @@ export const deleteCategory = asyncHandler(async (req, res) => {
   );
 });
 
-export const getUnits = asyncHandler(async (_req, res) => {
-  const data = await getUnitsService();
+export const getUnits = asyncHandler(async (req, res) => {
+  const data = await getUnitsService(req.budgetAccess);
 
   res.json(
     new ApiResponse({
-      message: "Units fetched successfully",
+      message: "Units of measure fetched successfully",
       data,
     }),
   );
 });
-
 export const getCatalogItemsByCategory = asyncHandler(async (req, res) => {
   const categoryId = validatePositiveInt(req.params.categoryId, "categoryId");
 
@@ -258,7 +257,7 @@ export const getCatalogItemUsage = asyncHandler(async (req, res) => {
 export const getSubItemsByCatalogItem = asyncHandler(async (req, res) => {
   const itemId = validatePositiveInt(req.params.itemId, "itemId");
 
-  const data = await getSubItemsByCatalogItemService(itemId);
+  const data = await getSubItemsByCatalogItemService(itemId, req.budgetAccess);
 
   res.json(
     new ApiResponse({
@@ -277,6 +276,7 @@ export const createSubItem = asyncHandler(async (req, res) => {
     catalogItemId: itemId,
     payload,
     actorUserId: actorUserId(req),
+    budgetAccess: req.budgetAccess,
   });
 
   await auditLog(req, {

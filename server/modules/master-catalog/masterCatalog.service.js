@@ -1,9 +1,10 @@
 import { withTransaction } from "../../database/transaction.js";
 import { ApiError } from "../../utils/apiError.js";
 
-import { hasPermission } from "../access-management/access.constants.js";
+import { hasPermission } from "../../../shared/permissions/permissionCodes.js";
 
 import {
+  CATEGORY_PACKAGE_SUB_ITEM_PERMISSION,
   CATEGORY_SORT_ORDER,
   GENERAL_SUB_ITEM,
   MASTER_CATALOG_PERMISSION,
@@ -111,7 +112,27 @@ function assertCatalogLookupAccess(access, requestedCategoryId = null) {
     "MASTER_CATALOG_LOOKUP_FORBIDDEN",
   );
 }
+function assertCatalogSubItemCreateAccess(access, requestedCategoryId) {
+  if (hasCatalogManagementAccess(access)) {
+    return;
+  }
 
+  const workspaceCategoryId = getWorkspaceCategoryId(access);
+
+  if (
+    workspaceCategoryId &&
+    Number(workspaceCategoryId) === Number(requestedCategoryId) &&
+    hasPermission(access, CATEGORY_PACKAGE_SUB_ITEM_PERMISSION)
+  ) {
+    return;
+  }
+
+  throw new ApiError(
+    403,
+    "You do not have permission to create reusable models for this category",
+    "CATALOG_SUB_ITEM_CREATE_FORBIDDEN",
+  );
+}
 async function requireCategory(id) {
   const category = await findCategoryByIdRepo(id);
 
@@ -238,7 +259,8 @@ export async function deactivateCategoryService(id) {
   );
 }
 
-export async function getUnitsService() {
+export async function getUnitsService(access) {
+  assertCatalogLookupAccess(access);
   return (await getUnitsRepo()).map(mapUnit);
 }
 
@@ -388,8 +410,10 @@ export async function getCategoryUsageService(id) {
   return getCategoryUsageRepo(id);
 }
 
-export async function getSubItemsByCatalogItemService(catalogItemId) {
-  await requireCatalogItem(catalogItemId);
+export async function getSubItemsByCatalogItemService(catalogItemId, access) {
+  const item = await requireCatalogItem(catalogItemId);
+
+  assertCatalogLookupAccess(access, item.budget_category_id);
 
   return (await getSubItemsByCatalogItemRepo(catalogItemId)).map(mapSubItem);
 }
@@ -400,7 +424,9 @@ async function validateSubItemUniqueness({
   name,
   excludeId = null,
 }) {
-  const existingCode = await findSubItemByCodeRepo(catalogItemId, subItemCode);
+  const existingCode = subItemCode
+    ? await findSubItemByCodeRepo(catalogItemId, subItemCode)
+    : null;
 
   if (existingCode && Number(existingCode.id) !== Number(excludeId)) {
     throw new ApiError(
@@ -446,25 +472,58 @@ export async function createSubItemService({
   catalogItemId,
   payload,
   actorUserId = null,
+  budgetAccess,
 }) {
+  if (
+    !payload.is_default_general &&
+    payload.sub_item_code !== null &&
+    payload.sub_item_code !== undefined &&
+    String(payload.sub_item_code).trim()
+  ) {
+    throw new ApiError(
+      400,
+      "Reusable model codes are generated automatically",
+      "SUB_ITEM_CODE_GENERATED",
+    );
+  }
+
+  const resolvedPayload = {
+    ...payload,
+    sub_item_code: payload.is_default_general ? GENERAL_SUB_ITEM.code : null,
+  };
+
+  /*
+   * Load the parent generic catalog item.
+   */
   const item = await requireCatalogItem(catalogItemId);
 
+  /*
+   * Only allow:
+   * - Master Catalog Admin
+   * - Category Manager assigned to this category
+   *   with can_manage_category_budget_sub_items.
+   */
+  assertCatalogSubItemCreateAccess(budgetAccess, item.budget_category_id);
+
+  /*
+   * Validate the selected default unit.
+   */
   const unit = await requireUnit(payload.default_unit_of_measure_id);
 
   await validateSubItemUniqueness({
     catalogItemId: item.id,
-    subItemCode: payload.sub_item_code,
-    name: payload.name,
+    subItemCode: resolvedPayload.sub_item_code,
+    name: resolvedPayload.name,
   });
 
   await validateGeneralSubItemRule({
     catalogItemId: item.id,
-    isDefaultGeneral: payload.is_default_general,
+    isDefaultGeneral: resolvedPayload.is_default_general,
   });
 
   const created = await withTransaction(async (transaction) =>
     createSubItemRepo(transaction, {
-      ...withActor(payload, actorUserId),
+      ...withActor(resolvedPayload, actorUserId),
       catalog_item_id: item.id,
       default_unit_of_measure_id: unit.id,
     }),
@@ -478,6 +537,18 @@ export async function updateSubItemService({
   payload,
   actorUserId = null,
 }) {
+  if (
+    payload.sub_item_code !== undefined &&
+    payload.sub_item_code !== null &&
+    String(payload.sub_item_code).trim()
+  ) {
+    throw new ApiError(
+      400,
+      "Reusable model codes are generated automatically and cannot be changed",
+      "SUB_ITEM_CODE_READ_ONLY",
+    );
+  }
+
   const existing = await findSubItemByIdRepo(id);
 
   if (!existing || !existing.is_active) {
@@ -503,7 +574,6 @@ export async function updateSubItemService({
 
   await validateSubItemUniqueness({
     catalogItemId: existing.catalog_item_id,
-    subItemCode: payload.sub_item_code,
     name: payload.name,
     excludeId: id,
   });

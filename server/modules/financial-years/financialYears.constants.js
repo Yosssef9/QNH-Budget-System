@@ -1,4 +1,7 @@
-export const FINANCIAL_YEAR_PERMISSION = "can_manage_financial_years";
+import { PERMISSION_CODES } from "../../../shared/permissions/permissionCodes.js";
+
+export const FINANCIAL_YEAR_PERMISSION =
+  PERMISSION_CODES.MANAGE_FINANCIAL_YEAR_LIFECYCLE;
 
 export const FINANCIAL_YEAR_STATUS = Object.freeze({
   OPEN: "OPEN",
@@ -9,7 +12,6 @@ export const FINANCIAL_YEAR_STATUS = Object.freeze({
 export const DEPARTMENT_CATEGORY_BUDGET_STATUS = Object.freeze({
   DRAFT: "DRAFT",
   IN_CATEGORY_REVIEW: "IN_CATEGORY_REVIEW",
-  RETURNED_TO_DEPARTMENT: "RETURNED_TO_DEPARTMENT",
   CATEGORY_REVIEW_COMPLETED: "CATEGORY_REVIEW_COMPLETED",
 });
 

@@ -23,33 +23,23 @@ import {
 } from "../../helpers/budgetExcel.helper";
 import useClickOutside from "../../hooks/useClickOutside";
 import BudgetSummaryPanel from "../../components/budgets/shared/BudgetSummaryPanel";
-import SearchableMultiSelect from "../../components/SearchableMultiSelect";
 import ConfirmModal from "../../components/ConfirmModal";
 import Breadcrumbs from "../../components/Breadcrumbs";
 
 import { useCreateBudgetManual } from "../../hooks/budgets/useCreateBudgetManual";
-import BudgetReviewFeedback from "../../components/budgets/BudgetReviewFeedback";
-import { useBudgetReviewFeedback } from "../../hooks/budgets/useBudgetReviewFeedback";
-import { MONTHS as months } from "../../constants/months.constants";
 import { BUDGET_METHOD_OPTIONS as methodOptions } from "../../constants/budgetMethodOptions.constants";
 import { useUnsavedChanges } from "../../context/UnsavedChangesContext";
-import { formatNumber } from "../../utils/formatters";
-import CurrencyText from "../../components/CurrencyText";
 import { toNumber } from "../../utils/number";
 import {
   getMonthlyDistribution,
   getQuarterlyDistribution,
   getDistributedQuantity,
-  getQuarterAmount,
   normalizeArray,
 } from "../../helpers/budgetCalculations.helper";
-import { scrollToBudgetItemRow } from "../../helpers/budgetReviewNavigation.helper";
 import {
   getApiDistributionMethod,
-  getApiDistributionLevel,
   getApiDistributionRows,
 } from "../../helpers/budgetPayload.helper";
-import { useNavigate } from "react-router-dom";
 import {
   getDuplicateTypeRowIds,
   validateRowsDetailed,
@@ -66,24 +56,29 @@ const CopyBudgetDrawer = lazy(
   () => import("../../components/budgets/CopyBudgetDrawer"),
 );
 
-const RequestBudgetItemModal = lazy(
-  () => import("../../components/budgets/RequestBudgetItemModal"),
-);
-
+import RequestBudgetItemModal from "../../components/budgets/RequestBudgetItemModal";
 export default function BudgetEnteryPage() {
   const {
     currentBudget,
     rows,
     setRows,
+    rowsByCategoryBudget,
     categories,
+    categoryBudgets,
+    activeCategoryBudget,
+    activeCategoryBudgetId,
+    setActiveCategoryBudgetId,
     typesByCategory,
     openYear,
     loadingSetup,
     saving,
+    removedPersistedItemIds,
+    importRowsToCategoryBudgets,
     updateRow,
     addItem,
     deleteItem,
     saveDraft,
+    refreshBudget,
   } = useCreateBudgetManual();
   const pageLock = getBudgetEntryPageLock(openYear);
 
@@ -103,8 +98,12 @@ export default function BudgetEnteryPage() {
   const [summaryView, setSummaryView] = useState("QUARTER");
   const [budgetItemsPage, setBudgetItemsPage] = useState(1);
   const hasUnsavedChanges = useMemo(
-    () => rows.some((row) => !row.isSaved),
-    [rows],
+    () =>
+      Object.values(rowsByCategoryBudget)
+        .flat()
+        .some((row) => !row.isSaved) ||
+      removedPersistedItemIds.length > 0,
+    [removedPersistedItemIds.length, rowsByCategoryBudget],
   );
   const { setHasUnsavedChanges } = useUnsavedChanges();
   useEffect(() => {
@@ -126,52 +125,52 @@ export default function BudgetEnteryPage() {
   const [importSummary, setImportSummary] = useState(null);
   const importInputRef = useRef(null);
   const saveDraftLockRef = useRef(false);
-  const budgetStatus = localBudgetStatus || currentBudget?.status || "DRAFT";
-  const isBudgetLocked = ["PENDING_APPROVAL", "APPROVED", "CANCELLED"].includes(
-    budgetStatus,
-  );
-  const { data: reviewFeedback } = useBudgetReviewFeedback(
-    currentBudget?.id,
-    budgetStatus === "RETURNED",
-  );
+  const budgetStatus =
+    localBudgetStatus || activeCategoryBudget?.status || "DRAFT";
+  const activeCategoryName = activeCategoryBudget?.category_name || "selected";
+  const activeCategoryBudgetLabel = `${activeCategoryName} Category Budget`;
+  const isBudgetLocked = [
+    "IN_CATEGORY_REVIEW",
+    "CATEGORY_REVIEW_COMPLETED",
+  ].includes(budgetStatus);
 
-  const returnedItemNotes = reviewFeedback?.itemNotes || [];
-
-  const returnedItemNotesByItemId = useMemo(() => {
-    const map = new Map();
-
-    returnedItemNotes.forEach((note) => {
-      if (!note.budget_item_id) return;
-
-      if (!map.has(Number(note.budget_item_id))) {
-        map.set(Number(note.budget_item_id), []);
-      }
-
-      map.get(Number(note.budget_item_id)).push(note);
+  const getRowSnapshot = useCallback((row) => {
+    return JSON.stringify({
+      category: row.category,
+      item: row.item,
+      method: row.method,
+      quantity: row.quantity,
+      monthly: row.monthly,
+      quarterly: row.quarterly,
     });
+  }, []);
 
-    return map;
-  }, [returnedItemNotes]);
+  const withSavedState = useCallback((row) => {
+    if (!row.savedSnapshot) return row;
+
+    return {
+      ...row,
+      isSaved: row.savedSnapshot === getRowSnapshot(row),
+    };
+  }, [getRowSnapshot]);
   function getMonthlyAmountForSummary(row, monthIndex) {
     // notremoved
-    const unitPrice = toNumber(row.unitPrice);
-
     if (row.method === "ANNUAL") {
-      return monthIndex === 0 ? toNumber(row.quantity) * unitPrice : 0;
+      return monthIndex === 0 ? toNumber(row.quantity) : 0;
     }
 
     if (row.method === "MONTHLY" || row.method === "CUSTOM_MONTHLY") {
       const monthly = getMonthlyDistribution(row);
-      return toNumber(monthly[monthIndex]) * unitPrice;
+      return toNumber(monthly[monthIndex]);
     }
 
     if (row.method === "QUARTERLY" || row.method === "CUSTOM_QUARTERLY") {
       const quarterly = getQuarterlyDistribution(row);
 
-      if (monthIndex === 0) return toNumber(quarterly[0]) * unitPrice;
-      if (monthIndex === 3) return toNumber(quarterly[1]) * unitPrice;
-      if (monthIndex === 6) return toNumber(quarterly[2]) * unitPrice;
-      if (monthIndex === 9) return toNumber(quarterly[3]) * unitPrice;
+      if (monthIndex === 0) return toNumber(quarterly[0]);
+      if (monthIndex === 3) return toNumber(quarterly[1]);
+      if (monthIndex === 6) return toNumber(quarterly[2]);
+      if (monthIndex === 9) return toNumber(quarterly[3]);
 
       return 0;
     }
@@ -211,58 +210,70 @@ export default function BudgetEnteryPage() {
         if (!saveSuccess) return;
       }
 
-      await submitBudgetMutation.mutateAsync(currentBudget.id);
-      setLocalBudgetStatus("PENDING_APPROVAL");
+      if (!activeCategoryBudget?.id) {
+        toast.error("No category budget selected");
+        return;
+      }
+
+      await submitBudgetMutation.mutateAsync(activeCategoryBudget.id);
+      await refreshBudget();
+      setLocalBudgetStatus("IN_CATEGORY_REVIEW");
       setHasUnsavedChanges(false);
-      toast.success("Budget submitted for approval");
+      toast.success("Category budget submitted for review");
     } catch (error) {
       toast.error(error?.response?.data?.message || "Failed to submit budget");
     }
   }
   const summary = useBudgetSummary(rows, getMonthlyAmountForSummary);
-  const updateMonthly = useCallback((id, index, value) => {
-    // notremoved
-    setRows((prev) =>
-      prev.map((row) => {
-        if (row.id !== id) return row;
+  const updateMonthly = useCallback(
+    (id, index, value) => {
+      // notremoved
+      setRows((prev) =>
+        prev.map((row) => {
+          if (row.id !== id) return row;
 
-        const monthly = normalizeArray(row.monthly, 12);
-        const totalQuantity = toNumber(row.quantity);
+          const monthly = normalizeArray(row.monthly, 12);
+          const totalQuantity = toNumber(row.quantity);
 
-        const otherMonthsTotal = monthly.reduce((sum, qty, i) => {
-          if (i === index) return sum;
-          return sum + toNumber(qty);
-        }, 0);
+          const otherMonthsTotal = monthly.reduce((sum, qty, i) => {
+            if (i === index) return sum;
+            return sum + toNumber(qty);
+          }, 0);
 
-        const maxAllowed = Math.max(0, totalQuantity - otherMonthsTotal);
-        monthly[index] = Math.min(toNumber(value), maxAllowed);
+          const maxAllowed = Math.max(0, totalQuantity - otherMonthsTotal);
+          monthly[index] = Math.min(toNumber(value), maxAllowed);
 
-        return { ...row, monthly };
-      }),
-    );
-  }, []);
+          return withSavedState({ ...row, monthly });
+        }),
+      );
+    },
+    [setRows, withSavedState],
+  );
 
-  const updateQuarterly = useCallback((id, index, value) => {
-    // notremoved
-    setRows((prev) =>
-      prev.map((row) => {
-        if (row.id !== id) return row;
+  const updateQuarterly = useCallback(
+    (id, index, value) => {
+      // notremoved
+      setRows((prev) =>
+        prev.map((row) => {
+          if (row.id !== id) return row;
 
-        const quarterly = normalizeArray(row.quarterly, 4);
-        const totalQuantity = toNumber(row.quantity);
+          const quarterly = normalizeArray(row.quarterly, 4);
+          const totalQuantity = toNumber(row.quantity);
 
-        const otherQuartersTotal = quarterly.reduce((sum, qty, i) => {
-          if (i === index) return sum;
-          return sum + toNumber(qty);
-        }, 0);
+          const otherQuartersTotal = quarterly.reduce((sum, qty, i) => {
+            if (i === index) return sum;
+            return sum + toNumber(qty);
+          }, 0);
 
-        const maxAllowed = Math.max(0, totalQuantity - otherQuartersTotal);
-        quarterly[index] = Math.min(toNumber(value), maxAllowed);
+          const maxAllowed = Math.max(0, totalQuantity - otherQuartersTotal);
+          quarterly[index] = Math.min(toNumber(value), maxAllowed);
 
-        return { ...row, quarterly };
-      }),
-    );
-  }, []);
+          return withSavedState({ ...row, quarterly });
+        }),
+      );
+    },
+    [setRows, withSavedState],
+  );
   async function handleDownloadTemplate() {
     try {
       const types = await getAllBudgetTypes();
@@ -275,6 +286,12 @@ export default function BudgetEnteryPage() {
     }
   }
   async function handleImportExcel(event) {
+    if (isBudgetLocked) {
+      toast.error("Submitted category budgets are read-only.");
+      event.target.value = "";
+      return;
+    }
+
     const file = event.target.files?.[0];
 
     if (!file) return;
@@ -284,12 +301,13 @@ export default function BudgetEnteryPage() {
 
       const result = await importBudgetTemplate({
         file,
-        rows,
+        rows: Object.values(rowsByCategoryBudget).flat(),
         allTypes,
+        categoryBudgets,
       });
 
       if (result.importedRows.length > 0) {
-        setRows((prev) => [...prev, ...result.importedRows]);
+        importRowsToCategoryBudgets(result.importedRows);
       }
 
       setBudgetItemsPage(1);
@@ -342,12 +360,10 @@ export default function BudgetEnteryPage() {
       await saveDraft(
         rows.map((row) => ({
           id: row.isNew ? null : Number(row.id),
-          type_id: Number(row.item),
-          is_project: row.isProject === true,
-          quantity: toNumber(row.quantity),
-          unit_price: toNumber(row.unitPrice),
+          category_id: Number(activeCategoryBudget?.category_id),
+          catalog_item_id: Number(row.item),
+          requested_quantity: toNumber(row.quantity),
           distribution_method: getApiDistributionMethod(row.method),
-          distribution_level: getApiDistributionLevel(row.method),
           distribution: getApiDistributionRows(row),
         })),
       );
@@ -395,27 +411,35 @@ export default function BudgetEnteryPage() {
     [typesByCategory],
   );
 
-  const validationError = useMemo(() => validateRowsDetailed(rows), [rows]);
-  const duplicateTypeRowIds = useMemo(
-    () => getDuplicateTypeRowIds(rows),
-    [rows],
+  const validationError = validateRowsDetailed(rows);
+  const duplicateTypeRowIds = getDuplicateTypeRowIds(rows);
+  const totalBudgetItemsPages = useMemo(
+    () => Math.max(1, Math.ceil(rows.length / BUDGET_ITEMS_PAGE_SIZE)),
+    [rows.length],
   );
-  const totalBudgetItemsPages = useMemo(() => {
-    return Math.max(1, Math.ceil(rows.length / BUDGET_ITEMS_PAGE_SIZE));
-  }, [rows.length]);
-
-  useEffect(() => {
-    if (budgetItemsPage > totalBudgetItemsPages) {
-      setBudgetItemsPage(totalBudgetItemsPages);
-    }
-  }, [budgetItemsPage, totalBudgetItemsPages]);
+  const currentBudgetItemsPage = Math.min(
+    budgetItemsPage,
+    totalBudgetItemsPages,
+  );
 
   const paginatedRows = useMemo(() => {
-    const start = (budgetItemsPage - 1) * BUDGET_ITEMS_PAGE_SIZE;
+    const start = (currentBudgetItemsPage - 1) * BUDGET_ITEMS_PAGE_SIZE;
     return rows.slice(start, start + BUDGET_ITEMS_PAGE_SIZE);
-  }, [rows, budgetItemsPage]);
+  }, [rows, currentBudgetItemsPage]);
   const handleCopyBudget = (copiedRows) => {
-    setRows((currentRows) => [...currentRows, ...copiedRows]);
+    if (isBudgetLocked) {
+      toast.error("Submitted category budgets are read-only.");
+      return;
+    }
+
+    setRows((currentRows) => [
+      ...currentRows,
+      ...copiedRows.map((row) => ({
+        ...row,
+        category: activeCategoryBudget?.category_id ?? row.category,
+        categoryName: activeCategoryBudget?.category_name ?? row.categoryName,
+      })),
+    ]);
 
     setBudgetItemsPage(1);
 
@@ -426,7 +450,11 @@ export default function BudgetEnteryPage() {
 
     toast.success(`${copiedRows.length} items added successfully`);
   };
-  
+
+  if (pageLock.locked && !loadingSetup) {
+    return lockedContent;
+  }
+
   return (
     <div className="space-y-5 p-6 text-slate-800">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -434,7 +462,7 @@ export default function BudgetEnteryPage() {
           <Breadcrumbs />
 
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900">
-            Enter Budget Items - Manual Entry
+            Department Budget Entry
           </h1>
         </div>
 
@@ -443,11 +471,13 @@ export default function BudgetEnteryPage() {
             type="button"
             onClick={() => setRequestItemModalOpen(true)}
             disabled={isBudgetLocked || loadingSetup}
+            title={isBudgetLocked ? "Submitted category budgets are read-only." : undefined}
             className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-semibold text-amber-700 shadow-sm transition-all duration-200 hover:scale-[1.02] hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <PackagePlus size={17} />
             Request Item
           </button>
+
           <button
             type="button"
             onClick={handleSaveDraft}
@@ -475,7 +505,7 @@ export default function BudgetEnteryPage() {
             <Send size={17} />
             {submitBudgetMutation.isPending
               ? "Submitting..."
-              : "Submit for Approval"}
+              : "Review and Submit"}
           </button>
         </div>
       </div>
@@ -504,7 +534,8 @@ export default function BudgetEnteryPage() {
       )}
       {isBudgetLocked && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
-          This budget is {budgetStatus}. It is read-only and cannot be edited.
+          This category budget is {budgetStatus.replaceAll("_", " ")}. It is
+          read-only and cannot be edited.
         </div>
       )}
       <BudgetHeaderCard
@@ -512,29 +543,18 @@ export default function BudgetEnteryPage() {
         openYear={openYear}
         budgetStatus={budgetStatus}
       />
-      {budgetStatus === "RETURNED" && currentBudget?.id && (
-        <BudgetReviewFeedback
-          budgetId={currentBudget.id}
-          onItemNoteClick={scrollToBudgetItemRow}
-        />
-      )}
       <section>
         <div className="mb-3 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold text-slate-900">Budget Items</h2>
 
-            {budgetStatus === "RETURNED" && returnedItemNotes.length > 0 && (
-              <p className="mt-1 text-sm font-semibold text-amber-700">
-                {returnedItemNotes.length} item note(s) from approver need
-                review.
-              </p>
-            )}
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <div ref={excelMenuRef} className="relative">
               <button
                 type="button"
                 disabled={isBudgetLocked}
+                title={isBudgetLocked ? "Submitted category budgets are read-only." : undefined}
                 onClick={() => setExcelMenuOpen((prev) => !prev)}
                 className="
     group
@@ -612,14 +632,17 @@ export default function BudgetEnteryPage() {
                   <h3 className="font-bold text-slate-900">Excel Tools</h3>
 
                   <p className="mt-1 text-xs text-slate-500">
-                    Import budgets or download the latest template
+                    Import requested quantities or download the latest template
                   </p>
                 </div>
 
                 <div className="p-3">
                   <button
                     type="button"
+                    disabled={isBudgetLocked}
+                    title={isBudgetLocked ? "Submitted category budgets are read-only." : undefined}
                     onClick={() => {
+                      if (isBudgetLocked) return;
                       setExcelMenuOpen(false);
                       handleDownloadTemplate();
                     }}
@@ -676,14 +699,17 @@ export default function BudgetEnteryPage() {
                       </div>
 
                       <div className="mt-1 text-xs text-slate-500">
-                        Get the latest approved Excel format
+                        All catalog items with requested quantity only
                       </div>
                     </div>
                   </button>
 
                   <button
                     type="button"
+                    disabled={isBudgetLocked}
+                    title={isBudgetLocked ? "Submitted category budgets are read-only." : undefined}
                     onClick={() => {
+                      if (isBudgetLocked) return;
                       setExcelMenuOpen(false);
                       importInputRef.current?.click();
                     }}
@@ -741,7 +767,7 @@ export default function BudgetEnteryPage() {
                       </div>
 
                       <div className="mt-1 text-xs text-slate-500">
-                        Import multiple budget items from Excel
+                        Import requested quantities across all categories
                       </div>
                     </div>
                   </button>
@@ -765,6 +791,7 @@ export default function BudgetEnteryPage() {
               type="button"
               onClick={() => setCopyDrawerOpen(true)}
               disabled={isBudgetLocked}
+              title={isBudgetLocked ? "Submitted category budgets are read-only." : undefined}
               className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Copy size={17} />
@@ -776,6 +803,7 @@ export default function BudgetEnteryPage() {
               type="button"
               onClick={addItem}
               disabled={isBudgetLocked}
+              title={isBudgetLocked ? "Submitted category budgets are read-only." : undefined}
               className="
     group
     inline-flex
@@ -816,18 +844,58 @@ export default function BudgetEnteryPage() {
             </button>
           </div>
         </div>
+        <div
+          className="mb-4 grid gap-3 md:grid-cols-3"
+          role="tablist"
+          aria-label="Budget categories"
+        >
+          {categoryBudgets.map((categoryBudget) => {
+            const active =
+              Number(categoryBudget.id) === Number(activeCategoryBudgetId);
+            const count =
+              categoryBudget.items?.length ?? categoryBudget.item_count ?? 0;
+            const label =
+              categoryBudget.status?.replaceAll("_", " ") || "DRAFT";
+
+            return (
+              <button
+                key={categoryBudget.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => {
+                  setActiveCategoryBudgetId(categoryBudget.id);
+                  setBudgetItemsPage(1);
+                  setLocalBudgetStatus(null);
+                }}
+                className={[
+                  "rounded-xl border px-4 py-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500",
+                  active
+                    ? "border-blue-300 bg-blue-50 shadow-sm"
+                    : "border-slate-200 bg-white hover:border-blue-200 hover:bg-slate-50",
+                ].join(" ")}
+              >
+                <div className="text-sm font-bold text-slate-900">
+                  {categoryBudget.category_name}
+                </div>
+                <div className="mt-1 text-xs font-semibold text-slate-500">
+                  {count} item{count === 1 ? "" : "s"} · {label}
+                </div>
+              </button>
+            );
+          })}
+        </div>
 
         <div className="max-h-[65vh] overflow-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
           <BudgetDistributionTable
             paginatedRows={paginatedRows}
             rows={rows}
-            budgetItemsPage={budgetItemsPage}
+            budgetItemsPage={currentBudgetItemsPage}
             categories={categories}
             typesByCategory={typesByCategory}
             methodOptions={methodOptions}
             duplicateTypeRowIds={duplicateTypeRowIds}
             deletingRowIds={deletingRowIds}
-            returnedItemNotesByItemId={returnedItemNotesByItemId}
             isBudgetLocked={isBudgetLocked}
             getMonthlyDistribution={getMonthlyDistribution}
             getQuarterlyDistribution={getQuarterlyDistribution}
@@ -883,12 +951,12 @@ export default function BudgetEnteryPage() {
             <p className="text-sm font-semibold text-slate-500">
               Showing{" "}
               <span className="text-slate-900">
-                {(budgetItemsPage - 1) * BUDGET_ITEMS_PAGE_SIZE + 1}
+                {(currentBudgetItemsPage - 1) * BUDGET_ITEMS_PAGE_SIZE + 1}
               </span>
               {" - "}
               <span className="text-slate-900">
                 {Math.min(
-                  budgetItemsPage * BUDGET_ITEMS_PAGE_SIZE,
+                  currentBudgetItemsPage * BUDGET_ITEMS_PAGE_SIZE,
                   rows.length,
                 )}
               </span>
@@ -903,14 +971,14 @@ export default function BudgetEnteryPage() {
                 onClick={() =>
                   setBudgetItemsPage((page) => Math.max(1, page - 1))
                 }
-                disabled={budgetItemsPage <= 1}
+                disabled={currentBudgetItemsPage <= 1}
                 className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Previous
               </button>
 
               <span className="rounded-xl bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700">
-                Page {budgetItemsPage} / {totalBudgetItemsPages}
+                Page {currentBudgetItemsPage} / {totalBudgetItemsPages}
               </span>
 
               <button
@@ -920,7 +988,7 @@ export default function BudgetEnteryPage() {
                     Math.min(totalBudgetItemsPages, page + 1),
                   )
                 }
-                disabled={budgetItemsPage >= totalBudgetItemsPages}
+                disabled={currentBudgetItemsPage >= totalBudgetItemsPages}
                 className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Next
@@ -1033,16 +1101,29 @@ export default function BudgetEnteryPage() {
       />
       <ConfirmModal
         open={confirmSubmitOpen}
-        title="Submit budget for approval?"
-        message="Are you sure you want to submit this budget? After submission, the budget will become PENDING_APPROVAL and cannot be edited unless the approver returns it."
-        confirmText="Submit Budget"
+        title={`Submit ${activeCategoryBudgetLabel}?`}
+        message={`You are about to submit the ${activeCategoryBudgetLabel} for review. This action applies only to the currently selected ${activeCategoryName} tab, not to the other category budgets.`}
+        confirmText="Review and Submit"
         loading={submitBudgetMutation.isPending}
         onCancel={() => setConfirmSubmitOpen(false)}
         onConfirm={async () => {
           setConfirmSubmitOpen(false);
           await handleSubmitBudget();
         }}
-      />
+      >
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-blue-600">
+            Category being submitted
+          </p>
+          <p className="mt-1 text-lg font-bold text-blue-900">
+            {activeCategoryBudgetLabel}
+          </p>
+          <p className="mt-2 text-sm font-medium text-blue-800">
+            IT, Biomedical, and General are submitted separately. Only this
+            category budget will move to Category Manager review.
+          </p>
+        </div>
+      </ConfirmModal>
       <ConfirmModal
         open={importSummaryOpen}
         title="Excel Import Results"
@@ -1101,15 +1182,12 @@ export default function BudgetEnteryPage() {
           )}
         </div>
       </ConfirmModal>
-      {requestItemModalOpen && (
-        <Suspense fallback={null}>
-          <RequestBudgetItemModal
-            open={requestItemModalOpen}
-            onClose={() => setRequestItemModalOpen(false)}
-            categories={categories}
-          />
-        </Suspense>
-      )}
+      <RequestBudgetItemModal
+        open={requestItemModalOpen}
+        onClose={() => setRequestItemModalOpen(false)}
+        categories={categories}
+        defaultCategoryId={activeCategoryBudget?.category_id}
+      />
       {copyDrawerOpen && (
         <Suspense fallback={null}>
           <CopyBudgetDrawer

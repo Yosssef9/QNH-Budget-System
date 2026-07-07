@@ -1,6 +1,5 @@
 import {
   ROLE_CODES,
-  buildPermissionMap,
   getWorkspaceTypeForRole,
 } from "./access.constants.js";
 
@@ -60,7 +59,6 @@ export function mapAssignmentRowToWorkspace(row, permissionCodes = []) {
     actingAs: label,
     isGlobalAdmin: role.code === ROLE_CODES.BUDGET_SYSTEM_ADMIN,
     permissionCodes,
-    permissions: buildPermissionMap(permissionCodes),
   };
 }
 

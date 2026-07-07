@@ -28,54 +28,73 @@ import {
 const router = express.Router();
 
 /*
- * Every Master Catalog request requires:
- *
- * 1. An authenticated Portal user.
- * 2. A valid active Budget workspace.
+ * All Master Catalog routes require an authenticated Portal user
+ * and a resolved active Budget workspace.
  */
 router.use(verifyPortalJwt);
 router.use(resolveBudgetWorkspace);
 
 /*
- * Operational catalog lookup.
+ * Shared operational catalog routes.
  *
- * These endpoints are also required outside the Budget Setup administration
- * page, such as when Department users choose catalog items while preparing
- * their category budgets.
- *
- * Access and category scope are validated by the service layer:
- *
- * Department workspace:
- * - Can read all active categories.
- * - Can read active items from all three categories.
- *
- * Category workspace:
- * - Can read only its assigned category.
- * - Can read items only from its assigned category.
- *
- * Master Catalog administrator:
- * - Can read all categories and items.
+ * These routes are required outside the Catalog Administration page.
+ * Access permissions and category scope must be validated by the
+ * Master Catalog service layer.
+ */
+
+/*
+ * Categories lookup
  */
 router.get("/categories", getCategories);
 
+/*
+ * Catalog items lookup by category
+ */
 router.get("/categories/:categoryId/catalog-items", getCatalogItemsByCategory);
+
+/*
+ * Units of measure lookup.
+ *
+ * Category Managers need this endpoint when creating reusable
+ * catalog sub-items from the Category Package Workbench.
+ */
+router.get("/units-of-measure", getUnits);
+
+/*
+ * Reusable catalog sub-items lookup.
+ *
+ * Category Managers need this endpoint to populate the reusable
+ * model dropdown for the selected generic package item.
+ */
+router.get("/catalog-items/:itemId/sub-items", getSubItemsByCatalogItem);
+
+/*
+ * Reusable catalog sub-item creation.
+ *
+ * Category Managers may use this endpoint only when:
+ *
+ * - They have can_manage_category_budget_sub_items.
+ * - Their active workspace is CATEGORY.
+ * - The parent catalog item belongs to their assigned category.
+ *
+ * Catalog Administrators may continue to create sub-items for any
+ * catalog item.
+ *
+ * These checks must be enforced in the service layer.
+ */
+router.post("/catalog-items/:itemId/sub-items", createSubItem);
 
 /*
  * Master Catalog administration boundary.
  *
- * Every route registered below this middleware requires:
+ * Every route declared below this middleware requires:
  *
  * can_manage_budget_catalog
  */
 router.use(requireBudgetPermission(MASTER_CATALOG_PERMISSION));
 
 /*
- * Units of Measure
- */
-router.get("/units-of-measure", getUnits);
-
-/*
- * Complete catalog item lookup for the Budget Setup administration page.
+ * Complete catalog-item lookup for Catalog Administration.
  */
 router.get("/catalog-items", getAllCatalogItems);
 
@@ -91,7 +110,7 @@ router.delete("/categories/:categoryId", deleteCategory);
 router.get("/categories/:categoryId/usage", getCategoryUsage);
 
 /*
- * Catalog Item administration
+ * Generic Catalog Item administration
  */
 router.post("/categories/:categoryId/catalog-items", createCatalogItem);
 
@@ -102,12 +121,11 @@ router.patch("/catalog-items/:itemId/status", updateCatalogItemStatus);
 router.get("/catalog-items/:itemId/usage", getCatalogItemUsage);
 
 /*
- * Reusable Catalog Sub-Item administration
+ * Existing reusable Catalog Sub-Item administration.
+ *
+ * Updating an existing reusable model and changing its active
+ * status remain Catalog Administrator actions.
  */
-router.get("/catalog-items/:itemId/sub-items", getSubItemsByCatalogItem);
-
-router.post("/catalog-items/:itemId/sub-items", createSubItem);
-
 router.patch("/catalog-sub-items/:subItemId", updateSubItem);
 
 router.patch("/catalog-sub-items/:subItemId/status", updateSubItemStatus);

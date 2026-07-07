@@ -293,6 +293,8 @@ shared infrastructure
               -> reports/dashboard
 ```
 
+`server/modules/category-packages` owns Phase 5C hospital-wide package preparation, including package items, year-specific package sub-items, shared package model details, department-to-package-sub-item allocations, reconciliation, and CFO submission readiness. Category Review owns approved department quantities; Category Packages consumes those approved quantities and must not duplicate department contribution totals in a separate physical contribution table.
+
 To prevent circular dependencies:
 
 - Keep shared code business-neutral.
@@ -319,3 +321,152 @@ Before the overall refactor is complete, run a repository scan proving:
 - All migrated modules have targeted tests and frontend validation evidence.
 
 The overall migration must not be marked complete until this final architecture scan passes.
+
+## Production Readiness And Operational Monitoring
+
+The future `Production Readiness and Operational Monitoring` phase is planned in `QNH_New_Workflow_Modular_Refactor_Plan.md`. This section records approved upcoming work only. Implementation must not start until the roadmap reaches that phase.
+
+This phase must occur after all core business and workflow modules are stable and before production deployment, go-live validation, and final handover.
+
+### Health Endpoint Architecture
+
+Use separate public liveness and readiness endpoints:
+
+- `GET /health/live`: confirms the Node.js process is alive. It must return quickly, avoid database queries, and expose only minimal non-sensitive information.
+- `GET /health/ready`: confirms the API can currently serve normal Budget System requests. It should check essential dependencies such as SQL Server connectivity, required configuration, and critical initialization state. Unavailable readiness returns HTTP 503.
+
+Public health responses must not expose SQL Server hostnames, database names unless explicitly approved, connection strings, credentials, internal IP addresses, file-system paths, stack traces, raw SQL errors, JWT information, or environment variables.
+
+Basic liveness/readiness routes may live in a lightweight shared health component because they are infrastructure endpoints. Do not put all health logic directly in `server.js`.
+
+### Protected System Health Module
+
+Detailed operational diagnostics should be implemented in a small dedicated operational module, for example:
+
+```text
+server/modules/system-health/
+  systemHealth.constants.js
+  systemHealth.controller.js
+  systemHealth.repository.js
+  systemHealth.routes.js
+  systemHealth.service.js
+```
+
+The detailed endpoint may be:
+
+```http
+GET /api/admin/system-health
+```
+
+The final route name must follow approved module conventions. Access must be limited to global administrators or users with an explicit system-health viewing permission. Do not reuse an unrelated permission merely to avoid adding the correct authorization rule. During implementation, determine whether a dedicated normalized permission such as `can_view_system_health` is required.
+
+The system-health service owns component status calculation and safe administrative messages. The controller returns only safe mapped responses. Do not return secrets or raw infrastructure errors.
+
+Use component statuses:
+
+```text
+HEALTHY
+WARNING
+UNAVAILABLE
+UNKNOWN
+```
+
+Do not report a component as healthy when it has not actually been checked.
+
+### SQL Server Backup And Recovery Boundary
+
+Database backup and recovery is an infrastructure and database-administration responsibility. The Node.js API must not directly perform SQL Server backup or restore operations.
+
+The application may expose read-only backup status in the protected System Health API and administrator page, but it must not initially expose commands to run backups, delete backups, restore databases, change recovery model, or change retention policy.
+
+Backup status should come from a controlled backend service that reads approved SQL Server backup history or a dedicated monitoring table. The browser must never query SQL Server system databases directly and must never receive physical backup paths, credentials, server names, or infrastructure secrets.
+
+Preferred backup scheduling is SQL Server Agent when supported. If SQL Server Agent is unavailable, such as with some SQL Server Express installations, Windows Task Scheduler plus `sqlcmd` may be used by infrastructure administrators. Do not rely on manually copied `.bak` files inside the repository or project directory.
+
+`RESTORE VERIFYONLY` is useful but does not replace an actual restore test. Production readiness requires a tested restore to a separate non-production database and verification that important application tables and queries work after restoration.
+
+### Administrator System Health Page
+
+The future frontend page should live in the existing frontend folder structure and be permission-protected in both frontend and backend.
+
+Suggested navigation:
+
+```text
+Administration -> System Health
+```
+
+The first version must be read-only and provide an operational overview with safe status badges, manual refresh, last refresh timestamp, and safe error messages.
+
+The page may show API status, SQL Server connectivity, notification-worker status when reliably available, and database backup status including last full/differential/log backups and warning state. It must not expose internal paths, credentials, server names, raw exceptions, or infrastructure secrets.
+
+## Canonical Permission Architecture
+
+New-workflow modules use one shared application permission contract:
+
+```text
+shared/permissions/permissionCodes.js
+```
+
+The database remains authoritative through:
+
+```text
+BS_budget_permissions.permission_code
+BS_budget_role_permissions
+BS_budget_user_permission_overrides
+BS_budget_user_roles
+```
+
+Rules:
+
+- New-workflow modules must import `PERMISSION_CODES`; do not repeat raw `can_*` strings in feature code.
+- Access Management owns effective-permission resolution for the selected active `BS_budget_user_roles.id`.
+- Serialized access uses `budgetAccess.permissionCodes`.
+- `budgetAccess.permissions` and legacy aliases are not part of the new-workflow access contract.
+- Budget System Admin access must come from normalized role-permission grants, not a magic global-admin bypass.
+- Permission codes are SQL values and must be passed as parameters.
+- Permission codes must never be interpolated as SQL column names.
+- Notification permission recipients must be resolved through Access Management, not through notification repositories that inspect permission tables directly.
+
+The current enforcement boundary and validation commands are tracked in `QNH_New_Workflow_Modular_Refactor_Plan.md`.
+
+### Temporary Legacy Permission Compatibility Boundary
+
+The target architecture has no legacy permission aliases, no legacy permission database columns, and no permission-column SQL. The live database uses the normalized permission registry only.
+
+During development, a temporary adapter remains only for existing mounted old-workflow routes:
+
+```text
+server/middleware/permission.middleware.js
+```
+
+This adapter maps old route-level permission names to canonical `PERMISSION_CODES` and checks `req.budgetAccess.permissionCodes`. It must not be imported by new-workflow modules and must not be used by new routes.
+
+New-workflow modules must use:
+
+```text
+server/shared/middleware/requireBudgetPermission.js
+```
+
+with explicit canonical constants:
+
+```js
+requireBudgetPermission(
+  PERMISSION_CODES.MANAGE_BUDGET_CATALOG,
+)
+```
+
+Existing old-workflow routes may temporarily use:
+
+```js
+requirePermission("can_approve_budget")
+```
+
+only until their owning module is migrated, replaced, or deleted.
+
+Broad legacy mappings are approximate. A legacy name such as `can_approve_budget` may map to several canonical CFO permissions using "any permission" behavior. This is not acceptable for final module authorization. Each migrated module must replace broad legacy checks with precise route-specific permissions and service-level scope validation.
+
+Delete `server/middleware/permission.middleware.js` only after:
+
+1. all imports of it are removed;
+2. old consumers are deleted, unmounted, or migrated to `requireBudgetPermission(PERMISSION_CODES.*)`;
+3. `rg -n "middleware/permission.middleware|requirePermission\(" server` shows no active consumer.

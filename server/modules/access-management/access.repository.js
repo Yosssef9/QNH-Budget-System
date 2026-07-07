@@ -108,6 +108,93 @@ export async function getEffectivePermissionCodesByUserRoleIdRepo(userRoleId) {
   return (result.recordset || []).map((row) => row.permission_code);
 }
 
+export async function getUsersByEffectivePermissionRepo({
+  permissionCode,
+  scope = { type: "GLOBAL" },
+}) {
+  const pool = await poolPromise;
+  const scopeType = String(scope?.type || "GLOBAL").toUpperCase();
+
+  const result = await pool
+    .request()
+    .input("permissionCode", sql.VarChar(150), permissionCode)
+    .input("scopeType", sql.VarChar(20), scopeType)
+    .input("departmentId", sql.Int, scope?.departmentId ?? null)
+    .input("categoryId", sql.Int, scope?.categoryId ?? null).query(`
+      WITH target_permission AS
+      (
+        SELECT id
+        FROM dbo.BS_budget_permissions
+        WHERE permission_code = @permissionCode
+          AND is_active = 1
+      ),
+      eligible_assignments AS
+      (
+        SELECT
+          bur.id AS user_role_id,
+          bur.user_id,
+          bur.role_id,
+          bur.department_id,
+          bur.budget_category_id,
+          u.USER_NAME,
+          u.email
+        FROM dbo.BS_budget_user_roles AS bur
+        INNER JOIN dbo.users AS u
+          ON u.USER_ID = bur.user_id
+          AND u.is_active = 1
+          AND u.email IS NOT NULL
+        INNER JOIN dbo.BS_budget_roles AS br
+          ON br.id = bur.role_id
+          AND br.is_active = 1
+        WHERE bur.is_active = 1
+          AND
+          (
+            @scopeType = 'GLOBAL'
+            OR (@scopeType = 'DEPARTMENT' AND bur.department_id = @departmentId)
+            OR (@scopeType = 'CATEGORY' AND bur.budget_category_id = @categoryId)
+          )
+      )
+      SELECT DISTINCT
+        ea.user_id AS id,
+        ea.USER_NAME,
+        ea.email
+      FROM eligible_assignments AS ea
+      CROSS JOIN target_permission AS tp
+      WHERE
+      (
+        EXISTS
+        (
+          SELECT 1
+          FROM dbo.BS_budget_user_permission_overrides AS grantOverride
+          WHERE grantOverride.user_role_id = ea.user_role_id
+            AND grantOverride.permission_id = tp.id
+            AND grantOverride.is_active = 1
+            AND grantOverride.action = 'GRANT'
+        )
+        OR
+        EXISTS
+        (
+          SELECT 1
+          FROM dbo.BS_budget_role_permissions AS rp
+          WHERE rp.role_id = ea.role_id
+            AND rp.permission_id = tp.id
+        )
+      )
+      AND NOT EXISTS
+      (
+        SELECT 1
+        FROM dbo.BS_budget_user_permission_overrides AS denyOverride
+        WHERE denyOverride.user_role_id = ea.user_role_id
+          AND denyOverride.permission_id = tp.id
+          AND denyOverride.is_active = 1
+          AND denyOverride.action = 'DENY'
+      )
+      ORDER BY ea.USER_NAME
+    `);
+
+  return result.recordset || [];
+}
+
 export async function getAssignmentPermissionMatrixRepo(userRoleId) {
   const pool = await poolPromise;
 
@@ -685,4 +772,3 @@ export async function replaceAssignmentPermissionOverridesRepo(
       `);
   }
 }
-

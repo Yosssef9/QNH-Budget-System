@@ -15,11 +15,6 @@ export default function useBudgetSummary(rows, getMonthlyAmountForSummary) {
       0,
     );
 
-    const totalAmount = rows.reduce(
-      (sum, row) => sum + toNumber(row.quantity) * toNumber(row.unitPrice),
-      0,
-    );
-
     const quarterTotals = [0, 1, 2, 3].map((quarterIndex) =>
       rows.reduce((sum, row) => sum + getQuarterAmount(row, quarterIndex), 0),
     );
@@ -33,7 +28,7 @@ export default function useBudgetSummary(rows, getMonthlyAmountForSummary) {
 
     const isValid = rows.every((row) => {
       const hasValidNumbers =
-        toNumber(row.quantity) > 0 && toNumber(row.unitPrice) > 0;
+        toNumber(row.quantity) > 0;
 
       if (!row.category || !row.item || !hasValidNumbers) {
         return false;
@@ -48,7 +43,7 @@ export default function useBudgetSummary(rows, getMonthlyAmountForSummary) {
 
     return {
       totalQuantity,
-      totalAmount,
+      totalAmount: 0,
       quarterTotals,
       monthTotals,
       isValid,

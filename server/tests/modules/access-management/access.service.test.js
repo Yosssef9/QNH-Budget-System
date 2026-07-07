@@ -205,11 +205,11 @@ describe("resolveBudgetAccessForUser", () => {
       name: "IT",
       code: "IT",
     });
-    expect(
-      access.permissions.can_review_department_category_requests,
-    ).toBe(true);
-    expect(access.permissions.can_view_department_budget_requests).toBe(
-      undefined,
+    expect(access.permissionCodes).toContain(
+      "can_review_department_category_requests",
+    );
+    expect(access.permissionCodes).not.toContain(
+      "can_view_department_budget_requests",
     );
   });
 });

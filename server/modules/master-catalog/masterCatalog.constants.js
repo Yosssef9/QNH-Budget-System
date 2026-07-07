@@ -1,4 +1,9 @@
-export const MASTER_CATALOG_PERMISSION = "can_manage_budget_catalog";
+import { PERMISSION_CODES } from "../../../shared/permissions/permissionCodes.js";
+
+export const MASTER_CATALOG_PERMISSION = PERMISSION_CODES.MANAGE_BUDGET_CATALOG;
+
+export const CATEGORY_PACKAGE_SUB_ITEM_PERMISSION =
+  PERMISSION_CODES.MANAGE_CATEGORY_BUDGET_SUB_ITEMS;
 
 export const CATEGORY_CODES = Object.freeze({
   IT: "IT",

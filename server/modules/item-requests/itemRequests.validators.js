@@ -1,4 +1,8 @@
-import { ApiError } from "../utils/apiError.js";
+import { ApiError } from "../../utils/apiError.js";
+import {
+  ITEM_REQUEST_EXPENSE_TYPES,
+  ITEM_REQUEST_STATUSES,
+} from "./itemRequests.constants.js";
 
 function normalizeOptionalName(value) {
   if (value === null || value === undefined || value === "") return null;
@@ -32,45 +36,51 @@ function normalizeRequiredName(value, fieldName) {
   return name;
 }
 
+function normalizePositiveInt(value, fieldName) {
+  const number = Number(value);
+
+  if (!Number.isInteger(number) || number <= 0) {
+    throw new ApiError(
+      400,
+      `${fieldName} must be a positive number`,
+      "VALIDATION_ERROR",
+    );
+  }
+
+  return number;
+}
+
 export function validateCreateItemRequest(body) {
   const existingCategoryId =
-    body?.existingCategoryId || body?.existing_category_id || null;
+    body?.existingCategoryId ?? body?.existing_category_id ?? body?.categoryId;
 
-  const categoryId = existingCategoryId ? Number(existingCategoryId) : null;
-
-  if (
-    categoryId !== null &&
-    (!Number.isInteger(categoryId) || categoryId <= 0)
-  ) {
-    throw new ApiError(
-      400,
-      "existingCategoryId must be a positive number",
-      "VALIDATION_ERROR",
-    );
-  }
+  const categoryId = normalizePositiveInt(
+    existingCategoryId,
+    "existingCategoryId",
+  );
 
   const requestedCategoryName = normalizeOptionalName(
-    body?.requestedCategoryName || body?.requested_category_name,
+    body?.requestedCategoryName ?? body?.requested_category_name,
   );
 
-  const requestedTypeName = normalizeRequiredName(
-    body?.requestedTypeName || body?.requested_type_name,
-    "Requested item/type name",
-  );
-
-  if (!categoryId && !requestedCategoryName) {
+  if (requestedCategoryName) {
     throw new ApiError(
       400,
-      "Select existing category or enter new category name",
-      "VALIDATION_ERROR",
+      "New category requests are not supported. Select IT, Biomedical, or General.",
+      "CATEGORY_REQUEST_NOT_ALLOWED",
     );
   }
 
-  const expenseType = String(body?.expenseType || body?.expense_type || "")
+  const requestedTypeName = normalizeRequiredName(
+    body?.requestedTypeName ?? body?.requested_type_name,
+    "Requested item name",
+  );
+
+  const expenseType = String(body?.expenseType ?? body?.expense_type ?? "")
     .trim()
     .toUpperCase();
 
-  if (!["OPEX", "CAPEX"].includes(expenseType)) {
+  if (!Object.values(ITEM_REQUEST_EXPENSE_TYPES).includes(expenseType)) {
     throw new ApiError(
       400,
       "Expense type must be OPEX or CAPEX",
@@ -80,18 +90,18 @@ export function validateCreateItemRequest(body) {
 
   return {
     existingCategoryId: categoryId,
-    requestedCategoryName,
+    requestedCategoryName: null,
     requestedTypeName,
     expenseType,
   };
 }
 
 export function validateItemRequestStatus(value) {
-  if (!value) return "PENDING";
+  if (!value) return ITEM_REQUEST_STATUSES.PENDING;
 
   const status = String(value).trim().toUpperCase();
 
-  if (!["PENDING", "APPROVED", "REJECTED", "ALL"].includes(status)) {
+  if (!Object.values(ITEM_REQUEST_STATUSES).includes(status)) {
     throw new ApiError(400, "Invalid request status", "VALIDATION_ERROR");
   }
 
@@ -99,17 +109,7 @@ export function validateItemRequestStatus(value) {
 }
 
 export function validateItemRequestId(value) {
-  const requestId = Number(value);
-
-  if (!Number.isInteger(requestId) || requestId <= 0) {
-    throw new ApiError(
-      400,
-      "requestId must be a positive number",
-      "VALIDATION_ERROR",
-    );
-  }
-
-  return requestId;
+  return normalizePositiveInt(value, "requestId");
 }
 
 export function validateItemRequestDecision(body) {

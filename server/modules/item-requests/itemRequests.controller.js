@@ -1,20 +1,19 @@
-import { asyncHandler } from "../utils/asyncHandler.js";
-import { ApiResponse } from "../utils/apiResponse.js";
-import { auditLog } from "../utils/audit.js";
+import { asyncHandler } from "../../utils/asyncHandler.js";
+import { ApiResponse } from "../../utils/apiResponse.js";
+import { auditLog } from "../../utils/audit.js";
 import {
   approveItemRequestService,
   createItemRequestService,
+  getDashboardItemRequestsService,
   getItemRequestsService,
   rejectItemRequestService,
-  approveItemRequestManualService,
-  getDashboardItemRequestsService,
-} from "../services/itemRequest.service.js";
+} from "./itemRequests.service.js";
 import {
   validateCreateItemRequest,
   validateItemRequestDecision,
   validateItemRequestId,
   validateItemRequestStatus,
-} from "../validators/itemRequest.validator.js";
+} from "./itemRequests.validators.js";
 
 export const getItemRequests = asyncHandler(async (req, res) => {
   const status = validateItemRequestStatus(req.query.status);
@@ -30,20 +29,25 @@ export const getItemRequests = asyncHandler(async (req, res) => {
 
 export const createItemRequest = asyncHandler(async (req, res) => {
   const payload = validateCreateItemRequest(req.body);
+  console.log("createItemRequestService payload", payload);
+  console.log("createItemRequestService req.budgetAccess", req.budgetAccess);
 
   const request = await createItemRequestService({
-    ...payload,
+    payload,
     requestedBy: req.user.userId,
+    budgetAccess: req.budgetAccess,
   });
+  console.log("createItemRequestService request", request);
+
   await auditLog(req, {
-    action: "REQUEST_ITEM",
-    entityName:
-      request.requested_type_name || request.type_name || "Item Request",
+    action: "REQUEST_CATALOG_ITEM",
+    entityName: request.requested_type_name || "Item Request",
     entityType: "ITEM_REQUEST",
     entityId: String(request.id),
-    description: `Requested new budget item "${request.requested_type_name}"`,
+    description: `Requested new catalog item "${request.requested_type_name}"`,
     newValues: request,
   });
+
   return res.status(201).json(
     new ApiResponse({
       message: "Item request submitted successfully",
@@ -61,15 +65,16 @@ export const approveItemRequest = asyncHandler(async (req, res) => {
     adminNote: payload.adminNote,
     reviewedBy: req.user.userId,
   });
+
   await auditLog(req, {
     action: "APPROVE_ITEM_REQUEST",
-    entityName:
-      request.requested_type_name || request.type_name || "Item Request",
+    entityName: request.requested_type_name || "Item Request",
     entityType: "ITEM_REQUEST",
     entityId: String(requestId),
     description: `Approved item request "${request.requested_type_name}"`,
     newValues: request,
   });
+
   return res.json(
     new ApiResponse({
       message: "Item request approved successfully",
@@ -87,15 +92,16 @@ export const rejectItemRequest = asyncHandler(async (req, res) => {
     adminNote: payload.adminNote,
     reviewedBy: req.user.userId,
   });
+
   await auditLog(req, {
     action: "REJECT_ITEM_REQUEST",
-    entityName:
-      request.requested_type_name || request.type_name || "Item Request",
+    entityName: request.requested_type_name || "Item Request",
     entityType: "ITEM_REQUEST",
     entityId: String(requestId),
     description: `Rejected item request "${request.requested_type_name}"`,
     newValues: request,
   });
+
   return res.json(
     new ApiResponse({
       message: "Item request rejected successfully",
@@ -103,31 +109,7 @@ export const rejectItemRequest = asyncHandler(async (req, res) => {
     }),
   );
 });
-export const approveItemRequestManual = asyncHandler(async (req, res) => {
-  const requestId = validateItemRequestId(req.params.requestId);
-  const payload = validateItemRequestDecision(req.body);
 
-  const request = await approveItemRequestManualService({
-    requestId,
-    adminNote: payload.adminNote,
-    reviewedBy: req.user.userId,
-  });
-  await auditLog(req, {
-    action: "APPROVE_ITEM_REQUEST",
-    entityName:
-      request.requested_type_name || request.type_name || "Item Request",
-    entityType: "ITEM_REQUEST",
-    entityId: String(requestId),
-  description: `Manually approved item request "${request.requested_type_name}"`,
-    newValues: request,
-  });
-  return res.json(
-    new ApiResponse({
-      message: "Item request approved successfully",
-      data: request,
-    }),
-  );
-});
 export const getDashboardItemRequests = asyncHandler(async (req, res) => {
   const data = await getDashboardItemRequestsService({
     userId: req.user.userId,

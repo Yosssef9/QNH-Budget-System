@@ -1,4 +1,4 @@
-import { hasPermission } from "../../modules/access-management/access.constants.js";
+import { hasPermission } from "../../../shared/permissions/permissionCodes.js";
 
 export function requireBudgetPermission(permissionName) {
   return (req, res, next) => {

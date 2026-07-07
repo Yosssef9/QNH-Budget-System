@@ -5,7 +5,6 @@ import BudgetMethodBadge from "../../../components/budgets/shared/BudgetMethodBa
 import CreatedFromTransferBadge from "../../CreatedFromTransferBadge";
 import SortableHeader from "../../SortableHeader";
 import useTableSort from "../../../hooks/useTableSort";
-import PriceIntelligenceStatusBadge from "../price-intelligence/PriceIntelligenceStatusBadge";
 
 function formatPercent(value) {
   const numberValue = Number(value);
@@ -77,7 +76,7 @@ function BudgetItemsTable({
   onItemNoteChange,
   showPriceIntelligence = false,
   onViewPriceIntelligence,
-  readOnly = true,
+  showFinancialColumns = true,
 }) {
   const sortableItems = useMemo(
     () =>
@@ -102,14 +101,6 @@ function BudgetItemsTable({
 
   const stickyHeaderCell = "sticky bg-white";
   const stickyBodyCell = "sticky bg-white";
-  const tableWidthClass = showPriceIntelligence
-    ? showNotes
-      ? "w-[2310px]"
-      : "w-[2010px]"
-    : showNotes
-      ? "w-[1620px]"
-      : "w-[1320px]";
-
   return (
     <div
       className="
@@ -137,8 +128,14 @@ function BudgetItemsTable({
           <col className="w-[140px]" />
           <col className="w-[160px]" />
           <col className="w-[140px]" />
-          <col className="w-[160px]" />
-          <col className="w-[170px]" />
+
+          {showFinancialColumns && (
+            <>
+              <col className="w-[160px]" />
+              <col className="w-[170px]" />
+            </>
+          )}
+
           {showPriceIntelligence && (
             <>
               <col className="w-[210px]" />
@@ -147,6 +144,7 @@ function BudgetItemsTable({
               <col className="w-[110px]" />
             </>
           )}
+
           {showNotes && <col className="w-[300px]" />}
         </colgroup>
         <thead
@@ -220,23 +218,27 @@ function BudgetItemsTable({
               className="w-[140px]"
             />
 
-            <SortableHeader
-              label="Budget Unit Price"
-              column="unit_price"
-              sortColumn={sortColumn}
-              sortDirection={sortDirection}
-              onSort={handleSort}
-              className="w-[160px]"
-            />
+            {showFinancialColumns && (
+              <>
+                <SortableHeader
+                  label="Budget Unit Price"
+                  column="unit_price"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                  className="w-[160px]"
+                />
 
-            <SortableHeader
-              label="Budget Line Total"
-              column="total_amount"
-              sortColumn={sortColumn}
-              sortDirection={sortDirection}
-              onSort={handleSort}
-              className="w-[170px]"
-            />
+                <SortableHeader
+                  label="Budget Line Total"
+                  column="total_amount"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                  className="w-[170px]"
+                />
+              </>
+            )}
 
             {showPriceIntelligence && (
               <>
@@ -356,13 +358,17 @@ function BudgetItemsTable({
                 {formatNumber(item.quantity)}
               </td>
 
-              <td className="border border-slate-200 px-3 py-4 text-center">
-                <CurrencyText value={item.unit_price} />
-              </td>
+              {showFinancialColumns && (
+                <>
+                  <td className="border border-slate-200 px-3 py-4 text-center">
+                    <CurrencyText value={item.unit_price} />
+                  </td>
 
-              <td className="border border-slate-200 px-3 py-4 text-center font-bold text-blue-600">
-                <CurrencyText value={item.total_amount} />
-              </td>
+                  <td className="border border-slate-200 px-3 py-4 text-center font-bold text-blue-600">
+                    <CurrencyText value={item.total_amount} />
+                  </td>
+                </>
+              )}
 
               {showPriceIntelligence && (
                 <>
@@ -440,7 +446,10 @@ function BudgetItemsTable({
             <tr>
               <td
                 colSpan={
-                  8 + (showPriceIntelligence ? 4 : 0) + (showNotes ? 1 : 0)
+                  6 +
+                  (showFinancialColumns ? 2 : 0) +
+                  (showPriceIntelligence ? 4 : 0) +
+                  (showNotes ? 1 : 0)
                 }
                 className="
                     border

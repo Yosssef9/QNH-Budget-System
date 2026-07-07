@@ -123,20 +123,21 @@ export function validateUpdateCatalogItem(body = {}) {
 
 export function validateCreateSubItem(body = {}) {
   const isDefaultGeneral = Boolean(body.is_default_general);
-  const subItemCode = body.sub_item_code
-    ? normalizeCatalogCode(body.sub_item_code)
-    : normalizeCatalogCode(body.name);
 
-  if (isDefaultGeneral && subItemCode !== GENERAL_SUB_ITEM.code) {
+  if (
+    !isDefaultGeneral &&
+    body.sub_item_code !== undefined &&
+    String(body.sub_item_code).trim()
+  ) {
     throw new ApiError(
       400,
-      "The default General sub-item must use code GENERAL",
-      "INVALID_GENERAL_SUB_ITEM_CODE",
+      "Reusable model codes are generated automatically",
+      "SUB_ITEM_CODE_GENERATED",
     );
   }
 
   return {
-    sub_item_code: subItemCode,
+    sub_item_code: isDefaultGeneral ? GENERAL_SUB_ITEM.code : null,
     name: normalizeText(body.name, "Sub-item name", 300),
     default_specification: optionalText(
       body.default_specification,
@@ -152,7 +153,30 @@ export function validateCreateSubItem(body = {}) {
 }
 
 export function validateUpdateSubItem(body = {}) {
-  return validateCreateSubItem(body);
+  if (
+    body.sub_item_code !== undefined &&
+    String(body.sub_item_code).trim()
+  ) {
+    throw new ApiError(
+      400,
+      "Reusable model codes are generated automatically and cannot be changed",
+      "SUB_ITEM_CODE_READ_ONLY",
+    );
+  }
+
+  return {
+    name: normalizeText(body.name, "Sub-item name", 300),
+    default_specification: optionalText(
+      body.default_specification,
+      "Default specification",
+      2000,
+    ),
+    default_unit_of_measure_id: validatePositiveInt(
+      body.default_unit_of_measure_id ?? body.unit_of_measure_id,
+      "default_unit_of_measure_id",
+    ),
+    is_default_general: Boolean(body.is_default_general),
+  };
 }
 
 export function validateStatusPayload(body = {}) {

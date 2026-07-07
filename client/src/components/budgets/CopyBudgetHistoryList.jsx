@@ -21,7 +21,7 @@ export default function CopyBudgetHistoryList({
         budget.year,
         budget.department_name,
         budget.items_count,
-        budget.total_amount,
+        budget.total_requested_quantity,
       ]
         .join(" ")
         .toLowerCase()
@@ -132,11 +132,11 @@ export default function CopyBudgetHistoryList({
                       </div>
 
                       <p className="mt-2 text-xs text-slate-500">
-                        Total Amount
+                        Requested Quantity
                       </p>
 
                       <p className="font-semibold text-slate-900">
-                        {formatNumber(budget.total_amount || 0)}
+                        {formatNumber(budget.total_requested_quantity || 0)}
                       </p>
                     </div>
                   </div>

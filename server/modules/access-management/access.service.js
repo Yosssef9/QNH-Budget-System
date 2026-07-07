@@ -18,6 +18,7 @@ import {
   getBudgetRolesRepo,
   getAssignmentPermissionMatrixRepo,
   getEffectivePermissionCodesByUserRoleIdRepo,
+  getUsersByEffectivePermissionRepo,
   findActivePermissionIdsRepo,
   replaceAssignmentPermissionOverridesRepo,
   updateBudgetAccessAssignmentRepo,
@@ -27,6 +28,7 @@ import {
   mapAssignmentRow,
   mapAssignmentRowToWorkspace,
 } from "./access.mapper.js";
+import { assertCanonicalPermissionCode } from "../../../shared/permissions/permissionCodes.js";
 
 function normalizeNullableInt(value) {
   if (value === null || value === undefined || value === "") return null;
@@ -237,9 +239,7 @@ export async function resolveBudgetAccessForUser({
     department: selectedWorkspace.department,
     budgetCategory: selectedWorkspace.budgetCategory,
     category: selectedWorkspace.budgetCategory,
-    isGlobalAdmin: selectedWorkspace.role.code === ROLE_CODES.BUDGET_SYSTEM_ADMIN,
     permissionCodes: selectedWorkspace.permissionCodes,
-    permissions: selectedWorkspace.permissions,
     selectedWorkspace,
     workspace: selectedWorkspace,
     workspaces,
@@ -250,6 +250,22 @@ export async function getBudgetAccessByUserId(userId, options = {}) {
   return resolveBudgetAccessForUser({
     userId,
     requestedUserRoleId: options.requestedUserRoleId,
+  });
+}
+
+export async function getUsersByEffectivePermission({
+  permissionCode,
+  scope = { type: "GLOBAL" },
+} = {}) {
+  assertCanonicalPermissionCode(permissionCode);
+
+  return getUsersByEffectivePermissionRepo({
+    permissionCode,
+    scope: {
+      type: scope?.type || "GLOBAL",
+      departmentId: scope?.departmentId ?? null,
+      categoryId: scope?.categoryId ?? null,
+    },
   });
 }
 

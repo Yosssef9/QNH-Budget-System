@@ -1,13 +1,34 @@
 import { NOTIFICATION_CONFIG } from "./notificationConfig.js";
+import { getUsersByEffectivePermission } from "../modules/access-management/access.service.js";
 
 import {
-  getUsersByPermissionRepo,
   getAllActiveUsersExceptRepo,
   getTransferRequesterRepo,
   getBudgetOwnerRepo,
   getItemRequestOwnerRepo,
   getPOLinkRequesterRepo,
 } from "../repositories/notificationRecipients.repository.js";
+
+function resolvePermissionScope(config, payload = {}) {
+  const scope = config.scope || { type: "GLOBAL" };
+  const type = String(scope.type || "GLOBAL").toUpperCase();
+
+  if (type === "CATEGORY") {
+    return {
+      type,
+      categoryId: payload[scope.payloadField || "categoryId"],
+    };
+  }
+
+  if (type === "DEPARTMENT") {
+    return {
+      type,
+      departmentId: payload[scope.payloadField || "departmentId"],
+    };
+  }
+
+  return { type: "GLOBAL" };
+}
 
 export async function resolveRecipients(notificationType, payload) {
   const config = NOTIFICATION_CONFIG[notificationType];
@@ -18,7 +39,10 @@ export async function resolveRecipients(notificationType, payload) {
 
   switch (config.strategy) {
     case "PERMISSION":
-      return getUsersByPermissionRepo(config.permission);
+      return getUsersByEffectivePermission({
+        permissionCode: config.permission,
+        scope: resolvePermissionScope(config, payload),
+      });
 
     case "BROADCAST":
       return getAllActiveUsersExceptRepo(payload.actorUserId);

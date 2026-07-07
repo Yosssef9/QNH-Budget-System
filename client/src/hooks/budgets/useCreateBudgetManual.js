@@ -1,31 +1,26 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
-  replaceBudgetItems,
-  deleteBudgetItem,
-  getBudgetItems,
   getCategories,
   getCurrentBudget,
   getTypesByCategory,
+  replaceBudgetItems,
 } from "../../api/budget.api";
 import { getCurrentFinancialYear } from "../../api/financialYears.api";
 import { toastPromise } from "../../helpers/toast.helper";
 import { createRow, mapBudgetItemToRow } from "../../helpers/budgetRows.helper";
-import toast from "react-hot-toast";
 
-const LOCAL_DRAFT_KEY = "create_budget_manual_draft_rows";
+const LOCAL_DRAFT_KEY = "department_category_budget_draft_rows";
 
-function getBudgetDraftKey(budgetId) {
-  return `${LOCAL_DRAFT_KEY}_${budgetId}`;
+function getBudgetDraftKey(departmentCategoryBudgetId) {
+  return `${LOCAL_DRAFT_KEY}_${departmentCategoryBudgetId}`;
 }
 
 function getRowSnapshot(row) {
   return JSON.stringify({
     category: row.category,
     item: row.item,
-    isProject: row.isProject,
     method: row.method,
     quantity: row.quantity,
-    unitPrice: row.unitPrice,
     monthly: row.monthly,
     quarterly: row.quarterly,
   });
@@ -51,14 +46,117 @@ function getRowsFromLocalStorage(key) {
   }
 }
 
+function mapRowsByCategoryBudget(categoryBudgets = []) {
+  return Object.fromEntries(
+    categoryBudgets.map((categoryBudget) => [
+      String(categoryBudget.id),
+      lockRowsToCategory(
+        (categoryBudget.items || []).map(mapBudgetItemToRow),
+        categoryBudget.category_id,
+      ),
+    ]),
+  );
+}
+
+function lockRowsToCategory(rows = [], categoryId) {
+  if (!categoryId) return rows;
+
+  return rows.map((row) => ({
+    ...row,
+    category: Number(categoryId),
+  }));
+}
+
 export function useCreateBudgetManual() {
   const [currentBudget, setCurrentBudget] = useState(null);
-  const [rows, setRows] = useState([]);
+  const [rowsByCategoryBudget, setRowsByCategoryBudget] = useState({});
   const [categories, setCategories] = useState([]);
+  const [categoryBudgets, setCategoryBudgets] = useState([]);
+  const [activeCategoryBudgetId, setActiveCategoryBudgetId] = useState(null);
   const [typesByCategory, setTypesByCategory] = useState({});
   const [openYear, setOpenYear] = useState(null);
   const [loadingSetup, setLoadingSetup] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [
+    removedPersistedItemIdsByCategoryBudget,
+    setRemovedPersistedItemIdsByCategoryBudget,
+  ] = useState({});
+
+  const activeCategoryBudget = useMemo(
+    () =>
+      categoryBudgets.find(
+        (categoryBudget) =>
+          Number(categoryBudget.id) === Number(activeCategoryBudgetId),
+      ) || categoryBudgets[0] || null,
+    [categoryBudgets, activeCategoryBudgetId],
+  );
+
+  const rows = useMemo(() => {
+    if (!activeCategoryBudget?.id) return [];
+    return rowsByCategoryBudget[String(activeCategoryBudget.id)] || [];
+  }, [activeCategoryBudget, rowsByCategoryBudget]);
+
+  const removedPersistedItemIds = useMemo(() => {
+    if (!activeCategoryBudget?.id) return [];
+
+    return (
+      removedPersistedItemIdsByCategoryBudget[
+        String(activeCategoryBudget.id)
+      ] || []
+    );
+  }, [activeCategoryBudget, removedPersistedItemIdsByCategoryBudget]);
+
+  const setRows = useCallback(
+    (updater) => {
+      if (!activeCategoryBudget?.id) return;
+
+      setRowsByCategoryBudget((prev) => {
+        const key = String(activeCategoryBudget.id);
+        const currentRows = prev[key] || [];
+        const nextRows =
+          typeof updater === "function" ? updater(currentRows) : updater;
+
+        return {
+          ...prev,
+          [key]: lockRowsToCategory(nextRows, activeCategoryBudget.category_id),
+        };
+      });
+    },
+    [activeCategoryBudget],
+  );
+
+  const importRowsToCategoryBudgets = useCallback(
+    (importedRows) => {
+      if (!Array.isArray(importedRows) || importedRows.length === 0) return;
+
+      const budgetByCategoryId = new Map(
+        categoryBudgets.map((categoryBudget) => [
+          Number(categoryBudget.category_id),
+          categoryBudget,
+        ]),
+      );
+
+      setRowsByCategoryBudget((prev) => {
+        const next = { ...prev };
+
+        for (const row of importedRows) {
+          const categoryBudget = budgetByCategoryId.get(Number(row.category));
+
+          if (!categoryBudget || categoryBudget.status !== "DRAFT") continue;
+
+          const key = String(categoryBudget.id);
+          next[key] = lockRowsToCategory(
+            [...(next[key] || []), row],
+            categoryBudget.category_id,
+          );
+        }
+
+        return next;
+      });
+    },
+    [categoryBudgets],
+  );
+
   function mergeExistingBudgetCategories(budgetItems) {
     setCategories((prev) => {
       const merged = [...prev];
@@ -67,22 +165,14 @@ export function useCreateBudgetManual() {
         if (!item.category_id) continue;
 
         const alreadyExists = merged.some(
-          (category) => category.id === item.category_id,
+          (category) => Number(category.id) === Number(item.category_id),
         );
 
         if (!alreadyExists) {
           merged.push({
             id: item.category_id,
-            name:
-              item.category_is_active === true || item.category_is_active === 1
-                ? item.category_name
-                : `${item.category_name} (Inactive)`,
-
-            is_active: item.category_is_active,
-
-            isExistingInactive: !(
-              item.category_is_active === true || item.category_is_active === 1
-            ),
+            name: item.category_name,
+            is_active: true,
           });
         }
       }
@@ -90,54 +180,7 @@ export function useCreateBudgetManual() {
       return merged;
     });
   }
-  function mergeExistingBudgetTypes(budgetItems) {
-    const grouped = {};
 
-    for (const item of budgetItems) {
-      if (!item.category_id || !item.type_id) continue;
-
-      const categoryId = String(item.category_id);
-
-      if (!grouped[categoryId]) grouped[categoryId] = [];
-
-      grouped[categoryId].push({
-        id: item.type_id,
-        category_id: item.category_id,
-        name:
-          item.type_is_active === true || item.type_is_active === 1
-            ? item.type_name
-            : `${item.type_name} (Inactive)`,
-        expense_type: item.expense_type,
-        is_active: item.type_is_active,
-        isExistingInactive: !(
-          item.type_is_active === true || item.type_is_active === 1
-        ),
-      });
-    }
-
-    setTypesByCategory((prev) => {
-      const next = { ...prev };
-
-      for (const [categoryId, existingTypes] of Object.entries(grouped)) {
-        const current = next[categoryId] || [];
-        const merged = [...current];
-
-        for (const existingType of existingTypes) {
-          const alreadyExists = merged.some(
-            (type) => type.id === existingType.id,
-          );
-
-          if (!alreadyExists) {
-            merged.push(existingType);
-          }
-        }
-
-        next[categoryId] = merged;
-      }
-
-      return next;
-    });
-  }
   useEffect(() => {
     let ignore = false;
 
@@ -150,57 +193,57 @@ export function useCreateBudgetManual() {
             getCategories(),
           ]),
           {
-            loading: "Loading budget setup...",
-            success: "Budget setup loaded",
-            error: "Failed to load budget setup data",
+            loading: "Loading department budget setup...",
+            success: "Department budget setup loaded",
+            error: "Failed to load department budget setup data",
           },
         );
 
         if (ignore) return;
 
-        setCurrentBudget(budgetResult);
+        const budget = budgetResult?.budget || budgetResult;
+        const budgetCategories = budget?.categories || [];
+
+        setCurrentBudget(budget);
         setOpenYear(yearResult);
         setCategories(categoryResult);
+        setCategoryBudgets(budgetCategories);
+        setActiveCategoryBudgetId(
+          (current) => current || budgetCategories[0]?.id || null,
+        );
 
-        const budgetItems = budgetResult?.id
-          ? await getBudgetItems(budgetResult.id)
-          : [];
+        const mappedRows = mapRowsByCategoryBudget(budgetCategories);
+        setRemovedPersistedItemIdsByCategoryBudget({});
 
-        if (ignore) return;
+        for (const categoryBudget of budgetCategories) {
+          const draftKey = getBudgetDraftKey(categoryBudget.id);
+          const budgetStatus = categoryBudget.status || "DRAFT";
 
-        const budgetId = budgetResult?.id;
-        const budgetStatus = budgetResult?.status || "DRAFT";
+          if (
+            [
+              "IN_CATEGORY_REVIEW",
+              "CATEGORY_REVIEW_COMPLETED",
+            ].includes(budgetStatus)
+          ) {
+            localStorage.removeItem(draftKey);
+            continue;
+          }
 
-        if (!budgetId) {
-          setRows([]);
-          return;
+          const localRows = getRowsFromLocalStorage(draftKey);
+          if (localRows) {
+            mappedRows[String(categoryBudget.id)] = lockRowsToCategory(
+              localRows,
+              categoryBudget.category_id,
+            );
+          }
         }
 
-        const budgetDraftKey = getBudgetDraftKey(budgetId);
+        setRowsByCategoryBudget(mappedRows);
 
-        if (
-          ["PENDING_APPROVAL", "APPROVED", "CANCELLED"].includes(budgetStatus)
-        ) {
-          localStorage.removeItem(budgetDraftKey);
-          setRows(budgetItems.map(mapBudgetItemToRow));
-          mergeExistingBudgetTypes(budgetItems);
-          mergeExistingBudgetCategories(budgetItems);
-          return;
-        }
-
-        const localRows = getRowsFromLocalStorage(budgetDraftKey);
-
-        if (localRows) {
-          mergeExistingBudgetTypes(budgetItems);
-          mergeExistingBudgetCategories(budgetItems);
-
-          setRows(localRows);
-          return;
-        }
-
-        setRows(budgetItems.map(mapBudgetItemToRow));
-        mergeExistingBudgetTypes(budgetItems);
-        mergeExistingBudgetCategories(budgetItems);
+        const allItems = budgetCategories.flatMap(
+          (categoryBudget) => categoryBudget.items || [],
+        );
+        mergeExistingBudgetCategories(allItems);
       } finally {
         if (!ignore) setLoadingSetup(false);
       }
@@ -215,22 +258,39 @@ export function useCreateBudgetManual() {
 
   useEffect(() => {
     if (loadingSetup) return;
-    if (!currentBudget?.id) return;
 
-    const budgetStatus = currentBudget?.status || "DRAFT";
-    const budgetDraftKey = getBudgetDraftKey(currentBudget.id);
+    for (const categoryBudget of categoryBudgets) {
+      const budgetStatus = categoryBudget.status || "DRAFT";
+      const budgetDraftKey = getBudgetDraftKey(categoryBudget.id);
 
-    if (["PENDING_APPROVAL", "APPROVED", "CANCELLED"].includes(budgetStatus)) {
-      localStorage.removeItem(budgetDraftKey);
-      return;
+      if (
+        ["IN_CATEGORY_REVIEW", "CATEGORY_REVIEW_COMPLETED"].includes(
+          budgetStatus,
+        )
+      ) {
+        localStorage.removeItem(budgetDraftKey);
+        continue;
+      }
+
+      localStorage.setItem(
+        budgetDraftKey,
+        JSON.stringify(
+          lockRowsToCategory(
+            rowsByCategoryBudget[String(categoryBudget.id)] || [],
+            categoryBudget.category_id,
+          ),
+        ),
+      );
     }
-
-    localStorage.setItem(budgetDraftKey, JSON.stringify(rows));
-  }, [rows, loadingSetup, currentBudget]);
+  }, [rowsByCategoryBudget, loadingSetup, categoryBudgets]);
 
   useEffect(() => {
     const categoryIds = [
-      ...new Set(rows.map((row) => String(row.category)).filter(Boolean)),
+      ...new Set(
+        categoryBudgets
+          .map((categoryBudget) => String(categoryBudget.category_id))
+          .filter(Boolean),
+      ),
     ];
 
     const missingIds = categoryIds.filter(
@@ -259,130 +319,166 @@ export function useCreateBudgetManual() {
     }
 
     toastPromise(loadTypes(), {
-      loading: "Loading item types...",
-      success: "Item types loaded",
-      error: "Failed to load category types",
+      loading: "Loading catalog items...",
+      success: "Catalog items loaded",
+      error: "Failed to load catalog items",
     });
 
     return () => {
       ignore = true;
     };
-  }, [rows, typesByCategory]);
+  }, [categoryBudgets, typesByCategory]);
 
-  const updateRow = useCallback((id, field, value) => {
-    setRows((prev) =>
-      prev.map((row) => {
-        if (row.id !== id) return row;
+  const updateRow = useCallback(
+    (id, field, value) => {
+      setRows((prev) =>
+        prev.map((row) => {
+          if (row.id !== id) return row;
 
-        const normalizedValue =
-          field === "category" || field === "item"
-            ? value === null || value === ""
-              ? null
-              : Number(value)
-            : value;
+          if (field === "category") return row;
 
-        const next = {
-          ...row,
-          [field]: normalizedValue,
-        };
+          const normalizedValue =
+            field === "item"
+              ? value === null || value === ""
+                ? null
+                : Number(value)
+              : value;
 
-        if (field === "category") {
-          next.item = null;
-        }
+          const next = {
+            ...row,
+            [field]: normalizedValue,
+          };
 
-        const nextSnapshot = getRowSnapshot(next);
+          const nextSnapshot = getRowSnapshot(next);
 
-        return {
-          ...next,
-          isSaved: row.savedSnapshot === nextSnapshot,
-        };
-      }),
-    );
-  }, []);
+          return {
+            ...next,
+            isSaved: row.savedSnapshot === nextSnapshot,
+          };
+        }),
+      );
+    },
+    [setRows],
+  );
 
   const addItem = useCallback(() => {
+    if (!activeCategoryBudget) return;
+    if (activeCategoryBudget.status !== "DRAFT") return;
+
     setRows((prev) => [
-      createRow(Date.now(), categories[0]?.id ?? null, null, "MONTHLY", 0, 0),
+      createRow(
+        `new-${Date.now()}`,
+        activeCategoryBudget.category_id,
+        null,
+        "MONTHLY",
+        0,
+      ),
       ...prev,
     ]);
-  }, [categories]);
+  }, [activeCategoryBudget, setRows]);
 
   const deleteItem = useCallback(
     async (id) => {
       const rowToDelete = rows.find((row) => row.id === id);
       if (!rowToDelete) return;
+      if (activeCategoryBudget?.status !== "DRAFT") {
+        throw new Error(
+          "Submitted category budgets are read-only.",
+        );
+      }
 
-      const previousRows = rows;
+      if (!rowToDelete.isNew && activeCategoryBudget?.id) {
+        setRemovedPersistedItemIdsByCategoryBudget((prev) => {
+          const key = String(activeCategoryBudget.id);
+          const current = prev[key] || [];
+          const rowId = Number(rowToDelete.id);
+
+          if (current.includes(rowId)) return prev;
+
+          return {
+            ...prev,
+            [key]: [...current, rowId],
+          };
+        });
+      }
 
       setRows((prev) => prev.filter((row) => row.id !== id));
-
-      if (rowToDelete.isNew) {
-        return;
-      }
-
-      if (!currentBudget?.id) {
-        setRows(previousRows);
-        toast.error("Current budget was not loaded");
-        return;
-      }
-
-      try {
-        await toastPromise(deleteBudgetItem(currentBudget.id, id), {
-          loading: "Deleting item...",
-          success: "Item deleted successfully",
-          error: "Failed to delete item",
-        });
-      } catch {
-        setRows(previousRows);
-      }
     },
-    [rows, currentBudget],
+    [activeCategoryBudget, rows, setRows],
   );
+
+  const refreshBudget = useCallback(async () => {
+    if (!currentBudget?.id) return;
+
+    const current = await getCurrentBudget();
+    const budget = current?.budget || current;
+
+    const budgetCategories = budget?.categories || [];
+    setCurrentBudget(budget);
+    setCategoryBudgets(budgetCategories);
+    setRowsByCategoryBudget(mapRowsByCategoryBudget(budgetCategories));
+    setRemovedPersistedItemIdsByCategoryBudget({});
+  }, [currentBudget]);
 
   const saveDraft = useCallback(
     async (payloadRows) => {
       setSaving(true);
 
       try {
-        const budgetId = currentBudget?.id;
+        const categoryBudgetId = activeCategoryBudget?.id;
 
-        if (!budgetId) {
-          throw new Error("Current draft budget was not loaded");
+        if (!categoryBudgetId) {
+          throw new Error("Current category budget was not loaded");
         }
 
-        await toastPromise(replaceBudgetItems(budgetId, payloadRows), {
-          loading: "Saving budget draft...",
-          success: "Budget draft saved successfully",
-          error: "Failed to save budget",
+        const savedBudget = await toastPromise(
+          replaceBudgetItems(categoryBudgetId, payloadRows),
+          {
+            loading: "Saving category draft...",
+            success: "Category draft saved successfully",
+            error: "Failed to save category budget",
+          },
+        );
+
+        const budget = savedBudget || (await getCurrentBudget()).budget;
+        const budgetCategories = budget?.categories || [];
+
+        setCurrentBudget(budget);
+        setCategoryBudgets(budgetCategories);
+        setRowsByCategoryBudget(mapRowsByCategoryBudget(budgetCategories));
+        setRemovedPersistedItemIdsByCategoryBudget((prev) => {
+          const next = { ...prev };
+          delete next[String(categoryBudgetId)];
+          return next;
         });
-
-        const savedItems = await getBudgetItems(budgetId);
-
-        setRows(savedItems.map(mapBudgetItemToRow));
-
-        mergeExistingBudgetTypes(savedItems);
-        mergeExistingBudgetCategories(savedItems);
-
-        localStorage.removeItem(getBudgetDraftKey(budgetId));
+        localStorage.removeItem(getBudgetDraftKey(categoryBudgetId));
       } finally {
         setSaving(false);
       }
     },
-    [currentBudget],
+    [activeCategoryBudget],
   );
 
   return {
     currentBudget,
     rows,
     setRows,
+    rowsByCategoryBudget,
     categories,
+    categoryBudgets,
+    activeCategoryBudget,
+    activeCategoryBudgetId,
+    setActiveCategoryBudgetId,
     typesByCategory,
     openYear,
     loadingSetup,
     saving,
+    removedPersistedItemIds,
+    importRowsToCategoryBudgets,
     updateRow,
     addItem,
     deleteItem,
     saveDraft,
+    refreshBudget,
   };
 }

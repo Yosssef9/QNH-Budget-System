@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import {
   memo,
   useEffect,
@@ -25,7 +26,6 @@ import {
   Minus,
   RotateCcw,
   Save,
-  Search,
   Send,
   TrendingDown,
   TrendingUp,
@@ -34,6 +34,7 @@ import ConfirmModal from "../../components/ConfirmModal";
 import Input from "../../components/Input";
 import EnterpriseSearch from "../../components/EnterpriseSearch";
 import CategoryPackageWorkbench from "../../components/category-packages/CategoryPackageWorkbench";
+import CollapsiblePanelToggle from "../../components/layout/CollapsiblePanelToggle";
 import {
   closeCategorySubmissionWindow,
   completeDepartmentCategoryReview,
@@ -43,6 +44,7 @@ import {
   saveCategoryReviewItemDecision,
   reopenDepartmentCategoryReview,
 } from "../../api/categoryReview.api";
+import { updateDepartmentItemApprovedQuantity } from "../../api/categoryPackages.api";
 import { useAuth } from "../../context/AuthContext";
 import { can } from "../../helpers/permissions";
 import { PERMISSION_CODES } from "@qnh/permissions";
@@ -68,10 +70,30 @@ const STATUS_META = {
     label: "Pending Review",
     className: "border-amber-200 bg-amber-50 text-amber-700",
   },
-  DRAFT: {
-    label: "Draft",
-    className: "border-slate-200 bg-slate-50 text-slate-700",
-  },
+ DRAFT: {
+  label: "Draft",
+  className: "border-slate-200 bg-slate-50 text-slate-700",
+},
+IN_CFO_REVIEW: {
+  label: "In CFO Review",
+  className: "border-indigo-200 bg-indigo-50 text-indigo-700",
+},
+PENDING_CFO_REVIEW: {
+  label: "Pending CFO Review",
+  className: "border-indigo-200 bg-indigo-50 text-indigo-700",
+},
+RETURNED_BY_CFO: {
+  label: "Returned by CFO",
+  className: "border-amber-200 bg-amber-50 text-amber-700",
+},
+CFO_REVIEW_COMPLETED: {
+  label: "CFO Review Completed",
+  className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+},
+CFO_ACCEPTED: {
+  label: "CFO Accepted",
+  className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+},
 };
 
 const QUEUE_FILTERS = [
@@ -484,6 +506,7 @@ function areReviewItemRowPropsEqual(previous, next) {
     previous.expanded === next.expanded &&
     previous.dirty === next.dirty &&
     previous.locked === next.locked &&
+    previous.returnedCorrection === next.returnedCorrection &&
     previous.saving === next.saving &&
     String(previous.draft.category_approved_quantity ?? "") ===
       String(next.draft.category_approved_quantity ?? "") &&
@@ -498,6 +521,7 @@ const ReviewItemRow = memo(function ReviewItemRow({
   draft,
   dirty,
   locked,
+  returnedCorrection,
   saving,
   onToggle,
   onDraftChange,
@@ -606,6 +630,9 @@ const ReviewItemRow = memo(function ReviewItemRow({
           </span>
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={item.review_status} compact />
+            {item.package_item_cfo_review_status && (
+              <StatusBadge status={item.package_item_cfo_review_status} compact />
+            )}
             {dirty && (
               <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
                 Unsaved
@@ -675,7 +702,9 @@ const ReviewItemRow = memo(function ReviewItemRow({
                     Category Decision
                   </p>
                   <h4 className="mt-1 text-base font-bold text-slate-950">
-                    Approve the final quantity
+                    {returnedCorrection
+                      ? "Update the returned item quantity"
+                      : "Approve the final quantity"}
                   </h4>
                 </div>
                 {saving && (
@@ -763,7 +792,7 @@ const ReviewItemRow = memo(function ReviewItemRow({
               <Input
                 multiline
                 rows={4}
-                disabled={locked || saving}
+                disabled={locked || saving || returnedCorrection}
                 value={draft.review_note || ""}
                 onChange={(event) =>
                   onDraftChange({
@@ -773,6 +802,23 @@ const ReviewItemRow = memo(function ReviewItemRow({
                 placeholder="Optional explanation for the approved quantity"
                 className="mt-1.5 text-sm"
               />
+
+              {item.package_item_cfo_review_note && (
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-amber-700">
+                    CFO note
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-amber-900">
+                    {item.package_item_cfo_review_note}
+                  </p>
+                  {item.package_item_cfo_reviewed_by_name && (
+                    <p className="mt-1 text-xs font-semibold text-amber-700">
+                      {item.package_item_cfo_reviewed_by_name} Â·{" "}
+                      {formatDateTime(item.package_item_cfo_reviewed_at)}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {item.reviewed_by_name && (
                 <div className="mt-3 flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
@@ -792,7 +838,7 @@ const ReviewItemRow = memo(function ReviewItemRow({
                   className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-3 py-2.5 text-sm font-bold text-blue-700 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
                 >
                   <Save className="h-4 w-4" />
-                  Save Decision
+                  {returnedCorrection ? "Save Correction" : "Save Decision"}
                 </button>
                 <button
                   type="button"
@@ -807,7 +853,9 @@ const ReviewItemRow = memo(function ReviewItemRow({
 
               {locked && (
                 <p className="mt-3 text-center text-xs font-semibold text-slate-500">
-                  This department review is complete and read-only.
+                  {returnedCorrection
+                    ? "Only the approved quantity is unlocked because CFO returned this package item."
+                    : "This department review is complete and read-only."}
                 </p>
               )}
             </section>
@@ -832,6 +880,7 @@ export default function CategoryReviewPage() {
   const [windowModal, setWindowModal] = useState(null);
   const [closeReason, setCloseReason] = useState("");
   const [reopenReason, setReopenReason] = useState("");
+  const [isDepartmentQueueOpen, setIsDepartmentQueueOpen] = useState(true);
   const initializedBudgetIdRef = useRef(null);
 
   const queueQuery = useQuery({
@@ -1017,6 +1066,10 @@ export default function CategoryReviewPage() {
     mutationFn: saveCategoryReviewItemDecision,
   });
 
+  const returnedCorrectionMutation = useMutation({
+    mutationFn: updateDepartmentItemApprovedQuantity,
+  });
+
   const completeMutation = useMutation({
     mutationFn: completeDepartmentCategoryReview,
 
@@ -1151,6 +1204,25 @@ export default function CategoryReviewPage() {
     );
   }
 
+  function isReturnedCfoCorrectionItem(item) {
+    return (
+      canReviewItems &&
+      selectedBudget?.status === "CATEGORY_REVIEW_COMPLETED" &&
+      selectedBudget?.category_package_status === "RETURNED_BY_CFO" &&
+      item?.package_item_cfo_review_status === "NEEDS_MODIFICATION"
+    );
+  }
+
+  function isReviewItemLocked(item) {
+    if (!canReviewItems) return true;
+
+    if (selectedBudget?.status === "IN_CATEGORY_REVIEW") {
+      return false;
+    }
+
+    return !isReturnedCfoCorrectionItem(item);
+  }
+
   function removeDecisionDraft(itemId) {
     setDecisionDrafts((current) => {
       const next = { ...current };
@@ -1174,6 +1246,33 @@ export default function CategoryReviewPage() {
     setSavingItemIds((current) => [...new Set([...current, item.id])]);
 
     try {
+      if (isReturnedCfoCorrectionItem(item)) {
+        await returnedCorrectionMutation.mutateAsync({
+          departmentItemId: item.id,
+          payload: {
+            category_approved_quantity: approvedQuantity,
+            row_version: item.row_version,
+          },
+        });
+
+        toast.success("Approved quantity updated for CFO return");
+        removeDecisionDraft(item.id);
+
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: ["category-review", "budget", budgetId],
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ["category-review", "queue"],
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ["category-packages"],
+          }),
+        ]);
+
+        return;
+      }
+
       const data = await decisionMutation.mutateAsync({
         itemId: item.id,
         payload: {
@@ -1258,9 +1357,6 @@ export default function CategoryReviewPage() {
     selectedReviewedCount === selectedItemCount &&
     selectedBudget?.status === "IN_CATEGORY_REVIEW";
 
-  const selectedBudgetLocked =
-    selectedBudget?.status !== "IN_CATEGORY_REVIEW" || !canReviewItems;
-
   const windowIsOpen = submissionWindow?.status === "OPEN";
   const windowMutationPending =
     closeWindowMutation.isPending || reopenWindowMutation.isPending;
@@ -1281,36 +1377,99 @@ export default function CategoryReviewPage() {
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-5 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-[1800px] space-y-5">
-        <header className="rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm sm:px-6">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex min-w-0 items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-sm">
-                <ClipboardCheck className="h-6 w-6" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
-                  Category Manager Workspace
+      <header className="rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm sm:px-6">
+  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+    <div className="flex min-w-0 items-start gap-4">
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-sm">
+        <ClipboardCheck className="h-6 w-6" />
+      </div>
+
+      <div className="min-w-0">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
+          Category Manager Workspace
+        </p>
+
+        <h1 className="mt-1 min-w-0 break-words text-2xl font-bold tracking-tight text-slate-950 [overflow-wrap:anywhere] sm:text-3xl">
+          {activeCategoryName} Department Review
+        </h1>
+
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+          Review submitted department requests, record approved quantities,
+          and complete each department before package preparation.
+        </p>
+      </div>
+    </div>
+
+    <div className="flex flex-wrap items-center gap-2 xl:max-w-md xl:justify-end">
+    
+
+      <div className="inline-flex items-center overflow-hidden rounded-full border border-slate-200 bg-white shadow-sm">
+  <span className="self-stretch border-r border-slate-200 bg-slate-100 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-slate-600">
+    Submission
+  </span>
+
+  <span className="px-2 py-1">
+    <StatusBadge status={submissionWindow?.status || "UNKNOWN"} />
+  </span>
+</div>
+
+{selectedBudget?.category_package_status ? (
+  <div className="inline-flex items-center overflow-hidden rounded-full border border-slate-200 bg-white shadow-sm">
+    <span className="self-stretch border-r border-slate-200 bg-slate-100 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-slate-600">
+      CFO Package
+    </span>
+
+    <span className="px-2 py-1">
+      <StatusBadge status={selectedBudget.category_package_status} />
+    </span>
+  </div>
+) : null}
+    </div>
+  </div>
+
+  {selectedBudget?.category_package_status === "RETURNED_BY_CFO" &&
+  selectedBudget?.package_return_reason ? (
+    <div className="mt-5 min-w-0 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+      <div className="flex items-start gap-3">
+        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-black">
+                CFO returned this category package
+              </p>
+
+              {(selectedBudget.package_returned_by_cfo_name ||
+                selectedBudget.package_returned_at) && (
+                <p className="mt-1 break-words text-xs font-semibold text-amber-700 [overflow-wrap:anywhere]">
+                  Returned by{" "}
+                  {selectedBudget.package_returned_by_cfo_name || "CFO"}
+                  {selectedBudget.package_returned_at
+                    ? ` on ${formatDateTime(
+                        selectedBudget.package_returned_at,
+                      )}`
+                    : ""}
                 </p>
-                <h1 className="mt-1 truncate text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
-                  {activeCategoryName} Department Review
-                </h1>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                  Review submitted department requests, record approved
-                  quantities, and complete each department before package
-                  preparation.
-                </p>
-              </div>
+              )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-700">
-                <CalendarDays className="h-4 w-4 text-slate-500" />
-                FY {financialYear}
-              </span>
-              <StatusBadge status={submissionWindow?.status || "UNKNOWN"} />
-            </div>
+            <StatusBadge
+              status={selectedBudget.category_package_status}
+              compact
+            />
           </div>
-        </header>
+
+          <div className="mt-3 max-h-32 w-full overflow-y-auto rounded-xl border border-amber-200 bg-white/70 px-3 py-2.5">
+            <p className="whitespace-pre-wrap break-words text-sm leading-6 text-amber-900 [overflow-wrap:anywhere]">
+              {selectedBudget.package_return_reason}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  ) : null}
+</header>
 
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="grid divide-y divide-slate-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
@@ -1427,8 +1586,23 @@ export default function CategoryReviewPage() {
           </div>
         </section>
 
-        <section className="grid items-start gap-5 xl:grid-cols-[330px_minmax(0,1fr)]">
-          <aside className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm xl:sticky xl:top-4">
+        <section
+          className={[
+            "grid items-start gap-5 transition-all duration-300 ease-in-out",
+            isDepartmentQueueOpen
+              ? "xl:grid-cols-[330px_minmax(0,1fr)]"
+              : "xl:grid-cols-[0px_minmax(0,1fr)]",
+          ].join(" ")}
+        >
+          <aside
+            className={[
+              "overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm xl:sticky xl:top-4",
+              isDepartmentQueueOpen
+                ? "opacity-100"
+                : "pointer-events-none opacity-0",
+            ].join(" ")}
+            aria-hidden={!isDepartmentQueueOpen}
+          >
             <div className="border-b border-slate-200 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -1525,6 +1699,14 @@ export default function CategoryReviewPage() {
           </aside>
 
           <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 p-4">
+              <CollapsiblePanelToggle
+                isOpen={isDepartmentQueueOpen}
+                onToggle={() => setIsDepartmentQueueOpen((prev) => !prev)}
+                openLabel="Show Department Queue"
+                closeLabel="Hide Department Queue"
+              />
+            </div>
             {!selectedBudgetIdResolved && !queueQuery.isLoading && (
               <EmptyState
                 title="No department review selected"
@@ -1615,6 +1797,35 @@ export default function CategoryReviewPage() {
                     </div>
                     <ProgressBar value={selectedProgress} className="mt-2" />
                   </div>
+
+                  {selectedBudget.category_package_status ===
+                    "RETURNED_BY_CFO" &&
+                  selectedBudget.package_return_reason ? (
+                    <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold">
+                            CFO returned this category package
+                          </p>
+                          <div className="mt-3 max-h-32 w-full overflow-y-auto rounded-xl border border-amber-200 bg-white/70 px-3 py-2.5">
+  <p className="whitespace-pre-wrap break-words text-sm leading-6 text-amber-900 [overflow-wrap:anywhere]">
+    {selectedBudget.package_return_reason}
+  </p>
+</div>
+                          <p className="mt-2 text-xs font-semibold text-amber-700">
+                            Returned by{" "}
+                            {selectedBudget.package_returned_by_cfo_name ||
+                              "CFO"}{" "}
+                            on{" "}
+                            {formatDateTime(
+                              selectedBudget.package_returned_at,
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
 
                 {selectedBudget.items?.length > 0 ? (
@@ -1651,7 +1862,8 @@ export default function CategoryReviewPage() {
                           expanded={Number(expandedItemId) === Number(item.id)}
                           draft={getDraft(item)}
                           dirty={isDraftDirty(item)}
-                          locked={selectedBudgetLocked}
+                          locked={isReviewItemLocked(item)}
+                          returnedCorrection={isReturnedCfoCorrectionItem(item)}
                           saving={savingItemIds.some(
                             (itemId) => Number(itemId) === Number(item.id),
                           )}

@@ -182,6 +182,18 @@ export function mapCategoryReviewDetail({ budget, itemRows = [] }) {
         reviewed_by_name: row.reviewed_by_name || null,
         reviewed_at: row.reviewed_at || null,
 
+        package_item_id: row.package_item_id ?? null,
+        package_item_cfo_review_status:
+          row.package_item_cfo_review_status || null,
+        package_item_cfo_review_note:
+          row.package_item_cfo_review_note || null,
+        package_item_cfo_reviewed_by:
+          row.package_item_cfo_reviewed_by ?? null,
+        package_item_cfo_reviewed_by_name:
+          row.package_item_cfo_reviewed_by_name || null,
+        package_item_cfo_reviewed_at:
+          row.package_item_cfo_reviewed_at || null,
+
         is_active: row.is_active === true || row.is_active === 1,
 
         row_version: mapRowVersion(row.item_row_version),
@@ -247,6 +259,15 @@ export function mapCategoryReviewDetail({ budget, itemRows = [] }) {
     submitted_to_cfo_by_name: budget.submitted_to_cfo_by_name || null,
 
     submitted_to_cfo_at: budget.submitted_to_cfo_at || null,
+
+    package_returned_by_cfo: budget.package_returned_by_cfo ?? null,
+
+    package_returned_by_cfo_name:
+      budget.package_returned_by_cfo_name || null,
+
+    package_returned_at: budget.package_returned_at || null,
+
+    package_return_reason: budget.package_return_reason || null,
 
     category_package_row_version: mapRowVersion(
       budget.category_package_row_version,

@@ -232,6 +232,10 @@ export async function findDepartmentCategoryBudgetForReviewRepo(
         pkg.submitted_to_cfo_by,
         cfoSubmitUser.USER_NAME AS submitted_to_cfo_by_name,
         pkg.submitted_to_cfo_at,
+        pkg.returned_by_cfo AS package_returned_by_cfo,
+        cfoReturnedUser.USER_NAME AS package_returned_by_cfo_name,
+        pkg.returned_at AS package_returned_at,
+        pkg.return_reason AS package_return_reason,
         pkg.row_version AS category_package_row_version
 
       FROM dbo.BS_department_category_budgets AS dcb
@@ -264,6 +268,9 @@ export async function findDepartmentCategoryBudgetForReviewRepo(
 
       LEFT JOIN dbo.users AS cfoSubmitUser
         ON cfoSubmitUser.USER_ID = pkg.submitted_to_cfo_by
+
+      LEFT JOIN dbo.users AS cfoReturnedUser
+        ON cfoReturnedUser.USER_ID = pkg.returned_by_cfo
 
       WHERE dcb.id = @departmentCategoryBudgetId;
     `);
@@ -461,15 +468,34 @@ export async function listItemsForReviewBudgetRepo(
         item.reviewed_at,
         item.is_active,
         item.row_version AS item_row_version,
+        packageItem.id AS package_item_id,
+        packageItem.cfo_review_status AS package_item_cfo_review_status,
+        packageItem.cfo_review_note AS package_item_cfo_review_note,
+        packageItem.cfo_reviewed_by AS package_item_cfo_reviewed_by,
+        cfoReviewedUser.USER_NAME AS package_item_cfo_reviewed_by_name,
+        packageItem.cfo_reviewed_at AS package_item_cfo_reviewed_at,
         distribution.id AS distribution_id,
         distribution.period_type,
         distribution.period_no,
         distribution.quantity AS distribution_quantity
       FROM dbo.BS_department_category_budget_items AS item
+      INNER JOIN dbo.BS_department_category_budgets AS dcb
+        ON dcb.id = item.department_category_budget_id
+      INNER JOIN dbo.BS_department_budgets AS db
+        ON db.id = dcb.department_budget_id
       INNER JOIN dbo.BS_budget_catalog_items AS catalogItem
         ON catalogItem.id = item.catalog_item_id
       LEFT JOIN dbo.BS_units_of_measure AS unit
         ON unit.id = catalogItem.unit_of_measure_id
+      LEFT JOIN dbo.BS_category_budget_packages AS packageForItem
+        ON packageForItem.financial_year_id = db.financial_year_id
+       AND packageForItem.budget_category_id = dcb.budget_category_id
+      LEFT JOIN dbo.BS_category_budget_package_items AS packageItem
+        ON packageItem.category_budget_package_id = packageForItem.id
+       AND packageItem.catalog_item_id = item.catalog_item_id
+       AND packageItem.is_active = 1
+      LEFT JOIN dbo.users AS cfoReviewedUser
+        ON cfoReviewedUser.USER_ID = packageItem.cfo_reviewed_by
       LEFT JOIN dbo.BS_department_category_budget_item_distributions AS distribution
         ON distribution.department_budget_item_id = item.id
       LEFT JOIN dbo.users AS reviewedUser

@@ -121,10 +121,10 @@ function getSidebarSections(budgetAccess) {
           show: canViewCategoryRequests,
         },
         {
-          label: "Budget Approvals",
-          path: "/budget-approval",
+          label: "CFO Review",
+          path: "/cfo-review",
           icon: CheckCircle2,
-          show: canApprovePackages,
+          show: canViewCfoPackages || canApprovePackages,
         },
         {
           label: "Transfers",
@@ -227,8 +227,8 @@ function canAccessPath(pathname, budgetAccess) {
       permission: PERMISSION_CODES.VIEW_CATEGORY_BUDGET_REQUESTS,
     },
     {
-      path: "/budget-approval",
-      permission: PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES,
+      path: "/cfo-review",
+      permission: PERMISSION_CODES.VIEW_CFO_CATEGORY_BUDGET_PACKAGES,
     },
     {
       path: "/admin/budget-setup",

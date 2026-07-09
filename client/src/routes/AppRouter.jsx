@@ -214,15 +214,15 @@ const router = createBrowserRouter([
       },
 
       {
-        path: "budget-approval",
+        path: "cfo-review",
         async lazy() {
           const module =
-            await import("../pages/budget-approval/BudgetApprovalPage");
+            await import("../pages/cfo-package-review/CfoPackageReviewPage");
 
           return {
             Component: () => (
               <RequirePermission
-                permission={PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES}
+                permission={PERMISSION_CODES.VIEW_CFO_CATEGORY_BUDGET_PACKAGES}
               >
                 <module.default />
               </RequirePermission>

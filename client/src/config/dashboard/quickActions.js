@@ -73,11 +73,14 @@ export function getQuickActions(budgetAccess) {
       show: can(budgetAccess, PERMISSION_CODES.CREATE_CATEGORY_TRANSFERS),
     },
     {
-      title: "Approve Budgets",
-      description: "Approve or return submitted budgets.",
-      path: "/budget-approval",
+      title: "CFO Review",
+      description: "Review submitted category packages.",
+      path: "/cfo-review",
       icon: ShieldCheck,
-      show: can(budgetAccess, PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES),
+      show: can(
+        budgetAccess,
+        PERMISSION_CODES.VIEW_CFO_CATEGORY_BUDGET_PACKAGES,
+      ),
     },
     {
       title: "Approve Transfers",

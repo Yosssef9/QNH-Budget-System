@@ -18,6 +18,7 @@ import financialYearsRoutes from "./modules/financial-years/financialYears.route
 import departmentBudgetsRoutes from "./modules/department-budgets/departmentBudgets.routes.js";
 import categoryReviewRoutes from "./modules/category-review/categoryReview.routes.js";
 import categoryPackagesRoutes from "./modules/category-packages/categoryPackages.routes.js";
+import cfoPackageReviewRoutes from "./modules/cfo-package-review/cfoPackageReview.routes.js";
 import budgetApprovalRoutes from "./routes/budgetApproval.routes.js";
 import itemRequestRoutes from "./modules/item-requests/itemRequests.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
@@ -77,6 +78,7 @@ app.use("/api/financial-years", financialYearsRoutes);
 app.use("/api/budgets", departmentBudgetsRoutes);
 app.use("/api/category-review", categoryReviewRoutes);
 app.use("/api/category-packages", categoryPackagesRoutes);
+app.use("/api/cfo-package-review", cfoPackageReviewRoutes);
 app.use("/api/budget-approval", budgetApprovalRoutes);
 app.use("/api/item-requests", itemRequestRoutes);
 app.use("/api/dashboard", dashboardRoutes);

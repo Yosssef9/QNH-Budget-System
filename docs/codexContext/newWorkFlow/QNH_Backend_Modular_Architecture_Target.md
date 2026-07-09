@@ -295,6 +295,8 @@ shared infrastructure
 
 `server/modules/category-packages` owns Phase 5C hospital-wide package preparation, including package items, year-specific package sub-items, shared package model details, department-to-package-sub-item allocations, reconciliation, and CFO submission readiness. Category Review owns approved department quantities; Category Packages consumes those approved quantities and must not duplicate department contribution totals in a separate physical contribution table.
 
+`server/modules/cfo-package-review` owns Phase 5D CFO review for submitted category packages. It reads category-package data, exposes CFO package queues and package detail views, records item-level CFO decisions, returns packages to the Category Manager, completes CFO review, and uses canonical CFO permissions. The CFO module must not reuse the removed old budget-approval workflow.
+
 To prevent circular dependencies:
 
 - Keep shared code business-neutral.

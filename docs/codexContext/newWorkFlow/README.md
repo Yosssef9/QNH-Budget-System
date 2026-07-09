@@ -13,7 +13,7 @@ Primary references:
 
 ## Current Phase Note
 
-Phase 5C Category Package Preparation and Reconciliation is implemented for shared package models, shared pricing/specification/notes, department allocations, reconciliation, and CFO submission readiness. It remains `IN_REVIEW` until the allocation-table migration is applied, live DB/UI validation passes, and package sub-item attachment upload/download/remove is completed.
+Phase 5C Category Package Preparation and Reconciliation is approved complete. Phase 5D CFO Review is implemented and awaiting live review/approval. CFO Review uses the new `server/modules/cfo-package-review` backend module and `/cfo-review` frontend page to review submitted category packages by package item and by department, accept package items, mark items as needing modification, return the whole package to the Category Manager, and complete CFO review.
 
 Source-of-truth priority remains defined by `AGENTS.md`: live database metadata first, then the database scope document, then the other current new-workflow documents.
 

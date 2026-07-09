@@ -60,6 +60,18 @@ export const NOTIFICATION_CONFIG = {
     scope: { type: "GLOBAL" },
   },
 
+  [NOTIFICATION_TYPES.CATEGORY_BUDGET_PACKAGE_RETURNED]: {
+    strategy: "PERMISSION",
+    permission: PERMISSION_CODES.MANAGE_CATEGORY_BUDGET_PACKAGES,
+    scope: { type: "CATEGORY", payloadField: "categoryId" },
+  },
+
+  [NOTIFICATION_TYPES.CATEGORY_BUDGET_PACKAGE_COMPLETED]: {
+    strategy: "PERMISSION",
+    permission: PERMISSION_CODES.MANAGE_CATEGORY_BUDGET_PACKAGES,
+    scope: { type: "CATEGORY", payloadField: "categoryId" },
+  },
+
   [NOTIFICATION_TYPES.BUDGET_APPROVED]: {
     strategy: "OWNER",
     ownerType: "BUDGET",

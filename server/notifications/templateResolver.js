@@ -38,9 +38,11 @@ export function resolveTemplate(notificationType, payload) {
 
     case NOTIFICATION_TYPES.BUDGET_APPROVED:
     case NOTIFICATION_TYPES.CATEGORY_REVIEW_COMPLETED:
+    case NOTIFICATION_TYPES.CATEGORY_BUDGET_PACKAGE_COMPLETED:
       return budgetApprovedTemplate(payload);
 
     case NOTIFICATION_TYPES.BUDGET_RETURNED:
+    case NOTIFICATION_TYPES.CATEGORY_BUDGET_PACKAGE_RETURNED:
       return budgetReturnedTemplate(payload);
 
     case NOTIFICATION_TYPES.DEPARTMENT_BUDGET_APPROVAL_UPDATED:

@@ -119,6 +119,14 @@ export async function listPackageItemsRepo({ packageId }, transaction = null) {
       WHERE subItem.is_active = 1
       GROUP BY subItem.category_budget_package_item_id
     ),
+    valueTotals AS (
+      SELECT
+        subItem.category_budget_package_item_id AS package_item_id,
+        COALESCE(SUM(subItem.quantity * subItem.unit_price), 0) AS estimated_total
+      FROM dbo.BS_category_budget_package_sub_items AS subItem
+      WHERE subItem.is_active = 1
+      GROUP BY subItem.category_budget_package_item_id
+    ),
     departmentAllocation AS (
       SELECT
         packageItem.id AS package_item_id,
@@ -184,6 +192,7 @@ export async function listPackageItemsRepo({ packageId }, transaction = null) {
       COALESCE(demand.requested_quantity, 0) AS requested_quantity,
       COALESCE(demand.approved_quantity, 0) AS approved_quantity,
       COALESCE(allocated.allocated_quantity, 0) AS allocated_quantity,
+      COALESCE(valueTotals.estimated_total, 0) AS estimated_total,
       COALESCE(activeSubItems.active_sub_item_count, 0) AS active_sub_item_count
     FROM dbo.BS_category_budget_package_items AS packageItem
     INNER JOIN dbo.BS_budget_catalog_items AS catalog
@@ -194,6 +203,8 @@ export async function listPackageItemsRepo({ packageId }, transaction = null) {
       ON allocated.package_item_id = packageItem.id
     LEFT JOIN activeSubItems
       ON activeSubItems.package_item_id = packageItem.id
+    LEFT JOIN valueTotals
+      ON valueTotals.package_item_id = packageItem.id
     LEFT JOIN departmentMismatches
       ON departmentMismatches.package_item_id = packageItem.id
     WHERE packageItem.category_budget_package_id = @packageId
@@ -245,6 +256,8 @@ export async function listDepartmentPackageViewRowsRepo(
 
         packageItem.id AS package_item_id,
         packageItem.needs_reconciliation,
+        packageItem.cfo_review_status,
+        packageItem.cfo_review_note,
         packageItem.row_version AS package_item_row_version,
 
         subItem.id AS package_sub_item_id,
@@ -522,6 +535,7 @@ export async function findPackageContextByItemRepo(
         packageItem.id AS package_item_id,
         packageItem.catalog_item_id,
         packageItem.needs_reconciliation,
+        packageItem.cfo_review_status,
         packageItem.row_version AS package_item_row_version,
         pkg.id AS package_id,
         pkg.financial_year_id,
@@ -576,6 +590,7 @@ export async function findPackageContextBySubItemRepo(
         subItem.unit_price,
         subItem.row_version AS package_sub_item_row_version,
         packageItem.catalog_item_id,
+        packageItem.cfo_review_status,
         packageItem.row_version AS package_item_row_version,
         pkg.id AS package_id,
         pkg.financial_year_id,
@@ -676,6 +691,7 @@ export async function findPackageAttachmentContextRepo(
         attachment.row_version,
         subItem.category_budget_package_item_id AS package_item_id,
         packageItem.category_budget_package_id AS package_id,
+        packageItem.cfo_review_status,
         pkg.financial_year_id,
         pkg.budget_category_id,
         pkg.status AS package_status,
@@ -1081,6 +1097,134 @@ export async function deleteAllocationsForSubItemRepo(
     `);
 }
 
+export async function findDepartmentItemPackageEditContextRepo(
+  { departmentItemId },
+  transaction,
+) {
+  const result = await requestFor(transaction).input(
+    "departmentItemId",
+    sql.BigInt,
+    departmentItemId,
+  ).query(`
+      SELECT TOP 1
+        item.id AS department_item_id,
+        item.department_category_budget_id,
+        item.catalog_item_id,
+        item.requested_quantity,
+        item.category_approved_quantity,
+        item.review_status,
+        item.review_note,
+        item.row_version AS department_item_row_version,
+
+        dcb.status AS department_category_budget_status,
+       dcb.budget_category_id AS department_budget_category_id,
+
+        category.name AS category_name,
+
+        db.financial_year_id,
+        db.department_id,
+
+        dept.name AS department_name,
+
+        catalog.name AS catalog_item_name,
+
+        packageItem.id AS package_item_id,
+        packageItem.cfo_review_status,
+        packageItem.cfo_review_note,
+
+       pkg.id AS package_id,
+      pkg.budget_category_id AS budget_category_id,
+      pkg.status AS package_status,
+        pkg.row_version AS package_row_version,
+
+        fy.year AS financial_year,
+        fy.status AS financial_year_status
+
+      FROM dbo.BS_department_category_budget_items AS item WITH (UPDLOCK, HOLDLOCK)
+      INNER JOIN dbo.BS_department_category_budgets AS dcb WITH (UPDLOCK, HOLDLOCK)
+        ON dcb.id = item.department_category_budget_id
+      INNER JOIN dbo.BS_department_budgets AS db
+        ON db.id = dcb.department_budget_id
+      INNER JOIN dbo.BS_budget_categories AS category
+        ON category.id = dcb.budget_category_id
+      INNER JOIN dbo.BS_departments AS dept
+        ON dept.id = db.department_id
+      INNER JOIN dbo.BS_budget_catalog_items AS catalog
+        ON catalog.id = item.catalog_item_id
+      INNER JOIN dbo.BS_category_budget_packages AS pkg WITH (UPDLOCK, HOLDLOCK)
+        ON pkg.financial_year_id = db.financial_year_id
+       AND pkg.budget_category_id = dcb.budget_category_id
+      INNER JOIN dbo.BS_category_budget_package_items AS packageItem WITH (UPDLOCK, HOLDLOCK)
+        ON packageItem.category_budget_package_id = pkg.id
+       AND packageItem.catalog_item_id = item.catalog_item_id
+       AND packageItem.is_active = 1
+      INNER JOIN dbo.BS_financial_years AS fy
+        ON fy.id = db.financial_year_id
+      WHERE item.id = @departmentItemId
+        AND item.is_active = 1;
+    `);
+
+  const row = result.recordset[0] || null;
+  if (row) {
+    row.department_item_row_version = bufferRowVersion(
+      row.department_item_row_version,
+    );
+    row.package_row_version = bufferRowVersion(row.package_row_version);
+  }
+  return row;
+}
+
+export async function updateDepartmentApprovedQuantityForPackageRepo(
+  transaction,
+  payload,
+) {
+  const result = await requestFor(transaction)
+    .input("departmentItemId", sql.BigInt, payload.department_item_id)
+    .input(
+      "approvedQuantity",
+      sql.Decimal(18, 4),
+      payload.category_approved_quantity,
+    )
+    .input("rowVersion", sql.Binary(8), payload.row_version)
+    .input("actorUserId", sql.Int, payload.actor_user_id).query(`
+      DECLARE @Updated TABLE
+      (
+        id BIGINT NOT NULL,
+        old_approved_quantity DECIMAL(18,4) NULL,
+        new_approved_quantity DECIMAL(18,4) NULL
+      );
+
+      UPDATE dbo.BS_department_category_budget_items
+      SET
+        category_approved_quantity = @approvedQuantity,
+        reviewed_by = @actorUserId,
+        reviewed_at = SYSUTCDATETIME(),
+        updated_by = @actorUserId,
+        updated_at = SYSUTCDATETIME()
+      OUTPUT
+        INSERTED.id,
+        DELETED.category_approved_quantity,
+        INSERTED.category_approved_quantity
+      INTO @Updated
+      (
+        id,
+        old_approved_quantity,
+        new_approved_quantity
+      )
+      WHERE id = @departmentItemId
+        AND is_active = 1
+        AND row_version = @rowVersion;
+
+      SELECT
+        id,
+        old_approved_quantity,
+        new_approved_quantity
+      FROM @Updated;
+    `);
+
+  return result.recordset[0] || null;
+}
+
 export async function findDepartmentItemAllocationContextRepo(
   { departmentItemId },
   transaction,
@@ -1178,7 +1322,11 @@ export async function markPackageSubmittedToCfoRepo(transaction, payload) {
     .input("packageId", sql.BigInt, payload.package_id)
     .input("rowVersion", sql.Binary(8), payload.row_version)
     .input("actorUserId", sql.Int, payload.actor_user_id).query(`
-      DECLARE @Updated TABLE (id BIGINT NOT NULL);
+      DECLARE @Updated TABLE
+      (
+        id BIGINT NOT NULL,
+        old_status VARCHAR(40) NOT NULL
+      );
 
       UPDATE dbo.BS_category_budget_packages
       SET
@@ -1187,14 +1335,20 @@ export async function markPackageSubmittedToCfoRepo(transaction, payload) {
         submitted_to_cfo_at = SYSUTCDATETIME(),
         updated_by = @actorUserId,
         updated_at = SYSUTCDATETIME()
-      OUTPUT INSERTED.id INTO @Updated (id)
+      OUTPUT INSERTED.id, DELETED.status INTO @Updated (id, old_status)
       WHERE id = @packageId
         AND row_version = @rowVersion
         AND status IN ('${CATEGORY_PACKAGE_STATUS.DRAFT}', '${CATEGORY_PACKAGE_STATUS.RETURNED_BY_CFO}');
 
       UPDATE packageItem
       SET
-        cfo_review_status = '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.PENDING_CFO_REVIEW}',
+        cfo_review_status =
+          CASE
+            WHEN updated.old_status = '${CATEGORY_PACKAGE_STATUS.RETURNED_BY_CFO}'
+             AND packageItem.cfo_review_status = '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.CFO_ACCEPTED}'
+            THEN '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.CFO_ACCEPTED}'
+            ELSE '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.PENDING_CFO_REVIEW}'
+          END,
         updated_by = @actorUserId,
         updated_at = SYSUTCDATETIME()
       FROM dbo.BS_category_budget_package_items AS packageItem

@@ -133,6 +133,16 @@ export function validateAllocationPayload(body = {}) {
   };
 }
 
+export function validateDepartmentApprovedQuantityPayload(body = {}) {
+  return {
+    category_approved_quantity: validateNonNegativeDecimal(
+      body.category_approved_quantity ?? body.categoryApprovedQuantity,
+      "category_approved_quantity",
+    ),
+    row_version: validateRowVersion(body.row_version ?? body.rowVersion),
+  };
+}
+
 export function validateSubmitPackagePayload(body = {}) {
   return {
     row_version: validateRowVersion(body.row_version ?? body.rowVersion),

@@ -35,6 +35,7 @@ import Input from "../Input";
 import SearchableMultiSelect from "../SearchableMultiSelect";
 import CatalogSubItemFields from "../catalog/CatalogSubItemFields";
 import AnimatedDrawer from "../budgets/shared/drawers/AnimatedDrawer";
+import CollapsiblePanelToggle from "../layout/CollapsiblePanelToggle";
 
 import {
   createPackageSubItem,
@@ -68,6 +69,11 @@ const EMPTY_REUSABLE_MODEL = {
 
 const ITEM_FILTERS = [
   { value: "ALL", label: "All" },
+  {
+    value: "NEEDS_MODIFICATION",
+    label: "Needs modification",
+    tone: "amber",
+  },
   { value: "NEEDS_RECONCILIATION", label: "Needs attention" },
   { value: "NOT_CONFIGURED", label: "Not configured" },
   { value: "SHORT", label: "Short" },
@@ -119,6 +125,30 @@ function formatDateTime(value) {
 
 function formatStatus(status) {
   return String(status || "UNKNOWN").replaceAll("_", " ");
+}
+
+function isPackageItemEditable(packageStatus, item) {
+  if (packageStatus === "DRAFT") return true;
+  return (
+    packageStatus === "RETURNED_BY_CFO" &&
+    item?.cfo_review_status === "NEEDS_MODIFICATION"
+  );
+}
+
+function getAllocationEstimatedTotal(allocations = []) {
+  return allocations.reduce(
+    (sum, allocation) =>
+      sum +
+      toNumber(allocation.allocated_quantity) * toNumber(allocation.unit_price),
+    0,
+  );
+}
+
+function getDepartmentEstimatedTotal(department) {
+  return (department?.items || []).reduce(
+    (sum, item) => sum + getAllocationEstimatedTotal(item.allocations),
+    0,
+  );
 }
 
 function getStatusMeta(status) {
@@ -177,6 +207,24 @@ function getStatusMeta(status) {
       text: "text-emerald-700",
       dot: "bg-emerald-500",
     },
+    PENDING_CFO_REVIEW: {
+      border: "border-indigo-200",
+      background: "bg-indigo-50",
+      text: "text-indigo-700",
+      dot: "bg-indigo-500",
+    },
+    CFO_ACCEPTED: {
+      border: "border-emerald-200",
+      background: "bg-emerald-50",
+      text: "text-emerald-700",
+      dot: "bg-emerald-500",
+    },
+    NEEDS_MODIFICATION: {
+      border: "border-amber-200",
+      background: "bg-amber-50",
+      text: "text-amber-700",
+      dot: "bg-amber-500",
+    },
   };
 
   return (
@@ -217,6 +265,11 @@ function MetricCard({ label, value, helper, icon: Icon, tone = "slate" }) {
     rose: "border-rose-200 bg-rose-50/70 text-rose-700",
   };
 
+  const title =
+    typeof value === "string" || typeof value === "number"
+      ? String(value)
+      : undefined;
+
   return (
     <div className={classNames("rounded-2xl border p-4", toneMap[tone])}>
       <div className="flex items-start justify-between gap-3">
@@ -224,9 +277,16 @@ function MetricCard({ label, value, helper, icon: Icon, tone = "slate" }) {
           <p className="text-xs font-bold uppercase tracking-wide opacity-75">
             {label}
           </p>
-          <p className="mt-1 text-2xl font-black text-slate-950">{value}</p>
+          <div
+            title={title}
+            className="mt-1 min-w-0 max-w-full break-words text-2xl font-black leading-tight text-slate-950 [overflow-wrap:anywhere]"
+          >
+            {value}
+          </div>
           {helper ? (
-            <p className="mt-1 text-xs leading-5 text-slate-500">{helper}</p>
+            <p className="mt-1 min-w-0 break-words text-xs leading-5 text-slate-500 [overflow-wrap:anywhere]">
+              {helper}
+            </p>
           ) : null}
         </div>
         {Icon ? (
@@ -340,21 +400,30 @@ function PerspectiveTabs({ value, onChange }) {
 function FilterChips({ options, value, onChange }) {
   return (
     <div className="flex flex-wrap gap-2">
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          onClick={() => onChange(option.value)}
-          className={classNames(
-            "rounded-full border px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
-            value === option.value
-              ? "border-blue-600 bg-blue-600 text-white"
-              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900",
-          )}
-        >
-          {option.label}
-        </button>
-      ))}
+      {options.map((option) => {
+        const selected = value === option.value;
+        const isAmber = option.tone === "amber";
+
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+            className={classNames(
+              "rounded-full border px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2",
+              selected && isAmber
+                ? "border-amber-400 bg-amber-400 text-amber-950 shadow-sm focus-visible:ring-amber-400"
+                : selected
+                  ? "border-blue-600 bg-blue-600 text-white focus-visible:ring-blue-500"
+                  : isAmber
+                    ? "border-amber-200 bg-amber-50 text-amber-800 hover:border-amber-300 hover:bg-amber-100 focus-visible:ring-amber-400"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900 focus-visible:ring-blue-500",
+            )}
+          >
+            {option.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -383,8 +452,19 @@ function ItemQueueCard({ item, selected, onClick }) {
             {Number(item.department_count) === 1 ? "" : "s"}
           </p>
         </div>
-        <StatusBadge status={item.reconciliation_status} compact />
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          {item.cfo_review_status ? (
+            <StatusBadge status={item.cfo_review_status} compact />
+          ) : null}
+          <StatusBadge status={item.reconciliation_status} compact />
+        </div>
       </div>
+
+      {item.cfo_review_note ? (
+        <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-800">
+          CFO note: {item.cfo_review_note}
+        </p>
+      ) : null}
 
       <div className="mt-3">
         <QuantityProgress
@@ -393,7 +473,7 @@ function ItemQueueCard({ item, selected, onClick }) {
         />
       </div>
 
-      <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
         <div className="rounded-xl bg-white/80 px-2.5 py-2">
           <span className="block font-black text-slate-900">
             {formatNumber(item.requested_quantity)}
@@ -405,6 +485,12 @@ function ItemQueueCard({ item, selected, onClick }) {
             {formatNumber(item.approved_quantity)}
           </span>
           <span className="text-slate-500">Approved</span>
+        </div>
+        <div className="rounded-xl bg-white/80 px-2.5 py-2">
+          <span className="block font-black text-slate-900">
+            <CurrencyText compact value={item.estimated_total || 0} />
+          </span>
+          <span className="text-slate-500">Value</span>
         </div>
         <div className="rounded-xl bg-white/80 px-2.5 py-2">
           <span
@@ -430,6 +516,7 @@ function ItemQueueCard({ item, selected, onClick }) {
 
 function DepartmentQueueCard({ department, selected, onClick }) {
   const remaining = toNumber(department.remaining_quantity);
+  const estimatedTotal = getDepartmentEstimatedTotal(department);
 
   return (
     <button
@@ -472,6 +559,12 @@ function DepartmentQueueCard({ department, selected, onClick }) {
           )}
         >
           {department.issue_count || 0}
+        </span>
+      </div>
+      <div className="mt-2 flex items-center justify-between rounded-xl bg-white/80 px-2.5 py-2 text-xs">
+        <span className="font-semibold text-slate-500">Department total</span>
+        <span className="font-black text-slate-900">
+          <CurrencyText compact value={estimatedTotal} />
         </span>
       </div>
     </button>
@@ -1956,15 +2049,27 @@ function ItemPerspective({
 }) {
   const subItems = selectedItemDetail?.sub_items || [];
   const departments = selectedItemDetail?.departments || [];
+  const [isItemListOpen, setIsItemListOpen] = useState(true);
 
   return (
     <div
       id="category-package-item-panel"
       role="tabpanel"
       aria-labelledby="category-package-item-tab"
-      className="grid min-h-[720px] xl:grid-cols-[350px_minmax(0,1fr)]"
+      className={[
+        "grid min-h-[720px] transition-all duration-300 ease-in-out",
+        isItemListOpen
+          ? "xl:grid-cols-[350px_minmax(0,1fr)]"
+          : "xl:grid-cols-[0px_minmax(0,1fr)]",
+      ].join(" ")}
     >
-      <aside className="border-b border-slate-200 bg-white xl:border-b-0 xl:border-r">
+      <aside
+        className={[
+         "flex flex-col overflow-hidden border-b border-slate-200 bg-white xl:sticky xl:top-4 xl:h-[calc(100vh-2rem)] xl:self-start xl:border-b-0 xl:border-r xl:rounded-l-[1.75rem]",
+          isItemListOpen ? "opacity-100" : "pointer-events-none opacity-0",
+        ].join(" ")}
+        aria-hidden={!isItemListOpen}
+      >
         <div className="space-y-3 border-b border-slate-200 p-4">
           <EnterpriseSearch
             value={search}
@@ -1978,7 +2083,7 @@ function ItemPerspective({
             onChange={onFilterChange}
           />
         </div>
-        <div className="max-h-[760px] space-y-2 overflow-y-auto p-3">
+        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
           {filteredItems.length > 0 ? (
             filteredItems.map((item) => (
               <ItemQueueCard
@@ -1999,6 +2104,14 @@ function ItemPerspective({
       </aside>
 
       <main className="min-w-0 bg-slate-50 p-4 sm:p-5">
+        <div className="mb-4">
+          <CollapsiblePanelToggle
+            isOpen={isItemListOpen}
+            onToggle={() => setIsItemListOpen((prev) => !prev)}
+            openLabel="Show Requested Items"
+            closeLabel="Hide Requested Items"
+          />
+        </div>
         {!selectedItem ? (
           <EmptyQueue
             icon={Boxes}
@@ -2014,6 +2127,9 @@ function ItemPerspective({
                     <h2 className="text-2xl font-black text-slate-950">
                       {selectedItem.catalog_item_name}
                     </h2>
+                    {selectedItem.cfo_review_status ? (
+                      <StatusBadge status={selectedItem.cfo_review_status} />
+                    ) : null}
                     <StatusBadge status={selectedItem.reconciliation_status} />
                   </div>
                   <p className="mt-1 text-sm leading-6 text-slate-600">
@@ -2026,6 +2142,15 @@ function ItemPerspective({
                   {Number(selectedItem.department_count) === 1 ? "" : "s"}
                 </div>
               </div>
+
+              {selectedItem.cfo_review_note ? (
+                <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  <p className="font-black">CFO modification note</p>
+                  <p className="mt-1 leading-6">
+                    {selectedItem.cfo_review_note}
+                  </p>
+                </div>
+              ) : null}
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                 <MetricCard
@@ -2068,7 +2193,7 @@ function ItemPerspective({
                   value={
                     <CurrencyText value={selectedItem.estimated_total || 0} />
                   }
-                  icon={CircleDollarSign}
+                  // icon={CircleDollarSign}
                 />
               </div>
             </section>
@@ -2145,17 +2270,33 @@ function DepartmentPerspective({
   onFilterChange,
   onSelectDepartment,
   editable,
+  packageStatus,
   onEditAllocation,
   loading,
 }) {
+  const [isDepartmentListOpen, setIsDepartmentListOpen] = useState(true);
+
   return (
     <div
       id="category-package-department-panel"
       role="tabpanel"
       aria-labelledby="category-package-department-tab"
-      className="grid min-h-[720px] xl:grid-cols-[350px_minmax(0,1fr)]"
+      className={[
+        "grid min-h-[720px] transition-all duration-300 ease-in-out",
+        isDepartmentListOpen
+          ? "xl:grid-cols-[350px_minmax(0,1fr)]"
+          : "xl:grid-cols-[0px_minmax(0,1fr)]",
+      ].join(" ")}
     >
-      <aside className="border-b border-slate-200 bg-white xl:border-b-0 xl:border-r">
+      <aside
+        className={[
+        "flex flex-col overflow-hidden border-b border-slate-200 bg-white xl:sticky xl:top-4 xl:h-[calc(100vh-2rem)] xl:self-start xl:border-b-0 xl:border-r xl:rounded-l-[1.75rem]",
+          isDepartmentListOpen
+            ? "opacity-100"
+            : "pointer-events-none opacity-0",
+        ].join(" ")}
+        aria-hidden={!isDepartmentListOpen}
+      >
         <div className="space-y-3 border-b border-slate-200 p-4">
           <EnterpriseSearch
             value={search}
@@ -2169,7 +2310,7 @@ function DepartmentPerspective({
             onChange={onFilterChange}
           />
         </div>
-        <div className="max-h-[760px] space-y-2 overflow-y-auto p-3">
+        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
           {loading ? (
             [1, 2, 3, 4].map((item) => (
               <div
@@ -2200,6 +2341,14 @@ function DepartmentPerspective({
       </aside>
 
       <main className="min-w-0 bg-slate-50 p-4 sm:p-5">
+        <div className="mb-4">
+          <CollapsiblePanelToggle
+            isOpen={isDepartmentListOpen}
+            onToggle={() => setIsDepartmentListOpen((prev) => !prev)}
+            openLabel="Show Departments"
+            closeLabel="Hide Departments"
+          />
+        </div>
         {loading ? (
           <div className="space-y-4">
             <div className="h-52 animate-pulse rounded-2xl bg-white" />
@@ -2234,7 +2383,7 @@ function DepartmentPerspective({
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
                 <MetricCard
                   label="Requested items"
                   value={selectedDepartment.item_count}
@@ -2256,6 +2405,15 @@ function DepartmentPerspective({
                   value={formatNumber(selectedDepartment.allocated_quantity)}
                   icon={Layers3}
                   tone="emerald"
+                />
+                <MetricCard
+                  label="Department total"
+                  value={
+                    <CurrencyText
+                      value={getDepartmentEstimatedTotal(selectedDepartment)}
+                    />
+                  }
+                  icon={CircleDollarSign}
                 />
                 <MetricCard
                   label="Allocation issues"
@@ -2283,82 +2441,110 @@ function DepartmentPerspective({
               </div>
 
               <div className="divide-y divide-slate-100">
-                {(selectedDepartment.items || []).map((item) => (
-                  <article key={item.department_item_id} className="p-5">
-                    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.9fr)_auto] xl:items-start">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h4 className="font-black text-slate-950">
-                            {item.catalog_item_name}
-                          </h4>
-                          <StatusBadge
-                            status={item.reconciliation_status}
-                            compact
-                          />
-                        </div>
-                        <p className="mt-1 text-xs font-semibold text-slate-500">
-                          {item.catalog_item_code || "Catalog item"}
-                        </p>
+                {(selectedDepartment.items || []).map((item) => {
+                  const itemEditable =
+                    editable && isPackageItemEditable(packageStatus, item);
+                  const itemTotal = getAllocationEstimatedTotal(
+                    item.allocations,
+                  );
 
-                        <div className="mt-4 grid grid-cols-4 gap-2 text-xs">
-                          <div className="rounded-xl bg-slate-50 px-3 py-2">
-                            <span className="block font-black text-slate-950">
-                              {formatNumber(item.requested_quantity)}
-                            </span>
-                            <span className="text-slate-500">Requested</span>
+                  return (
+                    <article key={item.department_item_id} className="p-5">
+                      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.9fr)_auto] xl:items-start">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h4 className="font-black text-slate-950">
+                              {item.catalog_item_name}
+                            </h4>
+                            <StatusBadge
+                              status={item.reconciliation_status}
+                              compact
+                            />
+                            {item.cfo_review_status ? (
+                              <StatusBadge
+                                status={item.cfo_review_status}
+                                compact
+                              />
+                            ) : null}
                           </div>
-                          <div className="rounded-xl bg-blue-50 px-3 py-2">
-                            <span className="block font-black text-blue-800">
-                              {formatNumber(item.approved_quantity)}
-                            </span>
-                            <span className="text-blue-600">Approved</span>
-                          </div>
-                          <div className="rounded-xl bg-emerald-50 px-3 py-2">
-                            <span className="block font-black text-emerald-800">
-                              {formatNumber(item.allocated_quantity)}
-                            </span>
-                            <span className="text-emerald-600">Allocated</span>
-                          </div>
-                          <div className="rounded-xl bg-amber-50 px-3 py-2">
-                            <span className="block font-black text-amber-800">
-                              {formatNumber(
-                                Math.abs(toNumber(item.remaining_quantity)),
-                              )}
-                            </span>
-                            <span className="text-amber-600">
-                              {toNumber(item.remaining_quantity) < 0
-                                ? "Excess"
-                                : "Remaining"}
-                            </span>
-                          </div>
-                        </div>
-
-                        {item.review_note ? (
-                          <p className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">
-                            Category review note: {item.review_note}
+                          <p className="mt-1 text-xs font-semibold text-slate-500">
+                            {item.catalog_item_code || "Catalog item"}
                           </p>
-                        ) : null}
-                      </div>
 
-                      <div>
-                        <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">
-                          Current model split
-                        </p>
-                        <ModelSplit allocations={item.allocations} />
-                      </div>
+                          <div className="mt-4 grid grid-cols-4 gap-2 text-xs">
+                            <div className="rounded-xl bg-slate-50 px-3 py-2">
+                              <span className="block font-black text-slate-950">
+                                {formatNumber(item.requested_quantity)}
+                              </span>
+                              <span className="text-slate-500">Requested</span>
+                            </div>
+                            <div className="rounded-xl bg-blue-50 px-3 py-2">
+                              <span className="block font-black text-blue-800">
+                                {formatNumber(item.approved_quantity)}
+                              </span>
+                              <span className="text-blue-600">Approved</span>
+                            </div>
+                            <div className="rounded-xl bg-emerald-50 px-3 py-2">
+                              <span className="block font-black text-emerald-800">
+                                {formatNumber(item.allocated_quantity)}
+                              </span>
+                              <span className="text-emerald-600">
+                                Allocated
+                              </span>
+                            </div>
+                            <div className="rounded-xl bg-amber-50 px-3 py-2">
+                              <span className="block font-black text-amber-800">
+                                {formatNumber(
+                                  Math.abs(toNumber(item.remaining_quantity)),
+                                )}
+                              </span>
+                              <span className="text-amber-600">
+                                {toNumber(item.remaining_quantity) < 0
+                                  ? "Excess"
+                                  : "Remaining"}
+                              </span>
+                            </div>
+                            <div className="rounded-xl bg-slate-50 px-3 py-2">
+                              <span className="block font-black text-slate-950">
+                                <CurrencyText compact value={itemTotal} />
+                              </span>
+                              <span className="text-slate-500">Value</span>
+                            </div>
+                          </div>
 
-                      <button
-                        type="button"
-                        disabled={!editable}
-                        onClick={() => onEditAllocation(item)}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-black text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400"
-                      >
-                        <SlidersHorizontal className="h-4 w-4" />
-                        Edit Allocation
-                      </button>
-                    </div>
-                  </article>
-                ))}
+                          {item.review_note ? (
+                            <p className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">
+                              Category review note: {item.review_note}
+                            </p>
+                          ) : null}
+                          {item.cfo_review_note ? (
+                            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+                              <span className="font-black">CFO note:</span>{" "}
+                              {item.cfo_review_note}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div>
+                          <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">
+                            Current model split
+                          </p>
+                          <ModelSplit allocations={item.allocations} />
+                        </div>
+
+                        <button
+                          type="button"
+                          disabled={!itemEditable}
+                          onClick={() => onEditAllocation(item)}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-black text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400"
+                        >
+                          <SlidersHorizontal className="h-4 w-4" />
+                          Edit Allocation
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             </section>
           </div>
@@ -2399,26 +2585,43 @@ export default function CategoryPackageWorkbench() {
 
   const packageData = packageQuery.data;
   const items = useMemo(() => packageData?.items || [], [packageData?.items]);
+useEffect(() => {
+  if (!packageData?.id) return;
 
+  setItemFilter(
+    packageData.status === "RETURNED_BY_CFO"
+      ? "NEEDS_MODIFICATION"
+      : "ALL",
+  );
+
+  setSelectedItemId(null);
+}, [packageData?.id, packageData?.status]);
   const filteredItems = useMemo(() => {
-    const query = itemSearch.trim().toLowerCase();
+  const query = itemSearch.trim().toLowerCase();
 
-    return items.filter((item) => {
-      const matchesSearch =
-        !query ||
-        item.catalog_item_name?.toLowerCase().includes(query) ||
-        item.catalog_item_code?.toLowerCase().includes(query);
-      const matchesFilter =
-        itemFilter === "ALL" || item.reconciliation_status === itemFilter;
-      return matchesSearch && matchesFilter;
-    });
-  }, [itemFilter, itemSearch, items]);
+  return items.filter((item) => {
+    const matchesSearch =
+      !query ||
+      item.catalog_item_name?.toLowerCase().includes(query) ||
+      item.catalog_item_code?.toLowerCase().includes(query);
 
-  const selectedItem =
-    items.find((item) => Number(item.id) === Number(selectedItemId)) ||
-    filteredItems[0] ||
-    items[0] ||
-    null;
+    const matchesFilter =
+      itemFilter === "ALL" ||
+      (itemFilter === "NEEDS_MODIFICATION" &&
+        item.cfo_review_status === "NEEDS_MODIFICATION") ||
+      (itemFilter !== "NEEDS_MODIFICATION" &&
+        item.reconciliation_status === itemFilter);
+
+    return matchesSearch && matchesFilter;
+  });
+}, [itemFilter, itemSearch, items]);
+
+const selectedItem =
+  filteredItems.find(
+    (item) => Number(item.id) === Number(selectedItemId),
+  ) ||
+  filteredItems[0] ||
+  null;
   const effectiveSelectedItemId = selectedItem?.id || null;
 
   const itemDetailQuery = useQuery({
@@ -2485,6 +2688,24 @@ export default function CategoryPackageWorkbench() {
   const packageEditable = ["DRAFT", "RETURNED_BY_CFO"].includes(
     packageData?.status,
   );
+  const selectedItemEditable =
+    packageEditable && isPackageItemEditable(packageData?.status, selectedItem);
+  const editingSubItemPackageItem = items.find(
+    (item) =>
+      Number(item.id) ===
+      Number(editingSubItem?.category_budget_package_item_id),
+  );
+  const editingSubItemEditable =
+    packageEditable &&
+    isPackageItemEditable(packageData?.status, editingSubItemPackageItem);
+  const removeCandidatePackageItem = items.find(
+    (item) =>
+      Number(item.id) ===
+      Number(removeCandidate?.category_budget_package_item_id),
+  );
+  const removeCandidateEditable =
+    packageEditable &&
+    isPackageItemEditable(packageData?.status, removeCandidatePackageItem);
 
   async function invalidatePackageWorkspace() {
     await Promise.all([
@@ -2565,6 +2786,7 @@ export default function CategoryPackageWorkbench() {
   });
 
   function openAllocationForItemDepartment(department) {
+    if (!selectedItemEditable) return;
     setAllocationContext({
       packageItemId: effectiveSelectedItemId,
       departmentItemId: department.department_item_id,
@@ -2572,6 +2794,7 @@ export default function CategoryPackageWorkbench() {
   }
 
   function openAllocationFromDepartmentView(item) {
+    if (!isPackageItemEditable(packageData?.status, item)) return;
     setAllocationContext({
       packageItemId: item.package_item_id,
       departmentItemId: item.department_item_id,
@@ -2616,10 +2839,14 @@ export default function CategoryPackageWorkbench() {
   const approvedTotal = toNumber(packageData.summary?.approvedQuantity);
   const allocatedTotal = toNumber(packageData.summary?.allocatedQuantity);
   const remainingTotal = approvedTotal - allocatedTotal;
+  const estimatedPackageTotal = items.reduce(
+    (sum, item) => sum + toNumber(item.estimated_total),
+    0,
+  );
   const displayedBlockers = showAllBlockers ? blockers : blockers.slice(0, 4);
 
   return (
-    <section className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-slate-50 shadow-sm">
+   <section className="rounded-[1.75rem] border border-slate-200 bg-slate-50 shadow-sm">
       <header className="border-b border-slate-200 bg-white px-5 py-5 sm:px-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div>
@@ -2647,6 +2874,11 @@ export default function CategoryPackageWorkbench() {
               <span className="rounded-full bg-slate-100 px-3 py-1.5">
                 {items.length} requested item{items.length === 1 ? "" : "s"}
               </span>
+              {packageData.returned_at ? (
+                <span className="rounded-full bg-amber-100 px-3 py-1.5 text-amber-700">
+                  Returned by CFO on {formatDateTime(packageData.returned_at)}
+                </span>
+              ) : null}
             </div>
           </div>
 
@@ -2671,12 +2903,32 @@ export default function CategoryPackageWorkbench() {
           </div>
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+     {packageData.status === "RETURNED_BY_CFO" &&
+packageData.return_reason ? (
+  <div className="mt-5 min-w-0 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+    <p className="text-sm font-black">
+      CFO return reason
+    </p>
+
+    <div className="mt-3 max-h-32 w-full overflow-y-auto rounded-xl border border-amber-200 bg-white/70 px-3 py-2.5">
+      <p className="whitespace-pre-wrap break-words text-sm leading-6 [overflow-wrap:anywhere]">
+        {packageData.return_reason}
+      </p>
+    </div>
+  </div>
+) : null}
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          <MetricCard
+            label="Package total"
+            value={<CurrencyText value={estimatedPackageTotal} />}
+            // icon={CircleDollarSign}
+            tone="blue"
+          />
           <MetricCard
             label="Approved demand"
             value={formatNumber(approvedTotal)}
             icon={CheckCircle2}
-            tone="blue"
           />
           <MetricCard
             label="Allocated"
@@ -2781,7 +3033,7 @@ export default function CategoryPackageWorkbench() {
           filter={itemFilter}
           onFilterChange={setItemFilter}
           onSelectItem={setSelectedItemId}
-          editable={packageEditable}
+          editable={selectedItemEditable}
           onAddModel={() => setAddModelOpen(true)}
           onEditModel={setEditingSubItem}
           onRemoveModel={setRemoveCandidate}
@@ -2797,6 +3049,7 @@ export default function CategoryPackageWorkbench() {
           onFilterChange={setDepartmentFilter}
           onSelectDepartment={setSelectedDepartmentId}
           editable={packageEditable}
+          packageStatus={packageData.status}
           onEditAllocation={openAllocationFromDepartmentView}
           loading={departmentViewQuery.isLoading}
         />
@@ -2809,10 +3062,12 @@ export default function CategoryPackageWorkbench() {
         existingPackageSubItems={itemDetailQuery.data?.sub_items || []}
         addingPackageModel={createSubItemMutation.isPending}
         onAddPackageModel={(payload) =>
-          createSubItemMutation.mutate({
-            packageItemId: effectiveSelectedItemId,
-            payload,
-          })
+          selectedItemEditable
+            ? createSubItemMutation.mutate({
+                packageItemId: effectiveSelectedItemId,
+                payload,
+              })
+            : toast.error("This package item is locked by the CFO decision")
         }
       />
 
@@ -2821,7 +3076,7 @@ export default function CategoryPackageWorkbench() {
         onClose={() => setEditingSubItem(null)}
         subItem={editingSubItem}
         loading={updateSubItemMutation.isPending}
-        editable={packageEditable}
+        editable={editingSubItemEditable}
         onSubmit={(payload) =>
           updateSubItemMutation.mutate({
             packageSubItemId: editingSubItem.id,
@@ -2857,6 +3112,11 @@ export default function CategoryPackageWorkbench() {
         onConfirm={() => {
           if (!removeCandidate?.row_version) {
             toast.error("Model row version is missing. Refresh and try again.");
+            return;
+          }
+
+          if (!removeCandidateEditable) {
+            toast.error("This package item is locked by the CFO decision");
             return;
           }
 

@@ -126,6 +126,17 @@ export async function replaceDepartmentItemAllocations({
   return response.data?.data;
 }
 
+export async function updateDepartmentItemApprovedQuantity({
+  departmentItemId,
+  payload,
+}) {
+  const response = await api.patch(
+    `/category-packages/department-items/${departmentItemId}/approved-quantity`,
+    payload,
+  );
+  return response.data?.data;
+}
+
 export async function submitCategoryPackageToCfo({ packageId, payload }) {
   const response = await api.patch(
     `/category-packages/${packageId}/submit-to-cfo`,

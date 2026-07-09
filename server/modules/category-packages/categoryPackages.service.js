@@ -12,6 +12,7 @@ import {
   CATEGORY_PACKAGE_ATTACHMENT_ALLOWED_EXTENSIONS,
   CATEGORY_PACKAGE_ATTACHMENT_ALLOWED_MIME_TYPES,
   CATEGORY_PACKAGE_ATTACHMENT_MAX_BYTES,
+  CATEGORY_PACKAGE_ITEM_CFO_STATUS,
   CATEGORY_PACKAGE_PERMISSIONS,
   CATEGORY_PACKAGE_ROLE_CODES,
   CATEGORY_PACKAGE_STATUS,
@@ -26,26 +27,29 @@ import {
   createPackageSubItemRepo,
   createWorkflowHistoryRepo,
   deactivatePackageSubItemAttachmentRepo,
-  deleteAllocationsForSubItemRepo,
   deactivatePackageSubItemRepo,
   deleteAllocationsForDepartmentItemRepo,
-  findPackageAttachmentContextRepo,
+  deleteAllocationsForSubItemRepo,
   findCatalogSubItemForPackageRepo,
   findCurrentPackageForCategoryRepo,
   findDepartmentItemAllocationContextRepo,
+  findDepartmentItemPackageEditContextRepo,
+  findPackageAttachmentContextRepo,
   findPackageContextByItemRepo,
   findPackageContextBySubItemRepo,
-  listPackageSubItemAttachmentsRepo,
   listAllocationsForPackageItemRepo,
+  listDepartmentPackageViewRowsRepo,
   listPackageItemDetailRowsRepo,
   listPackageItemsRepo,
+  listPackageSubItemAttachmentsRepo,
   listPackageSubItemsForDepartmentItemRepo,
   markPackageSubmittedToCfoRepo,
   recalculatePackageSubItemQuantitiesRepo,
+ 
+  updateDepartmentApprovedQuantityForPackageRepo,
   updatePackageItemReconciliationRepo,
   updatePackageSubItemRepo,
   upsertAllocationRepo,
-  listDepartmentPackageViewRowsRepo,
 } from "./categoryPackages.repository.js";
 import {
   mapDepartmentPackageView,
@@ -143,7 +147,50 @@ function assertPackageEditable(context) {
     );
   }
 }
+function assertPackageItemEditable(context) {
+  assertPackageEditable(context);
 
+  if (
+    context.package_status === CATEGORY_PACKAGE_STATUS.RETURNED_BY_CFO &&
+    context.cfo_review_status !==
+      CATEGORY_PACKAGE_ITEM_CFO_STATUS.NEEDS_MODIFICATION
+  ) {
+    throw new ApiError(
+      400,
+      "Only package items marked as needing modification by CFO can be edited after a CFO return",
+      "CFO_RETURNED_PACKAGE_ITEM_LOCKED",
+    );
+  }
+}
+
+function assertReturnedPackageItemDecisionEditable(context) {
+  if (context.financial_year_status !== "OPEN") {
+    throw new ApiError(
+      400,
+      "Category package corrections can only be made while the financial year is OPEN",
+      "FINANCIAL_YEAR_NOT_OPEN",
+    );
+  }
+
+  if (context.package_status !== CATEGORY_PACKAGE_STATUS.RETURNED_BY_CFO) {
+    throw new ApiError(
+      400,
+      "Department approved quantities can only be adjusted after CFO returns the package",
+      "CATEGORY_PACKAGE_NOT_RETURNED_BY_CFO",
+    );
+  }
+
+  if (
+    context.cfo_review_status !==
+    CATEGORY_PACKAGE_ITEM_CFO_STATUS.NEEDS_MODIFICATION
+  ) {
+    throw new ApiError(
+      400,
+      "Only package items marked as needing modification by CFO can have approved quantities adjusted",
+      "CFO_RETURNED_PACKAGE_ITEM_LOCKED",
+    );
+  }
+}
 function assertAttachmentFile(file) {
   if (!file) {
     throw new ApiError(400, "Attachment file is required", "ATTACHMENT_FILE_REQUIRED");
@@ -481,7 +528,7 @@ export async function createPackageSubItemService({
       transaction,
     );
     assertCategoryScope(context, budgetCategoryId);
-    assertPackageEditable(context);
+  assertPackageItemEditable(context);
 
     const catalogSubItem = await findCatalogSubItemForPackageRepo(
       {
@@ -559,7 +606,7 @@ export async function updatePackageSubItemService({
       transaction,
     );
     assertCategoryScope(context, budgetCategoryId);
-    assertPackageEditable(context);
+  assertPackageItemEditable(context);
 
     const updated = await updatePackageSubItemRepo(transaction, {
       package_sub_item_id: packageSubItemId,
@@ -636,7 +683,7 @@ export async function uploadPackageSubItemAttachmentService({
     packageSubItemId,
   });
   assertCategoryScope(preflightContext, budgetCategoryId);
-  assertPackageEditable(preflightContext);
+ assertPackageItemEditable(preflightContext);
 
   let storageKey = null;
 
@@ -652,7 +699,7 @@ export async function uploadPackageSubItemAttachmentService({
         transaction,
       );
       assertCategoryScope(context, budgetCategoryId);
-      assertPackageEditable(context);
+   assertPackageItemEditable(context);
 
       const attachment = await createPackageSubItemAttachmentRepo(transaction, {
         package_sub_item_id: packageSubItemId,
@@ -753,7 +800,7 @@ export async function deletePackageSubItemAttachmentService({
     }
 
     assertCategoryScope(attachment, budgetCategoryId);
-    assertPackageEditable(attachment);
+   assertPackageItemEditable(attachment);
 
     const removed = await deactivatePackageSubItemAttachmentRepo(transaction, {
       package_sub_item_id: packageSubItemId,
@@ -813,7 +860,7 @@ export async function removePackageSubItemService({
       transaction,
     );
     assertCategoryScope(context, budgetCategoryId);
-    assertPackageEditable(context);
+  assertPackageItemEditable(context);
 
     const allocationSummary = await countAllocationsForSubItemRepo(
       { packageSubItemId },
@@ -894,145 +941,267 @@ export async function replaceDepartmentItemAllocationsService({
     "CATEGORY_PACKAGE_ALLOCATION_DENIED",
     "You do not have permission to allocate category package quantities",
   );
-  const budgetCategoryId = assertCategoryWorkspace(budgetAccess);
 
-  const result = await withTransaction(async (transaction) => {
-    const departmentItem = await findDepartmentItemAllocationContextRepo(
-      { departmentItemId },
-      transaction,
-    );
+  const budgetCategoryId =
+    assertCategoryWorkspace(budgetAccess);
 
-    if (!departmentItem) {
-      throw new ApiError(
-        404,
-        "Department budget item not found",
-        "DEPARTMENT_BUDGET_ITEM_NOT_FOUND",
-      );
-    }
+  const result = await withTransaction(
+    async (transaction) => {
+      const departmentItem =
+        await findDepartmentItemAllocationContextRepo(
+          { departmentItemId },
+          transaction,
+        );
 
-    assertCategoryScope(departmentItem, budgetCategoryId);
-
-    if (
-      departmentItem.review_status !==
-      DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED
-    ) {
-      throw new ApiError(
-        400,
-        "Only reviewed department items can be allocated",
-        "DEPARTMENT_ITEM_NOT_REVIEWED",
-      );
-    }
-
-    const subItems = await listPackageSubItemsForDepartmentItemRepo(
-      { departmentItemId },
-      transaction,
-    );
-    const subItemById = new Map(
-      subItems.map((subItem) => [Number(subItem.package_sub_item_id), subItem]),
-    );
-    const packageItemId = subItems[0]?.package_item_id;
-
-    if (!packageItemId) {
-      throw new ApiError(
-        400,
-        "At least one package sub-item is required before allocation",
-        "PACKAGE_SUB_ITEM_REQUIRED",
-      );
-    }
-
-    const packageContext = await findPackageContextByItemRepo(
-      { packageItemId },
-      transaction,
-    );
-    assertCategoryScope(packageContext, budgetCategoryId);
-    assertPackageEditable(packageContext);
-
-    const allocationBySubItem = new Map();
-
-    for (const allocation of payload.allocations) {
-      if (!subItemById.has(Number(allocation.package_sub_item_id))) {
+      if (!departmentItem) {
         throw new ApiError(
-          400,
-          "Allocation package sub-item does not belong to this department item catalog item",
-          "ALLOCATION_SUB_ITEM_SCOPE_MISMATCH",
+          404,
+          "Department budget item not found",
+          "DEPARTMENT_BUDGET_ITEM_NOT_FOUND",
         );
       }
 
-      const quantity = roundQuantity(allocation.allocated_quantity);
-      if (quantity <= 0) continue;
-      const key = Number(allocation.package_sub_item_id);
-      allocationBySubItem.set(
-        key,
-        roundQuantity((allocationBySubItem.get(key) || 0) + quantity),
+      assertCategoryScope(
+        departmentItem,
+        budgetCategoryId,
       );
-    }
 
-    const sanitizedAllocations = Array.from(
-      allocationBySubItem,
-      ([packageSubItemId, quantity]) => ({
-        package_sub_item_id: packageSubItemId,
-        allocated_quantity: quantity,
-      }),
-    );
-    const totalAllocated = sanitizedAllocations.reduce(
-      (sum, allocation) => sum + allocation.allocated_quantity,
-      0,
-    );
+      if (
+        departmentItem.review_status !==
+        DEPARTMENT_REVIEW_STATUS
+          .CATEGORY_REVIEW_COMPLETED
+      ) {
+        throw new ApiError(
+          400,
+          "Only reviewed department items can be allocated",
+          "DEPARTMENT_ITEM_NOT_REVIEWED",
+        );
+      }
 
-    if (
-      roundQuantity(totalAllocated) >
-      roundQuantity(departmentItem.category_approved_quantity)
-    ) {
-      throw new ApiError(
-        400,
-        "Department allocation cannot exceed the approved quantity",
-        "DEPARTMENT_ITEM_OVERALLOCATED",
+      const subItems =
+        await listPackageSubItemsForDepartmentItemRepo(
+          { departmentItemId },
+          transaction,
+        );
+
+      const subItemById = new Map(
+        subItems.map((subItem) => [
+          Number(subItem.package_sub_item_id),
+          subItem,
+        ]),
+      );
+
+      const packageItemId =
+        subItems[0]?.package_item_id;
+
+      if (!packageItemId) {
+        throw new ApiError(
+          400,
+          "At least one package sub-item is required before allocation",
+          "PACKAGE_SUB_ITEM_REQUIRED",
+        );
+      }
+
+      const packageContext =
+        await findPackageContextByItemRepo(
+          { packageItemId },
+          transaction,
+        );
+
+      assertCategoryScope(
+        packageContext,
+        budgetCategoryId,
+      );
+
+   assertPackageItemEditable(packageContext);
+
+      const allocationBySubItem = new Map();
+
+      for (const allocation of payload.allocations) {
+        const packageSubItemId = Number(
+          allocation.package_sub_item_id,
+        );
+
+        const packageSubItem =
+          subItemById.get(packageSubItemId);
+
+        if (!packageSubItem) {
+          throw new ApiError(
+            400,
+            "Allocation package sub-item does not belong to this department item catalog item",
+            "ALLOCATION_SUB_ITEM_SCOPE_MISMATCH",
+          );
+        }
+
+        const quantity = roundQuantity(
+          allocation.allocated_quantity,
+        );
+
+        if (quantity <= 0) {
+          continue;
+        }
+
+        const unitPrice = Number(
+          packageSubItem.unit_price,
+        );
+
+        const hasValidUnitPrice =
+          packageSubItem.unit_price !== null &&
+          packageSubItem.unit_price !== undefined &&
+          Number.isFinite(unitPrice) &&
+          unitPrice > 0;
+
+        if (!hasValidUnitPrice) {
+          throw new ApiError(
+            400,
+            `${packageSubItem.package_sub_item_name || "The selected model"} requires a valid shared unit price before allocation`,
+            "PACKAGE_SUB_ITEM_UNIT_PRICE_REQUIRED",
+            {
+              packageSubItemId,
+              packageSubItemName:
+                packageSubItem.package_sub_item_name ||
+                null,
+            },
+          );
+        }
+
+        allocationBySubItem.set(
+          packageSubItemId,
+          roundQuantity(
+            (allocationBySubItem.get(
+              packageSubItemId,
+            ) || 0) + quantity,
+          ),
+        );
+      }
+
+      const sanitizedAllocations =
+        Array.from(
+          allocationBySubItem,
+          ([packageSubItemId, quantity]) => ({
+            package_sub_item_id:
+              packageSubItemId,
+
+            allocated_quantity:
+              quantity,
+          }),
+        );
+
+      const totalAllocated =
+        sanitizedAllocations.reduce(
+          (sum, allocation) =>
+            sum +
+            allocation.allocated_quantity,
+          0,
+        );
+
+      if (
+        roundQuantity(totalAllocated) >
+        roundQuantity(
+          departmentItem
+            .category_approved_quantity,
+        )
+      ) {
+        throw new ApiError(
+          400,
+          "Department allocation cannot exceed the approved quantity",
+          "DEPARTMENT_ITEM_OVERALLOCATED",
+          {
+            approvedQuantity:
+              departmentItem
+                .category_approved_quantity,
+
+            allocatedQuantity:
+              totalAllocated,
+          },
+        );
+      }
+
+      await deleteAllocationsForDepartmentItemRepo(
+        transaction,
         {
-          approvedQuantity: departmentItem.category_approved_quantity,
-          allocatedQuantity: totalAllocated,
+          departmentItemId,
+          packageItemId,
         },
       );
-    }
 
-    await deleteAllocationsForDepartmentItemRepo(transaction, {
-      departmentItemId,
-      packageItemId,
-    });
+      for (
+        const allocation of sanitizedAllocations
+      ) {
+        await upsertAllocationRepo(
+          transaction,
+          {
+            department_item_id:
+              departmentItemId,
 
-    for (const allocation of sanitizedAllocations) {
-      await upsertAllocationRepo(transaction, {
-        department_item_id: departmentItemId,
-        package_sub_item_id: allocation.package_sub_item_id,
-        allocated_quantity: allocation.allocated_quantity,
-        actor_user_id: actorUserId,
-      });
-    }
+            package_sub_item_id:
+              allocation.package_sub_item_id,
 
-    await recalculatePackageSubItemQuantitiesRepo(transaction, {
-      packageItemId,
-      actorUserId,
-    });
-    await updatePackageItemReconciliationRepo(transaction, {
-      packageItemId,
-      actorUserId,
-    });
+            allocated_quantity:
+              allocation.allocated_quantity,
 
-    await createWorkflowHistoryRepo(transaction, {
-      financial_year_id: departmentItem.financial_year_id,
-      entity_type: "DEPARTMENT_CATEGORY_BUDGET_ITEM",
-      entity_id: departmentItemId,
-      action: CATEGORY_PACKAGE_WORKFLOW_ACTIONS.DEPARTMENT_ALLOCATIONS_UPDATED,
-      new_values_json: JSON.stringify({
-        allocations: sanitizedAllocations,
-        totalAllocated,
-      }),
-      user_role_id: getUserRoleId(budgetAccess),
-      acting_workspace: getActingWorkspace(budgetAccess),
-      created_by: actorUserId,
-    });
+            actor_user_id:
+              actorUserId,
+          },
+        );
+      }
 
-    return { packageItemId };
-  });
+      await recalculatePackageSubItemQuantitiesRepo(
+        transaction,
+        {
+          packageItemId,
+          actorUserId,
+        },
+      );
+
+      await updatePackageItemReconciliationRepo(
+        transaction,
+        {
+          packageItemId,
+          actorUserId,
+        },
+      );
+
+      await createWorkflowHistoryRepo(
+        transaction,
+        {
+          financial_year_id:
+            departmentItem.financial_year_id,
+
+          entity_type:
+            "DEPARTMENT_CATEGORY_BUDGET_ITEM",
+
+          entity_id:
+            departmentItemId,
+
+          action:
+            CATEGORY_PACKAGE_WORKFLOW_ACTIONS
+              .DEPARTMENT_ALLOCATIONS_UPDATED,
+
+          new_values_json:
+            JSON.stringify({
+              allocations:
+                sanitizedAllocations,
+
+              totalAllocated,
+            }),
+
+          user_role_id:
+            getUserRoleId(budgetAccess),
+
+          acting_workspace:
+            getActingWorkspace(budgetAccess),
+
+          created_by:
+            actorUserId,
+        },
+      );
+
+      return {
+        packageItemId,
+      };
+    },
+  );
 
   return getCategoryPackageItemDetailService({
     packageItemId: result.packageItemId,
@@ -1130,17 +1299,158 @@ export async function submitCategoryPackageToCfoService({
     };
   });
 
-  await queueNotification(
-    NOTIFICATION_TYPES.CATEGORY_BUDGET_PACKAGE_SUBMITTED,
-    {
-      packageId: submitted.packageId,
-      categoryId: submitted.categoryId,
-      categoryName: submitted.categoryName,
-      financialYear: submitted.financialYear,
-      submittedBy: actorUserId,
-      actorUserId,
-    },
-  );
+ await queueNotification({
+  notificationType: NOTIFICATION_TYPES.CATEGORY_BUDGET_PACKAGE_SUBMITTED,
+  entityType: "CATEGORY_BUDGET_PACKAGE",
+  entityId: submitted.packageId,
+  payload: {
+    packageId: submitted.packageId,
+    categoryId: submitted.categoryId,
+    categoryName: submitted.categoryName,
+    financialYear: submitted.financialYear,
+    submittedBy: actorUserId,
+    actorUserId,
+  },
+});
 
   return getCurrentCategoryPackageService({ budgetAccess });
+}
+export async function updateDepartmentItemApprovedQuantityService({
+  departmentItemId,
+  payload,
+  actorUserId,
+  budgetAccess,
+}) {
+  assertPermission(
+    budgetAccess,
+    CATEGORY_PACKAGE_PERMISSIONS.MANAGE_PACKAGE,
+    "CATEGORY_PACKAGE_MANAGE_DENIED",
+    "You do not have permission to update category package approved quantities",
+  );
+
+  const budgetCategoryId = assertCategoryWorkspace(budgetAccess);
+  let approvalUpdateNotification = null;
+
+  const result = await withTransaction(async (transaction) => {
+    const context = await findDepartmentItemPackageEditContextRepo(
+      { departmentItemId },
+      transaction,
+    );
+
+    if (!context) {
+      throw new ApiError(
+        404,
+        "Department budget item not found",
+        "DEPARTMENT_BUDGET_ITEM_NOT_FOUND",
+      );
+    }
+
+    // Keep this security check before updating.
+    assertCategoryScope(context, budgetCategoryId);
+
+    // Keep the returned-CFO package and item checks.
+    assertReturnedPackageItemDecisionEditable(context);
+
+    if (
+      context.review_status !==
+      DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED
+    ) {
+      throw new ApiError(
+        400,
+        "Only completed department review items can be adjusted from a CFO return",
+        "DEPARTMENT_ITEM_NOT_REVIEWED",
+      );
+    }
+
+    const updated = await updateDepartmentApprovedQuantityForPackageRepo(
+      transaction,
+      {
+        department_item_id: departmentItemId,
+        category_approved_quantity: payload.category_approved_quantity,
+        row_version: payload.row_version,
+        actor_user_id: actorUserId,
+      },
+    );
+
+    if (!updated) {
+      throw new ApiError(
+        409,
+        "Department approved quantity was changed by another user",
+        "DEPARTMENT_APPROVED_QUANTITY_CONFLICT",
+      );
+    }
+
+    await updatePackageItemReconciliationRepo(transaction, {
+      packageItemId: context.package_item_id,
+      actorUserId,
+    });
+
+    await createWorkflowHistoryRepo(transaction, {
+      financial_year_id: context.financial_year_id,
+      entity_type: "DEPARTMENT_CATEGORY_BUDGET_ITEM",
+      entity_id: departmentItemId,
+      action:
+        CATEGORY_PACKAGE_WORKFLOW_ACTIONS.DEPARTMENT_APPROVED_QUANTITY_UPDATED,
+      note:
+        context.cfo_review_note ||
+        "Category Manager updated approved quantity after CFO return",
+      old_values_json: JSON.stringify({
+        categoryApprovedQuantity: updated.old_approved_quantity,
+        cfoReviewStatus: context.cfo_review_status,
+      }),
+      new_values_json: JSON.stringify({
+        categoryApprovedQuantity: updated.new_approved_quantity,
+        packageItemId: context.package_item_id,
+      }),
+      user_role_id: getUserRoleId(budgetAccess),
+      acting_workspace: getActingWorkspace(budgetAccess),
+      created_by: actorUserId,
+    });
+
+    if (
+      roundQuantity(updated.old_approved_quantity) !==
+      roundQuantity(updated.new_approved_quantity)
+    ) {
+      approvalUpdateNotification = {
+        notificationType:
+          NOTIFICATION_TYPES.DEPARTMENT_BUDGET_APPROVAL_UPDATED,
+        entityType: "DEPARTMENT_CATEGORY_BUDGET_ITEM",
+        entityId: departmentItemId,
+        payload: {
+          departmentBudgetItemId: departmentItemId,
+          departmentCategoryBudgetId:
+            context.department_category_budget_id,
+          departmentId: context.department_id,
+          departmentName: context.department_name,
+          categoryId: context.budget_category_id,
+          categoryName: context.category_name,
+          itemName: context.catalog_item_name,
+          financialYear: context.financial_year,
+          previousApprovedQuantity: updated.old_approved_quantity,
+          newApprovedQuantity: updated.new_approved_quantity,
+          reviewNote: context.cfo_review_note,
+          actorUserId,
+          reason: "CFO returned the package item for modification",
+        },
+      };
+    }
+
+    // Return only the result needed by this update endpoint.
+    return {
+      departmentItemId: Number(departmentItemId),
+      departmentCategoryBudgetId: Number(
+        context.department_category_budget_id,
+      ),
+      packageItemId: Number(context.package_item_id),
+      oldApprovedQuantity: updated.old_approved_quantity,
+      newApprovedQuantity: updated.new_approved_quantity,
+    };
+  });
+
+  if (approvalUpdateNotification) {
+    await queueNotification(approvalUpdateNotification);
+  }
+
+  // Do not load the complete package-workbench item again.
+  return result;
 }

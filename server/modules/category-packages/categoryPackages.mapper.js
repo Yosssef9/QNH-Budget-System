@@ -104,11 +104,14 @@ export function mapPackageItem(row, subItems = []) {
     approved_quantity: approvedQuantity,
     allocated_quantity: allocatedQuantity,
     remaining_quantity: remainingQuantity,
-    estimated_total: subItems.reduce(
-      (sum, subItem) =>
-        sum + toNumber(subItem.quantity) * toNumber(subItem.unit_price),
-      0,
-    ),
+    estimated_total:
+      row.estimated_total === null || row.estimated_total === undefined
+        ? subItems.reduce(
+            (sum, subItem) =>
+              sum + toNumber(subItem.quantity) * toNumber(subItem.unit_price),
+            0,
+          )
+        : toNumber(row.estimated_total),
     reconciliation_status: getReconciliationStatus({
       approvedQuantity,
       allocatedQuantity,
@@ -279,6 +282,8 @@ export function mapDepartmentPackageView(rows = []) {
         approved_quantity: toNumber(row.category_approved_quantity),
         review_note: row.review_note || null,
         needs_reconciliation: Boolean(row.needs_reconciliation),
+        cfo_review_status: row.cfo_review_status || null,
+        cfo_review_note: row.cfo_review_note || null,
         row_version: row.department_item_row_version,
         package_item_row_version: row.package_item_row_version,
         allocations: [],

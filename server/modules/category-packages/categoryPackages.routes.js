@@ -21,6 +21,7 @@ import {
   removePackageSubItem,
   replaceDepartmentItemAllocations,
   submitCategoryPackageToCfo,
+  updateDepartmentItemApprovedQuantity,
   uploadPackageSubItemAttachment,
   updatePackageSubItem,
 } from "./categoryPackages.controller.js";
@@ -102,6 +103,12 @@ router.put(
   "/department-items/:departmentItemId/allocations",
   requireBudgetPermission(CATEGORY_PACKAGE_PERMISSIONS.MANAGE_SUB_ITEMS),
   replaceDepartmentItemAllocations,
+);
+
+router.patch(
+  "/department-items/:departmentItemId/approved-quantity",
+  requireBudgetPermission(CATEGORY_PACKAGE_PERMISSIONS.MANAGE_PACKAGE),
+  updateDepartmentItemApprovedQuantity,
 );
 
 router.patch(

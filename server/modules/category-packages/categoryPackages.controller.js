@@ -12,6 +12,7 @@ import {
   removePackageSubItemService,
   replaceDepartmentItemAllocationsService,
   submitCategoryPackageToCfoService,
+  updateDepartmentItemApprovedQuantityService,
   uploadPackageSubItemAttachmentService,
   updatePackageSubItemService,
   getCategoryPackageDepartmentsService,
@@ -22,6 +23,7 @@ import {
   validateCreatePackageSubItemPayload,
   validateDeleteAttachmentPayload,
   validateDepartmentItemId,
+  validateDepartmentApprovedQuantityPayload,
   validatePackageId,
   validatePackageItemId,
   validatePackageSubItemId,
@@ -317,6 +319,39 @@ export const replaceDepartmentItemAllocations = asyncHandler(
     res.json(
       new ApiResponse({
         message: "Department item allocations saved successfully",
+        data,
+      }),
+    );
+  },
+);
+
+export const updateDepartmentItemApprovedQuantity = asyncHandler(
+  async (req, res) => {
+    const departmentItemId = validateDepartmentItemId(
+      req.params.departmentItemId,
+    );
+    const payload = validateDepartmentApprovedQuantityPayload(req.body);
+
+    const data = await updateDepartmentItemApprovedQuantityService({
+      departmentItemId,
+      payload,
+      actorUserId: req.user.userId,
+      budgetAccess: req.budgetAccess,
+    });
+
+    await auditLog(req, {
+      action: "UPDATE_CATEGORY_PACKAGE_DEPARTMENT_APPROVED_QUANTITY",
+      entityType: "DEPARTMENT_CATEGORY_BUDGET_ITEM",
+      entityId: String(departmentItemId),
+      entityName: "Department Category Budget Item",
+      description:
+        "Updated department approved quantity for a CFO-returned package item",
+      newValues: payload,
+    });
+
+    res.json(
+      new ApiResponse({
+        message: "Department approved quantity updated successfully",
         data,
       }),
     );

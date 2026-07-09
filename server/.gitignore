@@ -36,13 +36,23 @@ coverage/
 # Cache
 .cache/
 
-# Database (if local files used)
+# Database local files
 *.sqlite
 *.db
 
-# Winston logs (important for your setup)
-logs/*.log
-
-# Misc
+# Runtime files
 *.pid
 *.seed
+
+# Uploaded / generated storage files
+storage/
+server/storage/
+category-package-attachments/
+
+# Keep storage folder structure if needed
+!storage/.gitkeep
+!server/storage/.gitkeep
+
+# Misc
+*.bak
+*.tmp

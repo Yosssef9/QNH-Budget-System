@@ -12,6 +12,7 @@ import {
 } from "./financialYears.constants.js";
 import {
   countDepartmentBudgetsForYearRepo,
+  countCfoAnnualPackageReviewFinalizedRepo,
   countIncompleteCategoryPackagesForYearRepo,
   countOpenChangeRequestsForYearRepo,
   countPendingPoLinksForYearRepo,
@@ -296,6 +297,17 @@ export async function preCloseFinancialYearService({
     );
   }
 
+  const finalizedCfoPackageReviewCount =
+    await countCfoAnnualPackageReviewFinalizedRepo(id);
+
+  if (finalizedCfoPackageReviewCount === 0) {
+    throw new ApiError(
+      400,
+      "Cannot pre-close financial year. Finalize CFO Package Review first.",
+      "FINANCIAL_YEAR_CFO_PACKAGE_REVIEW_NOT_FINALIZED",
+    );
+  }
+
   const openChangeRequests = await countOpenChangeRequestsForYearRepo(id);
 
   if (openChangeRequests > 0) {
@@ -327,6 +339,17 @@ export async function preCloseFinancialYearService({
         "Financial year package readiness changed before pre-closing",
         "FINANCIAL_YEAR_READINESS_CONFLICT",
         { incompletePackages: currentIncompletePackages },
+      );
+    }
+
+    const currentFinalizedCfoPackageReviewCount =
+      await countCfoAnnualPackageReviewFinalizedRepo(id, transaction);
+
+    if (currentFinalizedCfoPackageReviewCount === 0) {
+      throw new ApiError(
+        409,
+        "Financial year CFO package review finalization changed before pre-closing",
+        "FINANCIAL_YEAR_CFO_PACKAGE_REVIEW_FINALIZATION_CONFLICT",
       );
     }
 

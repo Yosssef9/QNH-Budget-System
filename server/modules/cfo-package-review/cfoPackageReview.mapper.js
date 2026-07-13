@@ -9,6 +9,12 @@ export function mapCfoPackageQueueRow(row) {
     financial_year_id: row.financial_year_id,
     financial_year: row.financial_year,
     financial_year_status: row.financial_year_status,
+    financial_year_cfo_review_finalized_at:
+      row.financial_year_cfo_review_finalized_at ?? null,
+    financial_year_cfo_review_finalized_by:
+      row.financial_year_cfo_review_finalized_by ?? null,
+    financial_year_cfo_review_finalized_by_name:
+      row.financial_year_cfo_review_finalized_by_name ?? null,
     budget_category_id: row.budget_category_id,
     category_code: row.category_code,
     category_name: row.category_name,
@@ -34,5 +40,22 @@ export function mapCfoPackageQueueRow(row) {
       allocated_quantity: toNumber(row.allocated_quantity),
       estimated_total: toNumber(row.estimated_total),
     },
+  };
+}
+
+export function mapCfoFinancialYearOption(row) {
+  return {
+    id: row.id,
+    year: row.year,
+    status: row.status,
+    package_count: Number(row.package_count || 0),
+    review_package_count: Number(row.review_package_count || 0),
+    completed_package_count: Number(row.completed_package_count || 0),
+    in_review_package_count: Number(row.in_review_package_count || 0),
+    returned_package_count: Number(row.returned_package_count || 0),
+    cfo_review_finalized_at: row.cfo_review_finalized_at ?? null,
+    cfo_review_finalized_by: row.cfo_review_finalized_by ?? null,
+    cfo_review_finalized_by_name: row.cfo_review_finalized_by_name ?? null,
+    is_current: row.status === "OPEN" || row.status === "PRE_CLOSING",
   };
 }

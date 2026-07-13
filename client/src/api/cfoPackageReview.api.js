@@ -1,7 +1,14 @@
 import api from "./api";
 
-export async function getCfoPackages() {
-  const response = await api.get("/cfo-package-review/packages");
+export async function getCfoFinancialYears() {
+  const response = await api.get("/cfo-package-review/financial-years");
+  return response.data?.data || [];
+}
+
+export async function getCfoPackages(financialYearId) {
+  const response = await api.get("/cfo-package-review/packages", {
+    params: financialYearId ? { financialYearId } : undefined,
+  });
   return response.data?.data || [];
 }
 
@@ -56,6 +63,25 @@ export async function returnCfoPackageToCategoryManager({
 export async function completeCfoPackageReview({ packageId, payload }) {
   const response = await api.patch(
     `/cfo-package-review/packages/${packageId}/complete`,
+    payload,
+  );
+  return response.data?.data;
+}
+
+export async function reopenCfoPackageReview({ packageId, payload }) {
+  const response = await api.patch(
+    `/cfo-package-review/packages/${packageId}/reopen`,
+    payload,
+  );
+  return response.data?.data;
+}
+
+export async function finalizeAnnualCfoPackageReview({
+  financialYearId,
+  payload,
+}) {
+  const response = await api.patch(
+    `/cfo-package-review/financial-years/${financialYearId}/finalize`,
     payload,
   );
   return response.data?.data;

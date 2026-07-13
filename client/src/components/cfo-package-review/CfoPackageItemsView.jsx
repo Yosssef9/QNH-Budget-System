@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import toast from "react-hot-toast";
 import {
   CheckCircle2,
   Download,
+  Eye,
   FileText,
   MessageSquareWarning,
   Paperclip,
@@ -16,6 +18,11 @@ import {
   downloadCfoPackageSubItemAttachment,
   getCfoPackageSubItemAttachments,
 } from "../../api/cfoPackageReview.api";
+import {
+  downloadBlobAttachment,
+  openAttachmentPreviewWindow,
+  viewBlobAttachmentInWindow,
+} from "../../helpers/attachmentPreview.helper";
 
 function formatFileSize(bytes) {
   const value = Number(bytes || 0);
@@ -32,17 +39,6 @@ function formatDateTime(value) {
   }).format(new Date(value));
 }
 
-function downloadBlob({ blob, fileName }) {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName || "attachment";
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
-}
-
 function CfoSubItemDrawer({ subItem, departments = [], open, onClose }) {
   const departmentsByItemId = new Map(
     departments.map((department) => [
@@ -56,12 +52,40 @@ function CfoSubItemDrawer({ subItem, departments = [], open, onClose }) {
     enabled: open && Boolean(subItem?.id),
   });
 
-  async function handleDownload(attachment) {
+  async function loadAttachment(attachment) {
     const result = await downloadCfoPackageSubItemAttachment({
       packageSubItemId: subItem.id,
       attachmentId: attachment.id,
     });
-    downloadBlob(result);
+    return result;
+  }
+
+  async function handleDownload(attachment) {
+    try {
+      downloadBlobAttachment(await loadAttachment(attachment));
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message || "Failed to download attachment",
+      );
+    }
+  }
+
+  async function handleView(attachment) {
+    const previewWindow = openAttachmentPreviewWindow(
+      attachment.original_file_name,
+    );
+
+    try {
+      viewBlobAttachmentInWindow({
+        ...(await loadAttachment(attachment)),
+        targetWindow: previewWindow,
+      });
+    } catch (error) {
+      previewWindow?.close();
+      toast.error(
+        error?.response?.data?.message || "Failed to open attachment",
+      );
+    }
   }
 
   return (
@@ -170,12 +194,6 @@ function CfoSubItemDrawer({ subItem, departments = [], open, onClose }) {
                     const department = departmentsByItemId.get(
                       Number(allocation.department_category_budget_item_id),
                     );
-                      console.log("Allocation department:", {
-        departmentCategoryBudgetItemId:
-          allocation.department_category_budget_item_id,
-        department,
-        allocation,
-      });
                     return (
                       <div
                         key={
@@ -244,14 +262,24 @@ function CfoSubItemDrawer({ subItem, departments = [], open, onClose }) {
                           </p>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleDownload(attachment)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 hover:bg-blue-100"
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                        Download
-                      </button>
+                      <div className="flex shrink-0 flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleView(attachment)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 hover:bg-blue-100"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          View
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDownload(attachment)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-50"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          Download
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

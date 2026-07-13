@@ -7,11 +7,14 @@ import { CFO_PACKAGE_REVIEW_PERMISSIONS } from "./cfoPackageReview.constants.js"
 import {
   completeCfoPackageReview,
   downloadCfoPackageSubItemAttachment,
+  finalizeAnnualCfoPackageReview,
   getCfoPackage,
   getCfoPackageItemDetail,
   listCfoPackageSubItemAttachments,
+  listCfoFinancialYears,
   listCfoPackages,
   markAllCfoPackageItemsNeedModification,
+  reopenCfoPackageReview,
   returnCfoPackageToCategoryManager,
   setCfoPackageItemDecision,
 } from "./cfoPackageReview.controller.js";
@@ -20,6 +23,12 @@ const router = express.Router();
 
 router.use(verifyPortalJwt);
 router.use(resolveBudgetWorkspace);
+
+router.get(
+  "/financial-years",
+  requireBudgetPermission(CFO_PACKAGE_REVIEW_PERMISSIONS.VIEW),
+  listCfoFinancialYears,
+);
 
 router.get(
   "/packages",
@@ -73,6 +82,18 @@ router.patch(
   "/packages/:packageId/complete",
   requireBudgetPermission(CFO_PACKAGE_REVIEW_PERMISSIONS.APPROVE),
   completeCfoPackageReview,
+);
+
+router.patch(
+  "/packages/:packageId/reopen",
+  requireBudgetPermission(CFO_PACKAGE_REVIEW_PERMISSIONS.APPROVE),
+  reopenCfoPackageReview,
+);
+
+router.patch(
+  "/financial-years/:financialYearId/finalize",
+  requireBudgetPermission(CFO_PACKAGE_REVIEW_PERMISSIONS.APPROVE),
+  finalizeAnnualCfoPackageReview,
 );
 
 export default router;

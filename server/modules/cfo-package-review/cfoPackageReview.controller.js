@@ -4,20 +4,27 @@ import { auditLog } from "../../utils/audit.js";
 import {
   completeCfoPackageReviewService,
   downloadCfoPackageSubItemAttachmentService,
+  finalizeAnnualCfoPackageReviewService,
   getCfoPackageItemDetailService,
   getCfoPackageService,
+  listCfoFinancialYearsService,
   listCfoPackageSubItemAttachmentsService,
   listCfoPackagesService,
   markAllCfoPackageItemsNeedModificationService,
+  reopenCfoPackageReviewService,
   returnCfoPackageToCategoryManagerService,
   setCfoPackageItemDecisionService,
 } from "./cfoPackageReview.service.js";
 import {
   validateCfoDecisionPayload,
   validateCompletePackagePayload,
+  validateFinalizeAnnualReviewPayload,
+  validateFinancialYearId,
+  validateOptionalFinancialYearId,
   validateMarkAllNeedsModificationPayload,
   validatePackageId,
   validatePackageItemId,
+  validateReopenPackagePayload,
   validateReturnPackagePayload,
 } from "./cfoPackageReview.validators.js";
 import {
@@ -25,12 +32,42 @@ import {
   validatePackageSubItemId,
 } from "../category-packages/categoryPackages.validators.js";
 
+function buildContentDisposition(fileName) {
+  const safeName = String(fileName || "attachment").replace(/[\r\n"]/g, "_");
+
+  const encodedName = encodeURIComponent(safeName).replace(
+    /['()*]/g,
+    (character) =>
+      `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+
+  const fallbackName = safeName.normalize("NFKD").replace(/[^\x20-\x7E]/g, "_");
+
+  return (
+    `attachment; ` +
+    `filename="${fallbackName}"; ` +
+    `filename*=UTF-8''${encodedName}`
+  );
+}
+
 export const listCfoPackages = asyncHandler(async (req, res) => {
+  const financialYearId = validateOptionalFinancialYearId(
+    req.query.financialYearId,
+  );
   const data = await listCfoPackagesService({
+    financialYearId,
     budgetAccess: req.budgetAccess,
   });
 
   res.json(new ApiResponse({ message: "CFO packages fetched", data }));
+});
+
+export const listCfoFinancialYears = asyncHandler(async (req, res) => {
+  const data = await listCfoFinancialYearsService({
+    budgetAccess: req.budgetAccess,
+  });
+
+  res.json(new ApiResponse({ message: "CFO financial years fetched", data }));
 });
 
 export const getCfoPackage = asyncHandler(async (req, res) => {
@@ -104,7 +141,7 @@ export const downloadCfoPackageSubItemAttachment = asyncHandler(
     res.setHeader("Content-Length", String(download.fileSizeBytes));
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="${download.fileName}"`,
+      buildContentDisposition(download.fileName),
     );
     download.stream.on("error", next);
     download.stream.pipe(res);
@@ -217,4 +254,55 @@ export const completeCfoPackageReview = asyncHandler(async (req, res) => {
   });
 
   res.json(new ApiResponse({ message: "CFO package review completed", data }));
+});
+
+export const reopenCfoPackageReview = asyncHandler(async (req, res) => {
+  const packageId = validatePackageId(req.params.packageId);
+  const payload = validateReopenPackagePayload(req.body);
+
+  const data = await reopenCfoPackageReviewService({
+    packageId,
+    payload,
+    actorUserId: req.user.userId,
+    budgetAccess: req.budgetAccess,
+  });
+
+  await auditLog(req, {
+    action: "REOPEN_CFO_PACKAGE_REVIEW",
+    entityType: "CATEGORY_BUDGET_PACKAGE",
+    entityId: String(packageId),
+    entityName: "Category Budget Package",
+    description: "Reopened completed CFO package review",
+    newValues: { reason: payload.reason },
+  });
+
+  res.json(new ApiResponse({ message: "CFO package review reopened", data }));
+});
+
+export const finalizeAnnualCfoPackageReview = asyncHandler(async (req, res) => {
+  const financialYearId = validateFinancialYearId(req.params.financialYearId);
+  const payload = validateFinalizeAnnualReviewPayload(req.body);
+
+  const data = await finalizeAnnualCfoPackageReviewService({
+    financialYearId,
+    payload,
+    actorUserId: req.user.userId,
+    budgetAccess: req.budgetAccess,
+  });
+
+  await auditLog(req, {
+    action: "FINALIZE_CFO_ANNUAL_PACKAGE_REVIEW",
+    entityType: "FINANCIAL_YEAR",
+    entityId: String(financialYearId),
+    entityName: "Financial Year",
+    description: "Finalized CFO package review for all category packages",
+    newValues: payload,
+  });
+
+  res.json(
+    new ApiResponse({
+      message: "CFO package review finalized for the financial year",
+      data,
+    }),
+  );
 });

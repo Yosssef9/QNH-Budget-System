@@ -46,6 +46,15 @@ export function validatePackageItemId(value) {
   return positiveId(value, "Package item id");
 }
 
+export function validateFinancialYearId(value) {
+  return positiveId(value, "Financial year id");
+}
+
+export function validateOptionalFinancialYearId(value) {
+  if (value === undefined || value === null || value === "") return null;
+  return validateFinancialYearId(value);
+}
+
 export function validateCfoDecisionPayload(body = {}) {
   const decision = String(body.decision || body.cfo_review_status || "").trim();
   if (!Object.values(CFO_PACKAGE_REVIEW_DECISIONS).includes(decision)) {
@@ -95,9 +104,27 @@ export function validateReturnPackagePayload(body = {}) {
   };
 }
 
+export function validateReopenPackagePayload(body = {}) {
+  return {
+    reason: requiredText(
+      body.reason ?? body.reopen_reason,
+      1000,
+      "Reopen reason",
+      "CFO_REOPEN_REASON_REQUIRED",
+    ),
+    row_version: rowVersion(body.row_version ?? body.rowVersion),
+  };
+}
+
 export function validateCompletePackagePayload(body = {}) {
   return {
     note: optionalText(body.note, 1000, "Completion note"),
     row_version: rowVersion(body.row_version ?? body.rowVersion),
+  };
+}
+
+export function validateFinalizeAnnualReviewPayload(body = {}) {
+  return {
+    note: optionalText(body.note, 1000, "Finalization note"),
   };
 }

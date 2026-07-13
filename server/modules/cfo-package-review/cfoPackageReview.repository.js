@@ -2,6 +2,7 @@ import { poolPromise, sql } from "../../config/db.js";
 import { createRequest } from "../../utils/createRequest.js";
 import {
   CATEGORY_PACKAGE_ITEM_CFO_STATUS,
+  CFO_PACKAGE_REVIEW_WORKFLOW_ACTIONS,
   CATEGORY_PACKAGE_STATUS,
 } from "./cfoPackageReview.constants.js";
 
@@ -21,9 +22,11 @@ function mapPackageRowVersion(row) {
   };
 }
 
-export async function listCfoPackagesRepo() {
+export async function listCfoPackagesRepo({ financialYearId = null } = {}) {
   const pool = await poolPromise;
-  const result = await createRequest(pool).query(`
+  const result = await createRequest(pool)
+    .input("financialYearId", sql.Int, financialYearId)
+    .query(`
     WITH packageItemSummary AS (
       SELECT
         packageItem.category_budget_package_id,
@@ -66,6 +69,9 @@ export async function listCfoPackagesRepo() {
       GROUP BY packageItem.category_budget_package_id
     )
     SELECT
+      finalized.finalized_at AS financial_year_cfo_review_finalized_at,
+      finalized.created_by AS financial_year_cfo_review_finalized_by,
+      finalizedUser.USER_NAME AS financial_year_cfo_review_finalized_by_name,
       pkg.id,
       pkg.financial_year_id,
       fy.year AS financial_year,
@@ -98,6 +104,17 @@ export async function listCfoPackagesRepo() {
       ON fy.id = pkg.financial_year_id
     INNER JOIN dbo.BS_budget_categories AS category
       ON category.id = pkg.budget_category_id
+    OUTER APPLY (
+      SELECT TOP 1 history.created_at AS finalized_at, history.created_by
+      FROM dbo.BS_budget_workflow_history AS history
+      WHERE history.financial_year_id = pkg.financial_year_id
+        AND history.entity_type = 'FINANCIAL_YEAR'
+        AND history.entity_id = pkg.financial_year_id
+        AND history.action = '${CFO_PACKAGE_REVIEW_WORKFLOW_ACTIONS.ANNUAL_REVIEW_FINALIZED}'
+      ORDER BY history.created_at DESC, history.id DESC
+    ) AS finalized
+    LEFT JOIN dbo.users AS finalizedUser
+      ON finalizedUser.USER_ID = finalized.created_by
     LEFT JOIN dbo.users AS submittedUser
       ON submittedUser.USER_ID = pkg.submitted_to_cfo_by
     LEFT JOIN dbo.users AS returnedUser
@@ -115,7 +132,9 @@ export async function listCfoPackagesRepo() {
       '${CATEGORY_PACKAGE_STATUS.RETURNED_BY_CFO}',
       '${CATEGORY_PACKAGE_STATUS.CFO_REVIEW_COMPLETED}'
     )
+      AND (@financialYearId IS NULL OR pkg.financial_year_id = @financialYearId)
     ORDER BY
+      fy.year DESC,
       CASE pkg.status
         WHEN '${CATEGORY_PACKAGE_STATUS.IN_CFO_REVIEW}' THEN 0
         WHEN '${CATEGORY_PACKAGE_STATUS.RETURNED_BY_CFO}' THEN 1
@@ -131,11 +150,77 @@ export async function listCfoPackagesRepo() {
   }));
 }
 
+export async function listCfoFinancialYearsRepo() {
+  const pool = await poolPromise;
+  const result = await createRequest(pool).query(`
+    WITH packageSummary AS (
+      SELECT
+        pkg.financial_year_id,
+        COUNT(*) AS package_count,
+        SUM(
+          CASE
+            WHEN pkg.status IN (
+              '${CATEGORY_PACKAGE_STATUS.IN_CFO_REVIEW}',
+              '${CATEGORY_PACKAGE_STATUS.RETURNED_BY_CFO}',
+              '${CATEGORY_PACKAGE_STATUS.CFO_REVIEW_COMPLETED}'
+            )
+            THEN 1
+            ELSE 0
+          END
+        ) AS review_package_count,
+        SUM(CASE WHEN pkg.status = '${CATEGORY_PACKAGE_STATUS.CFO_REVIEW_COMPLETED}' THEN 1 ELSE 0 END) AS completed_package_count,
+        SUM(CASE WHEN pkg.status = '${CATEGORY_PACKAGE_STATUS.IN_CFO_REVIEW}' THEN 1 ELSE 0 END) AS in_review_package_count,
+        SUM(CASE WHEN pkg.status = '${CATEGORY_PACKAGE_STATUS.RETURNED_BY_CFO}' THEN 1 ELSE 0 END) AS returned_package_count
+      FROM dbo.BS_category_budget_packages AS pkg
+      GROUP BY pkg.financial_year_id
+    )
+    SELECT
+      fy.id,
+      fy.year,
+      fy.status,
+      COALESCE(packageSummary.package_count, 0) AS package_count,
+      COALESCE(packageSummary.review_package_count, 0) AS review_package_count,
+      COALESCE(packageSummary.completed_package_count, 0) AS completed_package_count,
+      COALESCE(packageSummary.in_review_package_count, 0) AS in_review_package_count,
+      COALESCE(packageSummary.returned_package_count, 0) AS returned_package_count,
+      finalized.created_at AS cfo_review_finalized_at,
+      finalized.created_by AS cfo_review_finalized_by,
+      finalizedUser.USER_NAME AS cfo_review_finalized_by_name
+    FROM dbo.BS_financial_years AS fy
+    LEFT JOIN packageSummary
+      ON packageSummary.financial_year_id = fy.id
+    OUTER APPLY (
+      SELECT TOP 1 history.created_at, history.created_by
+      FROM dbo.BS_budget_workflow_history AS history
+      WHERE history.financial_year_id = fy.id
+        AND history.entity_type = 'FINANCIAL_YEAR'
+        AND history.entity_id = fy.id
+        AND history.action = '${CFO_PACKAGE_REVIEW_WORKFLOW_ACTIONS.ANNUAL_REVIEW_FINALIZED}'
+      ORDER BY history.created_at DESC, history.id DESC
+    ) AS finalized
+    LEFT JOIN dbo.users AS finalizedUser
+      ON finalizedUser.USER_ID = finalized.created_by
+    WHERE EXISTS (
+      SELECT 1
+      FROM dbo.BS_category_budget_packages AS pkg
+      WHERE pkg.financial_year_id = fy.id
+    )
+    ORDER BY
+      CASE WHEN fy.status IN ('OPEN', 'PRE_CLOSING') THEN 0 ELSE 1 END,
+      fy.year DESC;
+  `);
+
+  return result.recordset;
+}
+
 export async function findCfoPackageByIdRepo({ packageId }, transaction = null) {
   const pool = await poolPromise;
   const request = createRequest(pool, transaction);
   const result = await request.input("packageId", sql.BigInt, packageId).query(`
     SELECT TOP 1
+      finalized.finalized_at AS financial_year_cfo_review_finalized_at,
+      finalized.created_by AS financial_year_cfo_review_finalized_by,
+      finalizedUser.USER_NAME AS financial_year_cfo_review_finalized_by_name,
       pkg.id,
       pkg.financial_year_id,
       pkg.budget_category_id,
@@ -164,6 +249,17 @@ export async function findCfoPackageByIdRepo({ packageId }, transaction = null) 
       ON fy.id = pkg.financial_year_id
     INNER JOIN dbo.BS_budget_categories AS category
       ON category.id = pkg.budget_category_id
+    OUTER APPLY (
+      SELECT TOP 1 history.created_at AS finalized_at, history.created_by
+      FROM dbo.BS_budget_workflow_history AS history
+      WHERE history.financial_year_id = pkg.financial_year_id
+        AND history.entity_type = 'FINANCIAL_YEAR'
+        AND history.entity_id = pkg.financial_year_id
+        AND history.action = '${CFO_PACKAGE_REVIEW_WORKFLOW_ACTIONS.ANNUAL_REVIEW_FINALIZED}'
+      ORDER BY history.created_at DESC, history.id DESC
+    ) AS finalized
+    LEFT JOIN dbo.users AS finalizedUser
+      ON finalizedUser.USER_ID = finalized.created_by
     LEFT JOIN dbo.BS_category_submission_windows AS window
       ON window.financial_year_id = pkg.financial_year_id
      AND window.budget_category_id = pkg.budget_category_id
@@ -198,6 +294,7 @@ export async function findPackageItemForCfoRepo(
         packageItem.cfo_reviewed_at,
         packageItem.row_version,
         pkg.financial_year_id,
+        fy.status AS financial_year_status,
         pkg.budget_category_id,
         pkg.status AS package_status,
         pkg.row_version AS package_row_version,
@@ -208,6 +305,8 @@ export async function findPackageItemForCfoRepo(
       FROM dbo.BS_category_budget_package_items AS packageItem WITH (UPDLOCK, HOLDLOCK)
       INNER JOIN dbo.BS_category_budget_packages AS pkg WITH (UPDLOCK, HOLDLOCK)
         ON pkg.id = packageItem.category_budget_package_id
+      INNER JOIN dbo.BS_financial_years AS fy
+        ON fy.id = pkg.financial_year_id
       INNER JOIN dbo.BS_budget_categories AS category
         ON category.id = pkg.budget_category_id
       INNER JOIN dbo.BS_budget_catalog_items AS catalog
@@ -352,6 +451,110 @@ export async function completeCfoPackageReviewRepo(transaction, payload) {
         AND status = '${CATEGORY_PACKAGE_STATUS.IN_CFO_REVIEW}';
 
       SELECT id FROM @Updated;
+    `);
+
+  return result.recordset[0] || null;
+}
+
+export async function reopenCfoPackageReviewRepo(transaction, payload) {
+  const result = await requestFor(transaction)
+    .input("packageId", sql.BigInt, payload.package_id)
+    .input("rowVersion", sql.Binary(8), payload.row_version)
+    .input("actorUserId", sql.Int, payload.actor_user_id).query(`
+      DECLARE @Updated TABLE (id BIGINT NOT NULL);
+
+      UPDATE dbo.BS_category_budget_packages
+      SET
+        status = '${CATEGORY_PACKAGE_STATUS.IN_CFO_REVIEW}',
+        cfo_review_completed_by = NULL,
+        cfo_review_completed_at = NULL,
+        updated_by = @actorUserId,
+        updated_at = SYSUTCDATETIME()
+      OUTPUT INSERTED.id INTO @Updated (id)
+      WHERE id = @packageId
+        AND row_version = @rowVersion
+        AND status = '${CATEGORY_PACKAGE_STATUS.CFO_REVIEW_COMPLETED}';
+
+      SELECT id FROM @Updated;
+    `);
+
+  return result.recordset[0] || null;
+}
+
+export async function getFinancialYearPackageCompletionSummaryRepo(
+  { financialYearId },
+  transaction = null,
+) {
+  const pool = await poolPromise;
+  const request = createRequest(pool, transaction);
+
+  const result = await request
+    .input("financialYearId", sql.Int, financialYearId)
+    .query(`
+      SELECT
+        MAX(fy.status) AS financial_year_status,
+        COUNT(1) AS package_count,
+
+        SUM(
+          CASE
+            WHEN pkg.status = '${CATEGORY_PACKAGE_STATUS.CFO_REVIEW_COMPLETED}'
+            THEN 1
+            ELSE 0
+          END
+        ) AS completed_count,
+
+        SUM(
+          CASE
+            WHEN pkg.status <> '${CATEGORY_PACKAGE_STATUS.CFO_REVIEW_COMPLETED}'
+            THEN 1
+            ELSE 0
+          END
+        ) AS incomplete_count
+
+      FROM dbo.BS_category_budget_packages AS pkg
+
+      INNER JOIN dbo.BS_financial_years AS fy
+        ON fy.id = pkg.financial_year_id
+
+      WHERE pkg.financial_year_id = @financialYearId;
+    `);
+
+  const row = result.recordset[0] || {};
+
+  return {
+    package_count: Number(row.package_count || 0),
+    financial_year_status:
+      row.financial_year_status || null,
+    completed_count: Number(
+      row.completed_count || 0,
+    ),
+    incomplete_count: Number(
+      row.incomplete_count || 0,
+    ),
+  };
+}
+
+export async function findAnnualCfoReviewFinalizationRepo(
+  { financialYearId },
+  transaction = null,
+) {
+  const pool = await poolPromise;
+  const request = createRequest(pool, transaction);
+  const result = await request
+    .input("financialYearId", sql.Int, financialYearId).query(`
+      SELECT TOP 1
+        history.id,
+        history.created_at,
+        history.created_by,
+        userRow.USER_NAME AS created_by_name
+      FROM dbo.BS_budget_workflow_history AS history
+      LEFT JOIN dbo.users AS userRow
+        ON userRow.USER_ID = history.created_by
+      WHERE history.financial_year_id = @financialYearId
+        AND history.entity_type = 'FINANCIAL_YEAR'
+        AND history.entity_id = @financialYearId
+        AND history.action = '${CFO_PACKAGE_REVIEW_WORKFLOW_ACTIONS.ANNUAL_REVIEW_FINALIZED}'
+      ORDER BY history.created_at DESC, history.id DESC;
     `);
 
   return result.recordset[0] || null;

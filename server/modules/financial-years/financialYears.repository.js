@@ -355,6 +355,24 @@ export async function countIncompleteCategoryPackagesForYearRepo(
   return Number(result.recordset[0]?.count || 0);
 }
 
+export async function countCfoAnnualPackageReviewFinalizedRepo(
+  financialYearId,
+  transaction = null,
+) {
+  const pool = await poolPromise;
+  const request = createRequest(pool, transaction);
+  const result = await request
+    .input("financialYearId", sql.Int, financialYearId).query(`
+      SELECT COUNT(1) AS count
+      FROM dbo.BS_budget_workflow_history
+      WHERE financial_year_id = @financialYearId
+        AND entity_type = 'FINANCIAL_YEAR'
+        AND entity_id = @financialYearId
+        AND action = 'CFO_ANNUAL_PACKAGE_REVIEW_FINALIZED';
+    `);
+  return Number(result.recordset[0]?.count || 0);
+}
+
 export async function countOpenChangeRequestsForYearRepo(
   financialYearId,
   transaction = null,

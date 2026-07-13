@@ -10,6 +10,7 @@ vi.mock("../../../services/notification.service.js", () => ({
 
 vi.mock("../../../modules/financial-years/financialYears.repository.js", () => ({
   countDepartmentBudgetsForYearRepo: vi.fn(),
+  countCfoAnnualPackageReviewFinalizedRepo: vi.fn(),
   countIncompleteCategoryPackagesForYearRepo: vi.fn(),
   countOpenChangeRequestsForYearRepo: vi.fn(),
   countPendingPoLinksForYearRepo: vi.fn(),
@@ -35,6 +36,7 @@ vi.mock("../../../modules/financial-years/financialYears.repository.js", () => (
 import { queueNotification } from "../../../services/notification.service.js";
 import {
   countDepartmentBudgetsForYearRepo,
+  countCfoAnnualPackageReviewFinalizedRepo,
   countIncompleteCategoryPackagesForYearRepo,
   countOpenChangeRequestsForYearRepo,
   countPendingPoLinksForYearRepo,
@@ -202,6 +204,7 @@ describe("financial years service", () => {
     });
     countDepartmentBudgetsForYearRepo.mockResolvedValue(5);
     countIncompleteCategoryPackagesForYearRepo.mockResolvedValue(0);
+    countCfoAnnualPackageReviewFinalizedRepo.mockResolvedValue(1);
     countOpenChangeRequestsForYearRepo.mockResolvedValue(0);
     transitionFinancialYearToPreClosingRepo.mockResolvedValue({
       id: 20,

@@ -19,6 +19,7 @@ import departmentBudgetsRoutes from "./modules/department-budgets/departmentBudg
 import categoryReviewRoutes from "./modules/category-review/categoryReview.routes.js";
 import categoryPackagesRoutes from "./modules/category-packages/categoryPackages.routes.js";
 import cfoPackageReviewRoutes from "./modules/cfo-package-review/cfoPackageReview.routes.js";
+import adjustmentRequestRoutes from "./modules/adjustment-requests/adjustmentRequests.routes.js";
 import budgetApprovalRoutes from "./routes/budgetApproval.routes.js";
 import itemRequestRoutes from "./modules/item-requests/itemRequests.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
@@ -27,7 +28,7 @@ import { errorHandler } from "./middleware/error.middleware.js";
 import { logger } from "./utils/logger.js";
 import { ApiError } from "./utils/apiError.js";
 import testRoutes from "./routes/test.routes.js";
-import transferRoutes from "./routes/transfer.routes.js";
+import transferRoutes from "./modules/transfers/transfers.routes.js";
 import budgetItemRoutes from "./routes/budgetItem.routes.js";
 import poRoutes from "./routes/po.routes.js";
 
@@ -79,6 +80,7 @@ app.use("/api/budgets", departmentBudgetsRoutes);
 app.use("/api/category-review", categoryReviewRoutes);
 app.use("/api/category-packages", categoryPackagesRoutes);
 app.use("/api/cfo-package-review", cfoPackageReviewRoutes);
+app.use("/api/adjustment-requests", adjustmentRequestRoutes);
 app.use("/api/budget-approval", budgetApprovalRoutes);
 app.use("/api/item-requests", itemRequestRoutes);
 app.use("/api/dashboard", dashboardRoutes);

@@ -8,15 +8,27 @@ import {
 } from "../../api/budget.api";
 import { getTransferDashboard } from "../../api/transfer.api";
 import { getPODashboard } from "../../api/po.api";
+import {
+  getCategoryAdjustmentRequests,
+  getMyAdjustmentRequests,
+} from "../../api/adjustmentRequests.api";
 import { useAuth } from "../../context/AuthContext";
 import { useActiveFinancialYear } from "../financial-years/useFinancialYears";
 import { toNumber } from "../../utils/number";
+import { PERMISSION_CODES } from "@qnh/permissions";
 
 
 export function useDashboardData() {
   const { budgetAccess } = useAuth();
   const { data: activeYear } = useActiveFinancialYear();
   const permissions = budgetAccess?.permissions || {};
+  const permissionCodes = budgetAccess?.permissionCodes || [];
+  const canSubmitAdjustments = permissionCodes.includes(
+    PERMISSION_CODES.SUBMIT_DEPARTMENT_BUDGET_CHANGE_REQUESTS,
+  );
+  const canReviewAdjustments = permissionCodes.includes(
+    PERMISSION_CODES.REVIEW_CATEGORY_BUDGET_CHANGE_REQUESTS,
+  );
   const shouldLoadCurrentBudget = Boolean(
     budgetAccess?.department?.id &&
       (permissions.can_view_budget || permissions.can_edit_budget) &&
@@ -62,6 +74,19 @@ export function useDashboardData() {
     queryFn: getPODashboard,
     refetchOnWindowFocus: true,
   });
+  const { data: dashboardAdjustmentRequests = [] } = useQuery({
+    queryKey: [
+      "dashboard",
+      "adjustment-requests",
+      canReviewAdjustments ? "category" : "my",
+    ],
+    queryFn: () =>
+      canReviewAdjustments
+        ? getCategoryAdjustmentRequests("ALL")
+        : getMyAdjustmentRequests("ALL"),
+    enabled: canSubmitAdjustments || canReviewAdjustments,
+    refetchOnWindowFocus: true,
+  });
   return {
     activeYear,
     currentBudget,
@@ -71,6 +96,8 @@ export function useDashboardData() {
     dashboardItemRequests,
     dashboardTransfers,
     dashboardPOLinks,
+    dashboardAdjustmentRequests,
+    dashboardAdjustmentMode: canReviewAdjustments ? "CATEGORY" : "MY",
     isLoading: loadingBudget || loadingItems,
   };
 }

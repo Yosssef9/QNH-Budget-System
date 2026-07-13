@@ -32,6 +32,7 @@ export default function DashboardPage() {
   const itemRequestPanel = dashboardData.dashboardItemRequests;
   const transferPanel = dashboardData.dashboardTransfers;
   const poPanel = dashboardData.dashboardPOLinks;
+  const adjustmentRequests = dashboardData.dashboardAdjustmentRequests || [];
 
   const transferRequests = transferPanel?.requests || [];
   const poRequests = poPanel?.requests || [];
@@ -44,6 +45,9 @@ export default function DashboardPage() {
   ).length;
   const itemRequests = itemRequestPanel?.requests || [];
   const pendingCount = itemRequests.filter(
+    (item) => item.status === "PENDING",
+  ).length;
+  const pendingAdjustmentCount = adjustmentRequests.filter(
     (item) => item.status === "PENDING",
   ).length;
   function getDashboardColumns(count) {
@@ -247,6 +251,9 @@ export default function DashboardPage() {
           );
 
           const isTransferPanel = panel.title.includes("Transfer Requests");
+          const isAdjustmentPanel = panel.title.includes(
+            "Adjustment Requests",
+          );
           const isPOPanel = panel.title.includes("PO Link Requests");
 
           return (
@@ -270,6 +277,11 @@ export default function DashboardPage() {
                   <PendingBadge
                     count={pendingTransferCount}
                     label="Pending Transfer"
+                  />
+                ) : isAdjustmentPanel && pendingAdjustmentCount > 0 ? (
+                  <PendingBadge
+                    count={pendingAdjustmentCount}
+                    label="Pending Adjustment"
                   />
                 ) : isPOPanel && pendingPOCount > 0 ? (
                   <PendingBadge count={pendingPOCount} label="Pending PO" />
@@ -348,6 +360,71 @@ export default function DashboardPage() {
                             </p>
                           </div>
                         )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : isAdjustmentPanel ? (
+                <div className="enterprise-scrollbar max-h-[420px] space-y-3 overflow-y-auto scroll-smooth pr-2">
+                  {adjustmentRequests.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm font-semibold text-slate-500">
+                      No adjustment requests found.
+                    </div>
+                  ) : (
+                    adjustmentRequests.map((item) => (
+                      <div
+                        key={item.id}
+                        onClick={() => navigate("/transfers/requests")}
+                        className="cursor-pointer rounded-2xl border border-slate-200 bg-slate-50 p-4 transition-all hover:border-blue-300 hover:bg-blue-50 hover:shadow-md"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-bold text-slate-900">
+                              {item.item?.catalog_item_name || "-"}
+                            </p>
+
+                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                              {item.item?.change_type === "ADD_ITEM"
+                                ? "Add new item"
+                                : "Increase existing item"}{" "}
+                              · {item.category?.name || "-"}
+                            </p>
+
+                            {item.department?.name && (
+                              <p className="mt-1 text-xs font-semibold text-slate-500">
+                                Department: {item.department.name}
+                              </p>
+                            )}
+
+                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                              Quantity:{" "}
+                              {item.item?.requested_quantity ?? "-"} · Amount:{" "}
+                              {item.item?.requested_amount
+                                ? `SAR ${Number(
+                                    item.item.requested_amount,
+                                  ).toLocaleString()}`
+                                : "-"}
+                            </p>
+
+                            {item.category_note && (
+                              <p className="mt-2 rounded-xl border border-slate-200 bg-white p-2 text-xs font-semibold text-slate-600">
+                                {item.category_note}
+                              </p>
+                            )}
+                          </div>
+
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-bold ${
+                              item.status === "PENDING"
+                                ? "bg-amber-100 text-amber-700"
+                                : item.status === "REJECTED"
+                                  ? "bg-red-100 text-red-700"
+                                  : "bg-emerald-100 text-emerald-700"
+                            }`}
+                          >
+                            {String(item.status || "").replaceAll("_", " ")}
+                          </span>
+                        </div>
                       </div>
                     ))
                   )}

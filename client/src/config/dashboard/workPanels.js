@@ -46,6 +46,25 @@ export function getWorkPanels(budgetAccess) {
         ) || can(budgetAccess, PERMISSION_CODES.MANAGE_BUDGET_CATALOG),
     },
     {
+      title: can(
+        budgetAccess,
+        PERMISSION_CODES.REVIEW_CATEGORY_BUDGET_CHANGE_REQUESTS,
+      )
+        ? "Department Adjustment Requests"
+        : "My Adjustment Requests",
+      description:
+        "Post-pre-closing adjustment requests and Category Manager decisions appear here.",
+      show:
+        can(
+          budgetAccess,
+          PERMISSION_CODES.SUBMIT_DEPARTMENT_BUDGET_CHANGE_REQUESTS,
+        ) ||
+        can(
+          budgetAccess,
+          PERMISSION_CODES.REVIEW_CATEGORY_BUDGET_CHANGE_REQUESTS,
+        ),
+    },
+    {
       title: can(budgetAccess, PERMISSION_CODES.APPROVE_CATEGORY_TRANSFERS)
         ? "Pending Transfer Requests"
         : "My Transfer Requests",

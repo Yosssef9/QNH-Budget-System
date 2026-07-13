@@ -57,6 +57,7 @@ const CopyBudgetDrawer = lazy(
 );
 
 import RequestBudgetItemModal from "../../components/budgets/RequestBudgetItemModal";
+import AdjustmentRequestDrawer from "../../components/adjustment-requests/AdjustmentRequestDrawer";
 export default function BudgetEnteryPage() {
   const {
     currentBudget,
@@ -80,20 +81,20 @@ export default function BudgetEnteryPage() {
     saveDraft,
     refreshBudget,
   } = useCreateBudgetManual();
-  const pageLock = getBudgetEntryPageLock(openYear);
+  // const pageLock = getBudgetEntryPageLock(openYear);
 
-  useLockToast(pageLock.locked && !loadingSetup, pageLock.message);
-  const lockedContent = (
-    <div className="space-y-6">
-      <Breadcrumbs />
+  // useLockToast(pageLock.locked && !loadingSetup, pageLock.message);
+  // const lockedContent = (
+  //   <div className="space-y-6">
+  //     <Breadcrumbs />
 
-      <LockedPage
-        title={pageLock.title}
-        message={pageLock.message}
-        reasons={pageLock.reasons}
-      />
-    </div>
-  );
+  //     <LockedPage
+  //       title={pageLock.title}
+  //       message={pageLock.message}
+  //       reasons={pageLock.reasons}
+  //     />
+  //   </div>
+  // );
   const submitBudgetMutation = useSubmitBudget();
   const [summaryView, setSummaryView] = useState("QUARTER");
   const [budgetItemsPage, setBudgetItemsPage] = useState(1);
@@ -118,6 +119,7 @@ export default function BudgetEnteryPage() {
   const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
   const [localBudgetStatus, setLocalBudgetStatus] = useState(null);
   const [requestItemModalOpen, setRequestItemModalOpen] = useState(false);
+  const [adjustmentDrawerOpen, setAdjustmentDrawerOpen] = useState(false);
   const [copyDrawerOpen, setCopyDrawerOpen] = useState(false);
   const [excelMenuOpen, setExcelMenuOpen] = useState(false);
   const [importErrors, setImportErrors] = useState([]);
@@ -133,6 +135,9 @@ export default function BudgetEnteryPage() {
     "IN_CATEGORY_REVIEW",
     "CATEGORY_REVIEW_COMPLETED",
   ].includes(budgetStatus);
+  const isPreClosing =
+    currentBudget?.financial_year_status === "PRE_CLOSING" ||
+    openYear?.status === "PRE_CLOSING";
 
   const getRowSnapshot = useCallback((row) => {
     return JSON.stringify({
@@ -451,9 +456,9 @@ export default function BudgetEnteryPage() {
     toast.success(`${copiedRows.length} items added successfully`);
   };
 
-  if (pageLock.locked && !loadingSetup) {
-    return lockedContent;
-  }
+  // if (pageLock.locked && !loadingSetup) {
+  //   return lockedContent;
+  // }
 
   return (
     <div className="space-y-5 p-6 text-slate-800">
@@ -476,6 +481,21 @@ export default function BudgetEnteryPage() {
           >
             <PackagePlus size={17} />
             Request Item
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setAdjustmentDrawerOpen(true)}
+            disabled={!isPreClosing || !activeCategoryBudget?.id}
+            title={
+              isPreClosing
+                ? `Request an adjustment for ${activeCategoryName}`
+                : "Adjustment requests are available after PRE_CLOSING."
+            }
+            className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-semibold text-blue-700 shadow-sm transition-all duration-200 hover:scale-[1.02] hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <AlertCircle size={17} />
+            Request Adjustment
           </button>
 
           <button
@@ -1187,6 +1207,11 @@ export default function BudgetEnteryPage() {
         onClose={() => setRequestItemModalOpen(false)}
         categories={categories}
         defaultCategoryId={activeCategoryBudget?.category_id}
+      />
+      <AdjustmentRequestDrawer
+        open={adjustmentDrawerOpen}
+        onClose={() => setAdjustmentDrawerOpen(false)}
+        departmentCategoryBudget={activeCategoryBudget}
       />
       {copyDrawerOpen && (
         <Suspense fallback={null}>

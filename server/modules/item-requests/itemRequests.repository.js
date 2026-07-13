@@ -1,5 +1,9 @@
 import { poolPromise, sql } from "../../config/db.js";
 
+function requestFor(transaction) {
+  return transaction ? new sql.Request(transaction) : null;
+}
+
 export async function getItemRequestsRepo(status) {
   const pool = await poolPromise;
   const request = pool.request();
@@ -135,11 +139,11 @@ export async function approveItemRequestRepo({
   requestId,
   adminNote,
   reviewedBy,
+  transaction = null,
 }) {
-  const pool = await poolPromise;
+  const request = transaction ? requestFor(transaction) : (await poolPromise).request();
 
-  const result = await pool
-    .request()
+  const result = await request
     .input("requestId", sql.BigInt, requestId)
     .input("adminNote", sql.NVarChar(sql.MAX), adminNote)
     .input("reviewedBy", sql.Int, reviewedBy).query(`

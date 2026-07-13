@@ -5,6 +5,7 @@ import { resolveBudgetWorkspace } from "../../shared/middleware/resolveBudgetWor
 import { requireBudgetPermission } from "../../shared/middleware/requireBudgetPermission.js";
 import { ITEM_REQUEST_ADMIN_PERMISSION } from "./itemRequests.constants.js";
 import {
+  approveAndCreateItemRequest,
   approveItemRequest,
   createItemRequest,
   getDashboardItemRequests,
@@ -25,6 +26,7 @@ router.use(requireBudgetPermission(ITEM_REQUEST_ADMIN_PERMISSION));
 router.get("/", getItemRequests);
 router.post("/:requestId/approve", approveItemRequest);
 router.post("/:requestId/approve-manual", approveItemRequest);
+router.post("/:requestId/approve-and-create", approveAndCreateItemRequest);
 router.post("/:requestId/reject", rejectItemRequest);
 
 export default router;

@@ -117,3 +117,13 @@ export function validateItemRequestDecision(body) {
     adminNote: body?.adminNote ? String(body.adminNote).trim() : null,
   };
 }
+
+export function validateItemRequestAutoCreateDecision(body) {
+  return {
+    ...validateItemRequestDecision(body),
+    unitOfMeasureId: normalizePositiveInt(
+      body?.unitOfMeasureId ?? body?.unit_of_measure_id,
+      "unitOfMeasureId",
+    ),
+  };
+}

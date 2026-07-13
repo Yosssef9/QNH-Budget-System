@@ -27,6 +27,7 @@ import ConfirmModal from "../components/ConfirmModal";
 import SearchableMultiSelect from "../components/SearchableMultiSelect";
 import EnterpriseSearch from "../components/EnterpriseSearch";
 import {
+  useApproveAndCreateItemRequest,
   useApproveItemRequest,
   useCreateSetupCategory,
   useCreateSetupSubItem,
@@ -69,6 +70,7 @@ export default function BudgetSetupPage() {
   const [expenseType, setExpenseType] = useState("OPEX");
   const [requestStatus, setRequestStatus] = useState("PENDING");
   const [adminNotes, setAdminNotes] = useState({});
+  const [requestAutoCreateUnitIds, setRequestAutoCreateUnitIds] = useState({});
   const [search, setSearch] = useState("");
   const [categorySearch, setCategorySearch] = useState("");
   const deferredItemSearch = useDeferredValue(search);
@@ -131,6 +133,7 @@ export default function BudgetSetupPage() {
   const deleteCategoryMutation = useDeleteSetupCategory();
   const deleteTypeMutation = useDeleteSetupType();
   const approveMutation = useApproveItemRequest();
+  const approveAndCreateMutation = useApproveAndCreateItemRequest();
   const rejectMutation = useRejectItemRequest();
   const filteredTypes = useMemo(() => {
     const keyword = deferredItemSearch.trim().toLowerCase();
@@ -261,6 +264,22 @@ export default function BudgetSetupPage() {
     });
   }
 
+  function confirmApproveAndCreate(request) {
+    setRequestAction({
+      type: "APPROVE_AND_CREATE",
+      request: request,
+      title: "Approve and Create Catalog Item?",
+      message:
+        'Approve "' +
+        request.requested_type_name +
+        '" and create it as a reusable generic catalog item under ' +
+        (request.existing_category_name || "the selected category") +
+        "? This will not add budget quantity, pricing, package models, or department rows.",
+      danger: false,
+      confirmText: "Approve & Auto Create",
+    });
+  }
+
   async function handleRequestActionConfirm() {
     if (!requestAction) {
       return;
@@ -276,14 +295,16 @@ export default function BudgetSetupPage() {
           await handleApproveRequest(requestAction.request);
           break;
 
+        case "APPROVE_AND_CREATE":
+          await handleApproveAndCreateRequest(requestAction.request);
+          break;
+
         default:
           break;
       }
 
       setRequestAction(null);
-    } catch {
-      setRequestAction(null);
-    }
+    } catch {}
   }
   function startEditCategory(category) {
     setEditingCategoryId(category.id);
@@ -585,11 +606,35 @@ export default function BudgetSetupPage() {
         adminNote: adminNotes[request.id] || null,
       });
 
-      toast.success("Request approved and item created");
+      toast.success("Request approved. Create the catalog item manually.");
     } catch (error) {
       toast.error(
         error?.response?.data?.message || "Failed to approve request",
       );
+    }
+  }
+  async function handleApproveAndCreateRequest(request) {
+    const unitOfMeasureId = requestAutoCreateUnitIds[request.id];
+
+    if (!unitOfMeasureId) {
+      toast.error("Select Unit of Measure before auto-creating the item");
+      throw new Error("Unit of Measure is required");
+    }
+
+    try {
+      await approveAndCreateMutation.mutateAsync({
+        requestId: request.id,
+        adminNote: adminNotes[request.id] || null,
+        unitOfMeasureId: Number(unitOfMeasureId),
+      });
+
+      toast.success("Request approved and catalog item created");
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message ||
+          "Failed to approve and create catalog item",
+      );
+      throw error;
     }
   }
   async function handleRejectRequest(request) {
@@ -918,6 +963,20 @@ export default function BudgetSetupPage() {
                                       >
                                         <CheckCircle2 size={17} />
                                         Approve Request
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          confirmApproveAndCreate(request)
+                                        }
+                                        disabled={
+                                          approveAndCreateMutation.isPending
+                                        }
+                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                                      >
+                                        <PackagePlus size={17} />
+                                        Approve & Auto Create
                                       </button>
                                     </div>
                                   ) : (
@@ -1585,11 +1644,68 @@ export default function BudgetSetupPage() {
         confirmText={requestAction?.confirmText}
         loading={
           approveMutation.isPending ||
+          approveAndCreateMutation.isPending ||
           rejectMutation.isPending
         }
         onCancel={() => setRequestAction(null)}
         onConfirm={handleRequestActionConfirm}
-      />
+      >
+        {requestAction?.type === "APPROVE_AND_CREATE" && (
+          <div className="space-y-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 text-left">
+            <div className="grid gap-3 text-sm sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                  Category
+                </p>
+                <p className="mt-1 font-bold text-slate-900">
+                  {requestAction.request?.existing_category_name || "-"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                  Expense Type
+                </p>
+                <p className="mt-1 font-bold text-slate-900">
+                  {requestAction.request?.requested_expense_type || "OPEX"}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-600">
+                Unit of Measure
+              </label>
+              <SearchableMultiSelect
+                multiple={false}
+                disableClear
+                value={
+                  requestAutoCreateUnitIds[requestAction.request?.id] || ""
+                }
+                onChange={(event) =>
+                  setRequestAutoCreateUnitIds((prev) => ({
+                    ...prev,
+                    [requestAction.request.id]: event.target.value,
+                  }))
+                }
+                options={unitsOfMeasure}
+                placeholder="Select unit of measure"
+                searchPlaceholder="Search units..."
+                getOptionLabel={(unit) =>
+                  unit.unit_code
+                    ? `${unit.name} (${unit.unit_code})`
+                    : unit.name
+                }
+                getOptionValue={(unit) => String(unit.id)}
+              />
+              <p className="mt-2 text-xs font-medium text-slate-500">
+                The request does not store a unit. Select the catalog unit for
+                the new item before auto-creating it.
+              </p>
+            </div>
+          </div>
+        )}
+      </ConfirmModal>
 
       <ConfirmModal
         open={Boolean(confirmAction)}

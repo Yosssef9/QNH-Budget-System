@@ -1,4 +1,5 @@
 import { ApiError } from "../../utils/apiError.js";
+import { withTransaction } from "../../database/transaction.js";
 import { NOTIFICATION_TYPES } from "../../constants/notificationTypes.js";
 import { queueNotification } from "../../services/notification.service.js";
 import {
@@ -13,6 +14,20 @@ import {
   ITEM_REQUEST_ADMIN_PERMISSION,
   SUPPORTED_ITEM_REQUEST_CATEGORY_CODES,
 } from "./itemRequests.constants.js";
+import {
+  GENERAL_SUB_ITEM,
+  normalizeCatalogCode,
+} from "../master-catalog/masterCatalog.constants.js";
+import { mapCatalogItem } from "../master-catalog/masterCatalog.mapper.js";
+import {
+  createCatalogItemRepo,
+  createSubItemRepo,
+  findCatalogItemByCodeRepo,
+  findCatalogItemByIdRepo,
+  findCatalogItemByNameInCategoryRepo,
+  findUnitByIdRepo,
+  getNextCatalogItemSortOrderRepo,
+} from "../master-catalog/masterCatalog.repository.js";
 import {
   approveItemRequestRepo,
   createItemRequestRepo,
@@ -92,6 +107,64 @@ function assertPendingRequest(request) {
   }
 }
 
+function isUniqueConstraintError(error) {
+  return error?.number === 2601 || error?.number === 2627;
+}
+
+async function validateAutoCreateCatalogPayload({ request, unitOfMeasureId }) {
+  const category = assertSupportedCategory({
+    id: request.existing_category_id,
+    category_code: request.existing_category_code,
+    name: request.existing_category_name,
+    is_active: request.existing_category_is_active,
+  });
+
+  const unit = await findUnitByIdRepo(unitOfMeasureId);
+
+  if (!unit) {
+    throw new ApiError(
+      400,
+      "Select an active Unit of Measure before creating the catalog item",
+      "ITEM_REQUEST_UNIT_REQUIRED",
+    );
+  }
+
+  const itemCode = normalizeCatalogCode(request.requested_type_name);
+
+  if (!itemCode) {
+    throw new ApiError(
+      400,
+      "Requested item name cannot produce a valid catalog item code",
+      "ITEM_REQUEST_ITEM_CODE_INVALID",
+    );
+  }
+
+  const existingName = await findCatalogItemByNameInCategoryRepo(
+    category.id,
+    request.requested_type_name,
+  );
+
+  if (existingName) {
+    throw new ApiError(
+      409,
+      "A catalog item with this name already exists in this category",
+      "ITEM_REQUEST_CATALOG_ITEM_NAME_EXISTS",
+    );
+  }
+
+  const existingCode = await findCatalogItemByCodeRepo(itemCode);
+
+  if (existingCode) {
+    throw new ApiError(
+      409,
+      "A catalog item with this generated code already exists",
+      "ITEM_REQUEST_CATALOG_ITEM_CODE_EXISTS",
+    );
+  }
+
+  return { category, unit, itemCode };
+}
+
 export async function getItemRequestsService(status) {
   return await getItemRequestsRepo(status);
 }
@@ -163,6 +236,106 @@ export async function approveItemRequestService({
   });
 
   return result;
+}
+
+export async function approveAndCreateItemRequestService({
+  requestId,
+  adminNote,
+  unitOfMeasureId,
+  reviewedBy,
+}) {
+  const request = await findItemRequestByIdRepo(requestId);
+  assertPendingRequest(request);
+
+  const { category, unit, itemCode } = await validateAutoCreateCatalogPayload({
+    request,
+    unitOfMeasureId,
+  });
+
+  let createdCatalogItem;
+
+  try {
+    createdCatalogItem = await withTransaction(async (transaction) => {
+      const sortOrder = await getNextCatalogItemSortOrderRepo(
+        category.id,
+        transaction,
+      );
+
+      const item = await createCatalogItemRepo(transaction, {
+        budget_category_id: category.id,
+        item_code: itemCode,
+        name: request.requested_type_name,
+        description: null,
+        expense_type: request.requested_expense_type || "OPEX",
+        unit_of_measure_id: unit.id,
+        sort_order: sortOrder,
+        created_by: reviewedBy,
+      });
+
+      await createSubItemRepo(transaction, {
+        catalog_item_id: item.id,
+        sub_item_code: GENERAL_SUB_ITEM.code,
+        name: GENERAL_SUB_ITEM.name,
+        default_specification: null,
+        default_unit_of_measure_id: unit.id,
+        is_default_general: true,
+        created_by: reviewedBy,
+      });
+
+      const approved = await approveItemRequestRepo({
+        requestId,
+        adminNote,
+        reviewedBy,
+        transaction,
+      });
+
+      if (!approved) {
+        throw new ApiError(
+          409,
+          "Only pending requests can be reviewed",
+          "ITEM_REQUEST_ALREADY_REVIEWED",
+        );
+      }
+
+      return item;
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      throw new ApiError(
+        409,
+        "A matching catalog item already exists",
+        "ITEM_REQUEST_CATALOG_ITEM_DUPLICATE",
+      );
+    }
+
+    throw error;
+  }
+
+  const catalogItem = mapCatalogItem(
+    await findCatalogItemByIdRepo(createdCatalogItem.id),
+  );
+
+  await queueNotification({
+    notificationType: NOTIFICATION_TYPES.ITEM_REQUEST_APPROVED,
+    entityType: "ITEM_REQUEST",
+    entityId: requestId,
+    payload: {
+      requestId,
+      itemName: request.requested_type_name,
+      catalogItemId: catalogItem.id,
+      approvedBy: reviewedBy,
+    },
+  });
+
+  return {
+    request: {
+      ...request,
+      status: "APPROVED",
+      admin_note: adminNote,
+      reviewed_by: reviewedBy,
+    },
+    catalogItem,
+  };
 }
 
 export async function rejectItemRequestService({

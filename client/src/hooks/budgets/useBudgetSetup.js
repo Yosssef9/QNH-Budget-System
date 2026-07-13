@@ -17,6 +17,7 @@ import {
   getSetupTypeUsage,
 } from "../../api/budgetSetup.api";
 import {
+  approveAndCreateItemRequest,
   approveItemRequest,
   createItemRequest,
   getItemRequests,
@@ -104,6 +105,17 @@ export function useApproveItemRequest() {
 
   return useMutation({
     mutationFn: approveItemRequest,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["budget-setup"] });
+    },
+  });
+}
+
+export function useApproveAndCreateItemRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: approveAndCreateItemRequest,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["budget-setup"] });
     },

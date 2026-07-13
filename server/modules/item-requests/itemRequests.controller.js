@@ -2,6 +2,7 @@ import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiResponse } from "../../utils/apiResponse.js";
 import { auditLog } from "../../utils/audit.js";
 import {
+  approveAndCreateItemRequestService,
   approveItemRequestService,
   createItemRequestService,
   getDashboardItemRequestsService,
@@ -10,6 +11,7 @@ import {
 } from "./itemRequests.service.js";
 import {
   validateCreateItemRequest,
+  validateItemRequestAutoCreateDecision,
   validateItemRequestDecision,
   validateItemRequestId,
   validateItemRequestStatus,
@@ -29,15 +31,12 @@ export const getItemRequests = asyncHandler(async (req, res) => {
 
 export const createItemRequest = asyncHandler(async (req, res) => {
   const payload = validateCreateItemRequest(req.body);
-  console.log("createItemRequestService payload", payload);
-  console.log("createItemRequestService req.budgetAccess", req.budgetAccess);
 
   const request = await createItemRequestService({
     payload,
     requestedBy: req.user.userId,
     budgetAccess: req.budgetAccess,
   });
-  console.log("createItemRequestService request", request);
 
   await auditLog(req, {
     action: "REQUEST_CATALOG_ITEM",
@@ -79,6 +78,37 @@ export const approveItemRequest = asyncHandler(async (req, res) => {
     new ApiResponse({
       message: "Item request approved successfully",
       data: request,
+    }),
+  );
+});
+
+export const approveAndCreateItemRequest = asyncHandler(async (req, res) => {
+  const requestId = validateItemRequestId(req.params.requestId);
+  const payload = validateItemRequestAutoCreateDecision(req.body);
+
+  const result = await approveAndCreateItemRequestService({
+    requestId,
+    adminNote: payload.adminNote,
+    unitOfMeasureId: payload.unitOfMeasureId,
+    reviewedBy: req.user.userId,
+  });
+
+  await auditLog(req, {
+    action: "APPROVE_ITEM_REQUEST_AND_CREATE_CATALOG_ITEM",
+    entityName:
+      result.catalogItem?.name ||
+      result.request?.requested_type_name ||
+      "Item Request",
+    entityType: "ITEM_REQUEST",
+    entityId: String(requestId),
+    description: `Approved item request and created catalog item "${result.catalogItem?.name}"`,
+    newValues: result,
+  });
+
+  return res.status(201).json(
+    new ApiResponse({
+      message: "Item request approved and catalog item created successfully",
+      data: result,
     }),
   );
 });

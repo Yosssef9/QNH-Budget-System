@@ -21,6 +21,17 @@ export async function getTransferItems() {
   return data.data || [];
 }
 
+export async function getTransferCatalogItems() {
+  const { data } = await api.get("/transfers/catalog-items");
+  return data.data || [];
+}
+
+export async function getTransferCatalogSubItems(catalogItemId) {
+  if (!catalogItemId) return [];
+  const { data } = await api.get(`/transfers/catalog-items/${catalogItemId}/sub-items`);
+  return data.data || [];
+}
+
 export async function getTransferById(id) {
   const { data } = await api.get(`/transfers/${id}`);
   return data.data;

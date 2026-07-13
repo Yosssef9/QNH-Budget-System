@@ -5,23 +5,37 @@ import Breadcrumbs from "../components/Breadcrumbs";
 import LockedPage from "../components/LockedPage";
 import TransferForm from "../components/transfers/TransferForm";
 import TransferTable from "../components/transfers/TransferTable";
+import AdjustmentRequestsReviewPanel from "../components/adjustment-requests/AdjustmentRequestsReviewPanel";
 import { getMyBudgets } from "../api/budget.api";
 import { getTransferPageLock } from "../helpers/pageLockRules";
 import useLockToast from "../hooks/useLockToast";
 import LoadingSpinner from "../components/LoadingSpinner";
-import { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
+import { can } from "../helpers/permissions";
+import { PERMISSION_CODES } from "@qnh/permissions";
 
 export default function TransferPage() {
+  const { budgetAccess } = useAuth();
+  const canReviewAdjustmentRequests = can(
+    budgetAccess,
+    PERMISSION_CODES.REVIEW_CATEGORY_BUDGET_CHANGE_REQUESTS,
+  );
+  const canCreateCategoryTransfers = can(
+    budgetAccess,
+    PERMISSION_CODES.CREATE_CATEGORY_TRANSFERS,
+  );
   const { data: budgets = [], isLoading } = useQuery({
     queryKey: ["my-budgets"],
     queryFn: getMyBudgets,
+    enabled: !canCreateCategoryTransfers,
   });
 
   const lock = getTransferPageLock(budgets);
+  const isLocked = !canCreateCategoryTransfers && lock.locked;
 
-  useLockToast(lock.locked && !isLoading, lock.message);
+  useLockToast(isLocked && !isLoading, lock.message);
 
-  if (isLoading) {
+  if (isLoading && !canCreateCategoryTransfers) {
     return (
       <LoadingSpinner
         fullPage
@@ -31,7 +45,7 @@ export default function TransferPage() {
     );
   }
 
-  if (lock.locked) {
+  if (isLocked) {
     return (
       <div className="space-y-6">
         <Breadcrumbs
@@ -47,6 +61,7 @@ export default function TransferPage() {
           reasons={lock.reasons}
         />
 
+        {canReviewAdjustmentRequests && <AdjustmentRequestsReviewPanel />}
         <TransferTable />
       </div>
     );
@@ -75,6 +90,8 @@ export default function TransferPage() {
           </div>
         </div>
       </div>
+
+      {canReviewAdjustmentRequests && <AdjustmentRequestsReviewPanel />}
 
       <TransferForm />
 

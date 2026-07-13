@@ -7,8 +7,12 @@ import {
   CheckCircle2,
   WalletCards,
 } from "lucide-react";
-import { getAvailableTransferTypes } from "../../api/budget.api";
-import { createTransfer, getTransferItems } from "../../api/transfer.api";
+import {
+  createTransfer,
+  getTransferCatalogItems,
+  getTransferCatalogSubItems,
+  getTransferItems,
+} from "../../api/transfer.api";
 import CurrencyText from "../CurrencyText";
 import ConfirmModal from "../ConfirmModal";
 import EnterpriseSearch from "../EnterpriseSearch";
@@ -75,6 +79,7 @@ export default function TransferForm() {
     is_new_item: false,
 
     new_item_type_id: "",
+    destination_catalog_sub_item_id: "",
     new_item_quantity: "",
     new_item_unit_price: "",
     transfer_mode: "AMOUNT",
@@ -143,13 +148,17 @@ export default function TransferForm() {
   const targetQuantityAfterTransfer =
     Number(transferAmount || 0) / Number(targetItem?.unit_price || 1);
   const { data: budgetTypes = [] } = useQuery({
-    queryKey: ["available-transfer-types"],
-
-    queryFn: getAvailableTransferTypes,
-
+    queryKey: ["transfer-catalog-items"],
+    queryFn: getTransferCatalogItems,
     staleTime: 1000 * 60 * 5,
   });
-  console.log(" budgetTypes", budgetTypes);
+
+  const { data: reusableModels = [] } = useQuery({
+    queryKey: ["transfer-catalog-sub-items", form.new_item_type_id],
+    queryFn: () => getTransferCatalogSubItems(form.new_item_type_id),
+    enabled: form.is_new_item && Boolean(form.new_item_type_id),
+    staleTime: 1000 * 60 * 5,
+  });
   const budgetTypeOptions = useMemo(() => {
     return budgetTypes.map((type) => ({
       value: String(type.id),
@@ -163,11 +172,22 @@ export default function TransferForm() {
       has_pending_request: Boolean(type.has_pending_request),
     }));
   }, [budgetTypes]);
+
+  const reusableModelOptions = useMemo(() => {
+    return reusableModels.map((model) => ({
+      value: String(model.id),
+      label: model.sub_item_code
+        ? `${model.name} (${model.sub_item_code})`
+        : model.name,
+    }));
+  }, [reusableModels]);
+
   const canSubmit =
     !hasLockedItems &&
     form.from_budget_item_id &&
     (form.is_new_item
       ? form.new_item_type_id &&
+        form.destination_catalog_sub_item_id &&
         form.new_item_quantity &&
         form.new_item_unit_price
       : form.to_budget_item_id) &&
@@ -207,6 +227,7 @@ export default function TransferForm() {
         is_new_item: false,
 
         new_item_type_id: "",
+        destination_catalog_sub_item_id: "",
         new_item_quantity: "",
         new_item_unit_price: "",
         transfer_mode: "AMOUNT",
@@ -281,6 +302,9 @@ export default function TransferForm() {
       is_new_item: form.is_new_item,
 
       new_item_type_id: form.is_new_item ? Number(form.new_item_type_id) : null,
+      destination_catalog_sub_item_id: form.is_new_item
+        ? Number(form.destination_catalog_sub_item_id)
+        : null,
 
       new_item_quantity: form.is_new_item
         ? Number(form.new_item_quantity)
@@ -428,6 +452,7 @@ export default function TransferForm() {
                           ...p,
                           is_new_item: false,
                           new_item_type_id: "",
+                          destination_catalog_sub_item_id: "",
                           new_item_quantity: "",
                           new_item_unit_price: "",
                         }))
@@ -877,12 +902,43 @@ export default function TransferForm() {
                         setForm((p) => ({
                           ...p,
                           new_item_type_id: e.target.value,
+                          destination_catalog_sub_item_id: "",
                         }));
                       }}
                       options={budgetTypeOptions}
                       placeholder="Select Item Type"
                       searchPlaceholder="Search item type..."
                     />
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Package Model
+                    </label>
+                    <SearchableMultiSelect
+                      key={`${form.new_item_type_id}-${reusableModelOptions.length}`}
+                      multiple={false}
+                      value={form.destination_catalog_sub_item_id}
+                      onChange={(e) =>
+                        setForm((p) => ({
+                          ...p,
+                          destination_catalog_sub_item_id: e.target.value,
+                        }))
+                      }
+                      options={reusableModelOptions}
+                      placeholder={
+                        form.new_item_type_id
+                          ? "Select reusable model"
+                          : "Select item type first"
+                      }
+                      searchPlaceholder="Search reusable model..."
+                      disabled={!form.new_item_type_id}
+                    />
+                    <p className="mt-2 text-xs text-slate-500">
+                      The model identity comes from the reusable catalog. Unit
+                      price and transferred quantity are stored on the
+                      year-specific package sub-item.
+                    </p>
                   </div>
 
                   <div className="mb-4">
@@ -1001,7 +1057,11 @@ export default function TransferForm() {
 
             {form.is_new_item && (
               <div className="mt-1 text-xs font-semibold text-purple-600">
-                New Budget Item
+                {reusableModels.find(
+                  (x) =>
+                    String(x.id) ===
+                    String(form.destination_catalog_sub_item_id),
+                )?.name || "Selected package model"}
               </div>
             )}
           </div>

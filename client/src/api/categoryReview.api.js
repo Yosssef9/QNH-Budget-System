@@ -54,13 +54,11 @@ export async function completeDepartmentCategoryReview(
 }
 export async function reopenDepartmentCategoryReview({
   departmentCategoryBudgetId,
-  reopenReason,
   rowVersion,
 }) {
   const response = await api.patch(
     `/category-review/budgets/${departmentCategoryBudgetId}/reopen`,
     {
-      reopen_reason: reopenReason,
       row_version: rowVersion,
     },
   );

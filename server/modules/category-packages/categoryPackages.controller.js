@@ -32,7 +32,30 @@ import {
   validateUploadAttachmentPayload,
   validateUpdatePackageSubItemPayload,
 } from "./categoryPackages.validators.js";
+function buildContentDisposition(fileName) {
+  const safeName = String(
+    fileName || "attachment",
+  ).replace(/[\r\n"]/g, "_");
 
+  const encodedName =
+    encodeURIComponent(safeName)
+      .replace(/['()*]/g, (character) =>
+        `%${character
+          .charCodeAt(0)
+          .toString(16)
+          .toUpperCase()}`,
+      );
+
+  const fallbackName = safeName
+    .normalize("NFKD")
+    .replace(/[^\x20-\x7E]/g, "_");
+
+  return (
+    `attachment; ` +
+    `filename="${fallbackName}"; ` +
+    `filename*=UTF-8''${encodedName}`
+  );
+}
 export const getCurrentCategoryPackage = asyncHandler(async (req, res) => {
   const data = await getCurrentCategoryPackageService({
     budgetAccess: req.budgetAccess,
@@ -212,10 +235,12 @@ export const downloadPackageSubItemAttachment = asyncHandler(
 
     res.setHeader("Content-Type", download.mimeType);
     res.setHeader("Content-Length", String(download.fileSizeBytes));
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="${download.fileName}"`,
-    );
+   res.setHeader(
+  "Content-Disposition",
+  buildContentDisposition(
+    download.fileName,
+  ),
+);
     download.stream.on("error", next);
     download.stream.pipe(res);
   },

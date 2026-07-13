@@ -769,7 +769,7 @@ export async function reopenDepartmentCategoryReviewService({
 
       new_status: DEPARTMENT_CATEGORY_BUDGET_STATUS.IN_CATEGORY_REVIEW,
 
-      note: payload.reopen_reason,
+     note: `${categoryBudget.category_name} review reopened for ${categoryBudget.department_name}`,
 
       old_values_json: JSON.stringify({
         categoryReviewCompletedBy:

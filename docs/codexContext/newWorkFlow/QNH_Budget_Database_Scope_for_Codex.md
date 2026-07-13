@@ -1124,7 +1124,14 @@ Documents attached to a year-specific package sub-item.
 
 ### `BS_budget_change_requests`
 
-Controlled post-CFO-review change workflow while the financial year is still OPEN.
+Controlled department adjustment-request workflow after the financial year reaches `PRE_CLOSING`.
+
+Current approved workflow note:
+- HODs submit category-scoped adjustment requests for `ADD_ITEM` or `INCREASE_QUANTITY`.
+- Category Managers approve the request for action or reject it with a reason.
+- Approval records intent only; it does not mutate department budgets, category packages, package sub-items, or execution balances.
+- Fulfillment is handled later by the Category Manager through the transfer workflow.
+- The older OPEN-state apply-change cycle is deprecated for the active new workflow.
 
 **Keys:** PK `PK_BS_budget_change_requests` (id)
 
@@ -1154,9 +1161,20 @@ Controlled post-CFO-review change workflow while the financial year is still OPE
 - `CK_BS_budget_change_requests_reason`: `len(ltrim(rtrim([reason])))>(0)`
 - `CK_BS_budget_change_requests_status`: `[status]='CANCELLED' OR [status]='APPLIED' OR [status]='REJECTED' OR [status]='APPROVED' OR [status]='RETURNED_BY_CFO' OR [status]='IN_CFO_REVIEW' OR [status]='RETURNED_BY_CATEGORY' OR [status]='IN_CATEGORY_REVIEW' OR [status]='DRAFT'`
 
+Phase 6 migration target statuses:
+
+```text
+PENDING
+APPROVED_FOR_ACTION
+REJECTED
+PARTIALLY_FULFILLED
+FULFILLED
+CANCELLED
+```
+
 ### `BS_budget_change_request_items`
 
-Line-level proposed additions or changes inside a controlled budget change request.
+Line-level requested adjustment inside a controlled department adjustment request.
 
 **Keys:** PK `PK_BS_budget_change_request_items` (id)
 
@@ -1186,6 +1204,12 @@ Line-level proposed additions or changes inside a controlled budget change reque
 - `CK_BS_budget_change_request_items_distribution_method`: `[proposed_distribution_method] IS NULL OR ([proposed_distribution_method]='CUSTOM' OR [proposed_distribution_method]='MONTHLY' OR [proposed_distribution_method]='QUARTERLY' OR [proposed_distribution_method]='ANNUAL')`
 - `CK_BS_budget_change_request_items_existing_item_rule`: `[change_type]='ADD_ITEM' AND [existing_department_budget_item_id] IS NULL OR [change_type]<>'ADD_ITEM' AND [existing_department_budget_item_id] IS NOT NULL`
 - `CK_BS_budget_change_request_items_proposed_quantity`: `[proposed_requested_quantity]>=(0)`
+
+Phase 6 migration target:
+- Supported active request types are `ADD_ITEM` and `INCREASE_QUANTITY`.
+- `requested_amount DECIMAL(18,6) NULL` is added for amount-based requests.
+- `proposed_requested_quantity` becomes nullable because an adjustment request may ask for quantity, amount, or both.
+- A request item must contain either a positive requested quantity or a positive requested amount.
 
 ### `BS_budget_workflow_history`
 

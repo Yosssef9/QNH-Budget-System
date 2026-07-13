@@ -232,7 +232,28 @@ function assertAttachmentFile(file) {
 function safeDownloadName(fileName) {
   return String(fileName || "attachment").replace(/[\r\n"]/g, "_");
 }
+function normalizeUploadedFileName(fileName) {
+  const value = String(fileName || "attachment");
 
+  try {
+    const decoded = Buffer.from(
+      value,
+      "latin1",
+    ).toString("utf8");
+
+    // Use the decoded value only when it produces valid readable text.
+    if (
+      decoded &&
+      !decoded.includes("\uFFFD")
+    ) {
+      return decoded;
+    }
+  } catch {
+    // Keep original value below.
+  }
+
+  return value;
+}
 function assertPackageSubmissionAllowed(context) {
   if (context.financial_year_status !== "OPEN") {
     throw new ApiError(
@@ -688,10 +709,15 @@ export async function uploadPackageSubItemAttachmentService({
   let storageKey = null;
 
   try {
-    storageKey = await savePackageAttachmentFile({
-      buffer: file.buffer,
-      originalName: file.originalname,
-    });
+   const normalizedFileName =
+  normalizeUploadedFileName(
+    file.originalname,
+  );
+
+storageKey = await savePackageAttachmentFile({
+  buffer: file.buffer,
+  originalName: normalizedFileName,
+});
 
     const created = await withTransaction(async (transaction) => {
       const context = await findPackageContextBySubItemRepo(
@@ -704,7 +730,7 @@ export async function uploadPackageSubItemAttachmentService({
       const attachment = await createPackageSubItemAttachmentRepo(transaction, {
         package_sub_item_id: packageSubItemId,
         document_type: payload.document_type,
-        original_file_name: file.originalname,
+       original_file_name: normalizedFileName,
         storage_key: storageKey,
         mime_type: file.mimetype,
         file_size_bytes: file.size,
@@ -721,7 +747,7 @@ export async function uploadPackageSubItemAttachmentService({
             .PACKAGE_SUB_ITEM_ATTACHMENT_UPLOADED,
         new_values_json: JSON.stringify({
           packageSubItemId,
-          originalFileName: file.originalname,
+         originalFileName: normalizedFileName,
           fileSizeBytes: file.size,
           mimeType: file.mimetype,
         }),

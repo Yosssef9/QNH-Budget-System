@@ -11,6 +11,7 @@ import {
   CircleDollarSign,
   ClipboardList,
   Download,
+  Eye,
   FileText,
   FilePlus2,
   Layers3,
@@ -36,6 +37,10 @@ import SearchableMultiSelect from "../SearchableMultiSelect";
 import CatalogSubItemFields from "../catalog/CatalogSubItemFields";
 import AnimatedDrawer from "../budgets/shared/drawers/AnimatedDrawer";
 import CollapsiblePanelToggle from "../layout/CollapsiblePanelToggle";
+import {
+  downloadBlobAttachment,
+  viewBlobAttachment,
+} from "../../helpers/attachmentPreview.helper";
 
 import {
   createPackageSubItem,
@@ -1050,18 +1055,32 @@ function PackageAttachmentManager({ subItem, open, editable }) {
       const attachment = (attachmentsQuery.data || []).find(
         (item) => Number(item.id) === Number(variables.attachmentId),
       );
-      const blobUrl = window.URL.createObjectURL(response.data);
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = attachment?.original_file_name || "attachment";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(blobUrl);
+      downloadBlobAttachment({
+        blob: response.data,
+        fileName: attachment?.original_file_name || "attachment",
+      });
     },
     onError: (error) => {
       toast.error(
         error?.response?.data?.message || "Failed to download attachment",
+      );
+    },
+  });
+
+  const viewMutation = useMutation({
+    mutationFn: downloadPackageSubItemAttachment,
+    onSuccess: (response, variables) => {
+      const attachment = (attachmentsQuery.data || []).find(
+        (item) => Number(item.id) === Number(variables.attachmentId),
+      );
+      viewBlobAttachment({
+        blob: response.data,
+        fileName: attachment?.original_file_name || "attachment",
+      });
+    },
+    onError: (error) => {
+      toast.error(
+        error?.response?.data?.message || "Failed to view attachment",
       );
     },
   });
@@ -1181,6 +1200,19 @@ function PackageAttachmentManager({ subItem, open, editable }) {
                 </div>
               </div>
               <div className="flex shrink-0 gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    viewMutation.mutate({
+                      packageSubItemId,
+                      attachmentId: attachment.id,
+                    })
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100"
+                >
+                  <Eye className="h-4 w-4" />
+                  View
+                </button>
                 <button
                   type="button"
                   onClick={() =>

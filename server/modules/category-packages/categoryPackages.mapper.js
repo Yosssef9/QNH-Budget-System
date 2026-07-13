@@ -55,6 +55,12 @@ export function mapPackage(packageRow, packageItems = []) {
     financial_year_id: packageRow.financial_year_id,
     financial_year: packageRow.financial_year,
     financial_year_status: packageRow.financial_year_status,
+    financial_year_cfo_review_finalized_at:
+      packageRow.financial_year_cfo_review_finalized_at ?? null,
+    financial_year_cfo_review_finalized_by:
+      packageRow.financial_year_cfo_review_finalized_by ?? null,
+    financial_year_cfo_review_finalized_by_name:
+      packageRow.financial_year_cfo_review_finalized_by_name ?? null,
     budget_category_id: packageRow.budget_category_id,
     category_code: packageRow.category_code,
     category_name: packageRow.category_name,

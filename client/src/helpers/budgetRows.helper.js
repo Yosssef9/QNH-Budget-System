@@ -85,3 +85,22 @@ export function mapBudgetItemToRow(item) {
     }),
   };
 }
+
+export function mapBudgetHistoryItemToDraftRow(item) {
+  const row = mapBudgetItemToRow(item);
+  const sourceId = item.id ?? item.item_id ?? row.id;
+
+  return {
+    ...row,
+    id: `copy-${sourceId}-${crypto.randomUUID()}`,
+    reviewStatus: "DRAFT",
+    reviewNote: null,
+    approvedQuantity: null,
+    reviewedBy: null,
+    reviewedByName: null,
+    reviewedAt: null,
+    isSaved: false,
+    isNew: true,
+    savedSnapshot: null,
+  };
+}

@@ -36,6 +36,7 @@ function CopyBudgetPreview({ budget, items, previewOpen, onTogglePreview }) {
           <div>
             <h3 className="text-xl font-bold text-slate-900">
               {budget.year} Budget
+              {budget.category_name ? ` - ${budget.category_name}` : ""}
             </h3>
 
             <p className="mt-1 text-sm text-slate-500">Review before copying</p>
@@ -62,6 +63,11 @@ function CopyBudgetPreview({ budget, items, previewOpen, onTogglePreview }) {
             <p className="mt-3 text-2xl font-bold text-slate-900">
               {budget.year}
             </p>
+            {budget.category_name && (
+              <p className="mt-1 text-sm font-bold text-primary-700">
+                {budget.category_name}
+              </p>
+            )}
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-4">

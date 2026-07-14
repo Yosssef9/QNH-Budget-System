@@ -37,12 +37,18 @@ export async function findOpenSubmissionWindowForCategoryRepo(
         fy.year AS financial_year,
         fy.status AS financial_year_status,
         category.name AS category_name,
-        category.category_code
+        category.category_code,
+        pkg.id AS category_budget_package_id,
+        pkg.status AS category_budget_package_status,
+        pkg.submitted_to_cfo_at
       FROM dbo.BS_category_submission_windows AS window
       INNER JOIN dbo.BS_financial_years AS fy
         ON fy.id = window.financial_year_id
       INNER JOIN dbo.BS_budget_categories AS category
         ON category.id = window.budget_category_id
+      LEFT JOIN dbo.BS_category_budget_packages AS pkg
+        ON pkg.financial_year_id = window.financial_year_id
+       AND pkg.budget_category_id = window.budget_category_id
       LEFT JOIN dbo.users AS closedUser
         ON closedUser.USER_ID = window.closed_by
       LEFT JOIN dbo.users AS reopenedUser
@@ -180,6 +186,34 @@ export async function listCategoryReviewQueueRepo({ budgetCategoryId }) {
         dept.name;
     `);
   return result.recordset;
+}
+
+export async function getCategoryDepartmentCoverageRepo({
+  financialYearId,
+  budgetCategoryId,
+}) {
+  const pool = await poolPromise;
+  const result = await pool
+    .request()
+    .input("financialYearId", sql.Int, financialYearId)
+    .input("budgetCategoryId", sql.Int, budgetCategoryId).query(`
+      SELECT
+        COUNT(1) AS total_department_count,
+        SUM(CASE WHEN dcb.status <> '${DEPARTMENT_CATEGORY_BUDGET_STATUS.DRAFT}' THEN 1 ELSE 0 END) AS submitted_department_count,
+        SUM(CASE WHEN dcb.status = '${DEPARTMENT_CATEGORY_BUDGET_STATUS.DRAFT}' THEN 1 ELSE 0 END) AS not_submitted_department_count,
+        SUM(CASE WHEN dcb.status = '${DEPARTMENT_CATEGORY_BUDGET_STATUS.IN_CATEGORY_REVIEW}' THEN 1 ELSE 0 END) AS in_review_department_count,
+        SUM(CASE WHEN dcb.status = '${DEPARTMENT_CATEGORY_BUDGET_STATUS.CATEGORY_REVIEW_COMPLETED}' THEN 1 ELSE 0 END) AS completed_department_count
+      FROM dbo.BS_department_category_budgets AS dcb
+      INNER JOIN dbo.BS_department_budgets AS db
+        ON db.id = dcb.department_budget_id
+      INNER JOIN dbo.BS_departments AS dept
+        ON dept.id = db.department_id
+      WHERE db.financial_year_id = @financialYearId
+        AND dcb.budget_category_id = @budgetCategoryId
+        AND dept.is_active = 1;
+    `);
+
+  return result.recordset[0] || null;
 }
 
 export async function findDepartmentCategoryBudgetForReviewRepo(
@@ -406,7 +440,7 @@ export async function findDepartmentBudgetItemForReviewRepo(
       item.id,
       item.department_category_budget_id,
       item.catalog_item_id,
-      catalogItem.name AS catalog_item_name,
+      COALESCE(item.catalog_item_name_snapshot, catalogItem.name) AS catalog_item_name,
       item.requested_quantity,
       item.category_approved_quantity,
       item.review_status,
@@ -453,11 +487,12 @@ export async function listItemsForReviewBudgetRepo(
         item.id AS item_id,
         item.department_category_budget_id,
         item.catalog_item_id,
-        catalogItem.name AS catalog_item_name,
-        catalogItem.expense_type,
-        catalogItem.unit_of_measure_id,
-        unit.name AS unit_name,
-        unit.unit_code,
+        COALESCE(item.catalog_item_name_snapshot, catalogItem.name) AS catalog_item_name,
+        COALESCE(item.catalog_item_code_snapshot, catalogItem.item_code) AS catalog_item_code,
+        COALESCE(item.expense_type_snapshot, catalogItem.expense_type) AS expense_type,
+        COALESCE(item.unit_of_measure_id_snapshot, catalogItem.unit_of_measure_id) AS unit_of_measure_id,
+        COALESCE(item.unit_name_snapshot, unit.name) AS unit_name,
+        COALESCE(item.unit_code_snapshot, unit.unit_code) AS unit_code,
         item.requested_quantity,
         item.category_approved_quantity,
         item.distribution_method,
@@ -502,7 +537,7 @@ export async function listItemsForReviewBudgetRepo(
         ON reviewedUser.USER_ID = item.reviewed_by
       WHERE item.department_category_budget_id = @departmentCategoryBudgetId
         AND item.is_active = 1
-      ORDER BY catalogItem.name, item.id, distribution.period_type, distribution.period_no;
+      ORDER BY COALESCE(item.catalog_item_name_snapshot, catalogItem.name), item.id, distribution.period_type, distribution.period_no;
     `);
   return result.recordset;
 }

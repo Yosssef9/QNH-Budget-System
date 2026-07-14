@@ -45,7 +45,7 @@ function getReopenReviewBlockReason(budget) {
   return null;
 }
 
-export function mapReviewQueue({ rows = [], window = null } = {}) {
+export function mapReviewQueue({ rows = [], window = null, coverage = null } = {}) {
   const budgets = rows.map((row) => ({
     id: row.department_category_budget_id,
     department_category_budget_id: row.department_category_budget_id,
@@ -110,6 +110,22 @@ export function mapReviewQueue({ rows = [], window = null } = {}) {
 
   return {
     summary,
+    coverage: {
+      totalDepartments: Number(coverage?.total_department_count || 0),
+      submittedDepartments: Number(
+        coverage?.submitted_department_count ||
+          summary.departmentsSubmitted + summary.departmentsCompleted,
+      ),
+      notSubmittedDepartments: Number(
+        coverage?.not_submitted_department_count || 0,
+      ),
+      inReviewDepartments: Number(
+        coverage?.in_review_department_count || summary.departmentsSubmitted,
+      ),
+      completedDepartments: Number(
+        coverage?.completed_department_count || summary.departmentsCompleted,
+      ),
+    },
 
     submissionWindow: window
       ? {
@@ -159,6 +175,8 @@ export function mapCategoryReviewDetail({ budget, itemRows = [] }) {
 
         catalog_item_id: row.catalog_item_id,
         catalog_item_name: row.catalog_item_name,
+        catalog_item_code: row.catalog_item_code || null,
+        item_code: row.catalog_item_code || null,
         expense_type: row.expense_type,
 
         unit_of_measure_id: row.unit_of_measure_id,

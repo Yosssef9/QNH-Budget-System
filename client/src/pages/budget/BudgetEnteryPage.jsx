@@ -57,7 +57,12 @@ const CopyBudgetDrawer = lazy(
 );
 
 import RequestBudgetItemModal from "../../components/budgets/RequestBudgetItemModal";
-import AdjustmentRequestDrawer from "../../components/adjustment-requests/AdjustmentRequestDrawer";
+import {
+  CategorySubmissionWindowBadge,
+  CategorySubmissionWindowBanner,
+  getCategorySubmissionWindowState,
+} from "../../components/budgets/CategorySubmissionWindowStatus";
+
 export default function BudgetEnteryPage() {
   const {
     currentBudget,
@@ -119,7 +124,6 @@ export default function BudgetEnteryPage() {
   const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
   const [localBudgetStatus, setLocalBudgetStatus] = useState(null);
   const [requestItemModalOpen, setRequestItemModalOpen] = useState(false);
-  const [adjustmentDrawerOpen, setAdjustmentDrawerOpen] = useState(false);
   const [copyDrawerOpen, setCopyDrawerOpen] = useState(false);
   const [excelMenuOpen, setExcelMenuOpen] = useState(false);
   const [importErrors, setImportErrors] = useState([]);
@@ -135,9 +139,19 @@ export default function BudgetEnteryPage() {
     "IN_CATEGORY_REVIEW",
     "CATEGORY_REVIEW_COMPLETED",
   ].includes(budgetStatus);
-  const isPreClosing =
-    currentBudget?.financial_year_status === "PRE_CLOSING" ||
-    openYear?.status === "PRE_CLOSING";
+  const financialYearStatus =
+    currentBudget?.financial_year_status ||
+    openYear?.status ||
+    "UNKNOWN";
+
+  const activeSubmissionWindowState =
+    getCategorySubmissionWindowState(
+      activeCategoryBudget,
+      financialYearStatus,
+    );
+
+  const canSubmitActiveCategory =
+    activeSubmissionWindowState.canSubmit;
 
   const getRowSnapshot = useCallback((row) => {
     return JSON.stringify({
@@ -194,6 +208,12 @@ export default function BudgetEnteryPage() {
       toast.error("This budget cannot be submitted");
       return;
     }
+
+    if (!canSubmitActiveCategory) {
+      toast.error(activeSubmissionWindowState.blockedMessage);
+      return;
+    }
+
     if (rows.length === 0) {
       toast.error("Please add at least one budget item before submitting");
       return;
@@ -485,21 +505,6 @@ export default function BudgetEnteryPage() {
 
           <button
             type="button"
-            onClick={() => setAdjustmentDrawerOpen(true)}
-            disabled={!isPreClosing || !activeCategoryBudget?.id}
-            title={
-              isPreClosing
-                ? `Request an adjustment for ${activeCategoryName}`
-                : "Adjustment requests are available after PRE_CLOSING."
-            }
-            className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-semibold text-blue-700 shadow-sm transition-all duration-200 hover:scale-[1.02] hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <AlertCircle size={17} />
-            Request Adjustment
-          </button>
-
-          <button
-            type="button"
             onClick={handleSaveDraft}
             disabled={
               isBudgetLocked || !!validationError || saving || loadingSetup
@@ -515,17 +520,27 @@ export default function BudgetEnteryPage() {
             onClick={() => setConfirmSubmitOpen(true)}
             disabled={
               isBudgetLocked ||
+              !canSubmitActiveCategory ||
               !!validationError ||
               saving ||
               loadingSetup ||
               submitBudgetMutation.isPending
             }
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 hover:scale-[1.02]"
+            title={
+              !canSubmitActiveCategory
+                ? activeSubmissionWindowState.blockedMessage
+                : isBudgetLocked
+                  ? "Submitted category budgets are read-only."
+                  : undefined
+            }
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:scale-[1.02] hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Send size={17} />
             {submitBudgetMutation.isPending
               ? "Submitting..."
-              : "Review and Submit"}
+              : canSubmitActiveCategory
+                ? "Review and Submit"
+                : "Submission Closed"}
           </button>
         </div>
       </div>
@@ -871,11 +886,17 @@ export default function BudgetEnteryPage() {
         >
           {categoryBudgets.map((categoryBudget) => {
             const active =
-              Number(categoryBudget.id) === Number(activeCategoryBudgetId);
+              Number(categoryBudget.id) ===
+              Number(activeCategoryBudgetId);
+
             const count =
-              categoryBudget.items?.length ?? categoryBudget.item_count ?? 0;
+              categoryBudget.items?.length ??
+              categoryBudget.item_count ??
+              0;
+
             const label =
-              categoryBudget.status?.replaceAll("_", " ") || "DRAFT";
+              categoryBudget.status?.replaceAll("_", " ") ||
+              "DRAFT";
 
             return (
               <button
@@ -889,22 +910,46 @@ export default function BudgetEnteryPage() {
                   setLocalBudgetStatus(null);
                 }}
                 className={[
-                  "rounded-xl border px-4 py-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500",
+                  "rounded-2xl border px-4 py-4 text-left transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100",
                   active
-                    ? "border-blue-300 bg-blue-50 shadow-sm"
+                    ? "border-blue-300 bg-blue-50 shadow-sm ring-1 ring-blue-100"
                     : "border-slate-200 bg-white hover:border-blue-200 hover:bg-slate-50",
                 ].join(" ")}
               >
-                <div className="text-sm font-bold text-slate-900">
-                  {categoryBudget.category_name}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-black text-slate-900">
+                      {categoryBudget.category_name}
+                    </div>
+
+                    <div className="mt-1 text-xs font-semibold text-slate-500">
+                      {count} item{count === 1 ? "" : "s"}
+                    </div>
+                  </div>
+
+                  <CategorySubmissionWindowBadge
+                    categoryBudget={categoryBudget}
+                    financialYearStatus={financialYearStatus}
+                  />
                 </div>
-                <div className="mt-1 text-xs font-semibold text-slate-500">
-                  {count} item{count === 1 ? "" : "s"} · {label}
+
+                <div className="mt-3 border-t border-slate-200/70 pt-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                    Category budget status
+                  </p>
+                  <p className="mt-1 text-xs font-bold text-slate-700">
+                    {label}
+                  </p>
                 </div>
               </button>
             );
           })}
         </div>
+
+        <CategorySubmissionWindowBanner
+          categoryBudget={activeCategoryBudget}
+          financialYearStatus={financialYearStatus}
+        />
 
         <div className="max-h-[65vh] overflow-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
           <BudgetDistributionTable
@@ -1207,11 +1252,6 @@ export default function BudgetEnteryPage() {
         onClose={() => setRequestItemModalOpen(false)}
         categories={categories}
         defaultCategoryId={activeCategoryBudget?.category_id}
-      />
-      <AdjustmentRequestDrawer
-        open={adjustmentDrawerOpen}
-        onClose={() => setAdjustmentDrawerOpen(false)}
-        departmentCategoryBudget={activeCategoryBudget}
       />
       {copyDrawerOpen && (
         <Suspense fallback={null}>

@@ -14,7 +14,6 @@ import {
   ArrowRight,
   BarChart3,
   Building2,
-  CalendarDays,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
@@ -278,8 +277,7 @@ function DepartmentQueueItem({ budget, selected, onSelect }) {
             {budget.department_name}
           </p>
           <p className="mt-1 text-xs font-medium text-slate-500">
-            {budget.department_code || "Department"} · {total} item
-            {total === 1 ? "" : "s"}
+            {total} item{total === 1 ? "" : "s"}
           </p>
         </div>
         <StatusBadge status={budget.status} compact />
@@ -1012,6 +1010,19 @@ export default function CategoryReviewPage() {
     return result;
   }, [budgets]);
 
+  const coverage = queueQuery.data?.coverage || {};
+  const departmentCoverage = {
+    total: Number(coverage.totalDepartments || 0),
+    submitted: Number(coverage.submittedDepartments || 0),
+    notSubmitted: Number(coverage.notSubmittedDepartments || 0),
+    inReview: Number(coverage.inReviewDepartments || 0),
+    completed: Number(coverage.completedDepartments || 0),
+  };
+  const departmentCoverageProgress =
+    departmentCoverage.total > 0
+      ? (departmentCoverage.submitted / departmentCoverage.total) * 100
+      : 0;
+
   const filterCounts = useMemo(
     () => ({
       ALL: budgets.length,
@@ -1112,37 +1123,81 @@ export default function CategoryReviewPage() {
     },
   });
 
-  const closeWindowMutation = useMutation({
-    mutationFn: closeCategorySubmissionWindow,
-    onSuccess: () => {
-      toast.success("Category submission window closed");
-      setWindowModal(null);
-      setCloseReason("");
-      queryClient.invalidateQueries({ queryKey: ["category-review", "queue"] });
-    },
-    onError: (error) => {
-      toast.error(
-        error?.response?.data?.message ||
-          "Failed to close category submission window",
-      );
-    },
-  });
+  async function refreshSubmissionWindowAndPackageWorkspace() {
+  await Promise.all([
+    /*
+      Refresh the Category Manager queue and submission-window status.
+    */
+    queryClient.invalidateQueries({
+      queryKey: ["category-review"],
+      refetchType: "active",
+    }),
 
-  const reopenWindowMutation = useMutation({
-    mutationFn: reopenCategorySubmissionWindow,
-    onSuccess: () => {
-      toast.success("Category submission window reopened");
-      setWindowModal(null);
-      setReopenReason("");
-      queryClient.invalidateQueries({ queryKey: ["category-review", "queue"] });
-    },
-    onError: (error) => {
-      toast.error(
-        error?.response?.data?.message ||
-          "Failed to reopen category submission window",
-      );
-    },
-  });
+    /*
+      Refresh CategoryPackageWorkbench.
+
+      This updates:
+      - packageData.submission_window.status
+      - packageData.readiness.ready
+      - packageData.readiness.blockers
+      - the Submit Package to CFO button
+    */
+    queryClient.invalidateQueries({
+      queryKey: ["category-packages"],
+      refetchType: "active",
+    }),
+  ]);
+}
+
+const closeWindowMutation = useMutation({
+  mutationFn: closeCategorySubmissionWindow,
+
+  onSuccess: async () => {
+    /*
+      Keep the confirmation modal in its loading state until both
+      the review queue and package workbench contain fresh data.
+    */
+    await refreshSubmissionWindowAndPackageWorkspace();
+
+    setWindowModal(null);
+    setCloseReason("");
+
+    toast.success(
+      "Category submission window closed. The package is ready for the next step.",
+    );
+  },
+
+  onError: (error) => {
+    toast.error(
+      error?.response?.data?.message ||
+        "Failed to close category submission window",
+    );
+  },
+});
+
+const reopenWindowMutation = useMutation({
+  mutationFn: reopenCategorySubmissionWindow,
+
+  onSuccess: async () => {
+    /*
+      Refresh both areas so Submit to CFO is disabled immediately
+      when the submission window is reopened.
+    */
+    await refreshSubmissionWindowAndPackageWorkspace();
+
+    setWindowModal(null);
+    setReopenReason("");
+
+    toast.success("Category submission window reopened");
+  },
+
+  onError: (error) => {
+    toast.error(
+      error?.response?.data?.message ||
+        "Failed to reopen category submission window",
+    );
+  },
+});
 
   useEffect(() => {
     const budgetId = selectedBudget?.id;
@@ -1470,6 +1525,77 @@ export default function CategoryReviewPage() {
     </div>
   ) : null}
 </header>
+
+        <section className="overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-white via-blue-50/40 to-slate-50 shadow-sm">
+          <div className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white">
+                  <Building2 className="h-4 w-4" />
+                </span>
+                <div>
+                  <p className="text-sm font-black text-slate-950">
+                    Department coverage
+                  </p>
+                  <p className="text-xs font-medium text-slate-500">
+                    FY {financialYear} · {activeCategoryName}
+                  </p>
+                </div>
+              </div>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+                Shows how many departments are part of this category cycle, how
+                many already submitted, and how many are still excluded from
+                review until they submit before closure.
+              </p>
+            </div>
+
+            <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[520px]">
+              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                <p className="text-[11px] font-black uppercase tracking-wide text-slate-500">
+                  Departments
+                </p>
+                <p className="mt-1 text-2xl font-black text-slate-950">
+                  {departmentCoverage.total}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                <p className="text-[11px] font-black uppercase tracking-wide text-emerald-700">
+                  Submitted
+                </p>
+                <p className="mt-1 text-2xl font-black text-emerald-900">
+                  {departmentCoverage.submitted}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="text-[11px] font-black uppercase tracking-wide text-amber-700">
+                  Not submitted
+                </p>
+                <p className="mt-1 text-2xl font-black text-amber-900">
+                  {departmentCoverage.notSubmitted}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
+                <p className="text-[11px] font-black uppercase tracking-wide text-blue-700">
+                  Review complete
+                </p>
+                <p className="mt-1 text-2xl font-black text-blue-900">
+                  {departmentCoverage.completed}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-blue-100 px-5 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-slate-600">
+              <span>
+                {departmentCoverage.submitted} of {departmentCoverage.total}{" "}
+                departments submitted
+              </span>
+              <span>{Math.round(departmentCoverageProgress)}%</span>
+            </div>
+            <ProgressBar value={departmentCoverageProgress} className="mt-2" />
+          </div>
+        </section>
 
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="grid divide-y divide-slate-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">

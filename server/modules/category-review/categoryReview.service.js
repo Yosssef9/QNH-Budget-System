@@ -25,6 +25,7 @@ import {
   reopenSubmissionWindowRepo,
   updateItemReviewDecisionRepo,
   findDepartmentCategoryReviewReopenContextRepo,
+  getCategoryDepartmentCoverageRepo,
   reopenDepartmentCategoryReviewRepo,
   markPackageItemNeedsReconciliationRepo,
 } from "./categoryReview.repository.js";
@@ -188,18 +189,26 @@ export async function listCategoryReviewQueueService({ budgetAccess }) {
 
   const budgetCategoryId = assertCategoryWorkspace(budgetAccess);
 
-  const [rows, window] = await Promise.all([
+  const window = await findOpenSubmissionWindowForCategoryRepo({
+    budgetCategoryId,
+  });
+
+  const [rows, coverage] = await Promise.all([
     listCategoryReviewQueueRepo({
       budgetCategoryId,
     }),
-    findOpenSubmissionWindowForCategoryRepo({
-      budgetCategoryId,
-    }),
+    window?.financial_year_id
+      ? getCategoryDepartmentCoverageRepo({
+          financialYearId: window.financial_year_id,
+          budgetCategoryId,
+        })
+      : null,
   ]);
 
   return mapReviewQueue({
     rows,
     window,
+    coverage,
   });
 }
 
@@ -366,6 +375,14 @@ export async function reopenCategorySubmissionWindowService({
         409,
         "This category submission window is already open",
         "CATEGORY_SUBMISSION_WINDOW_ALREADY_OPEN",
+      );
+    }
+
+    if (window.submitted_to_cfo_at) {
+      throw new ApiError(
+        400,
+        "Submission window cannot be reopened because this category package has already been submitted to CFO.",
+        "CATEGORY_SUBMISSION_WINDOW_REOPEN_BLOCKED_AFTER_CFO_SUBMISSION",
       );
     }
 

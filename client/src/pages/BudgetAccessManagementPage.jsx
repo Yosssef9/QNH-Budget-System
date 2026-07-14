@@ -39,6 +39,12 @@ const departmentScopedRoles = [
 
 const emptyPermissionRows = [];
 
+const permissionOverrideOptions = [
+  { value: "INHERIT", label: "Inherit" },
+  { value: "GRANT", label: "Grant" },
+  { value: "DENY", label: "Deny" },
+];
+
 const emptyForm = {
   id: null,
   user_id: null,
@@ -705,20 +711,23 @@ export default function BudgetAccessManagementPage() {
                                       </p>
                                     </div>
 
-                                    <select
-                                      value={selectedAction}
-                                      onChange={(e) =>
-                                        handlePermissionOverrideChange(
-                                          permission.permission_id,
-                                          e.target.value,
-                                        )
-                                      }
-                                      className="h-10 rounded-lg border border-enterprise-border bg-white px-3 text-sm font-medium text-enterprise-text outline-none transition focus:border-primary-300 focus:ring-4 focus:ring-primary-50"
-                                    >
-                                      <option value="INHERIT">Inherit</option>
-                                      <option value="GRANT">Grant</option>
-                                      <option value="DENY">Deny</option>
-                                    </select>
+                                  <SearchableMultiSelect
+  name={`permission_override_${permission.permission_id}`}
+  multiple={false}
+  disableClear
+  value={selectedAction}
+  options={permissionOverrideOptions}
+  placeholder="Select override"
+  searchPlaceholder="Search override..."
+  noResultsText="No override actions found"
+  maxVisibleBadges={1}
+  onChange={(event) =>
+    handlePermissionOverrideChange(
+      permission.permission_id,
+      event.target.value,
+    )
+  }
+/>
                                   </div>
                                 );
                               })}

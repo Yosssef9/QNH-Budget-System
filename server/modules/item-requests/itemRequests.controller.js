@@ -89,7 +89,6 @@ export const approveAndCreateItemRequest = asyncHandler(async (req, res) => {
   const result = await approveAndCreateItemRequestService({
     requestId,
     adminNote: payload.adminNote,
-    unitOfMeasureId: payload.unitOfMeasureId,
     reviewedBy: req.user.userId,
   });
 

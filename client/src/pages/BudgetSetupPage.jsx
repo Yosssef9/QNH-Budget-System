@@ -70,7 +70,6 @@ export default function BudgetSetupPage() {
   const [expenseType, setExpenseType] = useState("OPEX");
   const [requestStatus, setRequestStatus] = useState("PENDING");
   const [adminNotes, setAdminNotes] = useState({});
-  const [requestAutoCreateUnitIds, setRequestAutoCreateUnitIds] = useState({});
   const [search, setSearch] = useState("");
   const [categorySearch, setCategorySearch] = useState("");
   const deferredItemSearch = useDeferredValue(search);
@@ -171,7 +170,7 @@ export default function BudgetSetupPage() {
       return `Are you sure you want to ${action} "${targetName}"?`;
     }
 
-    return `"${targetName}" is already used in ${usage.length} budget(s). Review the details before continuing.`;
+    return `"${targetName}" is already used in ${usage.length} department budget(s). Review the details before continuing.`;
   }
 
   async function handleCreateCategory(e) {
@@ -304,7 +303,9 @@ export default function BudgetSetupPage() {
       }
 
       setRequestAction(null);
-    } catch {}
+    } catch {
+      // The action handlers already show the specific toast error.
+    }
   }
   function startEditCategory(category) {
     setEditingCategoryId(category.id);
@@ -614,18 +615,17 @@ export default function BudgetSetupPage() {
     }
   }
   async function handleApproveAndCreateRequest(request) {
-    const unitOfMeasureId = requestAutoCreateUnitIds[request.id];
-
-    if (!unitOfMeasureId) {
-      toast.error("Select Unit of Measure before auto-creating the item");
-      throw new Error("Unit of Measure is required");
+    if (!request.unit_of_measure_id) {
+      toast.error(
+        "This request does not include a Unit of Measure. Approve it manually and create the item from Catalog Setup.",
+      );
+      throw new Error("Request Unit of Measure is required");
     }
 
     try {
       await approveAndCreateMutation.mutateAsync({
         requestId: request.id,
         adminNote: adminNotes[request.id] || null,
-        unitOfMeasureId: Number(unitOfMeasureId),
       });
 
       toast.success("Request approved and catalog item created");
@@ -910,6 +910,19 @@ export default function BudgetSetupPage() {
                                             "OPEX"}
                                         </span>
                                       </div>
+                                    </div>
+                                    <div className="rounded-xl bg-white p-3">
+                                      <p className="text-xs font-bold text-slate-500">
+                                        Unit of Measure
+                                      </p>
+                                      <p className="mt-1 font-semibold text-slate-900">
+                                        {request.unit_of_measure_name || "-"}
+                                      </p>
+                                      {request.unit_of_measure_code ? (
+                                        <p className="mt-1 text-xs font-semibold text-slate-500">
+                                          {request.unit_of_measure_code}
+                                        </p>
+                                      ) : null}
                                     </div>
                                     <div className="rounded-xl bg-white p-3">
                                       <p className="text-xs font-bold text-slate-500">
@@ -1670,39 +1683,24 @@ export default function BudgetSetupPage() {
                   {requestAction.request?.requested_expense_type || "OPEX"}
                 </p>
               </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                  Unit of Measure
+                </p>
+                <p className="mt-1 font-bold text-slate-900">
+                  {requestAction.request?.unit_of_measure_name || "-"}
+                  {requestAction.request?.unit_of_measure_code
+                    ? ` (${requestAction.request.unit_of_measure_code})`
+                    : ""}
+                </p>
+              </div>
             </div>
 
-            <div>
-              <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-600">
-                Unit of Measure
-              </label>
-              <SearchableMultiSelect
-                multiple={false}
-                disableClear
-                value={
-                  requestAutoCreateUnitIds[requestAction.request?.id] || ""
-                }
-                onChange={(event) =>
-                  setRequestAutoCreateUnitIds((prev) => ({
-                    ...prev,
-                    [requestAction.request.id]: event.target.value,
-                  }))
-                }
-                options={unitsOfMeasure}
-                placeholder="Select unit of measure"
-                searchPlaceholder="Search units..."
-                getOptionLabel={(unit) =>
-                  unit.unit_code
-                    ? `${unit.name} (${unit.unit_code})`
-                    : unit.name
-                }
-                getOptionValue={(unit) => String(unit.id)}
-              />
-              <p className="mt-2 text-xs font-medium text-slate-500">
-                The request does not store a unit. Select the catalog unit for
-                the new item before auto-creating it.
-              </p>
-            </div>
+            <p className="text-xs font-medium text-emerald-800">
+              Auto-create will use the request category, expense type, item
+              name, and Unit of Measure. No additional catalog fields are
+              required from admin.
+            </p>
           </div>
         )}
       </ConfirmModal>
@@ -1723,13 +1721,13 @@ export default function BudgetSetupPage() {
           <div className="max-h-72 overflow-y-auto rounded-2xl border border-amber-200 bg-amber-50 p-3">
             <div className="mb-3 flex items-center gap-2 text-sm font-bold text-amber-900">
               <AlertTriangle size={16} />
-              Existing budgets using this record
+              Existing department budgets using this record
             </div>
 
             <div className="space-y-2">
               {confirmAction.usage.map((budget) => (
                 <div
-                  key={budget.budget_id}
+                  key={budget.usage_key || budget.budget_id}
                   className="rounded-xl border border-amber-100 bg-white p-3 text-sm"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1746,7 +1744,7 @@ export default function BudgetSetupPage() {
                     </span>
                   </div>
 
-                  <div className="mt-2 grid gap-2 text-xs text-slate-600 sm:grid-cols-3">
+                  <div className="mt-2 grid gap-2 text-xs text-slate-600 sm:grid-cols-4">
                     <p>
                       Year:{" "}
                       <span className="font-bold text-slate-900">
@@ -1762,9 +1760,20 @@ export default function BudgetSetupPage() {
                     </p>
 
                     <p>
-                      Total:{" "}
+                      Requested:{" "}
                       <span className="font-bold text-slate-900">
-                        {Number(budget.total_amount || 0).toLocaleString()}
+                        {Number(
+                          budget.total_requested_quantity ?? 0,
+                        ).toLocaleString()}
+                      </span>
+                    </p>
+
+                    <p>
+                      Approved:{" "}
+                      <span className="font-bold text-slate-900">
+                        {Number(
+                          budget.total_approved_quantity ?? 0,
+                        ).toLocaleString()}
                       </span>
                     </p>
                   </div>

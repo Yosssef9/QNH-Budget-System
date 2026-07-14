@@ -24,13 +24,11 @@ export async function approveItemRequest({ requestId, adminNote }) {
 export async function approveAndCreateItemRequest({
   requestId,
   adminNote,
-  unitOfMeasureId,
 }) {
   const response = await api.post(
     `/item-requests/${requestId}/approve-and-create`,
     {
       adminNote,
-      unitOfMeasureId,
     },
   );
 

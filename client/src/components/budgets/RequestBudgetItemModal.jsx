@@ -4,7 +4,10 @@ import { PackagePlus, X } from "lucide-react";
 
 import Input from "../Input";
 import SearchableMultiSelect from "../SearchableMultiSelect";
-import { useCreateItemRequest } from "../../hooks/budgets/useBudgetSetup";
+import {
+  useCreateItemRequest,
+  useSetupUnitsOfMeasure,
+} from "../../hooks/budgets/useBudgetSetup";
 
 export default function RequestBudgetItemModal({
   open,
@@ -16,8 +19,10 @@ export default function RequestBudgetItemModal({
     useState("");
   const [requestTypeName, setRequestTypeName] = useState("");
   const [requestExpenseType, setRequestExpenseType] = useState("OPEX");
+  const [requestUnitOfMeasureId, setRequestUnitOfMeasureId] = useState("");
 
   const createItemRequestMutation = useCreateItemRequest();
+  const unitsQuery = useSetupUnitsOfMeasure();
   const supportedCategories = useMemo(
     () =>
       categories.filter((category) => {
@@ -50,6 +55,7 @@ export default function RequestBudgetItemModal({
     setRequestExistingCategoryId("");
     setRequestTypeName("");
     setRequestExpenseType("OPEX");
+    setRequestUnitOfMeasureId("");
   }
 
   function handleClose() {
@@ -74,6 +80,11 @@ export default function RequestBudgetItemModal({
       return;
     }
 
+    if (!requestUnitOfMeasureId) {
+      toast.error("Unit of Measure is required");
+      return;
+    }
+
     const selectedCategory = supportedCategories.find(
       (category) => String(category.id) === String(selectedCategoryId),
     );
@@ -90,6 +101,7 @@ export default function RequestBudgetItemModal({
         existingCategoryId: Number(selectedCategoryId),
         requestedTypeName: typeName,
         expenseType: requestExpenseType,
+        unitOfMeasureId: Number(requestUnitOfMeasureId),
       });
 
       toast.success("Item request sent to admin successfully", {
@@ -205,6 +217,35 @@ export default function RequestBudgetItemModal({
                 searchPlaceholder="Search expense types..."
                 getOptionValue={(option) => option.id}
                 getOptionLabel={(option) => option.name}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="text-sm font-bold text-slate-900">
+              Unit of Measure
+            </label>
+
+            <div className="mt-2">
+              <SearchableMultiSelect
+                usePortal={false}
+                multiple={false}
+                disableClear
+                value={requestUnitOfMeasureId}
+                onChange={(e) => setRequestUnitOfMeasureId(e.target.value)}
+                options={unitsQuery.data || []}
+                placeholder="Select unit of measure"
+                searchPlaceholder="Search units..."
+                noResultsText={
+                  unitsQuery.isLoading
+                    ? "Loading units..."
+                    : "No units of measure found"
+                }
+                getOptionValue={(option) => String(option.id)}
+                getOptionLabel={(option) =>
+                  option.unit_code
+                    ? `${option.name} (${option.unit_code})`
+                    : option.name
+                }
               />
             </div>
           </div>

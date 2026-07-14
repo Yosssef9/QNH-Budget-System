@@ -560,20 +560,35 @@ export async function getCategoryUsageRepo(categoryId) {
   const pool = await poolPromise;
   const result = await pool.request().input("categoryId", sql.Int, categoryId).query(`
     SELECT
-      ci.id AS budget_id,
-      ci.name AS department_name,
-      'Catalog' AS financial_year,
-      CASE WHEN ci.is_active = 1 THEN 'DRAFT' ELSE 'CLOSED' END AS status,
-      COUNT(si.id) AS items_count,
-      0 AS total_amount
-    FROM dbo.BS_budget_catalog_items AS ci
-    LEFT JOIN dbo.BS_budget_catalog_sub_items AS si
-      ON si.catalog_item_id = ci.id
-      AND si.is_active = 1
-    WHERE ci.budget_category_id = @categoryId
-      AND ci.is_active = 1
-    GROUP BY ci.id, ci.name, ci.is_active
-    ORDER BY ci.name;
+      dcb.id AS budget_id,
+      CONCAT('department-category-budget:', dcb.id) AS usage_key,
+      dept.name AS department_name,
+      dept.department_code,
+      fy.year AS financial_year,
+      fy.status AS financial_year_status,
+      dcb.status,
+      COUNT(item.id) AS items_count,
+      COALESCE(SUM(item.requested_quantity), 0) AS total_requested_quantity,
+      COALESCE(SUM(item.category_approved_quantity), 0) AS total_approved_quantity
+    FROM dbo.BS_department_category_budget_items AS item
+    INNER JOIN dbo.BS_department_category_budgets AS dcb
+      ON dcb.id = item.department_category_budget_id
+    INNER JOIN dbo.BS_department_budgets AS db
+      ON db.id = dcb.department_budget_id
+    INNER JOIN dbo.BS_financial_years AS fy
+      ON fy.id = db.financial_year_id
+    INNER JOIN dbo.BS_departments AS dept
+      ON dept.id = db.department_id
+    WHERE dcb.budget_category_id = @categoryId
+      AND item.is_active = 1
+    GROUP BY
+      dcb.id,
+      dept.name,
+      dept.department_code,
+      fy.year,
+      fy.status,
+      dcb.status
+    ORDER BY fy.year DESC, dept.name;
   `);
   return result.recordset;
 }
@@ -583,18 +598,35 @@ export async function getCatalogItemUsageRepo(catalogItemId) {
   const result = await pool.request().input("catalogItemId", sql.Int, catalogItemId)
     .query(`
       SELECT
-        ci.id AS budget_id,
-        ci.name AS department_name,
-        'Catalog' AS financial_year,
-        CASE WHEN ci.is_active = 1 THEN 'DRAFT' ELSE 'CLOSED' END AS status,
-        COUNT(si.id) AS items_count,
-        0 AS total_amount
-      FROM dbo.BS_budget_catalog_items AS ci
-      LEFT JOIN dbo.BS_budget_catalog_sub_items AS si
-        ON si.catalog_item_id = ci.id
-        AND si.is_active = 1
-      WHERE ci.id = @catalogItemId
-      GROUP BY ci.id, ci.name, ci.is_active;
+        dcb.id AS budget_id,
+        CONCAT('department-category-budget:', dcb.id) AS usage_key,
+        dept.name AS department_name,
+        dept.department_code,
+        fy.year AS financial_year,
+        fy.status AS financial_year_status,
+        dcb.status,
+        COUNT(item.id) AS items_count,
+        COALESCE(SUM(item.requested_quantity), 0) AS total_requested_quantity,
+        COALESCE(SUM(item.category_approved_quantity), 0) AS total_approved_quantity
+      FROM dbo.BS_department_category_budget_items AS item
+      INNER JOIN dbo.BS_department_category_budgets AS dcb
+        ON dcb.id = item.department_category_budget_id
+      INNER JOIN dbo.BS_department_budgets AS db
+        ON db.id = dcb.department_budget_id
+      INNER JOIN dbo.BS_financial_years AS fy
+        ON fy.id = db.financial_year_id
+      INNER JOIN dbo.BS_departments AS dept
+        ON dept.id = db.department_id
+      WHERE item.catalog_item_id = @catalogItemId
+        AND item.is_active = 1
+      GROUP BY
+        dcb.id,
+        dept.name,
+        dept.department_code,
+        fy.year,
+        fy.status,
+        dcb.status
+      ORDER BY fy.year DESC, dept.name;
     `);
   return result.recordset;
 }

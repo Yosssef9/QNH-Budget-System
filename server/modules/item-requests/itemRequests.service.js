@@ -175,11 +175,21 @@ export async function createItemRequestService({ payload, requestedBy, budgetAcc
   const category = assertSupportedCategory(
     await findSupportedCategoryByIdRepo(payload.existingCategoryId),
   );
+  const unit = await findUnitByIdRepo(payload.unitOfMeasureId);
+
+  if (!unit) {
+    throw new ApiError(
+      400,
+      "Select an active Unit of Measure for the requested item",
+      "ITEM_REQUEST_UNIT_REQUIRED",
+    );
+  }
 
   const request = await createItemRequestRepo({
     existingCategoryId: category.id,
     requestedTypeName: payload.requestedTypeName,
     requestedExpenseType: payload.expenseType,
+    unitOfMeasureId: unit.id,
     requestedBy,
   });
 
@@ -201,6 +211,9 @@ export async function createItemRequestService({ payload, requestedBy, budgetAcc
     ...request,
     existing_category_name: category.name,
     existing_category_code: category.category_code,
+    unit_of_measure_id: unit.id,
+    unit_of_measure_name: unit.name,
+    unit_of_measure_code: unit.unit_code,
   };
 }
 
@@ -241,7 +254,6 @@ export async function approveItemRequestService({
 export async function approveAndCreateItemRequestService({
   requestId,
   adminNote,
-  unitOfMeasureId,
   reviewedBy,
 }) {
   const request = await findItemRequestByIdRepo(requestId);
@@ -249,7 +261,7 @@ export async function approveAndCreateItemRequestService({
 
   const { category, unit, itemCode } = await validateAutoCreateCatalogPayload({
     request,
-    unitOfMeasureId,
+    unitOfMeasureId: request.unit_of_measure_id,
   });
 
   let createdCatalogItem;

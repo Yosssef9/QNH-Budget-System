@@ -21,6 +21,9 @@ export async function getItemRequestsRepo(status) {
       r.requested_category_name,
       r.requested_type_name,
       r.requested_expense_type,
+      r.unit_of_measure_id,
+      unit.name AS unit_of_measure_name,
+      unit.unit_code AS unit_of_measure_code,
       r.existing_category_id,
       c.name AS existing_category_name,
       c.category_code AS existing_category_code,
@@ -38,6 +41,8 @@ export async function getItemRequestsRepo(status) {
     FROM dbo.BS_budget_item_requests AS r
     LEFT JOIN dbo.BS_budget_categories AS c
       ON c.id = r.existing_category_id
+    LEFT JOIN dbo.BS_units_of_measure AS unit
+      ON unit.id = r.unit_of_measure_id
     LEFT JOIN dbo.users AS u
       ON u.USER_ID = r.requested_by
     OUTER APPLY (
@@ -82,6 +87,7 @@ export async function createItemRequestRepo({
   existingCategoryId,
   requestedTypeName,
   requestedExpenseType,
+  unitOfMeasureId,
   requestedBy,
 }) {
   const pool = await poolPromise;
@@ -91,9 +97,11 @@ export async function createItemRequestRepo({
     .input("existingCategoryId", sql.Int, existingCategoryId)
     .input("requestedTypeName", sql.VarChar(200), requestedTypeName)
     .input("requestedExpenseType", sql.VarChar(10), requestedExpenseType)
+    .input("unitOfMeasureId", sql.Int, unitOfMeasureId)
     .input("requestedBy", sql.Int, requestedBy).query(`
       INSERT INTO dbo.BS_budget_item_requests (
         existing_category_id,
+        unit_of_measure_id,
         requested_category_name,
         requested_type_name,
         requested_expense_type,
@@ -104,6 +112,7 @@ export async function createItemRequestRepo({
       OUTPUT INSERTED.*
       VALUES (
         @existingCategoryId,
+        @unitOfMeasureId,
         NULL,
         @requestedTypeName,
         @requestedExpenseType,
@@ -123,12 +132,16 @@ export async function findItemRequestByIdRepo(requestId) {
     .query(`
       SELECT TOP 1
         r.*,
+        unit.name AS unit_of_measure_name,
+        unit.unit_code AS unit_of_measure_code,
         c.category_code AS existing_category_code,
         c.name AS existing_category_name,
         c.is_active AS existing_category_is_active
       FROM dbo.BS_budget_item_requests AS r
       LEFT JOIN dbo.BS_budget_categories AS c
         ON c.id = r.existing_category_id
+      LEFT JOIN dbo.BS_units_of_measure AS unit
+        ON unit.id = r.unit_of_measure_id
       WHERE r.id = @requestId;
     `);
 
@@ -202,6 +215,9 @@ export async function getDashboardItemRequestsRepo({
         r.requested_category_name,
         r.requested_type_name,
         r.requested_expense_type,
+        r.unit_of_measure_id,
+        unit.name AS unit_of_measure_name,
+        unit.unit_code AS unit_of_measure_code,
         r.existing_category_id,
         c.name AS existing_category_name,
         c.category_code AS existing_category_code,
@@ -214,6 +230,8 @@ export async function getDashboardItemRequestsRepo({
       FROM dbo.BS_budget_item_requests AS r
       LEFT JOIN dbo.BS_budget_categories AS c
         ON c.id = r.existing_category_id
+      LEFT JOIN dbo.BS_units_of_measure AS unit
+        ON unit.id = r.unit_of_measure_id
       LEFT JOIN dbo.users AS u
         ON u.USER_ID = r.requested_by
       OUTER APPLY (

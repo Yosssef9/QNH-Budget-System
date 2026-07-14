@@ -93,6 +93,10 @@ export function validateCreateItemRequest(body) {
     requestedCategoryName: null,
     requestedTypeName,
     expenseType,
+    unitOfMeasureId: normalizePositiveInt(
+      body?.unitOfMeasureId ?? body?.unit_of_measure_id,
+      "Unit of Measure",
+    ),
   };
 }
 
@@ -119,11 +123,5 @@ export function validateItemRequestDecision(body) {
 }
 
 export function validateItemRequestAutoCreateDecision(body) {
-  return {
-    ...validateItemRequestDecision(body),
-    unitOfMeasureId: normalizePositiveInt(
-      body?.unitOfMeasureId ?? body?.unit_of_measure_id,
-      "unitOfMeasureId",
-    ),
-  };
+  return validateItemRequestDecision(body);
 }

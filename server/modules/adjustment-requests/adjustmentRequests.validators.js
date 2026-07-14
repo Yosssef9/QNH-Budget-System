@@ -85,15 +85,11 @@ export function validateCreateAdjustmentRequest(body = {}) {
     body.requestedQuantity ?? body.proposed_requested_quantity,
     "requestedQuantity",
   );
-  const requestedAmount = normalizePositiveNumber(
-    body.requestedAmount ?? body.requested_amount,
-    "requestedAmount",
-  );
 
-  if (requestedQuantity === null && requestedAmount === null) {
+  if (requestedQuantity === null) {
     throw new ApiError(
       400,
-      "Enter requested quantity or requested amount",
+      "Enter requested quantity",
       "ADJUSTMENT_REQUEST_VALUE_REQUIRED",
     );
   }
@@ -113,7 +109,6 @@ export function validateCreateAdjustmentRequest(body = {}) {
       "catalogItemId",
     ),
     requestedQuantity,
-    requestedAmount,
     reason: normalizeText(body.reason, "Reason", 2000),
     description: normalizeText(body.description, "Description", 1000, {
       required: false,

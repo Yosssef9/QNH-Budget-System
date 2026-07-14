@@ -32,8 +32,6 @@ export function mapAdjustmentRequest(row) {
         row.proposed_requested_quantity === null
           ? null
           : Number(row.proposed_requested_quantity),
-      requested_amount:
-        row.requested_amount === null ? null : Number(row.requested_amount),
       description: row.description,
     },
     category: {

@@ -30,7 +30,6 @@ const requestSelect = `
     catalog.expense_type,
     cri.current_requested_quantity,
     cri.proposed_requested_quantity,
-    cri.requested_amount,
     cri.description,
     dcb.budget_category_id,
     category.name AS category_name,
@@ -183,7 +182,6 @@ export async function createAdjustmentRequestRepo(transaction, payload) {
     .input("catalogItemId", sql.Int, payload.catalogItemId)
     .input("currentRequestedQuantity", sql.Decimal(18, 4), payload.currentRequestedQuantity)
     .input("proposedRequestedQuantity", sql.Decimal(18, 4), payload.requestedQuantity)
-    .input("requestedAmount", sql.Decimal(18, 6), payload.requestedAmount)
     .input("description", sql.NVarChar(1000), payload.description)
     .query(`
       INSERT INTO dbo.BS_budget_change_request_items
@@ -191,22 +189,20 @@ export async function createAdjustmentRequestRepo(transaction, payload) {
         change_request_id,
         change_type,
         existing_department_budget_item_id,
-        catalog_item_id,
-        current_requested_quantity,
-        proposed_requested_quantity,
-        requested_amount,
-        description
+          catalog_item_id,
+          current_requested_quantity,
+          proposed_requested_quantity,
+          description
       )
       VALUES
       (
         @changeRequestId,
         @changeType,
         @existingItemId,
-        @catalogItemId,
-        @currentRequestedQuantity,
-        @proposedRequestedQuantity,
-        @requestedAmount,
-        @description
+          @catalogItemId,
+          @currentRequestedQuantity,
+          @proposedRequestedQuantity,
+          @description
       );
     `);
 

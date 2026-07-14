@@ -55,8 +55,7 @@ BEGIN
     existing_department_budget_item_id BIGINT NULL,
     catalog_item_id INT NOT NULL,
     current_requested_quantity DECIMAL(18,4) NULL,
-    proposed_requested_quantity DECIMAL(18,4) NULL,
-    requested_amount DECIMAL(18,6) NULL,
+    proposed_requested_quantity DECIMAL(18,4) NOT NULL,
     proposed_distribution_method VARCHAR(40) NULL,
     description NVARCHAR(1000) NULL,
     category_review_status VARCHAR(40) NULL,
@@ -78,22 +77,16 @@ BEGIN
   );
 END;
 
-IF COL_LENGTH('dbo.BS_budget_change_request_items', 'requested_amount') IS NULL
-BEGIN
-  ALTER TABLE dbo.BS_budget_change_request_items
-    ADD requested_amount DECIMAL(18,6) NULL;
-END;
-
 IF EXISTS (
   SELECT 1
   FROM sys.columns
   WHERE object_id = OBJECT_ID('dbo.BS_budget_change_request_items')
     AND name = 'proposed_requested_quantity'
-    AND is_nullable = 0
+    AND is_nullable = 1
 )
 BEGIN
   ALTER TABLE dbo.BS_budget_change_request_items
-    ALTER COLUMN proposed_requested_quantity DECIMAL(18,4) NULL;
+    ALTER COLUMN proposed_requested_quantity DECIMAL(18,4) NOT NULL;
 END;
 
 DECLARE @constraintName SYSNAME;
@@ -140,9 +133,7 @@ IF @constraintName IS NOT NULL
 ALTER TABLE dbo.BS_budget_change_request_items WITH CHECK
   ADD CONSTRAINT CK_BS_budget_change_request_items_request_value
   CHECK (
-    (proposed_requested_quantity IS NOT NULL AND proposed_requested_quantity > 0)
-    OR
-    (requested_amount IS NOT NULL AND requested_amount > 0)
+    proposed_requested_quantity > 0
   );
 
 SELECT @constraintName = name

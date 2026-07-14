@@ -194,6 +194,24 @@ export async function createAdjustmentRequestService({
         "ADJUSTMENT_REQUEST_ITEM_MISMATCH",
       );
     }
+
+    const approvedQuantity = Number(existingItem.category_approved_quantity || 0);
+
+    if (payload.requestedQuantity === null || payload.requestedQuantity === undefined) {
+      throw new ApiError(
+        400,
+        "Enter the new requested quantity for the approved item",
+        "ADJUSTMENT_REQUEST_QUANTITY_REQUIRED",
+      );
+    }
+
+    if (Number(payload.requestedQuantity) <= approvedQuantity) {
+      throw new ApiError(
+        400,
+        "Requested quantity must be greater than the current approved quantity",
+        "ADJUSTMENT_REQUEST_QUANTITY_NOT_INCREASED",
+      );
+    }
   }
 
   if (payload.requestType === ADJUSTMENT_REQUEST_TYPES.ADD_ITEM) {
@@ -219,9 +237,9 @@ export async function createAdjustmentRequestService({
       existingDepartmentBudgetItemId:
         payload.existingDepartmentBudgetItemId || null,
       catalogItemId: payload.catalogItemId,
-      currentRequestedQuantity: existingItem?.requested_quantity ?? null,
+      currentRequestedQuantity:
+        existingItem?.category_approved_quantity ?? null,
       requestedQuantity: payload.requestedQuantity,
-      requestedAmount: payload.requestedAmount,
       reason: payload.reason,
       description: payload.description,
       submittedBy: actorId,

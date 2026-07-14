@@ -1,10 +1,18 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2, Clock3, FileText, Search, XCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  Clock3,
+  Eye,
+  FileText,
+  Search,
+  XCircle,
+} from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import { getMyTransfers } from "../../api/transfer.api";
+import { getMyTransfers, getTransferById } from "../../api/transfer.api";
 import CurrencyText from "../CurrencyText";
 import EnterpriseSearch from "../EnterpriseSearch";
+import TransferDetailsDrawer from "./TransferDetailsDrawer";
 import { formatDateTime } from "../../utils/dateFormatters";
 
 function StatusBadge({ status }) {
@@ -28,6 +36,7 @@ function StatusBadge({ status }) {
 export default function TransferTable() {
   const [status, setStatus] = useState("ALL");
   const [search, setSearch] = useState("");
+  const [selectedTransfer, setSelectedTransfer] = useState(null);
 
   const { data = [], isLoading } = useQuery({
     queryKey: ["my-transfers"],
@@ -58,6 +67,15 @@ export default function TransferTable() {
       rejected: data.filter((x) => x.status === "REJECTED").length,
     };
   }, [data]);
+
+  async function openTransferDetails(row) {
+    try {
+      const detail = await getTransferById(row.id);
+      setSelectedTransfer(detail);
+    } catch {
+      setSelectedTransfer(row);
+    }
+  }
 
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -215,12 +233,22 @@ export default function TransferTable() {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl bg-slate-50 px-5 py-4 text-right">
+                  <div className="flex flex-col items-stretch gap-2 lg:items-end">
+                    <div className="rounded-2xl bg-slate-50 px-5 py-4 text-right">
                     <div className="text-xs text-slate-500">Amount</div>
 
                     <div className="text-xl font-bold text-slate-900">
                       <CurrencyText value={row.amount || 0} />
                     </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openTransferDetails(row)}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      <Eye size={16} />
+                      View Details
+                    </button>
                   </div>
                 </div>
 
@@ -274,6 +302,12 @@ export default function TransferTable() {
           </motion.div>
         </AnimatePresence>
       )}
+
+      <TransferDetailsDrawer
+        transfer={selectedTransfer}
+        open={Boolean(selectedTransfer)}
+        onClose={() => setSelectedTransfer(null)}
+      />
     </section>
   );
 }

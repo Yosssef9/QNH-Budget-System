@@ -24,13 +24,77 @@ function transferSelect() {
       fromPackageItem.catalog_item_id AS from_catalog_item_id,
       fromCatalog.name AS from_item_name,
       fromCatalog.expense_type AS from_expense_type,
+      fromSub.id AS from_package_sub_item_id,
       fromSub.name AS from_sub_item_name,
       fromSub.unit_price AS from_unit_price,
+      fromSub.quantity AS from_base_quantity,
+      CAST(
+        fromSub.quantity
+        + COALESCE(fromApprovedIn.approved_quantity, 0)
+        - COALESCE(fromApprovedOut.approved_quantity, 0)
+        - COALESCE(fromPendingOut.pending_quantity, 0)
+        + CASE
+            WHEN transfer.status = '${TRANSFER_STATUS.APPROVED}'
+              THEN transfer.source_quantity
+            ELSE 0
+          END
+        + CASE
+            WHEN transfer.status = '${TRANSFER_STATUS.PENDING_APPROVAL}'
+              THEN transfer.source_quantity
+            ELSE 0
+          END
+        AS DECIMAL(24,12)
+      ) AS from_remaining_before_transfer,
+      CAST(
+        fromSub.quantity
+        + COALESCE(fromApprovedIn.approved_quantity, 0)
+        - COALESCE(fromApprovedOut.approved_quantity, 0)
+        - COALESCE(fromPendingOut.pending_quantity, 0)
+        + CASE
+            WHEN transfer.status = '${TRANSFER_STATUS.APPROVED}'
+              THEN transfer.source_quantity
+            ELSE 0
+          END
+        + CASE
+            WHEN transfer.status = '${TRANSFER_STATUS.PENDING_APPROVAL}'
+              THEN transfer.source_quantity
+            ELSE 0
+          END
+        - transfer.source_quantity
+        AS DECIMAL(24,12)
+      ) AS from_remaining_after_transfer,
       toPackageItem.catalog_item_id AS to_catalog_item_id,
       toCatalog.name AS to_item_name,
       toCatalog.expense_type AS to_expense_type,
+      toSub.id AS to_package_sub_item_id,
       toSub.name AS to_sub_item_name,
       toSub.unit_price AS to_unit_price,
+      toSub.quantity AS to_base_quantity,
+      CAST(
+        toSub.quantity
+        + COALESCE(toApprovedIn.approved_quantity, 0)
+        - COALESCE(toApprovedOut.approved_quantity, 0)
+        - COALESCE(toPendingOut.pending_quantity, 0)
+        - CASE
+            WHEN transfer.status = '${TRANSFER_STATUS.APPROVED}'
+              THEN transfer.destination_quantity
+            ELSE 0
+          END
+        AS DECIMAL(24,12)
+      ) AS to_remaining_before_transfer,
+      CAST(
+        toSub.quantity
+        + COALESCE(toApprovedIn.approved_quantity, 0)
+        - COALESCE(toApprovedOut.approved_quantity, 0)
+        - COALESCE(toPendingOut.pending_quantity, 0)
+        - CASE
+            WHEN transfer.status = '${TRANSFER_STATUS.APPROVED}'
+              THEN transfer.destination_quantity
+            ELSE 0
+          END
+        + transfer.destination_quantity
+        AS DECIMAL(24,12)
+      ) AS to_remaining_after_transfer,
       requester.USER_NAME AS requested_by_name,
       approver.USER_NAME AS approved_by_name,
       rejecter.USER_NAME AS rejected_by_name
@@ -53,6 +117,42 @@ function transferSelect() {
       ON toPackageItem.id = toSub.category_budget_package_item_id
     INNER JOIN dbo.BS_budget_catalog_items AS toCatalog
       ON toCatalog.id = toPackageItem.catalog_item_id
+    OUTER APPLY (
+      SELECT SUM(source_quantity) AS pending_quantity
+      FROM dbo.BS_category_budget_transfers AS pendingTransfer
+      WHERE pendingTransfer.from_package_sub_item_id = fromSub.id
+        AND pendingTransfer.status = '${TRANSFER_STATUS.PENDING_APPROVAL}'
+    ) AS fromPendingOut
+    OUTER APPLY (
+      SELECT SUM(source_quantity) AS approved_quantity
+      FROM dbo.BS_category_budget_transfers AS approvedTransfer
+      WHERE approvedTransfer.from_package_sub_item_id = fromSub.id
+        AND approvedTransfer.status = '${TRANSFER_STATUS.APPROVED}'
+    ) AS fromApprovedOut
+    OUTER APPLY (
+      SELECT SUM(destination_quantity) AS approved_quantity
+      FROM dbo.BS_category_budget_transfers AS approvedTransfer
+      WHERE approvedTransfer.to_package_sub_item_id = fromSub.id
+        AND approvedTransfer.status = '${TRANSFER_STATUS.APPROVED}'
+    ) AS fromApprovedIn
+    OUTER APPLY (
+      SELECT SUM(source_quantity) AS pending_quantity
+      FROM dbo.BS_category_budget_transfers AS pendingTransfer
+      WHERE pendingTransfer.from_package_sub_item_id = toSub.id
+        AND pendingTransfer.status = '${TRANSFER_STATUS.PENDING_APPROVAL}'
+    ) AS toPendingOut
+    OUTER APPLY (
+      SELECT SUM(source_quantity) AS approved_quantity
+      FROM dbo.BS_category_budget_transfers AS approvedTransfer
+      WHERE approvedTransfer.from_package_sub_item_id = toSub.id
+        AND approvedTransfer.status = '${TRANSFER_STATUS.APPROVED}'
+    ) AS toApprovedOut
+    OUTER APPLY (
+      SELECT SUM(destination_quantity) AS approved_quantity
+      FROM dbo.BS_category_budget_transfers AS approvedTransfer
+      WHERE approvedTransfer.to_package_sub_item_id = toSub.id
+        AND approvedTransfer.status = '${TRANSFER_STATUS.APPROVED}'
+    ) AS toApprovedIn
     LEFT JOIN dbo.users AS requester
       ON requester.USER_ID = transfer.requested_by
     LEFT JOIN dbo.users AS approver
@@ -84,6 +184,18 @@ export async function listTransferSubItemsRepo({ budgetCategoryId }) {
         FROM dbo.BS_category_budget_transfers
         WHERE status = '${TRANSFER_STATUS.APPROVED}'
         GROUP BY to_package_sub_item_id
+      ),
+      approvedPo AS (
+        SELECT category_budget_package_sub_item_id, SUM(requested_qty) AS approved_quantity
+        FROM dbo.BS_category_po_links
+        WHERE status = 'APPROVED'
+        GROUP BY category_budget_package_sub_item_id
+      ),
+      pendingPo AS (
+        SELECT category_budget_package_sub_item_id, SUM(requested_qty) AS pending_quantity
+        FROM dbo.BS_category_po_links
+        WHERE status = 'PENDING'
+        GROUP BY category_budget_package_sub_item_id
       )
       SELECT
         subItem.id,
@@ -100,18 +212,43 @@ export async function listTransferSubItemsRepo({ budgetCategoryId }) {
         catalog.expense_type,
         catalogSub.id AS catalog_sub_item_id,
         subItem.name AS sub_item_name,
-        CONCAT(catalog.name, ' / ', subItem.name) AS name,
+        catalog.name AS generic_item_name,
+        subItem.name AS model_name,
+        CONCAT(catalog.name, ' - ', subItem.name) AS name,
         subItem.quantity,
         subItem.unit_price,
+        CAST(COALESCE(approvedIn.approved_quantity, 0) AS DECIMAL(24,12)) AS approved_transfer_in_quantity,
+        CAST(COALESCE(approvedOut.approved_quantity, 0) AS DECIMAL(24,12)) AS approved_transfer_out_quantity,
+        CAST(COALESCE(pendingOut.pending_quantity, 0) AS DECIMAL(24,12)) AS pending_transfer_out_quantity,
+        CAST(COALESCE(approvedPo.approved_quantity, 0) AS DECIMAL(24,12)) AS approved_po_linked_quantity,
+        CAST(COALESCE(pendingPo.pending_quantity, 0) AS DECIMAL(24,12)) AS pending_po_linked_quantity,
         CAST(
-          (subItem.quantity + COALESCE(approvedIn.approved_quantity, 0) - COALESCE(approvedOut.approved_quantity, 0) - COALESCE(pendingOut.pending_quantity, 0))
-          AS DECIMAL(18,4)
+          (
+            subItem.quantity
+            + COALESCE(approvedIn.approved_quantity, 0)
+            - COALESCE(approvedOut.approved_quantity, 0)
+            - COALESCE(pendingOut.pending_quantity, 0)
+            - COALESCE(approvedPo.approved_quantity, 0)
+            - COALESCE(pendingPo.pending_quantity, 0)
+          )
+          AS DECIMAL(24,12)
         ) AS available_quantity,
         CAST(
-          (subItem.quantity + COALESCE(approvedIn.approved_quantity, 0) - COALESCE(approvedOut.approved_quantity, 0) - COALESCE(pendingOut.pending_quantity, 0)) * subItem.unit_price
+          (
+            subItem.quantity
+            + COALESCE(approvedIn.approved_quantity, 0)
+            - COALESCE(approvedOut.approved_quantity, 0)
+            - COALESCE(pendingOut.pending_quantity, 0)
+            - COALESCE(approvedPo.approved_quantity, 0)
+            - COALESCE(pendingPo.pending_quantity, 0)
+          ) * subItem.unit_price
           AS DECIMAL(18,6)
         ) AS available_amount,
-        CASE WHEN COALESCE(pendingOut.pending_quantity, 0) > 0 THEN 1 ELSE 0 END AS is_locked
+        CASE
+          WHEN COALESCE(pendingOut.pending_quantity, 0) > 0
+            OR COALESCE(pendingPo.pending_quantity, 0) > 0
+          THEN 1 ELSE 0
+        END AS is_locked
       FROM dbo.BS_category_budget_package_sub_items AS subItem
       INNER JOIN dbo.BS_category_budget_package_items AS packageItem
         ON packageItem.id = subItem.category_budget_package_item_id
@@ -132,6 +269,10 @@ export async function listTransferSubItemsRepo({ budgetCategoryId }) {
         ON approvedOut.from_package_sub_item_id = subItem.id
       LEFT JOIN approvedIn
         ON approvedIn.to_package_sub_item_id = subItem.id
+      LEFT JOIN approvedPo
+        ON approvedPo.category_budget_package_sub_item_id = subItem.id
+      LEFT JOIN pendingPo
+        ON pendingPo.category_budget_package_sub_item_id = subItem.id
       WHERE pkg.budget_category_id = @budgetCategoryId
         AND fy.status = 'PRE_CLOSING'
         AND pkg.status = 'CFO_REVIEW_COMPLETED'
@@ -209,7 +350,7 @@ export async function findSubItemContextRepo({ packageSubItemId }, transaction =
             + COALESCE(approvedIn.approved_quantity, 0)
             - COALESCE(approvedOut.approved_quantity, 0)
             - COALESCE(pendingOut.pending_quantity, 0)
-          ) AS DECIMAL(18,4)
+          ) AS DECIMAL(24,12)
         ) AS available_quantity,
         CAST(
           (
@@ -286,6 +427,12 @@ export async function ensureDestinationPackageSubItemRepo(transaction, payload) 
       (
         category_budget_package_id,
         catalog_item_id,
+        catalog_item_name_snapshot,
+        catalog_item_code_snapshot,
+        expense_type_snapshot,
+        unit_of_measure_id_snapshot,
+        unit_name_snapshot,
+        unit_code_snapshot,
         cfo_review_status,
         needs_reconciliation,
         is_active,
@@ -295,11 +442,19 @@ export async function ensureDestinationPackageSubItemRepo(transaction, payload) 
       SELECT
         @packageId,
         catalogItem.id,
+        catalogItem.name,
+        catalogItem.item_code,
+        catalogItem.expense_type,
+        catalogItem.unit_of_measure_id,
+        unit.name,
+        unit.unit_code,
         'CFO_ACCEPTED',
         0,
         1,
         @actorUserId
       FROM dbo.BS_budget_catalog_items AS catalogItem
+      INNER JOIN dbo.BS_units_of_measure AS unit
+        ON unit.id = catalogItem.unit_of_measure_id
       INNER JOIN dbo.BS_category_budget_packages AS pkg
         ON pkg.id = @packageId
        AND pkg.budget_category_id = catalogItem.budget_category_id
@@ -378,9 +533,9 @@ export async function createCategoryTransferRepo(transaction, payload) {
     .input("fromPackageSubItemId", sql.BigInt, payload.from_package_sub_item_id)
     .input("toPackageSubItemId", sql.BigInt, payload.to_package_sub_item_id)
     .input("transferAmount", sql.Decimal(18, 6), payload.transfer_amount)
-    .input("sourceQuantity", sql.Decimal(18, 4), payload.source_quantity)
+    .input("sourceQuantity", sql.Decimal(24, 12), payload.source_quantity)
     .input("sourceUnitPrice", sql.Decimal(18, 6), payload.source_unit_price_snapshot)
-    .input("destinationQuantity", sql.Decimal(18, 4), payload.destination_quantity)
+    .input("destinationQuantity", sql.Decimal(24, 12), payload.destination_quantity)
     .input("destinationUnitPrice", sql.Decimal(18, 6), payload.destination_unit_price_snapshot)
     .input("reason", sql.NVarChar(2000), payload.reason)
     .input("requestedBy", sql.Int, payload.requested_by)

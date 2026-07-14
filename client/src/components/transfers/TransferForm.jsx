@@ -5,6 +5,8 @@ import {
   ArrowRight,
   ArrowRightLeft,
   CheckCircle2,
+  FilePlus2,
+  Loader2,
   WalletCards,
 } from "lucide-react";
 import {
@@ -18,13 +20,32 @@ import ConfirmModal from "../ConfirmModal";
 import EnterpriseSearch from "../EnterpriseSearch";
 import SearchableMultiSelect from "../SearchableMultiSelect";
 import Input from "../Input";
+import AnimatedDrawer from "../budgets/shared/drawers/AnimatedDrawer";
+import CatalogSubItemFields from "../catalog/CatalogSubItemFields";
+import {
+  createSetupSubItem,
+  getSetupUnitsOfMeasure,
+} from "../../api/budgetSetup.api";
+
+const EMPTY_REUSABLE_MODEL = {
+  name: "",
+  default_specification: "",
+  default_unit_of_measure_id: "",
+};
+
+function formatQuantity(value) {
+  return Number(value || 0).toLocaleString(undefined, {
+    maximumFractionDigits: 4,
+  });
+}
+
 function ItemCard({ item, selected, disabled, label, onClick }) {
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`w-full rounded-xl border px-3 py-2 text-left transition ${
+      className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
         selected
           ? "border-blue-500 bg-blue-50 ring-1 ring-blue-100"
           : "border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50"
@@ -33,8 +54,8 @@ function ItemCard({ item, selected, disabled, label, onClick }) {
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="truncate font-semibold text-slate-900">
-              {item.name}
+            <span className="truncate text-sm font-black text-slate-900">
+              {item.generic_item_name || item.catalog_item_name || item.name}
             </span>
 
             {item.is_locked === 1 && (
@@ -44,8 +65,20 @@ function ItemCard({ item, selected, disabled, label, onClick }) {
             )}
           </div>
 
-          <div className="mt-0.5 text-xs text-slate-500">
-            {item.expense_type || "Budget Item"}
+          <div className="mt-1 text-sm font-semibold text-slate-700">
+            {item.model_name || item.sub_item_name || "Package model"}
+          </div>
+
+          <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-bold text-slate-600">
+            <span className="rounded-full bg-slate-100 px-2 py-1">
+              {item.expense_type || "Budget Item"}
+            </span>
+            <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-700">
+              Unit <CurrencyText value={item.unit_price || 0} />
+            </span>
+            <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">
+              Remaining {formatQuantity(item.available_quantity)} units
+            </span>
           </div>
         </div>
 
@@ -54,6 +87,9 @@ function ItemCard({ item, selected, disabled, label, onClick }) {
 
           <div className="font-bold text-slate-900">
             <CurrencyText value={item.available_amount || 0} />
+          </div>
+          <div className="mt-1 text-[11px] font-semibold text-slate-500">
+            Base {formatQuantity(item.quantity)}
           </div>
         </div>
 
@@ -65,6 +101,80 @@ function ItemCard({ item, selected, disabled, label, onClick }) {
   );
 }
 
+function CreateReusableModelDrawer({
+  open,
+  catalogItem,
+  value,
+  onChange,
+  onClose,
+  onSubmit,
+  loading,
+  units,
+  loadingUnits,
+}) {
+  return (
+    <AnimatedDrawer open={open} onClose={onClose} fullScreen>
+      <div className="flex h-full flex-col bg-white">
+        <div className="border-b border-slate-200 px-6 py-5">
+          <div className="text-xs font-black uppercase tracking-wide text-blue-600">
+            Create Reusable Model
+          </div>
+          <h2 className="mt-1 text-2xl font-black text-slate-950">
+            {catalogItem?.name || "Selected item"}
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+            Create a reusable catalog model for this category item. The code is
+            generated automatically, and the model will be selected after save.
+          </p>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-6">
+          <div className="mx-auto max-w-3xl">
+            <CatalogSubItemFields
+              value={value}
+              onChange={onChange}
+              unitsOfMeasure={units}
+              loadingUnitsOfMeasure={loadingUnits}
+              disabled={loading}
+            />
+          </div>
+        </div>
+
+        <div className="border-t border-slate-200 px-6 py-4">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onSubmit}
+              disabled={
+                loading ||
+                loadingUnits ||
+                !value.name.trim() ||
+                !value.default_unit_of_measure_id
+              }
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FilePlus2 className="h-4 w-4" />
+              )}
+              Create Model
+            </button>
+          </div>
+        </div>
+      </div>
+    </AnimatedDrawer>
+  );
+}
+
 export default function TransferForm() {
   const queryClient = useQueryClient();
   const sourceListRef = useRef(null);
@@ -72,6 +182,8 @@ export default function TransferForm() {
   const [sourceSearch, setSourceSearch] = useState("");
   const [targetSearch, setTargetSearch] = useState("");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showCreateModelDrawer, setShowCreateModelDrawer] = useState(false);
+  const [reusableForm, setReusableForm] = useState(EMPTY_REUSABLE_MODEL);
   const [form, setForm] = useState({
     from_budget_item_id: "",
     to_budget_item_id: "",
@@ -158,6 +270,33 @@ export default function TransferForm() {
     queryFn: () => getTransferCatalogSubItems(form.new_item_type_id),
     enabled: form.is_new_item && Boolean(form.new_item_type_id),
     staleTime: 1000 * 60 * 5,
+  });
+
+  const unitsQuery = useQuery({
+    queryKey: ["budget-setup", "units-of-measure"],
+    queryFn: getSetupUnitsOfMeasure,
+    enabled: showCreateModelDrawer,
+  });
+
+  const createReusableMutation = useMutation({
+    mutationFn: createSetupSubItem,
+    onSuccess: async (created) => {
+      toast.success("Reusable model created");
+      await queryClient.invalidateQueries({
+        queryKey: ["transfer-catalog-sub-items", form.new_item_type_id],
+      });
+      setForm((p) => ({
+        ...p,
+        destination_catalog_sub_item_id: String(created.id),
+      }));
+      setReusableForm(EMPTY_REUSABLE_MODEL);
+      setShowCreateModelDrawer(false);
+    },
+    onError: (error) => {
+      toast.error(
+        error?.response?.data?.message || "Failed to create reusable model",
+      );
+    },
   });
   const budgetTypeOptions = useMemo(() => {
     return budgetTypes.map((type) => ({
@@ -336,6 +475,30 @@ export default function TransferForm() {
     }));
   }
 
+  function submitReusableModel() {
+    if (!form.new_item_type_id) {
+      toast.error("Select an item type first");
+      return;
+    }
+    if (!reusableForm.name.trim() || !reusableForm.default_unit_of_measure_id) {
+      toast.error("Complete the model name and unit");
+      return;
+    }
+
+    createReusableMutation.mutate({
+      catalogItemId: Number(form.new_item_type_id),
+      payload: {
+        name: reusableForm.name.trim(),
+        default_specification:
+          reusableForm.default_specification.trim() || null,
+        default_unit_of_measure_id: Number(
+          reusableForm.default_unit_of_measure_id,
+        ),
+        is_default_general: false,
+      },
+    });
+  }
+
   return (
     <form
       onSubmit={handleSubmit}
@@ -378,10 +541,14 @@ export default function TransferForm() {
                 </div>
 
                 <div className="mt-1 font-bold text-slate-900">
-                  {sourceItem.name}
+                  {sourceItem.generic_item_name || sourceItem.catalog_item_name}
                 </div>
 
                 <div className="text-sm text-slate-600">
+                  {sourceItem.model_name || sourceItem.sub_item_name} · Unit{" "}
+                  <CurrencyText value={sourceItem.unit_price || 0} /> ·{" "}
+                  Remaining {formatQuantity(sourceItem.available_quantity)}{" "}
+                  units ·{" "}
                   <CurrencyText value={sourceItem.available_amount} />
                 </div>
               </div>
@@ -827,10 +994,14 @@ export default function TransferForm() {
                     </div>
 
                     <div className="mt-1 font-bold text-slate-900">
-                      {targetItem.name}
+                      {targetItem.generic_item_name || targetItem.catalog_item_name}
                     </div>
 
                     <div className="text-sm text-slate-600">
+                      {targetItem.model_name || targetItem.sub_item_name} · Unit{" "}
+                      <CurrencyText value={targetItem.unit_price || 0} /> ·{" "}
+                      Remaining {formatQuantity(targetItem.available_quantity)}{" "}
+                      units ·{" "}
                       <CurrencyText value={targetItem.available_amount} />
                     </div>
                   </div>
@@ -875,7 +1046,9 @@ export default function TransferForm() {
                 <div className="mb-3 flex items-center gap-2">
                   <WalletCards size={18} className="text-purple-500" />
 
-                  <h3 className="font-bold text-slate-900">New Budget Item</h3>
+                  <h3 className="font-bold text-slate-900">
+                    New Destination Item
+                  </h3>
                 </div>
 
                 <div className="rounded-3xl border border-purple-200 bg-gradient-to-br from-purple-50 to-white p-5 sticky top-4 shadow-md">
@@ -934,6 +1107,15 @@ export default function TransferForm() {
                       searchPlaceholder="Search reusable model..."
                       disabled={!form.new_item_type_id}
                     />
+                    <button
+                      type="button"
+                      disabled={!form.new_item_type_id}
+                      onClick={() => setShowCreateModelDrawer(true)}
+                      className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-black text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <FilePlus2 className="h-4 w-4" />
+                      Create reusable model
+                    </button>
                     <p className="mt-2 text-xs text-slate-500">
                       The model identity comes from the reusable catalog. Unit
                       price and transferred quantity are stored on the
@@ -1005,7 +1187,9 @@ export default function TransferForm() {
             </strong>{" "}
             from <strong>{sourceItem.name}</strong> to{" "}
             <strong>
-              {form.is_new_item ? "New Budget Item" : targetItem?.name}
+              {form.is_new_item
+                ? "New destination package model"
+                : targetItem?.generic_item_name || targetItem?.name}
             </strong>
             .
           </div>
@@ -1015,12 +1199,12 @@ export default function TransferForm() {
         open={showConfirmModal}
         title={
           form.is_new_item
-            ? "Submit New Budget Item Request?"
+            ? "Submit Transfer to New Destination?"
             : "Submit Transfer Request?"
         }
         message={
           form.is_new_item
-            ? "A new budget item will be created after approval."
+            ? "A destination package item/model will be created or reused for this transfer after approval."
             : "Please review the transfer details before sending the request for approval."
         }
         confirmText="Submit Request"
@@ -1051,7 +1235,7 @@ export default function TransferForm() {
               {form.is_new_item
                 ? budgetTypes.find(
                     (x) => String(x.id) === String(form.new_item_type_id),
-                  )?.name || "New Budget Item"
+                  )?.name || "New destination item"
                 : targetItem?.name}
             </div>
 
@@ -1112,6 +1296,23 @@ export default function TransferForm() {
           </div>
         </div>
       </ConfirmModal>
+      <CreateReusableModelDrawer
+        open={showCreateModelDrawer}
+        catalogItem={budgetTypes.find(
+          (type) => String(type.id) === String(form.new_item_type_id),
+        )}
+        value={reusableForm}
+        onChange={setReusableForm}
+        onClose={() => {
+          if (!createReusableMutation.isPending) {
+            setShowCreateModelDrawer(false);
+          }
+        }}
+        onSubmit={submitReusableModel}
+        loading={createReusableMutation.isPending}
+        units={unitsQuery.data || []}
+        loadingUnits={unitsQuery.isLoading}
+      />
     </form>
   );
 }

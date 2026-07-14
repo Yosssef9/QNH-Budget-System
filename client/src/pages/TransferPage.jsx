@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRightLeft, CheckCircle2, Clock3, FileText } from "lucide-react";
 
 import Breadcrumbs from "../components/Breadcrumbs";
 import LockedPage from "../components/LockedPage";
@@ -13,9 +12,12 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import { useAuth } from "../context/AuthContext";
 import { can } from "../helpers/permissions";
 import { PERMISSION_CODES } from "@qnh/permissions";
+import { useActiveFinancialYear } from "../hooks/financial-years/useFinancialYears";
 
 export default function TransferPage() {
   const { budgetAccess } = useAuth();
+  const { data: activeYear, isLoading: loadingActiveYear } =
+    useActiveFinancialYear();
   const canReviewAdjustmentRequests = can(
     budgetAccess,
     PERMISSION_CODES.REVIEW_CATEGORY_BUDGET_CHANGE_REQUESTS,
@@ -31,11 +33,30 @@ export default function TransferPage() {
   });
 
   const lock = getTransferPageLock(budgets);
-  const isLocked = !canCreateCategoryTransfers && lock.locked;
+  const categoryTransferLocked =
+    canCreateCategoryTransfers && activeYear?.status !== "PRE_CLOSING";
+  const isLocked =
+    (!canCreateCategoryTransfers && lock.locked) || categoryTransferLocked;
+  const lockedTitle = categoryTransferLocked
+    ? "Transfers Not Available"
+    : lock.title;
+  const lockedMessage = categoryTransferLocked
+    ? "Category transfers are available only after the financial year moves to PRE_CLOSING."
+    : lock.message;
+  const lockedReasons = categoryTransferLocked
+    ? [
+        "The financial year must be in PRE_CLOSING status.",
+        "Transfers are execution-phase actions after CFO finalization.",
+        "Use Department Adjustment Requests during planning when departments need a change.",
+      ]
+    : lock.reasons;
 
-  useLockToast(isLocked && !isLoading, lock.message);
+  useLockToast(isLocked && !isLoading && !loadingActiveYear, lockedMessage);
 
-  if (isLoading && !canCreateCategoryTransfers) {
+  if (
+    (isLoading && !canCreateCategoryTransfers) ||
+    (loadingActiveYear && canCreateCategoryTransfers)
+  ) {
     return (
       <LoadingSpinner
         fullPage
@@ -56,9 +77,9 @@ export default function TransferPage() {
         />
 
         <LockedPage
-          title={lock.title}
-          message={lock.message}
-          reasons={lock.reasons}
+          title={lockedTitle}
+          message={lockedMessage}
+          reasons={lockedReasons}
         />
 
         {canReviewAdjustmentRequests && <AdjustmentRequestsReviewPanel />}

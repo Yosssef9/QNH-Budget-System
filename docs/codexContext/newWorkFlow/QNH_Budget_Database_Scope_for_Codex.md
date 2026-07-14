@@ -914,6 +914,12 @@ Generic item requested by one department in one category budget.
 | `id` | `BIGINT IDENTITY(1,1)` | No |  |
 | `department_category_budget_id` | `BIGINT` | No | FK → `BS_department_category_budgets.id` |
 | `catalog_item_id` | `INT` | No | FK → `BS_budget_catalog_items.id` |
+| `catalog_item_name_snapshot` | `NVARCHAR(200)` | Yes | Catalog item name frozen when the department item is saved |
+| `catalog_item_code_snapshot` | `VARCHAR(80)` | Yes | Catalog item code frozen when the department item is saved |
+| `expense_type_snapshot` | `VARCHAR(10)` | Yes | Expense type frozen when the department item is saved |
+| `unit_of_measure_id_snapshot` | `INT` | Yes | Unit identifier frozen when the department item is saved |
+| `unit_name_snapshot` | `NVARCHAR(100)` | Yes | Unit name frozen when the department item is saved |
+| `unit_code_snapshot` | `VARCHAR(30)` | Yes | Unit code frozen when the department item is saved |
 | `requested_quantity` | `DECIMAL(18, 4)` | No |  |
 | `category_approved_quantity` | `DECIMAL(18, 4)` | Yes |  |
 | `distribution_method` | `VARCHAR(40)` | No |  |
@@ -1022,6 +1028,12 @@ Hospital-wide year/category/catalog-item workflow record; parent of package sub-
 | `id` | `BIGINT IDENTITY(1,1)` | No |  |
 | `category_budget_package_id` | `BIGINT` | No | FK → `BS_category_budget_packages.id` |
 | `catalog_item_id` | `INT` | No | FK → `BS_budget_catalog_items.id` |
+| `catalog_item_name_snapshot` | `NVARCHAR(200)` | Yes | Catalog item name frozen when the package item is created |
+| `catalog_item_code_snapshot` | `VARCHAR(80)` | Yes | Catalog item code frozen when the package item is created |
+| `expense_type_snapshot` | `VARCHAR(10)` | Yes | Expense type frozen when the package item is created |
+| `unit_of_measure_id_snapshot` | `INT` | Yes | Unit identifier frozen when the package item is created |
+| `unit_name_snapshot` | `NVARCHAR(100)` | Yes | Unit name frozen when the package item is created |
+| `unit_code_snapshot` | `VARCHAR(30)` | Yes | Unit code frozen when the package item is created |
 | `cfo_review_status` | `VARCHAR(40)` | Yes |  |
 | `cfo_review_note` | `NVARCHAR(1000)` | Yes |  |
 | `cfo_reviewed_by` | `INT` | Yes | FK → `users.USER_ID` |
@@ -1207,9 +1219,9 @@ Line-level requested adjustment inside a controlled department adjustment reques
 
 Phase 6 migration target:
 - Supported active request types are `ADD_ITEM` and `INCREASE_QUANTITY`.
-- `requested_amount DECIMAL(18,6) NULL` is added for amount-based requests.
-- `proposed_requested_quantity` becomes nullable because an adjustment request may ask for quantity, amount, or both.
-- A request item must contain either a positive requested quantity or a positive requested amount.
+- Adjustment requests are quantity-based only.
+- HODs do not enter requested amount, unit price, or total value on adjustment requests.
+- `proposed_requested_quantity` is required for active adjustment request items.
 
 ### `BS_budget_workflow_history`
 

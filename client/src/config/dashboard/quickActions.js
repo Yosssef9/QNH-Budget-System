@@ -17,9 +17,17 @@ export function getQuickActions(budgetAccess) {
     budgetAccess,
     PERMISSION_CODES.VIEW_DEPARTMENT_BUDGET_REQUESTS,
   );
-  const canApproveBudget = can(
+  const canViewCfoReview = can(
     budgetAccess,
     PERMISSION_CODES.VIEW_CFO_CATEGORY_BUDGET_PACKAGES,
+  );
+  const canViewReports = can(
+    budgetAccess,
+    PERMISSION_CODES.VIEW_BUDGET_REPORTS,
+  );
+  const canViewCategoryBudget = can(
+    budgetAccess,
+    PERMISSION_CODES.VIEW_CATEGORY_BUDGET_REQUESTS,
   );
 
   return [
@@ -35,17 +43,24 @@ export function getQuickActions(budgetAccess) {
     },
     {
       title: "Budgets",
-      description: "Enter and review department budgets.",
+      description: "View your department budgets.",
       path: "/budgets",
       icon: Wallet,
-      show: canViewBudget && !canApproveBudget,
+      show: canViewBudget && !canViewCfoReview && !canViewCategoryBudget,
+    },
+    {
+      title: "View Category Budget",
+      description: "Review your category balances and department requests.",
+      path: "/budgets",
+      icon: Wallet,
+      show: canViewCategoryBudget && !canViewCfoReview,
     },
     {
       title: "All Budgets",
-      description: "Review budgets across all departments.",
+      description: "View department annual budgets and approved amounts.",
       path: "/budgets/all",
       icon: Wallet,
-      show: canViewBudget && canApproveBudget,
+      show: canViewReports,
     },
     {
       title: "Enter / Edit Budget",
@@ -56,18 +71,18 @@ export function getQuickActions(budgetAccess) {
         can(
           budgetAccess,
           PERMISSION_CODES.MANAGE_DEPARTMENT_BUDGET_REQUESTS,
-        ) && !canApproveBudget,
+        ) && !canViewCfoReview,
     },
     {
       title: "Link Approved PO",
-      description: "Connect approved CareWare PO lines to budget items.",
+      description: "Connect approved PO lines to package sub-items.",
       path: "/po-linking",
       icon: Link2,
       show: can(budgetAccess, PERMISSION_CODES.REQUEST_CATEGORY_PO_LINKS),
     },
     {
       title: "Request Transfer",
-      description: "Move balance between existing or new budget items.",
+      description: "Move available balance between package sub-items.",
       path: "/transfers/requests",
       icon: Repeat2,
       show: can(budgetAccess, PERMISSION_CODES.CREATE_CATEGORY_TRANSFERS),

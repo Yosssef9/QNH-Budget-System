@@ -47,6 +47,10 @@ function getSidebarSections(budgetAccess) {
     budgetAccess,
     PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES,
   );
+  const canViewBudgetReports = can(
+    budgetAccess,
+    PERMISSION_CODES.VIEW_BUDGET_REPORTS,
+  );
   const canViewCategoryRequests = can(
     budgetAccess,
     PERMISSION_CODES.VIEW_CATEGORY_BUDGET_REQUESTS,
@@ -83,11 +87,11 @@ function getSidebarSections(budgetAccess) {
           ),
         },
         {
-          label: "Budgets",
+          label: canViewCategoryRequests ? "Category Budget" : "Budgets",
           path: "/budgets",
           icon: Wallet,
           show:
-            canViewDepartmentBudgets &&
+            (canViewDepartmentBudgets || canViewCategoryRequests) &&
             !canViewCfoPackages &&
             !canApprovePackages,
         },
@@ -95,13 +99,13 @@ function getSidebarSections(budgetAccess) {
           label: "All Budgets",
           path: "/budgets/all",
           icon: Wallet,
-          show: canViewCfoPackages || canApprovePackages,
+          show: canViewBudgetReports,
         },
         {
           label: "Budget Analytics",
           path: "/budget-analytics",
           icon: BarChart3,
-          show: canViewCfoPackages || canApprovePackages,
+          show: canViewBudgetReports,
         },
         {
           label: "Projects",
@@ -200,15 +204,23 @@ function canAccessPath(pathname, budgetAccess) {
     },
     {
       path: "/budgets/my",
-      permission: PERMISSION_CODES.VIEW_DEPARTMENT_BUDGET_REQUESTS,
+      permission: [
+        PERMISSION_CODES.VIEW_DEPARTMENT_BUDGET_REQUESTS,
+        PERMISSION_CODES.VIEW_CATEGORY_BUDGET_REQUESTS,
+        PERMISSION_CODES.CREATE_CATEGORY_TRANSFERS,
+      ],
     },
     {
       path: "/budgets/all",
-      permission: PERMISSION_CODES.VIEW_CFO_CATEGORY_BUDGET_PACKAGES,
+      permission: PERMISSION_CODES.VIEW_BUDGET_REPORTS,
     },
     {
       path: "/budgets/view",
-      permission: PERMISSION_CODES.VIEW_DEPARTMENT_BUDGET_REQUESTS,
+      permission: [
+        PERMISSION_CODES.VIEW_DEPARTMENT_BUDGET_REQUESTS,
+        PERMISSION_CODES.VIEW_BUDGET_REPORTS,
+        PERMISSION_CODES.MANAGE_BUDGET_ACCESS,
+      ],
     },
     {
       path: "/projects",

@@ -1,5 +1,4 @@
 import { useAuth } from "../context/AuthContext";
-import { getUserRoleLabel } from "../helpers/permissions";
 import { useDashboardData } from "../hooks/dashboard/useDashboardData";
 import {
   getDashboardStatsCards,
@@ -20,9 +19,8 @@ import {
 import PendingBadge from "../components/dashboard/PendingBadge";
 import CurrencyText from "../components/CurrencyText";
 export default function DashboardPage() {
-  const { user, budgetAccess } = useAuth();
+  const { budgetAccess } = useAuth();
   const navigate = useNavigate();
-  const roleLabel = getUserRoleLabel(budgetAccess);
 
   const dashboardData = useDashboardData();
   const stats = getDashboardStatsCards(budgetAccess, dashboardData);
@@ -149,7 +147,7 @@ export default function DashboardPage() {
             linking, and financial oversight from a centralized internal
             workspace.
           </p>
-        </div> 
+        </div>
       </section> */}
       {/* <section
         className="overflow-hidden rounded-3xl border border-slate-200 bg-white
@@ -246,9 +244,7 @@ export default function DashboardPage() {
 
       <section className="grid items-start gap-6 xl:grid-cols-2">
         {workPanels.map((panel) => {
-          const isItemRequestPanel = panel.title.includes(
-            "Item / Category Requests",
-          );
+          const isItemRequestPanel = panel.title.includes("Item Requests");
 
           const isTransferPanel = panel.title.includes("Transfer Requests");
           const isAdjustmentPanel = panel.title.includes(
@@ -293,8 +289,8 @@ export default function DashboardPage() {
                   {itemRequests.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm font-semibold text-slate-500">
                       {itemRequestPanel?.mode === "ADMIN_PENDING"
-                        ? "No pending item/category requests."
-                        : "No item/category requests found."}
+                        ? "No pending item requests."
+                        : "No item requests found."}
                     </div>
                   ) : (
                     itemRequests.map((item) => (
@@ -374,8 +370,8 @@ export default function DashboardPage() {
                     adjustmentRequests.map((item) => (
                       <div
                         key={item.id}
-                        onClick={() => navigate("/transfers/requests")}
-                        className="cursor-pointer rounded-2xl border border-slate-200 bg-slate-50 p-4 transition-all hover:border-blue-300 hover:bg-blue-50 hover:shadow-md"
+
+                        className=" rounded-2xl border border-slate-200 bg-slate-50 p-4"
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div>
@@ -387,7 +383,7 @@ export default function DashboardPage() {
                               {item.item?.change_type === "ADD_ITEM"
                                 ? "Add new item"
                                 : "Increase existing item"}{" "}
-                              · {item.category?.name || "-"}
+                              - {item.category?.name || "-"}
                             </p>
 
                             {item.department?.name && (
@@ -397,13 +393,7 @@ export default function DashboardPage() {
                             )}
 
                             <p className="mt-1 text-xs font-semibold text-slate-500">
-                              Quantity:{" "}
-                              {item.item?.requested_quantity ?? "-"} · Amount:{" "}
-                              {item.item?.requested_amount
-                                ? `SAR ${Number(
-                                    item.item.requested_amount,
-                                  ).toLocaleString()}`
-                                : "-"}
+                              Quantity: {item.item?.requested_quantity ?? "-"}
                             </p>
 
                             {item.category_note && (

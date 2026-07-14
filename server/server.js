@@ -10,7 +10,10 @@ import { poolPromise } from "./config/db.js";
 // ✅ Budget Access feature (grouped clearly)
 import accessManagementRoutes from "./modules/access-management/access.routes.js";
 import masterCatalogRoutes from "./modules/master-catalog/masterCatalog.routes.js";
-import poItemMappingsRoutes from "./routes/poItemMappings.routes.js";
+import {
+  poItemMappingsRoutes,
+  poLinkingRoutes,
+} from "./modules/po-linking/poLinking.routes.js";
 import projectsRoutes from "./routes/projects.routes.js";
 
 // Other features
@@ -30,7 +33,7 @@ import { ApiError } from "./utils/apiError.js";
 import testRoutes from "./routes/test.routes.js";
 import transferRoutes from "./modules/transfers/transfers.routes.js";
 import budgetItemRoutes from "./routes/budgetItem.routes.js";
-import poRoutes from "./routes/po.routes.js";
+import budgetAnalyticsRoutes from "./modules/budget-analytics/budgetAnalytics.routes.js";
 
 const app = express();
 
@@ -84,11 +87,12 @@ app.use("/api/adjustment-requests", adjustmentRequestRoutes);
 app.use("/api/budget-approval", budgetApprovalRoutes);
 app.use("/api/item-requests", itemRequestRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/budget-analytics", budgetAnalyticsRoutes);
 app.use("/api/audit-logs", auditRoutes);
 app.use("/api/transfers", transferRoutes);
 app.use("/api/test", testRoutes);
 app.use("/api/budget-items", budgetItemRoutes);
-app.use("/api/po-links", poRoutes);
+app.use("/api/po-links", poLinkingRoutes);
 app.use("/api/projects", projectsRoutes);
 // 404
 app.use((req, res, next) => {

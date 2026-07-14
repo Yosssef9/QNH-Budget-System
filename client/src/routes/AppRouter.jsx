@@ -59,7 +59,11 @@ const router = createBrowserRouter([
           return {
             Component: () => (
               <RequirePermission
-                permission={PERMISSION_CODES.VIEW_DEPARTMENT_BUDGET_REQUESTS}
+                permission={[
+                  PERMISSION_CODES.VIEW_DEPARTMENT_BUDGET_REQUESTS,
+                  PERMISSION_CODES.VIEW_CATEGORY_BUDGET_REQUESTS,
+                  PERMISSION_CODES.CREATE_CATEGORY_TRANSFERS,
+                ]}
               >
                 <module.default />
               </RequirePermission>
@@ -93,7 +97,11 @@ const router = createBrowserRouter([
           return {
             Component: () => (
               <RequirePermission
-                permission={PERMISSION_CODES.VIEW_DEPARTMENT_BUDGET_REQUESTS}
+                permission={[
+                  PERMISSION_CODES.VIEW_DEPARTMENT_BUDGET_REQUESTS,
+                  PERMISSION_CODES.VIEW_CATEGORY_BUDGET_REQUESTS,
+                  PERMISSION_CODES.CREATE_CATEGORY_TRANSFERS,
+                ]}
               >
                 <module.default />
               </RequirePermission>
@@ -110,7 +118,7 @@ const router = createBrowserRouter([
           return {
             Component: () => (
               <RequirePermission
-                permission={PERMISSION_CODES.VIEW_CFO_CATEGORY_BUDGET_PACKAGES}
+                permission={PERMISSION_CODES.VIEW_BUDGET_REPORTS}
               >
                 <module.default />
               </RequirePermission>
@@ -127,7 +135,11 @@ const router = createBrowserRouter([
           return {
             Component: () => (
               <RequirePermission
-                permission={PERMISSION_CODES.VIEW_DEPARTMENT_BUDGET_REQUESTS}
+                permission={[
+                  PERMISSION_CODES.VIEW_DEPARTMENT_BUDGET_REQUESTS,
+                  PERMISSION_CODES.VIEW_BUDGET_REPORTS,
+                  PERMISSION_CODES.MANAGE_BUDGET_ACCESS,
+                ]}
               >
                 <module.default />
               </RequirePermission>
@@ -222,7 +234,7 @@ const router = createBrowserRouter([
           return {
             Component: () => (
               <RequirePermission
-                permission={PERMISSION_CODES.VIEW_CFO_CATEGORY_BUDGET_PACKAGES}
+                permission={PERMISSION_CODES.VIEW_BUDGET_REPORTS}
               >
                 <module.default />
               </RequirePermission>

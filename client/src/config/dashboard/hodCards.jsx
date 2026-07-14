@@ -1,14 +1,9 @@
-import React from "react";
 import {
   AlertTriangle,
   Building2,
   CheckCircle2,
-  Link2,
   Wallet,
 } from "lucide-react";
-
-import CurrencyText from "../../components/CurrencyText";
-import { can } from "../../helpers/permissions";
 
 import {
   getBudgetStatusLabel,
@@ -44,41 +39,31 @@ export function getHodCards(budgetAccess, dashboardData) {
       ),
 
       description:
-        budgetStatus === "APPROVED"
-          ? "Budget is approved and available for use"
-          : budgetStatus === "PENDING_APPROVAL"
-            ? "Budget is awaiting approval"
-            : budgetStatus === "RETURNED"
-              ? "Budget was returned for revision"
-              : budgetStatus === "CANCELLED"
-                ? "Budget has been cancelled"
-                : "Budget is still being prepared",
+        budgetStatus === "CATEGORY_REVIEW_COMPLETED"
+          ? "All submitted category budgets have completed Category Manager review"
+          : budgetStatus === "IN_CATEGORY_REVIEW"
+            ? "At least one category budget is under Category Manager review"
+            : "Department category budgets are still being prepared",
 
       icon:
-        budgetStatus === "APPROVED"
+        budgetStatus === "CATEGORY_REVIEW_COMPLETED"
           ? CheckCircle2
-          : budgetStatus === "RETURNED"
+          : budgetStatus === "IN_CATEGORY_REVIEW"
             ? AlertTriangle
             : Wallet,
       route: "/budgets",
     },
 
     {
-      title: "Current Budget Total",
-      value: <CurrencyText value={dashboardData.totalAmount} />,
-      description: `${dashboardData.budgetItems.length} item(s) in your current budget`,
+      title: "Requested Quantity",
+      value: Number(
+        dashboardData.totalRequestedQuantity || 0,
+      ).toLocaleString(undefined, {
+        maximumFractionDigits: 4,
+      }),
+      description: `${dashboardData.budgetItems.length} requested item(s) in your current budget`,
       icon: Wallet,
       route: "/budgets",
     },
-    //   ? [
-    //       {
-    //         title: "PO Link Requests",
-    //         value: "Open",
-    //         description: "Submit and track PO link requests during pre-closing.",
-    //         icon: Link2,
-    //         route: "/po-linking",
-    //       },
-    //     ]
-    //   : []),
   ];
 }

@@ -21,8 +21,12 @@ import { PERMISSION_CODES } from "@qnh/permissions";
 export function useDashboardData() {
   const { budgetAccess } = useAuth();
   const { data: activeYear } = useActiveFinancialYear();
-  const permissions = budgetAccess?.permissions || {};
   const permissionCodes = budgetAccess?.permissionCodes || [];
+  const hasDepartmentBudgetAccess = [
+    PERMISSION_CODES.VIEW_DEPARTMENT_BUDGET_REQUESTS,
+    PERMISSION_CODES.MANAGE_DEPARTMENT_BUDGET_REQUESTS,
+    PERMISSION_CODES.SUBMIT_DEPARTMENT_CATEGORY_BUDGETS,
+  ].some((permission) => permissionCodes.includes(permission));
   const canSubmitAdjustments = permissionCodes.includes(
     PERMISSION_CODES.SUBMIT_DEPARTMENT_BUDGET_CHANGE_REQUESTS,
   );
@@ -31,8 +35,8 @@ export function useDashboardData() {
   );
   const shouldLoadCurrentBudget = Boolean(
     budgetAccess?.department?.id &&
-      (permissions.can_view_budget || permissions.can_edit_budget) &&
-      !permissions.can_approve_budget,
+      hasDepartmentBudgetAccess &&
+      !permissionCodes.includes(PERMISSION_CODES.VIEW_BUDGET_REPORTS),
   );
 
   const { data: currentBudget, isLoading: loadingBudget } = useQuery({
@@ -54,9 +58,9 @@ export function useDashboardData() {
     refetchOnWindowFocus: true,
   });
 
-  const totalAmount = useMemo(() => {
+  const totalRequestedQuantity = useMemo(() => {
     return budgetItems.reduce(
-      (sum, item) => sum + toNumber(item.total_amount),
+      (sum, item) => sum + toNumber(item.quantity),
       0,
     );
   }, [budgetItems]);
@@ -91,7 +95,7 @@ export function useDashboardData() {
     activeYear,
     currentBudget,
     budgetItems,
-    totalAmount,
+    totalRequestedQuantity,
     dashboardStats,
     dashboardItemRequests,
     dashboardTransfers,

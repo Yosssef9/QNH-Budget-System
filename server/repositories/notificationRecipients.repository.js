@@ -93,10 +93,10 @@ export async function getPOLinkRequesterRepo(poLinkId) {
         U.USER_ID,
         U.USER_NAME,
         U.email
-      FROM BS_PO_LINKS PL
+      FROM dbo.BS_category_po_links PL
       INNER JOIN USERS U
-        ON U.USER_ID = PL.REQUESTED_BY
-      WHERE PL.ID = @poLinkId
+        ON U.USER_ID = PL.requested_by
+      WHERE PL.id = @poLinkId
     `);
 
   return result.recordset;

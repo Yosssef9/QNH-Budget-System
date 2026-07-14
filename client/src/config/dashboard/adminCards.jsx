@@ -25,17 +25,20 @@ export function getAdminCards(budgetAccess, dashboardData) {
     createFinancialYearCard(dashboardData.activeYear),
 
     {
-      title: "Pending Budget Approvals",
-      value: dashboardStats?.budgets?.pending_budgets || 0,
+      title: "CFO Package Review",
+      value: "Review",
 
-      description: "Budgets waiting for approval decision",
+      description: "Review category packages submitted by Category Managers",
 
       icon: Clock3,
 
-      route: "/budget-approval",
-      highlight:
-        (dashboardStats?.budgets?.pending_budgets || 0) > 0 ? "pending" : null,
-      show: can(budgetAccess, PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES),
+      route: "/cfo-review",
+      show:
+        can(
+          budgetAccess,
+          PERMISSION_CODES.VIEW_CFO_CATEGORY_BUDGET_PACKAGES,
+        ) ||
+        can(budgetAccess, PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES),
     },
 
     {
@@ -52,7 +55,7 @@ export function getAdminCards(budgetAccess, dashboardData) {
 
       route: "/budgets/all",
 
-      show: can(budgetAccess, PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES),
+      show: can(budgetAccess, PERMISSION_CODES.VIEW_BUDGET_REPORTS),
     },
 
     {
@@ -65,7 +68,7 @@ export function getAdminCards(budgetAccess, dashboardData) {
 
       route: "/budgets/all",
 
-      show: can(budgetAccess, PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES),
+      show: can(budgetAccess, PERMISSION_CODES.VIEW_BUDGET_REPORTS),
     },
 
     {
@@ -73,7 +76,7 @@ export function getAdminCards(budgetAccess, dashboardData) {
 
       value: dashboardStats?.itemRequests?.pending_item_requests || 0,
 
-      description: "New item/category requests waiting review",
+      description: "New item requests waiting for catalog review",
 
       icon: Tags,
 

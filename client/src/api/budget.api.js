@@ -9,8 +9,14 @@ export async function getMyBudgets() {
   return response.data?.data || [];
 }
 
+export async function getCategoryBudgetOverview() {
+  const response = await api.get("/budgets/category-overview");
+  return response.data?.data || [];
+}
+
 export async function getAllBudgets() {
-  return getMyBudgets();
+  const response = await api.get("/budgets/all");
+  return response.data?.data || [];
 }
 
 export async function createBudget(payload = {}) {

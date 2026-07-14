@@ -3,9 +3,11 @@ import { ApiResponse } from "../../utils/apiResponse.js";
 import { auditLog } from "../../utils/audit.js";
 import {
   getCurrentDepartmentBudgetService,
+  listCategoryBudgetOverviewService,
   getBudgetHistoryItemsService,
   getCopyableBudgetHistoryService,
   getDepartmentBudgetByIdService,
+  listAllDepartmentBudgetsOverviewService,
   listMyDepartmentBudgetsService,
   saveDepartmentCategoryItemsService,
   submitDepartmentCategoryBudgetService,
@@ -35,6 +37,32 @@ export const getMyDepartmentBudgets = asyncHandler(async (req, res) => {
   res.json(
     new ApiResponse({
       message: "Department budgets fetched successfully",
+      data,
+    }),
+  );
+});
+
+export const getAllDepartmentBudgets = asyncHandler(async (req, res) => {
+  const data = await listAllDepartmentBudgetsOverviewService({
+    budgetAccess: req.budgetAccess,
+  });
+
+  res.json(
+    new ApiResponse({
+      message: "All department budgets fetched successfully",
+      data,
+    }),
+  );
+});
+
+export const getCategoryBudgetOverview = asyncHandler(async (req, res) => {
+  const data = await listCategoryBudgetOverviewService({
+    budgetAccess: req.budgetAccess,
+  });
+
+  res.json(
+    new ApiResponse({
+      message: "Category budget overview fetched successfully",
       data,
     }),
   );

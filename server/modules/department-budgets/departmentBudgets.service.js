@@ -4,7 +4,9 @@ import { NOTIFICATION_TYPES } from "../../constants/notificationTypes.js";
 import { queueNotification } from "../../services/notification.service.js";
 import { hasAnyPermission as hasAnyCanonicalPermission } from "../../../shared/permissions/permissionCodes.js";
 import {
+  ALL_DEPARTMENT_BUDGETS_OVERVIEW_PERMISSIONS,
   CATEGORY_SUBMISSION_WINDOW_STATUS,
+  CATEGORY_BUDGET_OVERVIEW_PERMISSIONS,
   DEPARTMENT_BUDGET_ITEM_STATUS,
   DEPARTMENT_BUDGET_PERMISSIONS,
   DEPARTMENT_CATEGORY_BUDGET_STATUS,
@@ -27,6 +29,8 @@ import {
   findLatestFinancialYearRepo,
   findSubmissionWindowRepo,
   listCategoryBudgetsForDepartmentBudgetRepo,
+  listCategoryDepartmentItemsOverviewRepo,
+  listAllDepartmentBudgetsOverviewRepo,
   listDepartmentBudgetsRepo,
   listCopyableCategoryBudgetHistoryRepo,
   listHistoryItemsForCategoryBudgetRepo,
@@ -40,8 +44,10 @@ import {
   validateActiveCatalogItemForCategoryRepo,
 } from "./departmentBudgets.repository.js";
 import {
+  mapAllDepartmentBudgetOverview,
   mapDepartmentBudgetDetail,
   mapDepartmentBudgetSummary,
+  mapCategoryDepartmentItemsOverview,
 } from "./departmentBudgets.mapper.js";
 
 function getActorUserId(user) {
@@ -96,6 +102,18 @@ function assertCanView(budgetAccess) {
   }
 }
 
+function assertCanViewAllBudgets(budgetAccess) {
+  if (
+    !hasAnyPermission(budgetAccess, ALL_DEPARTMENT_BUDGETS_OVERVIEW_PERMISSIONS)
+  ) {
+    throw new ApiError(
+      403,
+      "You do not have permission to view all department budgets",
+      "ALL_DEPARTMENT_BUDGETS_VIEW_DENIED",
+    );
+  }
+}
+
 function assertCanManage(budgetAccess) {
   if (!hasAnyPermission(budgetAccess, DEPARTMENT_BUDGET_PERMISSIONS.MANAGE)) {
     throw new ApiError(
@@ -114,6 +132,32 @@ function assertCanSubmit(budgetAccess) {
       "DEPARTMENT_BUDGET_SUBMIT_DENIED",
     );
   }
+}
+
+function assertCategoryOverviewAccess(budgetAccess) {
+  if (!hasAnyPermission(budgetAccess, CATEGORY_BUDGET_OVERVIEW_PERMISSIONS)) {
+    throw new ApiError(
+      403,
+      "You do not have permission to view category budget overview",
+      "CATEGORY_BUDGET_OVERVIEW_DENIED",
+    );
+  }
+
+  const categoryId =
+    budgetAccess?.budgetCategory?.id ??
+    budgetAccess?.category?.id ??
+    budgetAccess?.selectedWorkspace?.budgetCategory?.id ??
+    null;
+
+  if (!categoryId) {
+    throw new ApiError(
+      403,
+      "Select a category workspace to view category budget overview",
+      "CATEGORY_WORKSPACE_REQUIRED",
+    );
+  }
+
+  return Number(categoryId);
 }
 
 function assertOwnDepartmentBudget(budget, departmentId) {
@@ -290,13 +334,37 @@ export async function listMyDepartmentBudgetsService({ budgetAccess }) {
   return budgets.map(mapDepartmentBudgetSummary);
 }
 
+export async function listAllDepartmentBudgetsOverviewService({ budgetAccess }) {
+  assertCanViewAllBudgets(budgetAccess);
+  const rows = await listAllDepartmentBudgetsOverviewRepo();
+
+  return rows.map(mapAllDepartmentBudgetOverview);
+}
+
+export async function listCategoryBudgetOverviewService({ budgetAccess }) {
+  const budgetCategoryId = assertCategoryOverviewAccess(budgetAccess);
+  const rows = await listCategoryDepartmentItemsOverviewRepo({
+    budgetCategoryId,
+  });
+
+  return mapCategoryDepartmentItemsOverview(rows);
+}
+
 export async function getDepartmentBudgetByIdService({
   departmentBudgetId,
   budgetAccess,
 }) {
+  const budget = await findDepartmentBudgetByIdRepo(departmentBudgetId);
+
+  if (hasAnyPermission(budgetAccess, ALL_DEPARTMENT_BUDGETS_OVERVIEW_PERMISSIONS)) {
+    if (!budget) {
+      throw new ApiError(404, "Department budget not found", "BUDGET_NOT_FOUND");
+    }
+    return buildDepartmentBudgetDetail(departmentBudgetId);
+  }
+
   assertCanView(budgetAccess);
   const departmentId = assertDepartmentWorkspace(budgetAccess);
-  const budget = await findDepartmentBudgetByIdRepo(departmentBudgetId);
   assertOwnDepartmentBudget(budget, departmentId);
 
   return buildDepartmentBudgetDetail(departmentBudgetId);
@@ -427,7 +495,7 @@ export async function saveDepartmentCategoryItemsService({
     const keepItemIds = [];
 
     for (const item of items) {
-      const isValidCatalogItem = await validateActiveCatalogItemForCategoryRepo(
+      const catalogItem = await validateActiveCatalogItemForCategoryRepo(
         {
           catalogItemId: item.catalog_item_id,
           budgetCategoryId: categoryBudget.budget_category_id,
@@ -435,7 +503,7 @@ export async function saveDepartmentCategoryItemsService({
         },
       );
 
-      if (!isValidCatalogItem) {
+      if (!catalogItem) {
         throw new ApiError(
           400,
           "Selected catalog item is not active in this category",
@@ -451,6 +519,12 @@ export async function saveDepartmentCategoryItemsService({
           id: item.id,
           department_category_budget_id: departmentCategoryBudgetId,
           catalog_item_id: item.catalog_item_id,
+          catalog_item_name_snapshot: catalogItem.name,
+          catalog_item_code_snapshot: catalogItem.item_code,
+          expense_type_snapshot: catalogItem.expense_type,
+          unit_of_measure_id_snapshot: catalogItem.unit_of_measure_id,
+          unit_name_snapshot: catalogItem.unit_name,
+          unit_code_snapshot: catalogItem.unit_code,
           requested_quantity: item.requested_quantity,
           distribution_method: item.distribution_method,
           actor_user_id: actorUserId,
@@ -525,6 +599,12 @@ async function ensurePackageRecordsForSubmittedItems({
     const packageItem = await ensurePackageItemRepo(transaction, {
       category_budget_package_id: packageHeader.id,
       catalog_item_id: item.catalog_item_id,
+      catalog_item_name_snapshot: item.catalog_item_name,
+      catalog_item_code_snapshot: item.item_code,
+      expense_type_snapshot: item.expense_type,
+      unit_of_measure_id_snapshot: item.unit_of_measure_id,
+      unit_name_snapshot: item.unit_name,
+      unit_code_snapshot: item.unit_code,
       actor_user_id: actorUserId,
     });
 

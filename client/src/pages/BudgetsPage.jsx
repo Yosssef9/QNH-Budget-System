@@ -23,6 +23,14 @@ const budgetActions = [
     primary: true,
   },
   {
+    title: "Category Budget",
+    description: "View category balances and department requests.",
+    path: "/budgets/my",
+    icon: Wallet,
+    permission: PERMISSION_CODES.VIEW_CATEGORY_BUDGET_REQUESTS,
+    primary: true,
+  },
+  {
     title: "Budget Entry",
     description: "Enter budget items manually for the open financial year.",
     path: "/budgets/entry",
@@ -49,8 +57,11 @@ export default function BudgetsPage() {
     [];
 
   const isCfoBudgetReviewer = hasAnyPermission(permissionCodes, [
-    PERMISSION_CODES.VIEW_CFO_CATEGORY_BUDGET_PACKAGES,
-    PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES,
+    PERMISSION_CODES.VIEW_BUDGET_REPORTS,
+  ]);
+  const isCategoryManager = hasAnyPermission(permissionCodes, [
+    PERMISSION_CODES.VIEW_CATEGORY_BUDGET_REQUESTS,
+    PERMISSION_CODES.CREATE_CATEGORY_TRANSFERS,
   ]);
 
   useEffect(() => {
@@ -118,17 +129,17 @@ export default function BudgetsPage() {
         <div className="mt-4 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="text-sm font-semibold tracking-wide text-primary-700">
-              Budget Management
+          {isCategoryManager ? "Category Budget" : "Budget Management"}
             </p>
 
             <h1 className="mt-2 text-3xl font-bold tracking-tight text-enterprise-text">
-              Budgets
+              {isCategoryManager ? "Category Budget" : "Budgets"}
             </h1>
 
             <p className="mt-3 max-w-3xl text-sm leading-6 text-enterprise-muted">
-              Choose what you want to do inside the Budgets module: enter a
-              budget, continue drafts, review returned budgets, or view your
-              submitted category budgets.
+              {isCategoryManager
+                ? "View your assigned category budget, balances, and department demand."
+                : "Choose what you want to do inside the Budgets module: enter a budget, continue drafts, review returned budgets, or view your submitted category budgets."}
             </p>
           </div>
         </div>

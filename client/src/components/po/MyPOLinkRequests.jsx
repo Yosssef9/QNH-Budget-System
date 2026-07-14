@@ -65,7 +65,7 @@ export default function MyPOLinkRequests({
           <thead>
             <tr className="border-b bg-slate-50 text-left">
               <th className="px-4 py-3">Request ID</th>
-              <th className="px-4 py-3">Budget Item</th>
+              <th className="px-4 py-3">Package Sub-Item</th>
               <th className="px-4 py-3">PO Item</th>
               <th className="px-4 py-3">Requested Qty</th>
               <th className="px-4 py-3">Linked Amount</th>
@@ -85,6 +85,10 @@ export default function MyPOLinkRequests({
             )}
 
             {filteredRequests.map((request) => {
+              const requestId = Number(request.id);
+              const hasValidRequestId =
+                Number.isInteger(requestId) && requestId > 0;
+
               return (
                 <tr key={request.id} className="border-b last:border-b-0">
                   <td className="px-4 py-3">{request.id}</td>
@@ -113,7 +117,10 @@ export default function MyPOLinkRequests({
                     <div className="flex gap-2">
                       <button
                         type="button"
-                        onClick={() => onView?.(request)}
+                        onClick={() => {
+                          if (hasValidRequestId) onView?.(request);
+                        }}
+                        disabled={!hasValidRequestId}
                         className="inline-flex items-center justify-center rounded-lg bg-slate-100 p-2 text-slate-700 transition hover:bg-slate-200"
                       >
                         <Eye size={16} />

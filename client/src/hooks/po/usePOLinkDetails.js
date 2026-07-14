@@ -4,11 +4,14 @@ import { getPOLinkById } from "../../api/po.api";
 import { PO_LINK_DETAILS_QUERY_KEY } from "./usePOQueryKeys";
 
 export function usePOLinkDetails(id) {
+  const numericId = Number(id);
+  const validId = Number.isInteger(numericId) && numericId > 0;
+
   return useQuery({
-    queryKey: [...PO_LINK_DETAILS_QUERY_KEY, id],
+    queryKey: [...PO_LINK_DETAILS_QUERY_KEY, validId ? numericId : null],
 
-    queryFn: () => getPOLinkById(id),
+    queryFn: () => getPOLinkById(numericId),
 
-    enabled: Boolean(id),
+    enabled: validId,
   });
 }

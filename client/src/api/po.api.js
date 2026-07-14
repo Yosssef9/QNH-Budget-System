@@ -63,6 +63,35 @@ export async function getPOTransparency(purchaseInvoiceLineId) {
   return data.data;
 }
 
+export async function getPackageSubItemPOLinks(packageSubItemId) {
+  const { data } = await api.get(
+    `/po-links/package-sub-items/${packageSubItemId}/links`,
+  );
+
+  return (
+    data.data || {
+      packageSubItem: null,
+      summary: {
+        approvedLinkCount: 0,
+        pendingLinkCount: 0,
+        totalPOUsed: 0,
+        totalPendingPOAmount: 0,
+        totalLinkedQuantity: 0,
+        totalPendingQuantity: 0,
+      },
+      links: [],
+    }
+  );
+}
+
+export async function getPackageSubItemPriceIntelligence(packageSubItemId) {
+  const { data } = await api.get(
+    `/po-links/package-sub-items/${packageSubItemId}/price-intelligence`,
+  );
+
+  return data.data;
+}
+
 export async function createPOLink(payload) {
   const { data } = await api.post("/po-links", payload);
 

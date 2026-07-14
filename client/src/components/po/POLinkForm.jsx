@@ -168,7 +168,7 @@ function AllocationSummary({
       <div className="space-y-4">
         <div>
           <div className="mb-2 text-xs font-bold uppercase text-slate-500">
-            Budget Item
+            Package Sub-Item
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <SummaryMetric label="Approved Qty" value={budgetApprovedQty} />
@@ -379,7 +379,7 @@ export default function POLinkForm({
 
   const validationMessage = useMemo(() => {
     if (!selectedBudgetItemId) {
-      return "Select a budget item first";
+      return "Select a package sub-item first";
     }
 
     if (!selectedPOId) {
@@ -398,7 +398,7 @@ export default function POLinkForm({
       selectedBudgetItem &&
       numericRequestedQty > selectedBudgetRemainingQty
     ) {
-      return `Requested quantity exceeds budget item quantity (${selectedBudgetRemainingQty})`;
+      return `Requested quantity exceeds package sub-item quantity (${selectedBudgetRemainingQty})`;
     }
 
     return "";
@@ -431,6 +431,7 @@ export default function POLinkForm({
       await createMutation.mutateAsync({
         purchase_invoice_line_id: Number(selectedPOId),
         budget_item_id: Number(selectedBudgetItemId),
+        category_budget_package_sub_item_id: Number(selectedBudgetItemId),
         requested_qty: numericRequestedQty,
       });
 
@@ -469,12 +470,12 @@ export default function POLinkForm({
           </h2>
 
           <p className="mt-1 text-sm text-slate-500">
-            Link an approved Purchase Order quantity to an approved budget item.
+            Link an approved Purchase Order quantity to a category package sub-item.
           </p>
         </div>
 
         <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-          Department:{" "}
+          Category:{" "}
           <span className="font-bold text-slate-900">
             {budgetItems[0]?.department_name || "-"}
           </span>
@@ -498,7 +499,7 @@ export default function POLinkForm({
                 </h3>
 
                 <p className="mt-1 text-xs font-medium text-slate-500">
-                  Select the budget item and quantity to allocate.
+                  Select the package sub-item and quantity to allocate.
                 </p>
               </div>
             </div>
@@ -507,7 +508,7 @@ export default function POLinkForm({
           <div className="space-y-4">
             <div>
               <label className="mb-2 block text-sm font-semibold text-slate-700">
-                Budget Item
+                Package Sub-Item
               </label>
 
               <SearchableMultiSelect
@@ -519,8 +520,8 @@ export default function POLinkForm({
                 }
                 placeholder={
                   loadingBudgetItems
-                    ? "Loading budget items..."
-                    : "Select budget item"
+                    ? "Loading package sub-items..."
+                    : "Select package sub-item"
                 }
                 disabled={loadingBudgetItems}
               />
@@ -528,7 +529,7 @@ export default function POLinkForm({
               {selectedBudgetItem && (
                 <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
                   <div className="text-xs font-bold uppercase text-slate-400">
-                    Selected Budget Item
+                    Selected Package Sub-Item
                   </div>
 
                   <div className="mt-1 text-sm font-bold text-slate-900">
@@ -723,7 +724,7 @@ export default function POLinkForm({
         <div className="space-y-4 text-sm">
           <div className="rounded-xl bg-slate-50 p-4">
             <div className="text-xs font-bold uppercase text-slate-500">
-              Budget Item
+              Package Sub-Item
             </div>
 
             <div className="mt-1 font-semibold text-slate-900">

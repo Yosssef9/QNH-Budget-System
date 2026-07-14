@@ -21,7 +21,7 @@ export default function POApprovalTable({
               </th>
 
               <th className="border border-slate-200 px-4 py-4 text-left">
-                Department
+                Category
               </th>
 
               <th className="border border-slate-200 px-4 py-4 text-left">
@@ -33,7 +33,7 @@ export default function POApprovalTable({
               </th>
 
               <th className="border border-slate-200 px-4 py-4 text-left">
-                Budget Type
+                Package Sub-Item
               </th>
 
               <th className="border border-slate-200 px-4 py-4 text-left">
@@ -84,6 +84,9 @@ export default function POApprovalTable({
             {!loading &&
               requests.map((request) => {
                 const isPending = request.status === "PENDING";
+                const requestId = Number(request.id);
+                const hasValidRequestId =
+                  Number.isInteger(requestId) && requestId > 0;
 
                 return (
                   <tr key={request.id} className="transition hover:bg-slate-50">
@@ -127,7 +130,10 @@ export default function POApprovalTable({
                       <div className="flex justify-center gap-2">
                         <button
                           type="button"
-                          onClick={() => onView?.(request)}
+                          onClick={() => {
+                            if (hasValidRequestId) onView?.(request);
+                          }}
+                          disabled={!hasValidRequestId}
                           className="inline-flex items-center justify-center rounded-lg bg-slate-100 p-2 text-slate-700 transition hover:bg-slate-200"
                           title="View Details"
                         >

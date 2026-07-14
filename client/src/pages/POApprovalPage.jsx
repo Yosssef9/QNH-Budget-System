@@ -49,12 +49,12 @@ function POApprovalDecisionSummary({ request }) {
 
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <ApprovalDetailRow label="Department" value={request.department_name} />
+      <ApprovalDetailRow label="Category" value={request.department_name} />
       <ApprovalDetailRow
         label="Financial Year"
         value={request.financial_year ? `FY ${request.financial_year}` : "-"}
       />
-      <ApprovalDetailRow label="Budget Type" value={request.budget_type_name} />
+      <ApprovalDetailRow label="Package Sub-Item" value={request.budget_type_name} />
       <ApprovalDetailRow label="PO Item" value={request.item_description} />
       <ApprovalDetailRow label="Supplier" value={request.supplier_name} />
       <ApprovalDetailRow
@@ -116,6 +116,13 @@ export default function POApprovalPage() {
   const approveMutation = useApprovePOLink();
   const rejectMutation = useRejectPOLink();
 
+  function handleViewRequest(request) {
+    const requestId = Number(request?.id);
+    if (!Number.isInteger(requestId) || requestId <= 0) return;
+
+    setSelectedRequest(request);
+  }
+
   const departmentOptions = useMemo(() => {
     const departments = new Map();
 
@@ -129,7 +136,7 @@ export default function POApprovalPage() {
     });
 
     return [
-      { value: "ALL", label: "All Departments" },
+      { value: "ALL", label: "All Categories" },
       ...departments.values(),
     ];
   }, [poApprovalRequests]);
@@ -281,7 +288,7 @@ export default function POApprovalPage() {
             value={search}
             onChange={setSearch}
             icon={Search}
-            placeholder="Search by request, department, budget item, PO item..."
+            placeholder="Search by request, category, package sub-item, PO item..."
           />
 
           <SearchableMultiSelect
@@ -299,7 +306,7 @@ export default function POApprovalPage() {
             options={departmentOptions}
             disableClear
             onChange={(event) => setDepartmentFilter(event.target.value)}
-            placeholder="Department"
+            placeholder="Category"
           />
 
           <SearchableMultiSelect
@@ -327,7 +334,7 @@ export default function POApprovalPage() {
       <POApprovalTable
         requests={filteredRequests}
         loading={isLoading}
-        onView={setSelectedRequest}
+        onView={handleViewRequest}
         onApprove={setApproveItem}
         onReject={setRejectItem}
       />

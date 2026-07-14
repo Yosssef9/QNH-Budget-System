@@ -76,7 +76,9 @@ function BudgetItemsTable({
   onItemNoteChange,
   showPriceIntelligence = false,
   onViewPriceIntelligence,
+  onViewDistribution,
   showFinancialColumns = true,
+  showApprovedAmountColumn = false,
 }) {
   const sortableItems = useMemo(
     () =>
@@ -126,7 +128,7 @@ function BudgetItemsTable({
           <col className="w-[220px]" />
           <col className="w-[260px]" />
           <col className="w-[140px]" />
-          <col className="w-[160px]" />
+          <col className="w-[180px]" />
           <col className="w-[140px]" />
 
           {showFinancialColumns && (
@@ -135,6 +137,8 @@ function BudgetItemsTable({
               <col className="w-[170px]" />
             </>
           )}
+
+          {showApprovedAmountColumn && <col className="w-[180px]" />}
 
           {showPriceIntelligence && (
             <>
@@ -206,7 +210,7 @@ function BudgetItemsTable({
               sortColumn={sortColumn}
               sortDirection={sortDirection}
               onSort={handleSort}
-              className="w-[160px]"
+              className="w-[180px]"
             />
 
             <SortableHeader
@@ -238,6 +242,17 @@ function BudgetItemsTable({
                   className="w-[170px]"
                 />
               </>
+            )}
+
+            {showApprovedAmountColumn && (
+              <SortableHeader
+                label="Approved Amount"
+                column="approved_amount"
+                sortColumn={sortColumn}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+                className="w-[180px]"
+              />
             )}
 
             {showPriceIntelligence && (
@@ -347,11 +362,18 @@ function BudgetItemsTable({
                 )}
               </td>
 
-              <td className="border border-slate-200 px-3 py-4">
+              <td className="border border-slate-200 px-3 py-4 text-center">
                 <BudgetMethodBadge
                   method={item.distribution_method}
                   level={item.distribution_level}
                 />
+                <button
+                  type="button"
+                  onClick={() => onViewDistribution?.(item)}
+                  className="mt-2 inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700 transition hover:border-blue-300 hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-100"
+                >
+                  View details
+                </button>
               </td>
 
               <td className="border border-slate-200 px-3 py-4 text-center font-bold">
@@ -368,6 +390,12 @@ function BudgetItemsTable({
                     <CurrencyText value={item.total_amount} />
                   </td>
                 </>
+              )}
+
+              {showApprovedAmountColumn && (
+                <td className="border border-slate-200 px-3 py-4 text-center font-bold text-blue-600">
+                  <CurrencyText compact value={item.approved_amount} />
+                </td>
               )}
 
               {showPriceIntelligence && (
@@ -448,6 +476,7 @@ function BudgetItemsTable({
                 colSpan={
                   6 +
                   (showFinancialColumns ? 2 : 0) +
+                  (showApprovedAmountColumn ? 1 : 0) +
                   (showPriceIntelligence ? 4 : 0) +
                   (showNotes ? 1 : 0)
                 }

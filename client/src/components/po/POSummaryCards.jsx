@@ -112,7 +112,7 @@ export default function POSummaryCards({ availablePOs = [], myLinks = [] }) {
       <POStatCard
         title="Approved Requests"
         value={approvedLinks.length}
-        description="Linked to budget items"
+        description="Linked to package sub-items"
         icon={CheckCircle2}
         variant="success"
       />

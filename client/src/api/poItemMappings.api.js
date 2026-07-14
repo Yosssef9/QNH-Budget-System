@@ -23,8 +23,8 @@ export async function updatePOItemMappingStatus(id, payload) {
   return data.data;
 }
 
-export async function searchPOItemMappingBudgetTypes(params = {}) {
-  const { data } = await api.get("/admin/po-item-mappings/budget-types", {
+export async function searchPOItemMappingCatalogSubItems(params = {}) {
+  const { data } = await api.get("/admin/po-item-mappings/catalog-sub-items", {
     params,
   });
 

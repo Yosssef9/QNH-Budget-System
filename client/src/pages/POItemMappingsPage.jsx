@@ -21,7 +21,9 @@ import SortableHeader from "../components/SortableHeader";
 import TablePagination from "../components/TablePagination";
 import {
   useCreatePOItemMapping,
-  usePOItemMappingBudgetTypes,
+  usePOItemMappingCatalogItems,
+  usePOItemMappingCatalogSubItems,
+  usePOItemMappingCategories,
   usePOItemMappings,
   usePOItemsForMapping,
   useUpdatePOItemMappingStatus,
@@ -31,7 +33,9 @@ import useTableSort from "../hooks/useTableSort";
 import { formatDateTime } from "../utils/dateFormatters";
 
 const emptyForm = {
-  budget_type_id: "",
+  category_id: "",
+  catalog_item_id: "",
+  catalog_sub_item_id: "",
   po_item_code: "",
   po_item_description: "",
 };
@@ -39,7 +43,7 @@ const emptyForm = {
 const sourceFilters = [
   { value: "ALL", label: "All Sources" },
   { value: "MANUAL", label: "Manual" },
-  { value: "APPROVED_LINK", label: "Learned" },
+  { value: "APPROVED_PO_LINK", label: "Learned" },
 ];
 
 const statusFilters = [
@@ -206,7 +210,9 @@ export default function POItemMappingsPage() {
     status: "ALL",
   });
   const [form, setForm] = useState(emptyForm);
-  const [budgetTypeSearch, setBudgetTypeSearch] = useState("");
+  const [categorySearch, setCategorySearch] = useState("");
+  const [catalogItemSearch, setCatalogItemSearch] = useState("");
+  const [catalogSubItemSearch, setCatalogSubItemSearch] = useState("");
   const [poItemSearch, setPOItemSearch] = useState("");
   const [statusTarget, setStatusTarget] = useState(null);
   const [disabledReason, setDisabledReason] = useState("");
@@ -214,8 +220,10 @@ export default function POItemMappingsPage() {
   const [isFiltersOpen, setIsFiltersOpen] = useState(true);
 
   const mappingsQuery = usePOItemMappings(filters);
-  const budgetTypesQuery = usePOItemMappingBudgetTypes({
-    search: budgetTypeSearch || undefined,
+  const categoriesQuery = usePOItemMappingCategories();
+  const catalogItemsQuery = usePOItemMappingCatalogItems(form.category_id);
+  const catalogSubItemsQuery = usePOItemMappingCatalogSubItems({
+    catalogItemId: form.catalog_item_id,
   });
   const poItemsQuery = usePOItemsForMapping({
     search: poItemSearch || undefined,
@@ -223,19 +231,53 @@ export default function POItemMappingsPage() {
   const createMutation = useCreatePOItemMapping();
   const statusMutation = useUpdatePOItemMappingStatus();
 
-  const mappings = mappingsQuery.data || [];
-  const budgetTypes = budgetTypesQuery.data || [];
-  const poItems = poItemsQuery.data || [];
+  const mappings = useMemo(
+    () => mappingsQuery.data || [],
+    [mappingsQuery.data],
+  );
+  const categories = useMemo(
+    () => categoriesQuery.data || [],
+    [categoriesQuery.data],
+  );
+  const catalogItems = useMemo(
+    () => catalogItemsQuery.data || [],
+    [catalogItemsQuery.data],
+  );
+  const catalogSubItems = useMemo(
+    () => catalogSubItemsQuery.data || [],
+    [catalogSubItemsQuery.data],
+  );
+  const poItems = useMemo(() => poItemsQuery.data || [], [poItemsQuery.data]);
 
-  const selectedBudgetType = useMemo(() => {
-    if (!form.budget_type_id) return [];
+  const selectedCategory = useMemo(() => {
+    if (!form.category_id) return [];
 
-    const found = budgetTypes.find(
-      (item) => Number(item.id) === Number(form.budget_type_id),
+    const found = categories.find(
+      (item) => Number(item.id) === Number(form.category_id),
     );
 
     return found ? [found] : [];
-  }, [budgetTypes, form.budget_type_id]);
+  }, [categories, form.category_id]);
+
+  const selectedCatalogItem = useMemo(() => {
+    if (!form.catalog_item_id) return [];
+
+    const found = catalogItems.find(
+      (item) => Number(item.id) === Number(form.catalog_item_id),
+    );
+
+    return found ? [found] : [];
+  }, [catalogItems, form.catalog_item_id]);
+
+  const selectedCatalogSubItem = useMemo(() => {
+    if (!form.catalog_sub_item_id) return [];
+
+    const found = catalogSubItems.find(
+      (item) => Number(item.id) === Number(form.catalog_sub_item_id),
+    );
+
+    return found ? [found] : [];
+  }, [catalogSubItems, form.catalog_sub_item_id]);
 
   const selectedPOItem = useMemo(() => {
     if (!form.po_item_code) return [];
@@ -254,14 +296,65 @@ export default function POItemMappingsPage() {
         ];
   }, [form.po_item_code, form.po_item_description, poItems]);
 
-  const budgetTypeOptions = useMemo(() => {
+  const categoryOptions = useMemo(() => {
+    const query = categorySearch.trim().toLowerCase();
+    const filtered = query
+      ? categories.filter(
+          (item) =>
+            item.name?.toLowerCase().includes(query) ||
+            item.category_name?.toLowerCase().includes(query) ||
+            item.category_code?.toLowerCase().includes(query),
+        )
+      : categories;
+
     return [
-      ...selectedBudgetType,
-      ...budgetTypes.filter(
-        (item) => Number(item.id) !== Number(form.budget_type_id),
+      ...selectedCategory,
+      ...filtered.filter(
+        (item) => Number(item.id) !== Number(form.category_id),
       ),
     ];
-  }, [budgetTypes, form.budget_type_id, selectedBudgetType]);
+  }, [categories, categorySearch, form.category_id, selectedCategory]);
+
+  const catalogItemOptions = useMemo(() => {
+    const query = catalogItemSearch.trim().toLowerCase();
+    const filtered = query
+      ? catalogItems.filter(
+          (item) =>
+            item.name?.toLowerCase().includes(query) ||
+            item.item_code?.toLowerCase().includes(query),
+        )
+      : catalogItems;
+
+    return [
+      ...selectedCatalogItem,
+      ...filtered.filter(
+        (item) => Number(item.id) !== Number(form.catalog_item_id),
+      ),
+    ];
+  }, [catalogItemSearch, catalogItems, form.catalog_item_id, selectedCatalogItem]);
+
+  const catalogSubItemOptions = useMemo(() => {
+    const query = catalogSubItemSearch.trim().toLowerCase();
+    const filtered = query
+      ? catalogSubItems.filter(
+          (item) =>
+            item.name?.toLowerCase().includes(query) ||
+            item.sub_item_code?.toLowerCase().includes(query),
+        )
+      : catalogSubItems;
+
+    return [
+      ...selectedCatalogSubItem,
+      ...filtered.filter(
+        (item) => Number(item.id) !== Number(form.catalog_sub_item_id),
+      ),
+    ];
+  }, [
+    catalogSubItemSearch,
+    catalogSubItems,
+    form.catalog_sub_item_id,
+    selectedCatalogSubItem,
+  ]);
 
   const poItemOptions = useMemo(() => {
     return [
@@ -277,7 +370,7 @@ export default function POItemMappingsPage() {
       manual: mappings.filter((item) => item.mapping_source === "MANUAL")
         .length,
       learned: mappings.filter(
-        (item) => item.mapping_source === "APPROVED_LINK",
+        (item) => item.mapping_source === "APPROVED_PO_LINK",
       ).length,
     };
   }, [mappings]);
@@ -307,14 +400,36 @@ export default function POItemMappingsPage() {
 
   function resetForm() {
     setForm(emptyForm);
-    setBudgetTypeSearch("");
+    setCategorySearch("");
+    setCatalogItemSearch("");
+    setCatalogSubItemSearch("");
     setPOItemSearch("");
   }
 
-  function handleBudgetTypeChange(event) {
+  function handleCategoryChange(event) {
     setForm((prev) => ({
       ...prev,
-      budget_type_id: event.target.value,
+      category_id: event.target.value,
+      catalog_item_id: "",
+      catalog_sub_item_id: "",
+    }));
+    setCatalogItemSearch("");
+    setCatalogSubItemSearch("");
+  }
+
+  function handleCatalogItemChange(event) {
+    setForm((prev) => ({
+      ...prev,
+      catalog_item_id: event.target.value,
+      catalog_sub_item_id: "",
+    }));
+    setCatalogSubItemSearch("");
+  }
+
+  function handleCatalogSubItemChange(event) {
+    setForm((prev) => ({
+      ...prev,
+      catalog_sub_item_id: event.target.value,
     }));
   }
 
@@ -333,14 +448,14 @@ export default function POItemMappingsPage() {
   async function handleCreate(event) {
     event.preventDefault();
 
-    if (!form.budget_type_id || !form.po_item_code) {
-      toast.error("Budget item type and PO item code are required");
+    if (!form.catalog_sub_item_id || !form.po_item_code) {
+      toast.error("Catalog sub-item and PO item code are required");
       return;
     }
 
     try {
       await createMutation.mutateAsync({
-        budget_type_id: Number(form.budget_type_id),
+        catalog_sub_item_id: Number(form.catalog_sub_item_id),
         po_item_code: form.po_item_code,
         po_item_description: form.po_item_description || null,
       });
@@ -411,9 +526,10 @@ export default function POItemMappingsPage() {
             </h1>
 
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-              Manage the source-of-truth mappings between budget item types and
-              CareWare PO item codes. Manual and learned mappings are shown
-              together for maintenance.
+              Manage the source-of-truth mappings between CareWare PO item
+              codes and reusable catalog sub-items. Select the budget category,
+              generic item, and reusable model so future PO suggestions match
+              the new workflow package structure.
             </p>
           </div>
         </div>
@@ -470,8 +586,8 @@ export default function POItemMappingsPage() {
                 </h2>
 
                 <p className="mt-1 text-sm text-slate-500">
-                  Bootstrap approved mappings before they are learned from PO
-                  link approvals.
+                  Bootstrap approved mappings before they are learned from
+                  category PO link approvals.
                 </p>
               </div>
 
@@ -487,23 +603,89 @@ export default function POItemMappingsPage() {
           <div className="space-y-5 p-6">
             <div>
               <label className="mb-2 block text-sm font-semibold text-slate-700">
-                Budget Item Type
+                Budget Category
               </label>
 
               <SearchableMultiSelect
                 multiple={false}
-                value={form.budget_type_id}
-                options={budgetTypeOptions}
-                placeholder="Select budget item type"
-                searchPlaceholder="Search budget item types..."
-                noResultsText="No budget item types found"
+                value={form.category_id}
+                options={categoryOptions}
+                placeholder="Select category"
+                searchPlaceholder="Search categories..."
+                noResultsText="No categories found"
                 maxVisibleBadges={1}
-                searchValue={budgetTypeSearch}
-                onSearchChange={setBudgetTypeSearch}
-                loading={budgetTypesQuery.isFetching}
+                searchValue={categorySearch}
+                onSearchChange={setCategorySearch}
+                loading={categoriesQuery.isFetching}
                 getOptionValue={(item) => item.id}
-                getOptionLabel={(item) => item.name}
-                onChange={handleBudgetTypeChange}
+                getOptionLabel={(item) => item.name || item.category_name}
+                onChange={handleCategoryChange}
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">
+                Generic Catalog Item
+              </label>
+
+              <SearchableMultiSelect
+                multiple={false}
+                value={form.catalog_item_id}
+                options={catalogItemOptions}
+                placeholder={
+                  form.category_id
+                    ? "Select generic item"
+                    : "Select category first"
+                }
+                searchPlaceholder="Search generic catalog items..."
+                noResultsText={
+                  form.category_id
+                    ? "No generic items found"
+                    : "Select a category first"
+                }
+                maxVisibleBadges={1}
+                searchValue={catalogItemSearch}
+                onSearchChange={setCatalogItemSearch}
+                loading={catalogItemsQuery.isFetching}
+                disabled={!form.category_id}
+                getOptionValue={(item) => item.id}
+                getOptionLabel={(item) =>
+                  `${item.name}${item.item_code ? ` (${item.item_code})` : ""}`
+                }
+                onChange={handleCatalogItemChange}
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">
+                Reusable Sub-Item / Model
+              </label>
+
+              <SearchableMultiSelect
+                multiple={false}
+                value={form.catalog_sub_item_id}
+                options={catalogSubItemOptions}
+                placeholder={
+                  form.catalog_item_id
+                    ? "Select reusable model"
+                    : "Select generic item first"
+                }
+                searchPlaceholder="Search reusable models..."
+                noResultsText={
+                  form.catalog_item_id
+                    ? "No reusable models found"
+                    : "Select a generic item first"
+                }
+                maxVisibleBadges={1}
+                searchValue={catalogSubItemSearch}
+                onSearchChange={setCatalogSubItemSearch}
+                loading={catalogSubItemsQuery.isFetching}
+                disabled={!form.catalog_item_id}
+                getOptionValue={(item) => item.id}
+                getOptionLabel={(item) =>
+                  `${item.name}${item.sub_item_code ? ` (${item.sub_item_code})` : ""}`
+                }
+                onChange={handleCatalogSubItemChange}
               />
             </div>
 
@@ -553,7 +735,9 @@ export default function POItemMappingsPage() {
               type="submit"
               disabled={
                 createMutation.isPending ||
-                !form.budget_type_id ||
+                !form.category_id ||
+                !form.catalog_item_id ||
+                !form.catalog_sub_item_id ||
                 !form.po_item_code
               }
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-700 focus:outline-none focus:ring-4 focus:ring-primary-100 disabled:cursor-not-allowed disabled:opacity-60"
@@ -647,8 +831,8 @@ export default function POItemMappingsPage() {
                 <thead className="sticky top-0 z-10 bg-slate-100">
                   <tr className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
                     <SortableHeader
-                      label="Budget Item Type"
-                      column="budget_type_name"
+                      label="Generic Item / Reusable Model"
+                      column="catalog_item_name"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={handleSort}
@@ -716,10 +900,16 @@ export default function POItemMappingsPage() {
                     >
                       <td className="border-b border-slate-100 px-5 py-5">
                         <p className="font-bold text-slate-950">
-                          {mapping.budget_type_name || "-"}
+                          {mapping.catalog_item_name || "-"}
                         </p>
                         <p className="mt-1 text-xs font-medium text-slate-500">
-                          Type #{mapping.budget_type_id}
+                          {mapping.sub_item_name || "-"}
+                          {mapping.sub_item_code
+                            ? ` (${mapping.sub_item_code})`
+                            : ""}
+                        </p>
+                        <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                          Sub-item #{mapping.catalog_sub_item_id}
                         </p>
                       </td>
 

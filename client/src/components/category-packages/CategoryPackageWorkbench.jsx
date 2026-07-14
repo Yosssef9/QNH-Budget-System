@@ -37,6 +37,7 @@ import SearchableMultiSelect from "../SearchableMultiSelect";
 import CatalogSubItemFields from "../catalog/CatalogSubItemFields";
 import AnimatedDrawer from "../budgets/shared/drawers/AnimatedDrawer";
 import CollapsiblePanelToggle from "../layout/CollapsiblePanelToggle";
+import PackageSubItemPriceIntelligenceDrawer from "../budgets/price-intelligence/PackageSubItemPriceIntelligenceDrawer";
 import {
   downloadBlobAttachment,
   viewBlobAttachment,
@@ -1770,6 +1771,7 @@ function SharedModelsPanel({
   onAdd,
   onEdit,
   onRemove,
+  onViewPriceContext,
 }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -1904,6 +1906,14 @@ function SharedModelsPanel({
                 </div>
 
                 <div className="flex flex-wrap gap-2 xl:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => onViewPriceContext(subItem, subItems)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100"
+                  >
+                    <CircleDollarSign className="h-3.5 w-3.5" />
+                    Price Context
+                  </button>
                   <button
                     type="button"
                     disabled={!editable}
@@ -2077,6 +2087,7 @@ function ItemPerspective({
   onAddModel,
   onEditModel,
   onRemoveModel,
+  onViewPriceContext,
   onAllocate,
 }) {
   const subItems = selectedItemDetail?.sub_items || [];
@@ -2173,6 +2184,16 @@ function ItemPerspective({
                   {selectedItem.department_count} requesting department
                   {Number(selectedItem.department_count) === 1 ? "" : "s"}
                 </div>
+                {subItems.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => onViewPriceContext(subItems[0], subItems)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 hover:bg-blue-100"
+                  >
+                    <CircleDollarSign className="h-4 w-4" />
+                    Item Price Context
+                  </button>
+                ) : null}
               </div>
 
               {selectedItem.cfo_review_note ? (
@@ -2244,6 +2265,7 @@ function ItemPerspective({
                   onAdd={onAddModel}
                   onEdit={onEditModel}
                   onRemove={onRemoveModel}
+                  onViewPriceContext={onViewPriceContext}
                 />
                 <DepartmentDemandPanel
                   departments={departments}
@@ -2260,10 +2282,18 @@ function ItemPerspective({
   );
 }
 
-function ModelSplit({ allocations }) {
+function ModelSplit({ allocations, onViewPriceContext }) {
   if (!allocations?.length) {
     return <span className="text-xs italic text-slate-400">Not allocated</span>;
   }
+
+  const modelOptions = allocations.map((allocation) => ({
+    id: allocation.package_sub_item_id,
+    name: allocation.package_sub_item_name,
+    unit_price: allocation.unit_price,
+    quantity: allocation.package_sub_item_quantity,
+    line_total: allocation.line_total,
+  }));
 
   return (
     <div className="space-y-2">
@@ -2284,6 +2314,22 @@ function ModelSplit({ allocations }) {
               )}
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() =>
+              onViewPriceContext?.(
+                modelOptions.find(
+                  (model) =>
+                    Number(model.id) ===
+                    Number(allocation.package_sub_item_id),
+                ),
+                modelOptions,
+              )
+            }
+            className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-black text-blue-700 hover:bg-blue-100"
+          >
+            Context
+          </button>
           <span className="rounded-lg bg-white px-2 py-1 text-xs font-black text-slate-900 shadow-sm">
             {formatNumber(allocation.allocated_quantity)}
           </span>
@@ -2304,6 +2350,7 @@ function DepartmentPerspective({
   editable,
   packageStatus,
   onEditAllocation,
+  onViewPriceContext,
   loading,
 }) {
   const [isDepartmentListOpen, setIsDepartmentListOpen] = useState(true);
@@ -2561,7 +2608,10 @@ function DepartmentPerspective({
                           <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">
                             Current model split
                           </p>
-                          <ModelSplit allocations={item.allocations} />
+                          <ModelSplit
+                            allocations={item.allocations}
+                            onViewPriceContext={onViewPriceContext}
+                          />
                         </div>
 
                         <button
@@ -2603,6 +2653,7 @@ export default function CategoryPackageWorkbench() {
   const [allocationContext, setAllocationContext] = useState(null);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [showAllBlockers, setShowAllBlockers] = useState(false);
+  const [priceContext, setPriceContext] = useState(null);
 
   const packageQuery = useQuery({
     queryKey: ["category-packages", "current"],
@@ -2831,6 +2882,10 @@ const selectedItem =
       packageItemId: item.package_item_id,
       departmentItemId: item.department_item_id,
     });
+  }
+
+  function openPriceContext(subItem, subItems = []) {
+    setPriceContext({ subItem, subItems });
   }
 
   if (packageQuery.isLoading) {
@@ -3069,6 +3124,7 @@ packageData.return_reason ? (
           onAddModel={() => setAddModelOpen(true)}
           onEditModel={setEditingSubItem}
           onRemoveModel={setRemoveCandidate}
+          onViewPriceContext={openPriceContext}
           onAllocate={openAllocationForItemDepartment}
         />
       ) : (
@@ -3083,6 +3139,7 @@ packageData.return_reason ? (
           editable={packageEditable}
           packageStatus={packageData.status}
           onEditAllocation={openAllocationFromDepartmentView}
+          onViewPriceContext={openPriceContext}
           loading={departmentViewQuery.isLoading}
         />
       )}
@@ -3172,37 +3229,156 @@ packageData.return_reason ? (
         </div>
       </ConfirmModal>
 
-      <ConfirmModal
-        open={submitOpen}
-        title="Submit Category Package to CFO?"
-        message={`Submit the ${packageData.category_name} package to CFO review? Shared models, prices, specifications, attachments, and allocations will be locked while the package is in CFO review.`}
-        confirmText="Submit to CFO"
-        cancelText="Cancel"
-        loading={submitMutation.isPending}
-        onCancel={() => setSubmitOpen(false)}
-        onConfirm={() =>
-          submitMutation.mutate({
-            packageId: packageData.id,
-            payload: {
-              row_version: packageData.row_version,
-            },
-          })
-        }
-      >
-        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-          <div className="flex items-start gap-2">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-            <div>
-              <p className="font-black">Package readiness confirmed</p>
-              <p className="mt-1">
-                {formatNumber(approvedTotal)} approved units are fully
-                reconciled across {items.length} requested item
-                {items.length === 1 ? "" : "s"}.
-              </p>
-            </div>
+    <ConfirmModal
+  open={submitOpen}
+  title="Submit Category Package to CFO?"
+  message={`You are about to submit the ${packageData.category_name} package for CFO review. Review the package summary carefully before confirming. Package models, prices, specifications, attachments, and department allocations will be locked while the package is under CFO review.`}
+  confirmText="Submit Package to CFO"
+  cancelText="Review Again"
+  loading={submitMutation.isPending}
+  onCancel={() => setSubmitOpen(false)}
+  onConfirm={() =>
+    submitMutation.mutate({
+      packageId: packageData.id,
+      payload: {
+        row_version: packageData.row_version,
+      },
+    })
+  }
+>
+  <div className="mt-5 space-y-4">
+    {/* Main package identity and total amount */}
+    <section className="overflow-hidden rounded-2xl border border-blue-200 bg-blue-50">
+      <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-700">
+            Package Being Submitted
+          </p>
+
+          <h3 className="mt-1 text-xl font-black text-slate-950">
+            {packageData.category_name} Package
+          </h3>
+
+          <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
+            <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-blue-700">
+              Financial Year {packageData.financial_year}
+            </span>
+
+            <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-blue-700">
+              {items.length} requested item
+              {items.length === 1 ? "" : "s"}
+            </span>
+
+            <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-blue-700">
+              {formatStatus(packageData.status)}
+            </span>
           </div>
         </div>
-      </ConfirmModal>
+
+        <div className="shrink-0 rounded-2xl border border-blue-200 bg-white px-5 py-4 text-left sm:min-w-[220px] sm:text-right">
+          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-blue-700 sm:justify-end">
+            <CircleDollarSign className="h-4 w-4" />
+            Total Package Amount
+          </div>
+
+          <div className="mt-2 text-2xl font-black text-slate-950">
+            <CurrencyText value={estimatedPackageTotal} />
+          </div>
+
+          <p className="mt-1 text-xs font-semibold text-slate-500">
+            Based on allocated quantities and shared unit prices
+          </p>
+        </div>
+      </div>
+    </section>
+
+    {/* Quantity and item summary */}
+    <section className="grid gap-3 sm:grid-cols-2">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+            <Boxes className="h-5 w-5" />
+          </span>
+
+          <div>
+            <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+              Requested Items
+            </p>
+
+            <p className="mt-1 text-2xl font-black text-slate-950">
+              {items.length}
+            </p>
+
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              Generic package items included in this submission
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4">
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-700">
+            <CheckCircle2 className="h-5 w-5" />
+          </span>
+
+          <div>
+            <p className="text-xs font-black uppercase tracking-wide text-blue-700">
+              Approved Quantity
+            </p>
+
+            <p className="mt-1 text-2xl font-black text-slate-950">
+              {formatNumber(approvedTotal)}
+            </p>
+
+            <p className="mt-1 text-xs leading-5 text-blue-700">
+              Total quantity approved by the Category Manager
+            </p>
+          </div>
+        </div>
+      </div>
+
+
+
+
+    </section>
+
+
+
+    {/* Locking consequence */}
+    <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+      <div className="flex items-start gap-3">
+        <Lock className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+
+        <div>
+          <p className="text-sm font-black text-amber-950">
+            What happens after submission?
+          </p>
+
+          <p className="mt-1 text-sm leading-6 text-amber-900">
+            Shared models, prices, specifications, attachments, and
+            department allocations will become read-only while the CFO
+            reviews this package. They can be edited again only if the CFO
+            returns the package for modification.
+          </p>
+        </div>
+      </div>
+    </section>
+  </div>
+</ConfirmModal>
+
+      <PackageSubItemPriceIntelligenceDrawer
+        open={Boolean(priceContext?.subItem)}
+        subItem={priceContext?.subItem}
+        subItems={priceContext?.subItems || []}
+        onSelectSubItem={(subItem) =>
+          setPriceContext((current) => ({
+            subItem,
+            subItems: current?.subItems || [],
+          }))
+        }
+        onClose={() => setPriceContext(null)}
+      />
     </section>
   );
 }

@@ -39,6 +39,11 @@ export function mapCfoPackageQueueRow(row) {
       approved_quantity: toNumber(row.approved_quantity),
       allocated_quantity: toNumber(row.allocated_quantity),
       estimated_total: toNumber(row.estimated_total),
+      total_departments: Number(row.total_department_count || 0),
+      submitted_departments: Number(row.submitted_department_count || 0),
+      not_submitted_departments: Number(row.not_submitted_department_count || 0),
+      in_review_departments: Number(row.in_review_department_count || 0),
+      completed_departments: Number(row.completed_department_count || 0),
     },
   };
 }

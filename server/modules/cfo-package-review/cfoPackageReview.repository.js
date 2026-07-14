@@ -67,6 +67,25 @@ export async function listCfoPackagesRepo({ financialYearId = null } = {}) {
        AND subItem.is_active = 1
       WHERE packageItem.is_active = 1
       GROUP BY packageItem.category_budget_package_id
+    ),
+    departmentCoverage AS (
+      SELECT
+        pkg.id AS package_id,
+        COUNT(1) AS total_department_count,
+        SUM(CASE WHEN dcb.status <> 'DRAFT' THEN 1 ELSE 0 END) AS submitted_department_count,
+        SUM(CASE WHEN dcb.status = 'DRAFT' THEN 1 ELSE 0 END) AS not_submitted_department_count,
+        SUM(CASE WHEN dcb.status = 'IN_CATEGORY_REVIEW' THEN 1 ELSE 0 END) AS in_review_department_count,
+        SUM(CASE WHEN dcb.status = 'CATEGORY_REVIEW_COMPLETED' THEN 1 ELSE 0 END) AS completed_department_count
+      FROM dbo.BS_category_budget_packages AS pkg
+      INNER JOIN dbo.BS_department_budgets AS db
+        ON db.financial_year_id = pkg.financial_year_id
+      INNER JOIN dbo.BS_department_category_budgets AS dcb
+        ON dcb.department_budget_id = db.id
+       AND dcb.budget_category_id = pkg.budget_category_id
+      INNER JOIN dbo.BS_departments AS dept
+        ON dept.id = db.department_id
+      WHERE dept.is_active = 1
+      GROUP BY pkg.id
     )
     SELECT
       finalized.finalized_at AS financial_year_cfo_review_finalized_at,
@@ -98,7 +117,12 @@ export async function listCfoPackagesRepo({ financialYearId = null } = {}) {
       COALESCE(quantitySummary.requested_quantity, 0) AS requested_quantity,
       COALESCE(quantitySummary.approved_quantity, 0) AS approved_quantity,
       COALESCE(packageSubItemSummary.allocated_quantity, 0) AS allocated_quantity,
-      COALESCE(packageSubItemSummary.estimated_total, 0) AS estimated_total
+      COALESCE(packageSubItemSummary.estimated_total, 0) AS estimated_total,
+      COALESCE(departmentCoverage.total_department_count, 0) AS total_department_count,
+      COALESCE(departmentCoverage.submitted_department_count, 0) AS submitted_department_count,
+      COALESCE(departmentCoverage.not_submitted_department_count, 0) AS not_submitted_department_count,
+      COALESCE(departmentCoverage.in_review_department_count, 0) AS in_review_department_count,
+      COALESCE(departmentCoverage.completed_department_count, 0) AS completed_department_count
     FROM dbo.BS_category_budget_packages AS pkg
     INNER JOIN dbo.BS_financial_years AS fy
       ON fy.id = pkg.financial_year_id
@@ -127,6 +151,8 @@ export async function listCfoPackagesRepo({ financialYearId = null } = {}) {
       ON quantitySummary.package_id = pkg.id
     LEFT JOIN packageSubItemSummary
       ON packageSubItemSummary.category_budget_package_id = pkg.id
+    LEFT JOIN departmentCoverage
+      ON departmentCoverage.package_id = pkg.id
     WHERE pkg.status IN (
       '${CATEGORY_PACKAGE_STATUS.IN_CFO_REVIEW}',
       '${CATEGORY_PACKAGE_STATUS.RETURNED_BY_CFO}',
@@ -243,12 +269,33 @@ export async function findCfoPackageByIdRepo({ packageId }, transaction = null) 
       window.id AS submission_window_id,
       window.status AS submission_window_status,
       window.closed_at AS submission_window_closed_at,
-      window.close_reason AS submission_window_close_reason
+      window.close_reason AS submission_window_close_reason,
+      COALESCE(departmentCoverage.total_department_count, 0) AS total_department_count,
+      COALESCE(departmentCoverage.submitted_department_count, 0) AS submitted_department_count,
+      COALESCE(departmentCoverage.not_submitted_department_count, 0) AS not_submitted_department_count,
+      COALESCE(departmentCoverage.in_review_department_count, 0) AS in_review_department_count,
+      COALESCE(departmentCoverage.completed_department_count, 0) AS completed_department_count
     FROM dbo.BS_category_budget_packages AS pkg
     INNER JOIN dbo.BS_financial_years AS fy
       ON fy.id = pkg.financial_year_id
     INNER JOIN dbo.BS_budget_categories AS category
       ON category.id = pkg.budget_category_id
+    OUTER APPLY (
+      SELECT
+        COUNT(1) AS total_department_count,
+        SUM(CASE WHEN dcb.status <> 'DRAFT' THEN 1 ELSE 0 END) AS submitted_department_count,
+        SUM(CASE WHEN dcb.status = 'DRAFT' THEN 1 ELSE 0 END) AS not_submitted_department_count,
+        SUM(CASE WHEN dcb.status = 'IN_CATEGORY_REVIEW' THEN 1 ELSE 0 END) AS in_review_department_count,
+        SUM(CASE WHEN dcb.status = 'CATEGORY_REVIEW_COMPLETED' THEN 1 ELSE 0 END) AS completed_department_count
+      FROM dbo.BS_department_budgets AS db
+      INNER JOIN dbo.BS_department_category_budgets AS dcb
+        ON dcb.department_budget_id = db.id
+       AND dcb.budget_category_id = pkg.budget_category_id
+      INNER JOIN dbo.BS_departments AS dept
+        ON dept.id = db.department_id
+      WHERE db.financial_year_id = pkg.financial_year_id
+        AND dept.is_active = 1
+    ) AS departmentCoverage
     OUTER APPLY (
       SELECT TOP 1 history.created_at AS finalized_at, history.created_by
       FROM dbo.BS_budget_workflow_history AS history
@@ -300,8 +347,8 @@ export async function findPackageItemForCfoRepo(
         pkg.row_version AS package_row_version,
         category.name AS category_name,
         category.category_code,
-        catalog.name AS catalog_item_name,
-        catalog.item_code AS catalog_item_code
+        COALESCE(packageItem.catalog_item_name_snapshot, catalog.name) AS catalog_item_name,
+        COALESCE(packageItem.catalog_item_code_snapshot, catalog.item_code) AS catalog_item_code
       FROM dbo.BS_category_budget_package_items AS packageItem WITH (UPDLOCK, HOLDLOCK)
       INNER JOIN dbo.BS_category_budget_packages AS pkg WITH (UPDLOCK, HOLDLOCK)
         ON pkg.id = packageItem.category_budget_package_id

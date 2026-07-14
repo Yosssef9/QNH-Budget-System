@@ -172,8 +172,8 @@ export async function listPackageItemsRepo({ packageId }, transaction = null) {
       packageItem.id,
       packageItem.category_budget_package_id,
       packageItem.catalog_item_id,
-      catalog.name AS catalog_item_name,
-      catalog.item_code AS catalog_item_code,
+      COALESCE(packageItem.catalog_item_name_snapshot, catalog.name) AS catalog_item_name,
+      COALESCE(packageItem.catalog_item_code_snapshot, catalog.item_code) AS catalog_item_code,
       packageItem.cfo_review_status,
       packageItem.cfo_review_note,
       CASE
@@ -221,7 +221,7 @@ export async function listPackageItemsRepo({ packageId }, transaction = null) {
         THEN 0
         ELSE 1
       END,
-      catalog.name;
+      COALESCE(packageItem.catalog_item_name_snapshot, catalog.name);
   `);
 
   return result.recordset.map((row) => ({
@@ -251,8 +251,8 @@ export async function listDepartmentPackageViewRowsRepo(
         item.review_note,
         item.row_version AS department_item_row_version,
 
-        catalog.name AS catalog_item_name,
-        catalog.item_code AS catalog_item_code,
+        COALESCE(item.catalog_item_name_snapshot, catalog.name) AS catalog_item_name,
+        COALESCE(item.catalog_item_code_snapshot, catalog.item_code) AS catalog_item_code,
 
         packageItem.id AS package_item_id,
         packageItem.needs_reconciliation,
@@ -318,7 +318,7 @@ export async function listDepartmentPackageViewRowsRepo(
 
       ORDER BY
         dept.name,
-        catalog.name,
+        COALESCE(item.catalog_item_name_snapshot, catalog.name),
         subItem.name;
     `);
 
@@ -1126,7 +1126,7 @@ export async function findDepartmentItemPackageEditContextRepo(
 
         dept.name AS department_name,
 
-        catalog.name AS catalog_item_name,
+        COALESCE(item.catalog_item_name_snapshot, catalog.name) AS catalog_item_name,
 
         packageItem.id AS package_item_id,
         packageItem.cfo_review_status,

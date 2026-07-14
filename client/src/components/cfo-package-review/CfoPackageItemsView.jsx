@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { AnimatePresence, motion } from "framer-motion";
 import toast from "react-hot-toast";
 import {
   CheckCircle2,
+  CircleDollarSign,
   Download,
   Eye,
   FileText,
@@ -14,6 +16,8 @@ import CurrencyText from "../CurrencyText";
 import CfoReviewStatusBadge from "./CfoReviewStatusBadge";
 import CollapsiblePanelToggle from "../layout/CollapsiblePanelToggle";
 import AnimatedDrawer from "../budgets/shared/drawers/AnimatedDrawer";
+import PackageSubItemPriceIntelligenceDrawer from "../budgets/price-intelligence/PackageSubItemPriceIntelligenceDrawer";
+import SearchableMultiSelect from "../SearchableMultiSelect";
 import {
   downloadCfoPackageSubItemAttachment,
   getCfoPackageSubItemAttachments,
@@ -308,7 +312,49 @@ export default function CfoPackageItemsView({
 }) {
   const selectedItem = itemDetail?.package_item;
   const [isItemListOpen, setIsItemListOpen] = useState(true);
+  const [itemFilter, setItemFilter] = useState("ALL");
   const [selectedSubItem, setSelectedSubItem] = useState(null);
+  const [priceContext, setPriceContext] = useState(null);
+  const subItems = itemDetail?.sub_items || [];
+  const counts = items.reduce(
+    (result, item) => {
+      result.all += 1;
+      if (item.cfo_review_status === "CFO_ACCEPTED") result.accepted += 1;
+      else if (item.cfo_review_status === "NEEDS_MODIFICATION") {
+        result.needsModification += 1;
+      } else {
+        result.pending += 1;
+      }
+      if (item.cfo_review_note) result.hasNotes += 1;
+      return result;
+    },
+    {
+      all: 0,
+      pending: 0,
+      accepted: 0,
+      needsModification: 0,
+      hasNotes: 0,
+    },
+  );
+  const filterOptions = [
+    { value: "ALL", label: `All (${counts.all})` },
+    { value: "PENDING", label: `Pending (${counts.pending})` },
+    { value: "CFO_ACCEPTED", label: `Accepted (${counts.accepted})` },
+    {
+      value: "NEEDS_MODIFICATION",
+      label: `Needs Modification (${counts.needsModification})`,
+    },
+    { value: "HAS_NOTES", label: `Has CFO Notes (${counts.hasNotes})` },
+  ];
+  const visibleItems = items.filter((item) => {
+    if (itemFilter === "ALL") return true;
+    if (itemFilter === "HAS_NOTES") return Boolean(item.cfo_review_note);
+    if (itemFilter === "PENDING") {
+      return !item.cfo_review_status ||
+        item.cfo_review_status === "PENDING_CFO_REVIEW";
+    }
+    return item.cfo_review_status === itemFilter;
+  });
 
   return (
     <div
@@ -332,12 +378,40 @@ export default function CfoPackageItemsView({
             Review shared models, totals, department demand, and CFO decision
             state.
           </p>
+          <div className="mt-3">
+            <label className="mb-1 block text-[11px] font-black uppercase tracking-wide text-slate-500">
+              Filter package items
+            </label>
+            <SearchableMultiSelect
+              name="cfoPackageItemFilter"
+              multiple={false}
+              disableClear
+              value={itemFilter}
+              options={filterOptions}
+              onChange={(event) => setItemFilter(event.target.value || "ALL")}
+              placeholder="Filter package items"
+              searchPlaceholder="Search filters..."
+              noResultsText="No filters found"
+              maxVisibleBadges={1}
+            />
+          </div>
         </div>
         <div className="max-h-[620px] overflow-y-auto p-2">
-          {items.map((item) => (
-            <button
+          {visibleItems.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center text-sm font-semibold text-slate-500">
+              No package items match this filter.
+            </div>
+          ) : (
+            <AnimatePresence initial={false}>
+              {visibleItems.map((item) => (
+            <motion.button
               type="button"
               key={item.id}
+              layout
+              initial={{ opacity: 0, y: 8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.98 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
               onClick={() => onSelectItem(item.id)}
               className={`mb-2 w-full rounded-xl border p-4 text-left ${
                 Number(selectedItemId) === Number(item.id)
@@ -372,8 +446,26 @@ export default function CfoPackageItemsView({
                   </div>
                 </div>
               </div>
-            </button>
-          ))}
+
+              {item.cfo_review_note ? (
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                  <div className="flex items-start gap-2">
+                    <MessageSquareWarning className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-black uppercase tracking-wide text-amber-700">
+                        Last CFO note
+                      </p>
+                      <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-amber-900">
+                        {item.cfo_review_note}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </motion.button>
+              ))}
+            </AnimatePresence>
+          )}
         </div>
       </div>
 
@@ -417,6 +509,24 @@ export default function CfoPackageItemsView({
                 />
               </div>
 
+              {selectedItem?.cfo_review_note ? (
+                <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-xl bg-amber-100 p-2 text-amber-700">
+                      <MessageSquareWarning size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-700">
+                        Last CFO item return note
+                      </p>
+                      <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-amber-950">
+                        {selectedItem.cfo_review_note}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
               {canDecide && (
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button
@@ -437,6 +547,24 @@ export default function CfoPackageItemsView({
                   </button>
                 </div>
               )}
+
+              {subItems.length > 0 ? (
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPriceContext({
+                        subItem: subItems[0],
+                        subItems,
+                      })
+                    }
+                    className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100"
+                  >
+                    <CircleDollarSign size={16} />
+                    Item price context
+                  </button>
+                </div>
+              ) : null}
             </div>
 
             <div className="grid gap-4 p-5 xl:grid-cols-2">
@@ -455,7 +583,7 @@ export default function CfoPackageItemsView({
                       </tr>
                     </thead>
                     <tbody>
-                      {(itemDetail?.sub_items || []).map((subItem) => (
+                      {subItems.map((subItem) => (
                         <tr
                           key={subItem.id}
                           className="cursor-pointer border-t border-slate-100 transition hover:bg-blue-50/60"
@@ -482,7 +610,20 @@ export default function CfoPackageItemsView({
                             {subItem.quantity}
                           </td>
                           <td className="px-3 py-3 text-right">
-                            <CurrencyText compact value={subItem.unit_price} />
+                            <div className="flex flex-col items-end gap-2">
+                              <CurrencyText compact value={subItem.unit_price} />
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setPriceContext({ subItem, subItems });
+                                }}
+                                className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-black text-blue-700 hover:bg-blue-100"
+                              >
+                                <CircleDollarSign className="h-3 w-3" />
+                                Context
+                              </button>
+                            </div>
                           </td>
                           <td className="px-3 py-3 text-right font-bold">
                             <CurrencyText compact value={subItem.line_total} />
@@ -546,6 +687,18 @@ export default function CfoPackageItemsView({
         subItem={selectedSubItem}
         departments={itemDetail?.departments || []}
         onClose={() => setSelectedSubItem(null)}
+      />
+      <PackageSubItemPriceIntelligenceDrawer
+        open={Boolean(priceContext?.subItem)}
+        subItem={priceContext?.subItem}
+        subItems={priceContext?.subItems || []}
+        onSelectSubItem={(subItem) =>
+          setPriceContext((current) => ({
+            subItem,
+            subItems: current?.subItems || [],
+          }))
+        }
+        onClose={() => setPriceContext(null)}
       />
     </div>
   );

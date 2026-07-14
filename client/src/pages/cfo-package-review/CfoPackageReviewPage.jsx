@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AnimatePresence, motion } from "framer-motion";
 import toast from "react-hot-toast";
 import {
   CheckCircle2,
   ClipboardCheck,
   Flag,
+  Building2,
   Layers3,
   ListChecks,
   RefreshCw,
@@ -25,6 +27,7 @@ import {
   setCfoPackageItemDecision,
 } from "../../api/cfoPackageReview.api";
 import ConfirmModal from "../../components/ConfirmModal";
+import SearchableMultiSelect from "../../components/SearchableMultiSelect";
 import CfoDepartmentView from "../../components/cfo-package-review/CfoDepartmentView";
 import CfoMetric from "../../components/cfo-package-review/CfoMetric";
 import CfoPackageItemsView from "../../components/cfo-package-review/CfoPackageItemsView";
@@ -42,6 +45,124 @@ function includesSearch(pkg, search) {
   return [pkg.category_name, pkg.category_code, pkg.financial_year, pkg.status]
     .filter(Boolean)
     .some((value) => String(value).toLowerCase().includes(normalized));
+}
+
+function CoverageTile({ label, value, tone = "slate" }) {
+  const tones = {
+    slate: "border-slate-200 bg-white text-slate-900",
+    blue: "border-blue-200 bg-blue-50 text-blue-900",
+    amber: "border-amber-200 bg-amber-50 text-amber-900",
+    emerald: "border-emerald-200 bg-emerald-50 text-emerald-900",
+  };
+
+  return (
+    <div className={`rounded-xl border px-3 py-2 ${tones[tone]}`}>
+      <p className="text-[11px] font-black uppercase tracking-wide opacity-70">
+        {label}
+      </p>
+      <p className="mt-1 text-2xl font-black leading-none">{value}</p>
+    </div>
+  );
+}
+
+function DepartmentCoveragePanel({
+  financialYear,
+  coverage,
+  packageBreakdown = [],
+}) {
+  const progress =
+    coverage.total > 0 ? (coverage.submitted / coverage.total) * 100 : 0;
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-white via-blue-50/40 to-slate-50 shadow-sm">
+      <div className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white">
+              <Building2 className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-sm font-black text-slate-950">
+                Department-category coverage
+              </p>
+              <p className="text-xs font-medium text-slate-500">
+                FY {financialYear || "-"} · Visible category packages
+              </p>
+            </div>
+          </div>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+            Tracks how many department submissions are included in the CFO
+            package set, and how many department-category budgets did not submit
+            before package review.
+          </p>
+        </div>
+
+        <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[560px]">
+          <CoverageTile label="Coverage slots" value={coverage.total} />
+          <CoverageTile
+            label="Submitted"
+            value={coverage.submitted}
+            tone="blue"
+          />
+          <CoverageTile
+            label="Not submitted"
+            value={coverage.notSubmitted}
+            tone="amber"
+          />
+          <CoverageTile
+            label="Review complete"
+            value={coverage.completed}
+            tone="emerald"
+          />
+        </div>
+      </div>
+
+      <div className="border-t border-blue-100 px-5 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-slate-600">
+          <span>
+            {coverage.submitted} of {coverage.total} department-category budgets
+            submitted
+          </span>
+          <span>{Math.round(progress)}%</span>
+        </div>
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+          <div
+            className="h-full rounded-full bg-blue-600 transition-all duration-300"
+            style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+          />
+        </div>
+        {packageBreakdown.length > 0 ? (
+          <div className="mt-3 grid gap-2 md:grid-cols-3">
+            {packageBreakdown.map((pkg) => {
+              const packageProgress =
+                pkg.total > 0 ? (pkg.submitted / pkg.total) * 100 : 0;
+              return (
+                <div
+                  key={pkg.id}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2"
+                >
+                  <div className="flex items-center justify-between gap-2 text-xs font-black text-slate-700">
+                    <span className="truncate">{pkg.categoryName}</span>
+                    <span>
+                      {pkg.submitted}/{pkg.total}
+                    </span>
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full rounded-full bg-emerald-500"
+                      style={{
+                        width: `${Math.min(100, Math.max(0, packageProgress))}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
 }
 
 function getPackageItemCounts(items = []) {
@@ -196,39 +317,33 @@ export default function CfoPackageReviewPage() {
     [financialYearsQuery.data],
   );
 
-  useEffect(() => {
-    if (selectedFinancialYearId || financialYears.length === 0) return;
+  const defaultFinancialYearId = useMemo(() => {
+    if (financialYears.length === 0) return null;
 
-    const defaultYear =
+    return (
       financialYears.find((year) => year.status === "OPEN") ||
       financialYears.find((year) => year.status === "PRE_CLOSING") ||
-      financialYears[0];
+      financialYears[0]
+    )?.id;
+  }, [financialYears]);
 
-    if (defaultYear?.id) {
-      setSelectedFinancialYearId(defaultYear.id);
-    }
-  }, [financialYears, selectedFinancialYearId]);
+  const effectiveFinancialYearId =
+    selectedFinancialYearId || defaultFinancialYearId || null;
 
   const selectedFinancialYear = useMemo(
     () =>
       financialYears.find(
-        (year) => Number(year.id) === Number(selectedFinancialYearId),
+        (year) => Number(year.id) === Number(effectiveFinancialYearId),
       ) || null,
-    [financialYears, selectedFinancialYearId],
+    [financialYears, effectiveFinancialYearId],
   );
 
   const selectedYearReadOnly = selectedFinancialYear?.status !== "OPEN";
   const packagesQuery = useQuery({
-    queryKey: ["cfo-package-review", "packages", selectedFinancialYearId],
-    queryFn: () => getCfoPackages(selectedFinancialYearId),
-    enabled: Boolean(selectedFinancialYearId),
+    queryKey: ["cfo-package-review", "packages", effectiveFinancialYearId],
+    queryFn: () => getCfoPackages(effectiveFinancialYearId),
+    enabled: Boolean(effectiveFinancialYearId),
   });
-
-  useEffect(() => {
-    setSelectedPackageId(null);
-    setSelectedPackageItemId(null);
-    setPerspective("ITEMS");
-  }, [selectedFinancialYearId]);
 
   const filteredPackages = useMemo(
     () =>
@@ -241,7 +356,7 @@ export default function CfoPackageReviewPage() {
     () => packagesQuery.data || [],
     [packagesQuery.data],
   );
-  const activeFinancialYearId = selectedFinancialYearId;
+  const activeFinancialYearId = effectiveFinancialYearId;
   const activeYearPackages = allPackages;
   const annualCfoReviewFinalizedAt =
     selectedFinancialYear?.cfo_review_finalized_at ||
@@ -271,6 +386,16 @@ export default function CfoPackageReviewPage() {
           pkg.summary?.needs_modification_items || 0,
         );
         summary.estimatedTotal += Number(pkg.summary?.estimated_total || 0);
+        summary.totalDepartments += Number(pkg.summary?.total_departments || 0);
+        summary.submittedDepartments += Number(
+          pkg.summary?.submitted_departments || 0,
+        );
+        summary.notSubmittedDepartments += Number(
+          pkg.summary?.not_submitted_departments || 0,
+        );
+        summary.completedDepartments += Number(
+          pkg.summary?.completed_departments || 0,
+        );
         return summary;
       },
       {
@@ -280,9 +405,45 @@ export default function CfoPackageReviewPage() {
         acceptedItems: 0,
         needsModificationItems: 0,
         estimatedTotal: 0,
+        totalDepartments: 0,
+        submittedDepartments: 0,
+        notSubmittedDepartments: 0,
+        completedDepartments: 0,
       },
     );
   }, [allPackages, showTotalPackage]);
+
+  const annualDepartmentCoverage = useMemo(() => {
+    const coverage = allPackages.reduce(
+      (summary, pkg) => {
+        summary.total += Number(pkg.summary?.total_departments || 0);
+        summary.submitted += Number(pkg.summary?.submitted_departments || 0);
+        summary.notSubmitted += Number(
+          pkg.summary?.not_submitted_departments || 0,
+        );
+        summary.inReview += Number(pkg.summary?.in_review_departments || 0);
+        summary.completed += Number(pkg.summary?.completed_departments || 0);
+        return summary;
+      },
+      {
+        total: 0,
+        submitted: 0,
+        notSubmitted: 0,
+        inReview: 0,
+        completed: 0,
+      },
+    );
+
+    return {
+      ...coverage,
+      packages: allPackages.map((pkg) => ({
+        id: pkg.id,
+        categoryName: pkg.category_name,
+        total: Number(pkg.summary?.total_departments || 0),
+        submitted: Number(pkg.summary?.submitted_departments || 0),
+      })),
+    };
+  }, [allPackages]);
 
   const effectiveSelectedPackageId =
     showTotalPackage && selectedPackageId === TOTAL_PACKAGE_ID
@@ -553,29 +714,48 @@ export default function CfoPackageReviewPage() {
               </p>
             </div>
             <div className="flex flex-wrap items-end gap-3">
-              <label className="block min-w-[220px]">
-                <span className="text-xs font-black uppercase tracking-wide text-slate-500">
-                  Financial year
-                </span>
-                <select
-                  value={selectedFinancialYearId || ""}
-                  onChange={(event) =>
-                    setSelectedFinancialYearId(event.target.value || null)
-                  }
-                  disabled={financialYearsQuery.isLoading}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100"
-                >
-                  {financialYears.length === 0 ? (
-                    <option value="">No financial years</option>
-                  ) : (
-                    financialYears.map((year) => (
-                      <option key={year.id} value={year.id}>
-                        FY {year.year} - {year.status}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </label>
+            <div className="block min-w-[220px]">
+  <span className="text-xs font-black uppercase tracking-wide text-slate-500">
+    Financial year
+  </span>
+
+  <div className="mt-1">
+    <SearchableMultiSelect
+      name="financialYearId"
+      multiple={false}
+      disableClear
+      value={effectiveFinancialYearId || ""}
+      options={financialYears}
+      disabled={
+        financialYearsQuery.isLoading ||
+        financialYears.length === 0
+      }
+      loading={financialYearsQuery.isLoading}
+      placeholder={
+        financialYearsQuery.isLoading
+          ? "Loading financial years..."
+          : financialYears.length === 0
+            ? "No financial years"
+            : "Select financial year"
+      }
+      searchPlaceholder="Search financial year..."
+      noResultsText="No financial years found"
+      maxVisibleBadges={1}
+      getOptionValue={(year) => year.id}
+      getOptionLabel={(year) =>
+        `FY ${year.year} - ${year.status}`
+      }
+      onChange={(event) => {
+        setSelectedFinancialYearId(
+          event.target.value || null,
+        );
+        setSelectedPackageId(null);
+        setSelectedPackageItemId(null);
+        setPerspective("ITEMS");
+      }}
+    />
+  </div>
+</div>
               {selectedFinancialYear ? (
                 <div
                   className={[
@@ -631,6 +811,14 @@ export default function CfoPackageReviewPage() {
             </div>
           ) : null}
         </header>
+
+        {allPackages.length > 0 ? (
+          <DepartmentCoveragePanel
+            financialYear={selectedFinancialYear?.year}
+            coverage={annualDepartmentCoverage}
+            packageBreakdown={annualDepartmentCoverage.packages}
+          />
+        ) : null}
 
         <div
           className={[
@@ -785,7 +973,7 @@ export default function CfoPackageReviewPage() {
                     )}
                   </div>
 
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
                     <CfoMetric
                       label="Package items"
                       value={packageItems.length}
@@ -806,6 +994,23 @@ export default function CfoPackageReviewPage() {
                       label="Estimated total"
                       value={getEstimatedTotal(packageItems)}
                       currency
+                    />
+                    <CfoMetric
+                      label="Departments submitted"
+                      value={`${
+                        selectedPackage.summary?.departmentCoverage
+                          ?.submittedDepartments || 0
+                      } of ${
+                        selectedPackage.summary?.departmentCoverage
+                          ?.totalDepartments || 0
+                      }`}
+                    />
+                    <CfoMetric
+                      label="Not submitted"
+                      value={
+                        selectedPackage.summary?.departmentCoverage
+                          ?.notSubmittedDepartments || 0
+                      }
                     />
                   </div>
                 </section>
@@ -837,29 +1042,43 @@ export default function CfoPackageReviewPage() {
                   </button>
                 </div>
 
-                {perspective === "ITEMS" ? (
-                  <CfoPackageItemsView
-                    items={packageItems}
-                    selectedItemId={effectiveSelectedPackageItemId}
-                    itemDetail={itemDetailQuery.data}
-                    loadingDetail={itemDetailQuery.isLoading}
-                    canDecide={canDecide && !selectedYearReadOnly && packageInReview}
-                    onSelectItem={setSelectedPackageItemId}
-                    onAccept={(item) => setModal({ type: "ACCEPT", item })}
-                    onNeedsModification={(item) =>
-                      setModal({ type: "NEEDS_MODIFICATION", item })
-                    }
-                  />
-                ) : (
-                  <CfoDepartmentView
-                    departments={packageData?.departmentView?.departments || []}
-                    packageId={selectedPackage.id}
-                    onSelectPackageItem={(packageItemId) => {
-                      setSelectedPackageItemId(packageItemId);
-                      setPerspective("ITEMS");
-                    }}
-                  />
-                )}
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={perspective}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                  >
+                    {perspective === "ITEMS" ? (
+                      <CfoPackageItemsView
+                        items={packageItems}
+                        selectedItemId={effectiveSelectedPackageItemId}
+                        itemDetail={itemDetailQuery.data}
+                        loadingDetail={itemDetailQuery.isLoading}
+                        canDecide={
+                          canDecide && !selectedYearReadOnly && packageInReview
+                        }
+                        onSelectItem={setSelectedPackageItemId}
+                        onAccept={(item) => setModal({ type: "ACCEPT", item })}
+                        onNeedsModification={(item) =>
+                          setModal({ type: "NEEDS_MODIFICATION", item })
+                        }
+                      />
+                    ) : (
+                      <CfoDepartmentView
+                        departments={
+                          packageData?.departmentView?.departments || []
+                        }
+                        packageId={selectedPackage.id}
+                        onSelectPackageItem={(packageItemId) => {
+                          setSelectedPackageItemId(packageItemId);
+                          setPerspective("ITEMS");
+                        }}
+                      />
+                    )}
+                  </motion.div>
+                </AnimatePresence>
               </div>
             )}
           </main>

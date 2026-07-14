@@ -1,7 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { Download, Eye, FileText, Paperclip, X } from "lucide-react";
+import { CircleDollarSign, Download, Eye, FileText, Paperclip, X } from "lucide-react";
 
 import {
   downloadCfoPackageSubItemAttachment,
@@ -10,6 +10,7 @@ import {
 } from "../../api/cfoPackageReview.api";
 import AnimatedDrawer from "../budgets/shared/drawers/AnimatedDrawer";
 import CurrencyText from "../CurrencyText";
+import PackageSubItemPriceIntelligenceDrawer from "../budgets/price-intelligence/PackageSubItemPriceIntelligenceDrawer";
 import {
   downloadBlobAttachment,
   openAttachmentPreviewWindow,
@@ -150,6 +151,7 @@ export default function CfoSplitDetailsDrawer({
   item,
   focusDepartmentItemId = null,
 }) {
+  const [priceContext, setPriceContext] = useState(null);
   const detailQuery = useQuery({
     queryKey: [
       "cfo-package-review",
@@ -164,7 +166,10 @@ export default function CfoSplitDetailsDrawer({
   const detail = detailQuery.data;
   const packageItem = detail?.package_item || item;
   const subItems = detail?.sub_items || [];
-  const departments = detail?.departments || [];
+  const departments = useMemo(
+    () => detail?.departments || [],
+    [detail?.departments],
+  );
   const departmentsByItemId = useMemo(
     () =>
       new Map(
@@ -319,6 +324,14 @@ export default function CfoSplitDetailsDrawer({
                           <p className="text-base font-black text-slate-950">
                             <CurrencyText value={subItem.unit_price || 0} />
                           </p>
+                          <button
+                            type="button"
+                            onClick={() => setPriceContext({ subItem, subItems })}
+                            className="mt-2 inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-black text-blue-700 hover:bg-blue-100"
+                          >
+                            <CircleDollarSign className="h-3 w-3" />
+                            Price context
+                          </button>
                         </div>
                         <div className="rounded-xl bg-slate-50 px-3 py-2">
                           <p className="text-[11px] font-bold uppercase text-slate-500">
@@ -426,6 +439,18 @@ export default function CfoSplitDetailsDrawer({
           )}
         </div>
       </div>
+      <PackageSubItemPriceIntelligenceDrawer
+        open={Boolean(priceContext?.subItem)}
+        subItem={priceContext?.subItem}
+        subItems={priceContext?.subItems || []}
+        onSelectSubItem={(subItem) =>
+          setPriceContext((current) => ({
+            subItem,
+            subItems: current?.subItems || [],
+          }))
+        }
+        onClose={() => setPriceContext(null)}
+      />
     </AnimatedDrawer>
   );
 }

@@ -47,6 +47,15 @@ export function mapPackage(packageRow, packageItems = []) {
       approvedQuantity: 0,
       allocatedQuantity: 0,
       blockerCount: 0,
+      departmentCoverage: {
+        totalDepartments: Number(packageRow.total_department_count || 0),
+        submittedDepartments: Number(packageRow.submitted_department_count || 0),
+        notSubmittedDepartments: Number(
+          packageRow.not_submitted_department_count || 0,
+        ),
+        inReviewDepartments: Number(packageRow.in_review_department_count || 0),
+        completedDepartments: Number(packageRow.completed_department_count || 0),
+      },
     },
   );
 

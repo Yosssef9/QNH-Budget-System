@@ -1,4 +1,4 @@
-import { getBudgetAccessByUserId } from "../repositories/userRole.repository.js";
+import { getBudgetAccessByUserId } from "../modules/access-management/access.service.js";
 
 export async function verifyBudgetAccess(req, res, next) {
   try {

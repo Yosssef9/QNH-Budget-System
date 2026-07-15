@@ -1,18 +1,27 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowDown,
+  ArrowRight,
   CheckCircle2,
-  ChevronUp,
+  ChevronDown,
   Eye,
   FileText,
+  PackageCheck,
   XCircle,
-  Building2,
-  CalendarDays,
 } from "lucide-react";
 
 import CurrencyText from "../CurrencyText";
 import { formatDateTime } from "../../utils/dateFormatters";
+
+function formatQuantity(value) {
+  return Number(value || 0).toLocaleString(undefined, {
+    maximumFractionDigits: 4,
+  });
+}
+
+function amount(quantity, unitPrice) {
+  return Number(quantity || 0) * Number(unitPrice || 0);
+}
 
 function getStatusClasses(status) {
   switch (status) {
@@ -40,6 +49,92 @@ function getStatusText(status) {
   }
 }
 
+function PackageModelPanel({
+  tone,
+  eyebrow,
+  itemName,
+  modelName,
+  expenseType,
+  unitPrice,
+  quantity,
+  remainingBefore,
+  remainingAfter,
+}) {
+  const isSource = tone === "source";
+
+  const border = isSource
+    ? "border-red-100 bg-red-50"
+    : "border-emerald-100 bg-emerald-50";
+
+  const label = isSource
+    ? "text-red-600"
+    : "text-emerald-700";
+
+  return (
+    <div className={`rounded-2xl border px-4 py-3 ${border}`}>
+      <div className={`text-xs font-black uppercase ${label}`}>
+        {eyebrow}
+      </div>
+
+      <div className="mt-1 text-sm font-black text-slate-950">
+        {itemName || "-"}
+      </div>
+
+      <div className={`mt-1 text-xs font-bold ${label}`}>
+        {modelName || "Package model"}
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
+        <span className="rounded-full bg-white px-2 py-1 text-slate-700">
+          {expenseType || "Item"}
+        </span>
+
+        <span className="rounded-full bg-white px-2 py-1 text-slate-700">
+          Unit <CurrencyText value={unitPrice || 0} />
+        </span>
+
+        <span className="rounded-full bg-white px-2 py-1 text-slate-700">
+          Qty {formatQuantity(quantity)}
+        </span>
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <div className="rounded-xl bg-white px-3 py-2">
+          <div className="text-[10px] font-black uppercase text-slate-400">
+            Before
+          </div>
+
+          <div className="text-xs font-black text-slate-900">
+            {formatQuantity(remainingBefore)} units
+          </div>
+
+          <div className="text-[11px] font-bold text-slate-500">
+            <CurrencyText
+              value={amount(remainingBefore, unitPrice)}
+            />
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-white px-3 py-2">
+          <div className="text-[10px] font-black uppercase text-slate-400">
+            After
+          </div>
+
+          <div className="text-xs font-black text-slate-900">
+            {formatQuantity(remainingAfter)} units
+          </div>
+
+          <div className="text-[11px] font-bold text-slate-500">
+            <CurrencyText
+              value={amount(remainingAfter, unitPrice)}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function TransferApprovalTable({
   transfers,
   onView,
@@ -48,35 +143,78 @@ export default function TransferApprovalTable({
 }) {
   const [expandedRows, setExpandedRows] = useState({});
 
+  const groupedTransfers = useMemo(
+    () => transfers || [],
+    [transfers],
+  );
+
   function toggleRow(id) {
-    setExpandedRows((prev) => ({
-      ...prev,
-      [id]: !prev[id],
+    setExpandedRows((previousRows) => ({
+      ...previousRows,
+      [id]: !previousRows[id],
     }));
+  }
+
+  if (!groupedTransfers.length) {
+    return (
+      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
+        No transfer requests found.
+      </div>
+    );
   }
 
   return (
     <div className="grid gap-4">
-      {transfers.map((row) => {
-        const isOpen = !!expandedRows[row.id];
-        const isPending = row.status === "PENDING_APPROVAL";
+      {groupedTransfers.map((row) => {
+        const isOpen = Boolean(expandedRows[row.id]);
+        const isPending =
+          row.status === "PENDING_APPROVAL";
+
+        const sourceUnitPrice =
+          row.source_unit_price_snapshot ||
+          row.from_unit_price ||
+          0;
+
+        const destinationUnitPrice =
+          row.destination_unit_price_snapshot ||
+          row.to_unit_price ||
+          0;
+
+        const detailsId =
+          `transfer-request-details-${row.id}`;
 
         return (
-          <div
+          <article
             key={row.id}
-            className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:border-blue-200 hover:shadow-md"
+            className={[
+              "overflow-hidden rounded-3xl border bg-white shadow-sm",
+              "transition-[border-color,box-shadow] duration-200",
+              isOpen
+                ? "border-blue-200 shadow-md"
+                : "border-slate-200 hover:border-blue-200 hover:shadow-md",
+            ].join(" ")}
           >
             <button
               type="button"
               onClick={() => toggleRow(row.id)}
-              className="flex w-full flex-col gap-4 p-5 text-left lg:flex-row lg:items-center lg:justify-between"
+              aria-expanded={isOpen}
+              aria-controls={detailsId}
+              className={[
+                "flex w-full flex-col gap-4 p-5 text-left",
+                "xl:flex-row xl:items-start xl:justify-between",
+                "transition-colors duration-200",
+                isOpen
+                  ? "bg-blue-50/20"
+                  : "bg-white hover:bg-slate-50/60",
+              ].join(" ")}
             >
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span
-                    className={`rounded-full border px-3 py-1 text-xs font-bold ${getStatusClasses(
-                      row.status,
-                    )}`}
+                    className={[
+                      "rounded-full border px-3 py-1 text-xs font-bold",
+                      getStatusClasses(row.status),
+                    ].join(" ")}
                   >
                     {getStatusText(row.status)}
                   </span>
@@ -84,398 +222,214 @@ export default function TransferApprovalTable({
                   <span className="text-xs font-bold text-slate-400">
                     Request #{row.id}
                   </span>
-                  {row.is_new_item ? (
-                    <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-bold text-purple-700">
-                      🆕 NEW ITEM
-                    </span>
-                  ) : (
-                    <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
-                      🔄 TRANSFER
-                    </span>
-                  )}
-                  {row.department_name && (
-                    <span className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-1.5 text-sm font-bold text-slate-800">
-                      <Building2 size={15} />
-                      {row.department_name}
-                    </span>
-                  )}
 
-                  {row.financial_year && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                      <CalendarDays size={13} />
+                  {row.category_name ? (
+                    <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
+                      <PackageCheck size={14} />
+                      {row.category_name}
+                    </span>
+                  ) : null}
+
+                  {row.financial_year ? (
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
                       FY {row.financial_year}
                     </span>
-                  )}
+                  ) : null}
                 </div>
 
-                <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_auto_1fr] lg:items-center">
-                  <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
-                    <div className="text-xs font-bold uppercase text-red-500">
-                      From
-                    </div>
-                    <div className="mt-1">
-                      <div className="truncate text-sm font-bold text-slate-900">
-                        {row.from_item_name || "-"}
-                      </div>
-
-                      <div className="mt-1">
-                        <span
-                          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                            row.from_expense_type === "CAPEX"
-                              ? "bg-blue-100 text-blue-700"
-                              : "bg-emerald-100 text-emerald-700"
-                          }`}
-                        >
-                          {row.from_expense_type}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                <div className="mt-4 grid gap-3 xl:grid-cols-[1fr_auto_1fr] xl:items-center">
+                  <PackageModelPanel
+                    tone="source"
+                    eyebrow="Source package model"
+                    itemName={row.from_item_name}
+                    modelName={row.from_sub_item_name}
+                    expenseType={row.from_expense_type}
+                    unitPrice={sourceUnitPrice}
+                    quantity={row.source_quantity}
+                    remainingBefore={
+                      row.from_remaining_before_transfer ??
+                      row.from_base_quantity
+                    }
+                    remainingAfter={
+                      row.from_remaining_after_transfer ??
+                      Number(row.from_base_quantity || 0) -
+                        Number(row.source_quantity || 0)
+                    }
+                  />
 
                   <div className="flex justify-center">
-                    <div className="rounded-full bg-blue-600 px-3 py-2 text-white shadow-sm">
-                      <ArrowDown size={17} className="lg:hidden" />
-                      <span className="hidden text-sm font-bold lg:block">
-                        →
-                      </span>
-                    </div>
+                    <span className="rounded-full bg-blue-600 p-2 text-white">
+                      <ArrowRight size={18} />
+                    </span>
                   </div>
 
-                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
-                    <div className="text-xs font-bold uppercase text-emerald-600">
-                      To
-                    </div>
-                    <div className="mt-1">
-                      <div className="text-sm font-bold text-slate-900">
-                        {row.is_new_item
-                          ? row.new_item_type_name
-                          : row.to_item_name}
-                      </div>
-
-                      <div className="mt-1">
-                        <span
-                          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                            (row.is_new_item
-                              ? row.new_item_expense_type
-                              : row.to_expense_type) === "CAPEX"
-                              ? "bg-blue-100 text-blue-700"
-                              : "bg-emerald-100 text-emerald-700"
-                          }`}
-                        >
-                          {row.is_new_item
-                            ? row.new_item_expense_type
-                            : row.to_expense_type}
-                        </span>
-                      </div>
-
-                      {row.is_new_item && (
-                        <div className="mt-1 text-xs font-medium text-purple-600">
-                          🆕 New Budget Item
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <PackageModelPanel
+                    tone="destination"
+                    eyebrow="Destination package model"
+                    itemName={row.to_item_name}
+                    modelName={row.to_sub_item_name}
+                    expenseType={row.to_expense_type}
+                    unitPrice={destinationUnitPrice}
+                    quantity={row.destination_quantity}
+                    remainingBefore={
+                      row.to_remaining_before_transfer ??
+                      row.to_base_quantity
+                    }
+                    remainingAfter={
+                      row.to_remaining_after_transfer ??
+                      Number(row.to_base_quantity || 0) +
+                        Number(row.destination_quantity || 0)
+                    }
+                  />
                 </div>
               </div>
 
-              <div className="flex shrink-0 items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 lg:min-w-[260px]">
+              <div className="flex shrink-0 items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 xl:min-w-[270px]">
                 <div>
                   <div className="text-xs font-bold uppercase text-slate-500">
-                    Amount
+                    Transfer Amount
                   </div>
-                  <div className="mt-1 text-xl font-bold text-slate-900">
+
+                  <div className="mt-1 text-xl font-black text-slate-950">
                     <CurrencyText value={row.amount || 0} />
+                  </div>
+
+                  <div className="mt-1 text-xs font-semibold text-slate-500">
+                    Requested{" "}
+                    {row.requested_at
+                      ? formatDateTime(row.requested_at)
+                      : "-"}
                   </div>
                 </div>
 
-                <motion.div
-                  animate={{ rotate: isOpen ? 0 : 180 }}
-                  transition={{ duration: 0.2 }}
-                  className="rounded-xl bg-white p-2 text-slate-500"
-                >
-                  <ChevronUp size={18} />
-                </motion.div>
+                <ChevronDown
+                  size={18}
+                  aria-hidden="true"
+                  className={[
+                    "shrink-0 text-slate-500",
+                    "transition-transform duration-300",
+                    "ease-[cubic-bezier(0.22,1,0.36,1)]",
+                    isOpen ? "rotate-180" : "rotate-0",
+                  ].join(" ")}
+                />
               </div>
             </button>
 
             <AnimatePresence initial={false}>
-              {isOpen && (
+              {isOpen ? (
                 <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.22, ease: "easeInOut" }}
+                  key={`transfer-details-${row.id}`}
+                  id={detailsId}
+                  initial={{
+                    height: 0,
+                    opacity: 0,
+                  }}
+                  animate={{
+                    height: "auto",
+                    opacity: 1,
+                  }}
+                  exit={{
+                    height: 0,
+                    opacity: 0,
+                  }}
+                  transition={{
+                    height: {
+                      duration: 0.3,
+                      ease: [0.22, 1, 0.36, 1],
+                    },
+                    opacity: {
+                      duration: 0.2,
+                      ease: "easeOut",
+                    },
+                  }}
                   className="overflow-hidden"
                 >
-                  <div className="border-t border-slate-200 bg-slate-50 p-5">
-                    <div className="grid items-start gap-4 xl:grid-cols-[280px_1fr_220px]">
-                      <div className="self-start rounded-3xl border border-slate-200 bg-white p-5">
-                        <div className="mb-4 text-sm font-bold text-slate-900">
-                          Transfer Information
+                  <motion.div
+                    initial={{
+                      y: -8,
+                    }}
+                    animate={{
+                      y: 0,
+                    }}
+                    exit={{
+                      y: -8,
+                    }}
+                    transition={{
+                      duration: 0.25,
+                      ease: [0.22, 1, 0.36, 1],
+                    }}
+                    className="border-t border-slate-200 bg-slate-50 p-5"
+                  >
+                    <div className="grid gap-4 xl:grid-cols-[1fr_280px]">
+                      <div className="rounded-3xl border border-slate-200 bg-white p-5">
+                        <div className="mb-4 text-sm font-black text-slate-950">
+                          Transfer Detail
                         </div>
-                        <div>
-                          <div className="text-xs font-bold uppercase text-slate-400">
-                            Department
-                          </div>
 
-                          <div className="mt-1 text-sm font-semibold text-slate-800">
-                            {row.department_name || "-"}
-                          </div>
-                        </div>
-                        <div className="space-y-3">
+                        <div className="grid gap-4 md:grid-cols-3">
                           <div>
-                            <div className="text-xs font-bold uppercase text-slate-400">
-                              From Item
+                            <div className="text-xs font-bold uppercase text-slate-500">
+                              Requested By
                             </div>
 
-                            <div className="mt-1">
-                              <div className="text-sm font-semibold text-slate-800">
-                                {row.from_item_name || "-"}
-                              </div>
-
-                              <span
-                                className={`mt-1 inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                                  row.from_expense_type === "CAPEX"
-                                    ? "bg-blue-100 text-blue-700"
-                                    : "bg-emerald-100 text-emerald-700"
-                                }`}
-                              >
-                                {row.from_expense_type}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="text-xs font-bold uppercase text-slate-400">
-                              To Item
-                            </div>
-
-                            {row.is_new_item ? (
-                              <div className="mt-1">
-                                <div>
-                                  <div className="text-sm font-semibold text-slate-800">
-                                    {row.new_item_type_name}
-                                  </div>
-
-                                  <span
-                                    className={`mt-1 inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                                      row.new_item_expense_type === "CAPEX"
-                                        ? "bg-blue-100 text-blue-700"
-                                        : "bg-emerald-100 text-emerald-700"
-                                    }`}
-                                  >
-                                    {row.new_item_expense_type}
-                                  </span>
-                                </div>
-
-                                <div className="mt-1 inline-flex rounded-full bg-purple-100 px-2 py-1 text-xs font-semibold text-purple-700">
-                                  🆕 New Budget Item
-                                </div>
-
-                                <div className="mt-3 grid gap-2">
-                                  <div className="text-xs text-slate-500">
-                                    Category
-                                  </div>
-                                  <div className="font-semibold">
-                                    {row.category_name || "-"}
-                                  </div>
-
-                                  <div className="text-xs text-slate-500">
-                                    Quantity
-                                  </div>
-                                  <div className="font-semibold">
-                                    {row.new_item_quantity || "-"}
-                                  </div>
-
-                                  <div className="text-xs text-slate-500">
-                                    Unit Price
-                                  </div>
-                                  <div className="font-semibold">
-                                    <CurrencyText
-                                      value={row.new_item_unit_price || 0}
-                                    />
-                                  </div>
-
-                                  <div className="text-xs text-slate-500">
-                                    Total Amount
-                                  </div>
-                                  <div className="font-bold text-purple-700">
-                                    <CurrencyText
-                                      value={row.new_item_total_amount || 0}
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-                            ) : (
-                              <div>
-                                <div className="text-sm font-semibold text-slate-800">
-                                  {row.to_item_name || "-"}
-                                </div>
-
-                                <span
-                                  className={`mt-1 inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                                    row.to_expense_type === "CAPEX"
-                                      ? "bg-blue-100 text-blue-700"
-                                      : "bg-emerald-100 text-emerald-700"
-                                  }`}
-                                >
-                                  {row.to_expense_type}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-
-                          <div>
-                            <div className="text-xs font-bold uppercase text-slate-400">
-                              Requested At
-                            </div>
                             <div className="mt-1 text-sm font-semibold text-slate-800">
-                              {formatDateTime(row.requested_at)}
+                              {row.requested_by_name || "-"}
                             </div>
                           </div>
-                        </div>
-                      </div>
 
-                      <div className="rounded-3xl border border-slate-200 bg-white p-5">
-                        <div className="mb-4 text-sm font-bold text-slate-900">
-                          Financial Information
-                        </div>
-
-                        <div className="grid gap-3">
-                          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
-                            <div className="text-xs font-bold uppercase text-blue-600">
-                              Transfer Amount
+                          <div>
+                            <div className="text-xs font-bold uppercase text-slate-500">
+                              Source Quantity
                             </div>
 
-                            <div className="mt-2 text-xl font-bold text-blue-700">
-                              <CurrencyText value={row.amount || 0} />
-                            </div>
-                          </div>
-                          <div className="mb-4 text-sm font-bold text-slate-900">
-                            Transfer Impact
-                          </div>
-
-                          <div className="grid gap-3">
-                            <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
-                              <div className="text-xs font-bold uppercase text-red-600">
-                                Source Item
-                              </div>
-
-                              <div className="mt-1 text-sm font-semibold text-slate-900">
-                                {row.from_item_name}
-                              </div>
-
-                              <div className="mt-3 text-xs text-slate-500">
-                                Current Allocation
-                              </div>
-
-                              <div className="font-bold text-slate-900">
-                                <CurrencyText
-                                  value={row.from_item_amount || 0}
-                                />
-                              </div>
-
-                              <div className="mt-2 text-xs text-slate-500">
-                                After Transfer
-                              </div>
-
-                              <div className="font-bold text-red-700">
-                                <CurrencyText
-                                  value={
-                                    (row.from_item_amount || 0) -
-                                    (row.amount || 0)
-                                  }
-                                />
-                              </div>
-                            </div>
-
-                            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                              {row.is_new_item && (
-                                <div className="mb-4 rounded-2xl border border-purple-200 bg-purple-50 p-4">
-                                  <div className="mb-3 text-sm font-bold text-purple-700">
-                                    🆕 New Budget Item Details
-                                  </div>
-
-                                  <div className="grid gap-2 text-sm">
-                                    <div>
-                                      <strong>Item:</strong>{" "}
-                                      {row.new_item_type_name}
-                                    </div>
-                                    <div>
-                                      <strong>Expense Type:</strong>{" "}
-                                      <span
-                                        className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                                          row.new_item_expense_type === "CAPEX"
-                                            ? "bg-blue-100 text-blue-700"
-                                            : "bg-emerald-100 text-emerald-700"
-                                        }`}
-                                      >
-                                        {row.new_item_expense_type}
-                                      </span>
-                                    </div>
-                                    <div>
-                                      <strong>Category:</strong>{" "}
-                                      {row.category_name}
-                                    </div>
-
-                                    <div>
-                                      <strong>Quantity:</strong>{" "}
-                                      {row.new_item_quantity}
-                                    </div>
-
-                                    <div>
-                                      <strong>Unit Price:</strong>{" "}
-                                      <CurrencyText
-                                        value={row.new_item_unit_price || 0}
-                                      />
-                                    </div>
-
-                                    <div>
-                                      <strong>Total Amount:</strong>{" "}
-                                      <CurrencyText
-                                        value={row.new_item_total_amount || 0}
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
+                            <div className="mt-1 text-sm font-semibold text-slate-800">
+                              {formatQuantity(
+                                row.source_quantity,
                               )}
-                              <div className="text-xs font-bold uppercase text-emerald-600">
-                                Destination Item
-                              </div>
+                            </div>
+                          </div>
 
-                              <div className="mt-1 text-sm font-semibold text-slate-900">
-                                {row.is_new_item
-                                  ? row.new_item_type_name
-                                  : row.to_item_name}
-                              </div>
+                          <div>
+                            <div className="text-xs font-bold uppercase text-slate-500">
+                              Destination Quantity
+                            </div>
 
-                              <div className="mt-3 text-xs text-slate-500">
-                                Current Allocation
-                              </div>
-
-                              <div className="font-bold text-slate-900">
-                                <CurrencyText value={row.to_item_amount || 0} />
-                              </div>
-
-                              <div className="mt-2 text-xs text-slate-500">
-                                After Transfer
-                              </div>
-
-                              <div className="font-bold text-emerald-700">
-                                <CurrencyText
-                                  value={
-                                    (row.to_item_amount || 0) +
-                                    (row.amount || 0)
-                                  }
-                                />
-                              </div>
+                            <div className="mt-1 text-sm font-semibold text-slate-800">
+                              {formatQuantity(
+                                row.destination_quantity,
+                              )}
                             </div>
                           </div>
                         </div>
+
+                        {row.reason ? (
+                          <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase text-slate-500">
+                              <FileText size={14} />
+                              Business Reason
+                            </div>
+
+                            <p className="text-sm leading-6 text-slate-700">
+                              {row.reason}
+                            </p>
+                          </div>
+                        ) : null}
+
+                        {row.rejection_note ? (
+                          <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4">
+                            <div className="text-xs font-bold uppercase text-red-600">
+                              Rejection Reason
+                            </div>
+
+                            <p className="mt-2 text-sm leading-6 text-red-800">
+                              {row.rejection_note}
+                            </p>
+                          </div>
+                        ) : null}
                       </div>
 
                       <div className="rounded-3xl border border-slate-200 bg-white p-5">
-                        <div className="mb-4 text-sm font-bold text-slate-900">
+                        <div className="mb-4 text-sm font-black text-slate-950">
                           Actions
                         </div>
 
@@ -486,10 +440,10 @@ export default function TransferApprovalTable({
                             className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-100"
                           >
                             <Eye size={17} />
-                            View Impact
+                            View Details
                           </button>
 
-                          {isPending && (
+                          {isPending ? (
                             <>
                               <button
                                 type="button"
@@ -509,46 +463,17 @@ export default function TransferApprovalTable({
                                 Reject
                               </button>
                             </>
-                          )}
+                          ) : null}
                         </div>
                       </div>
                     </div>
-
-                    {row.reason && (
-                      <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-5">
-                        <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase text-slate-500">
-                          <FileText size={14} />
-                          Reason
-                        </div>
-
-                        <p className="text-sm font-medium leading-6 text-slate-700">
-                          {row.reason}
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                  </motion.div>
                 </motion.div>
-              )}
+              ) : null}
             </AnimatePresence>
-          </div>
+          </article>
         );
       })}
-
-      {transfers.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
-            <CheckCircle2 size={26} className="text-slate-500" />
-          </div>
-
-          <h3 className="mt-4 text-lg font-bold text-slate-900">
-            No transfer requests found
-          </h3>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Change the status or department filter to view other requests.
-          </p>
-        </div>
-      )}
     </div>
   );
 }

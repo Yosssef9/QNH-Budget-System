@@ -20,8 +20,9 @@ export default function CopyBudgetHistoryList({
       [
         budget.year,
         budget.department_name,
+        budget.category_name,
         budget.items_count,
-        budget.total_amount,
+        budget.total_requested_quantity,
       ]
         .join(" ")
         .toLowerCase()
@@ -99,6 +100,12 @@ export default function CopyBudgetHistoryList({
                         </span>
                       </div>
 
+                      {budget.category_name && (
+                        <span className="mt-2 inline-flex rounded-full border border-primary-200 bg-primary-50 px-2.5 py-1 text-xs font-bold text-primary-700">
+                          {budget.category_name}
+                        </span>
+                      )}
+
                       {budget.department_name && (
                         <p className="mt-1 truncate text-sm text-slate-500">
                           {budget.department_name}
@@ -132,11 +139,11 @@ export default function CopyBudgetHistoryList({
                       </div>
 
                       <p className="mt-2 text-xs text-slate-500">
-                        Total Amount
+                        Requested Quantity
                       </p>
 
                       <p className="font-semibold text-slate-900">
-                        {formatNumber(budget.total_amount || 0)}
+                        {formatNumber(budget.total_requested_quantity || 0)}
                       </p>
                     </div>
                   </div>

@@ -7,20 +7,20 @@ export default function useBudgetTotals(items = []) {
       (sum, item) => sum + toNumber(item.quantity),
       0,
     );
-
-    const totalAmount = items.reduce(
-      (sum, item) =>
-        sum +
-        toNumber(
-          item.total_amount ??
-            toNumber(item.quantity) * toNumber(item.unitPrice),
-        ),
+    const totalApprovedQuantity = items.reduce(
+      (sum, item) => sum + toNumber(item.category_approved_quantity),
+      0,
+    );
+    const totalApprovedAmount = items.reduce(
+      (sum, item) => sum + toNumber(item.approved_amount),
       0,
     );
 
     return {
       totalQuantity,
-      totalAmount,
+      totalApprovedQuantity,
+      totalApprovedAmount,
+      totalAmount: totalApprovedAmount,
     };
   }, [items]);
 }

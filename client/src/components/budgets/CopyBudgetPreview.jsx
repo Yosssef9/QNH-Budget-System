@@ -24,8 +24,8 @@ function CopyBudgetPreview({ budget, items, previewOpen, onTogglePreview }) {
     );
   }
 
-  const totalAmount = items.reduce(
-    (sum, item) => sum + Number(item.total_amount || 0),
+  const totalQuantity = items.reduce(
+    (sum, item) => sum + Number(item.requested_quantity ?? item.quantity ?? 0),
     0,
   );
 
@@ -36,6 +36,7 @@ function CopyBudgetPreview({ budget, items, previewOpen, onTogglePreview }) {
           <div>
             <h3 className="text-xl font-bold text-slate-900">
               {budget.year} Budget
+              {budget.category_name ? ` - ${budget.category_name}` : ""}
             </h3>
 
             <p className="mt-1 text-sm text-slate-500">Review before copying</p>
@@ -62,6 +63,11 @@ function CopyBudgetPreview({ budget, items, previewOpen, onTogglePreview }) {
             <p className="mt-3 text-2xl font-bold text-slate-900">
               {budget.year}
             </p>
+            {budget.category_name && (
+              <p className="mt-1 text-sm font-bold text-primary-700">
+                {budget.category_name}
+              </p>
+            )}
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -83,12 +89,12 @@ function CopyBudgetPreview({ budget, items, previewOpen, onTogglePreview }) {
               <Database size={18} className="text-primary-600" />
 
               <span className="text-sm font-medium text-slate-500">
-                Total Amount
+                Requested Quantity
               </span>
             </div>
 
             <p className="mt-3 text-2xl font-bold text-slate-900">
-              {formatNumber(totalAmount)}
+              {formatNumber(totalQuantity)}
             </p>
           </div>
         </div>
@@ -110,7 +116,7 @@ function CopyBudgetPreview({ budget, items, previewOpen, onTogglePreview }) {
       >
         <div className="flex h-full min-h-0 flex-col p-5">
           <div className="flex-1 min-h-0">
-            <BudgetItemsTable items={items} readOnly />
+            <BudgetItemsTable items={items} readOnly showFinancialColumns={false} />
           </div>
         </div>
       </div>

@@ -15,8 +15,6 @@ function BudgetDistributionTable({
   duplicateTypeRowIds,
   deletingRowIds,
 
-  returnedItemNotesByItemId,
-
   isBudgetLocked,
 
   getMonthlyDistribution,
@@ -31,7 +29,7 @@ function BudgetDistributionTable({
   setDeleteRowId,
 }) {
   return (
-    <table className="min-w-[1930px] table-fixed border-collapse text-sm">
+    <table className="min-w-[1550px] table-fixed border-collapse text-sm">
       <thead className="sticky top-0 z-20 bg-white">
         <tr className="text-slate-700">
           <th rowSpan="2" className="border border-slate-200 px-3 py-4">
@@ -47,13 +45,7 @@ function BudgetDistributionTable({
             rowSpan="2"
             className="w-[260px] border border-slate-200 px-4 py-4"
           >
-            Item / Type
-          </th>
-          <th
-            rowSpan="2"
-            className="w-[130px] border border-slate-200 px-4 py-4"
-          >
-            Project
+            Generic Item
           </th>
           <th
             rowSpan="2"
@@ -65,19 +57,7 @@ function BudgetDistributionTable({
             rowSpan="2"
             className="w-[120px] border border-slate-200 px-4 py-4"
           >
-            Total Quantity
-          </th>
-          <th
-            rowSpan="2"
-            className="w-[120px] border border-slate-200 px-4 py-4"
-          >
-            Unit Price
-          </th>
-          <th
-            rowSpan="2"
-            className="w-[150px] border border-slate-200 px-4 py-4"
-          >
-            Total Amount
+            Requested Quantity
           </th>
           <th
             colSpan="3"
@@ -136,7 +116,6 @@ function BudgetDistributionTable({
             methodOptions={methodOptions}
             duplicateTypeRowIds={duplicateTypeRowIds}
             deletingRowIds={deletingRowIds}
-            returnedItemNotesByItemId={returnedItemNotesByItemId}
             isBudgetLocked={isBudgetLocked}
             getMonthlyDistribution={getMonthlyDistribution}
             getQuarterlyDistribution={getQuarterlyDistribution}
@@ -152,7 +131,7 @@ function BudgetDistributionTable({
         {rows.length === 0 && (
           <tr>
             <td
-              colSpan="21"
+              colSpan="18"
               className="border border-slate-200 px-4 py-10 text-center text-sm font-semibold text-slate-500"
             >
               No budget items yet. Click Add Item to start.

@@ -28,7 +28,7 @@ export function validateRowsDetailed(rows) {
       const key = String(row.item);
 
       if (usedTypes.has(key)) {
-        return `Row ${rowNumber}: This item/type is already added in this budget`;
+      return `Row ${rowNumber}: This catalog item is already added in this category budget`;
       }
 
       usedTypes.add(key);
@@ -38,15 +38,11 @@ export function validateRowsDetailed(rows) {
     }
 
     if (!row.item) {
-      return `Row ${rowNumber}: Please select item/type`;
+      return `Row ${rowNumber}: Please select catalog item`;
     }
 
     if (toNumber(row.quantity) <= 0) {
       return `Row ${rowNumber}: Quantity must be greater than 0`;
-    }
-
-    if (toNumber(row.unitPrice) <= 0) {
-      return `Row ${rowNumber}: Unit price must be greater than 0`;
     }
 
     if (row.method !== "ANNUAL") {

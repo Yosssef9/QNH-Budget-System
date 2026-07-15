@@ -31,3 +31,21 @@ export async function deleteBudgetAccessAssignment(id) {
   const response = await api.delete(`/admin/budget-access/assignments/${id}`);
   return response.data;
 }
+
+export async function getBudgetAccessAssignmentPermissionOverrides(id) {
+  const response = await api.get(
+    `/admin/budget-access/assignments/${id}/permission-overrides`,
+  );
+  return response.data;
+}
+
+export async function replaceBudgetAccessAssignmentPermissionOverrides(
+  id,
+  payload,
+) {
+  const response = await api.put(
+    `/admin/budget-access/assignments/${id}/permission-overrides`,
+    payload,
+  );
+  return response.data;
+}

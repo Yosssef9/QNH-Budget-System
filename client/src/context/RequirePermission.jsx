@@ -1,6 +1,7 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import PageLoader from "../components/PageLoader";
+import { can } from "../helpers/permissions";
 
 export default function RequirePermission({ children, permission }) {
   const { loading, budgetAccess } = useAuth();
@@ -14,7 +15,7 @@ export default function RequirePermission({ children, permission }) {
     : [permission];
 
   const hasPermission = requiredPermissions.some((permissionName) =>
-    Boolean(budgetAccess?.permissions?.[permissionName]),
+    can(budgetAccess, permissionName),
   );
 
   if (!hasPermission) {

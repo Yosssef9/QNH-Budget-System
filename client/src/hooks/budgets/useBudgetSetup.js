@@ -1,21 +1,28 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  approveItemRequest,
   createSetupCategory,
+  createSetupSubItem,
   createSetupType,
-  getItemRequests,
   getSetupCategories,
+  getSetupSubItemsByCatalogItem,
   getSetupTypesByCategory,
-  rejectItemRequest,
   updateSetupCategory,
+  updateSetupSubItem,
+  updateSetupSubItemStatus,
   updateSetupType,
   deleteSetupCategory,
   deleteSetupType,
+  getSetupUnitsOfMeasure,
   getSetupCategoryUsage,
   getSetupTypeUsage,
-  createItemRequest,
-  approveItemRequestManual,
 } from "../../api/budgetSetup.api";
+import {
+  approveAndCreateItemRequest,
+  approveItemRequest,
+  createItemRequest,
+  getItemRequests,
+  rejectItemRequest,
+} from "../../api/itemRequests.api";
 
 export function useSetupCategories() {
   return useQuery({
@@ -29,6 +36,21 @@ export function useSetupTypes(categoryId) {
     queryKey: ["budget-setup", "types", categoryId],
     queryFn: () => getSetupTypesByCategory(categoryId),
     enabled: Boolean(categoryId),
+  });
+}
+
+export function useSetupUnitsOfMeasure() {
+  return useQuery({
+    queryKey: ["budget-setup", "units-of-measure"],
+    queryFn: getSetupUnitsOfMeasure,
+  });
+}
+
+export function useSetupSubItems(catalogItemId) {
+  return useQuery({
+    queryKey: ["budget-setup", "sub-items", catalogItemId],
+    queryFn: () => getSetupSubItemsByCatalogItem(catalogItemId),
+    enabled: Boolean(catalogItemId),
   });
 }
 
@@ -58,6 +80,19 @@ export function useCreateSetupType() {
   });
 }
 
+export function useCreateSetupSubItem() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: createSetupSubItem,
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["budget-setup", "sub-items", variables.catalogItemId],
+      });
+    },
+  });
+}
+
 export function useItemRequests(status) {
   return useQuery({
     queryKey: ["budget-setup", "item-requests", status],
@@ -70,6 +105,17 @@ export function useApproveItemRequest() {
 
   return useMutation({
     mutationFn: approveItemRequest,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["budget-setup"] });
+    },
+  });
+}
+
+export function useApproveAndCreateItemRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: approveAndCreateItemRequest,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["budget-setup"] });
     },
@@ -112,6 +158,19 @@ export function useUpdateSetupType() {
   });
 }
 
+export function useUpdateSetupSubItem() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateSetupSubItem,
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["budget-setup", "sub-items", variables.catalogItemId],
+      });
+    },
+  });
+}
+
 export function useSetupCategoryUsage() {
   return useMutation({
     mutationFn: getSetupCategoryUsage,
@@ -148,6 +207,19 @@ export function useDeleteSetupType() {
     },
   });
 }
+
+export function useUpdateSetupSubItemStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateSetupSubItemStatus,
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["budget-setup", "sub-items", variables.catalogItemId],
+      });
+    },
+  });
+}
 export function useCreateItemRequest() {
   const queryClient = useQueryClient();
 
@@ -157,16 +229,6 @@ export function useCreateItemRequest() {
       queryClient.invalidateQueries({
         queryKey: ["budget-setup", "item-requests"],
       });
-    },
-  });
-}
-export function useApproveItemRequestManual() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: approveItemRequestManual,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["budget-setup"] });
     },
   });
 }

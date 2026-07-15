@@ -53,6 +53,27 @@ function round(value, decimals = 2) {
   return Math.round(value * factor) / factor;
 }
 
+function toPositiveNumberOrNull(value) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue > 0
+    ? numberValue
+    : null;
+}
+
+function average(values, decimals = 4) {
+  const validValues = values
+    .map((value) => Number(value))
+    .filter(Number.isFinite);
+
+  if (!validValues.length) return null;
+
+  return round(
+    validValues.reduce((sum, value) => sum + value, 0) /
+      validValues.length,
+    decimals,
+  );
+}
+
 function monthsBetween(startDate, endDate = new Date()) {
   if (!startDate) return null;
 
@@ -188,6 +209,197 @@ export function buildPriceIntelligence(item, benchmark = {}) {
     max_unit_cost: benchmark?.max_unit_cost ?? null,
     last_purchase_unit_cost: benchmark?.last_purchase_unit_cost ?? null,
     last_purchase_at: benchmark?.last_purchase_at ?? null,
+  };
+}
+
+export function buildPackageItemOverallAveragePriceIntelligence(
+  packageItem,
+  modelResults = [],
+  evidence = {},
+) {
+  const models = modelResults.filter(
+    (model) => model?.packageSubItem && model?.priceIntelligence,
+  );
+
+  const currentPricedModels = models.filter(
+    (model) =>
+      toPositiveNumberOrNull(model.packageSubItem.unit_price) !== null,
+  );
+
+  const benchmarkedModels = models.filter(
+    (model) =>
+      toPositiveNumberOrNull(
+        model.priceIntelligence.historical_benchmark,
+      ) !== null,
+  );
+
+  const comparableModels = benchmarkedModels.filter(
+    (model) =>
+      toPositiveNumberOrNull(model.packageSubItem.unit_price) !== null,
+  );
+
+  const averageCurrentUnitPrice = average(
+    currentPricedModels.map((model) => model.packageSubItem.unit_price),
+  );
+
+  const overallAverageBenchmark = average(
+    benchmarkedModels.map(
+      (model) => model.priceIntelligence.historical_benchmark,
+    ),
+  );
+
+  const comparableAverageCurrentUnitPrice = average(
+    comparableModels.map((model) => model.packageSubItem.unit_price),
+  );
+
+  const comparableAverageBenchmark = average(
+    comparableModels.map(
+      (model) => model.priceIntelligence.historical_benchmark,
+    ),
+  );
+
+  const hasComparableBenchmark =
+    comparableAverageCurrentUnitPrice !== null &&
+    comparableAverageBenchmark !== null &&
+    comparableAverageBenchmark > 0;
+
+  const varianceAmount = hasComparableBenchmark
+    ? round(
+        comparableAverageCurrentUnitPrice -
+          comparableAverageBenchmark,
+        4,
+      )
+    : null;
+
+  const variancePercent = hasComparableBenchmark
+    ? round((varianceAmount / comparableAverageBenchmark) * 100, 2)
+    : null;
+
+  const averageHistoricalUnitCost = average(
+    benchmarkedModels
+      .map((model) =>
+        toPositiveNumberOrNull(
+          model.priceIntelligence.average_unit_cost,
+        ),
+      )
+      .filter((value) => value !== null),
+  );
+
+  const averageMinimumUnitCost = average(
+    benchmarkedModels
+      .map((model) =>
+        toPositiveNumberOrNull(model.priceIntelligence.min_unit_cost),
+      )
+      .filter((value) => value !== null),
+  );
+
+  const averageMaximumUnitCost = average(
+    benchmarkedModels
+      .map((model) =>
+        toPositiveNumberOrNull(model.priceIntelligence.max_unit_cost),
+      )
+      .filter((value) => value !== null),
+  );
+
+  const averageLastPurchaseUnitCost = average(
+    benchmarkedModels
+      .map((model) =>
+        toPositiveNumberOrNull(
+          model.priceIntelligence.last_purchase_unit_cost,
+        ),
+      )
+      .filter((value) => value !== null),
+  );
+
+  const averageModelPotentialImpact = average(
+    comparableModels
+      .map((model) => model.priceIntelligence.potential_impact)
+      .filter(
+        (value) =>
+          value !== null &&
+          value !== undefined &&
+          Number.isFinite(Number(value)),
+      ),
+  );
+
+  const averageModelPotentialOverspend = average(
+    comparableModels.map(
+      (model) => model.priceIntelligence.potential_overspend || 0,
+    ),
+  );
+
+  const modelCount = models.length;
+  const currentPriceModelCount = currentPricedModels.length;
+  const benchmarkedModelCount = benchmarkedModels.length;
+  const comparableModelCount = comparableModels.length;
+  const purchaseCount = toNumber(evidence.purchase_count);
+  const supplierCount = toNumber(evidence.supplier_count);
+  const lastPurchaseAt = evidence.last_purchase_at || null;
+  const status = getPriceIntelligenceStatus(
+    variancePercent,
+    hasComparableBenchmark,
+  );
+
+  return {
+    status,
+    status_label: STATUS_METADATA[status].label,
+    severity: STATUS_METADATA[status].severity,
+    benchmark_method: "SIMPLE_AVERAGE_MODEL_MEDIAN_UNIT_COST",
+    weighting_method: "EQUAL_WEIGHT_PER_MODEL",
+    average_current_unit_price: averageCurrentUnitPrice,
+    overall_average_benchmark: overallAverageBenchmark,
+    comparable_average_current_unit_price:
+      comparableAverageCurrentUnitPrice,
+    comparable_average_benchmark: comparableAverageBenchmark,
+    variance_amount: varianceAmount,
+    variance_percent: variancePercent,
+    average_historical_unit_cost: averageHistoricalUnitCost,
+    average_minimum_unit_cost: averageMinimumUnitCost,
+    average_maximum_unit_cost: averageMaximumUnitCost,
+    average_last_purchase_unit_cost: averageLastPurchaseUnitCost,
+    average_model_potential_impact: averageModelPotentialImpact,
+    average_model_potential_overspend:
+      averageModelPotentialOverspend,
+    model_count: modelCount,
+    current_price_model_count: currentPriceModelCount,
+    benchmarked_model_count: benchmarkedModelCount,
+    comparable_model_count: comparableModelCount,
+    missing_current_price_count: Math.max(
+      0,
+      modelCount - currentPriceModelCount,
+    ),
+    missing_benchmark_count: Math.max(
+      0,
+      modelCount - benchmarkedModelCount,
+    ),
+    current_price_coverage_percent:
+      modelCount > 0
+        ? round((currentPriceModelCount / modelCount) * 100, 2)
+        : 0,
+    benchmark_coverage_percent:
+      modelCount > 0
+        ? round((benchmarkedModelCount / modelCount) * 100, 2)
+        : 0,
+    comparable_coverage_percent:
+      modelCount > 0
+        ? round((comparableModelCount / modelCount) * 100, 2)
+        : 0,
+    is_partial_coverage:
+      benchmarkedModelCount > 0 &&
+      benchmarkedModelCount < modelCount,
+    evidence_strength: getEvidenceStrength({
+      purchaseCount,
+      supplierCount,
+      lastPurchaseAt,
+    }),
+    evidence_window_months:
+      PRICE_INTELLIGENCE_DEFAULTS.evidenceWindowMonths,
+    evidence_window_used: evidence.evidence_window_used || null,
+    purchase_count: purchaseCount,
+    supplier_count: supplierCount,
+    mapped_item_codes: evidence.mapped_item_codes || [],
+    last_purchase_at: lastPurchaseAt,
+    package_item_id: packageItem?.id || null,
   };
 }
 

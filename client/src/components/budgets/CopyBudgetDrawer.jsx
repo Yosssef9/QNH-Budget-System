@@ -12,7 +12,7 @@ import {
   getBudgetHistoryItems,
 } from "../../api/budget.api";
 
-import { mapBudgetItemToRow } from "../../helpers/budgetRows.helper";
+import { mapBudgetHistoryItemToDraftRow } from "../../helpers/budgetRows.helper";
 import CollapsiblePanelToggle from "../layout/CollapsiblePanelToggle";
 import AnimatedDrawer from "./shared/drawers/AnimatedDrawer";
 
@@ -83,21 +83,7 @@ export default function CopyBudgetDrawer({
   }, [open, loadHistory, budgets.length]);
   const handleCopy = () => {
     try {
-      const mappedRows = items.map((item) => {
-        const row = mapBudgetItemToRow(item);
-
-        return {
-          ...row,
-
-          id: `copy-${item.id}-${crypto.randomUUID()}`,
-
-          isSaved: false,
-
-          isNew: true,
-
-          savedSnapshot: null,
-        };
-      });
+      const mappedRows = items.map(mapBudgetHistoryItemToDraftRow);
 
       onCopy(mappedRows);
 

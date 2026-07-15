@@ -4,19 +4,21 @@ export async function downloadBudgetTemplate(types) {
   const XLSX = await import("xlsx");
   const { saveAs } = await import("file-saver");
   const rows = types.map((type) => ({
-    Type_ID: type.id,
+    Category_ID: type.category_id,
     Category: type.category_name,
+    Catalog_Item_ID: type.id,
+    Item_Code: type.item_code || type.code || "",
     Item: type.name,
-    Quantity: "",
-    Unit_Price: "",
+    Requested_Quantity: "",
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(rows);
   worksheet["!cols"] = [
     { hidden: true },
     { wch: 30 },
-    { wch: 40 },
-    { wch: 15 },
+    { hidden: true },
+    { wch: 18 },
+    { wch: 44 },
     { wch: 15 },
   ];
   const workbook = XLSX.utils.book_new();
@@ -24,16 +26,19 @@ export async function downloadBudgetTemplate(types) {
   const instructionsSheet = XLSX.utils.aoa_to_sheet([
     ["Budget Import Instructions"],
     [],
-    ["1. Only edit Quantity and Unit Price"],
+    ["1. Only edit Requested_Quantity"],
     ["2. Do NOT modify Category names"],
-    ["3. Do NOT modify Item names"],
+    ["3. Do NOT modify Catalog_Item_ID, Item_Code, or Item names"],
     ["4. Leave unused items blank"],
     ["5. One row = one budget item"],
     ["6. Import the file back into Budget Entry"],
     [],
     ["IMPORTANT:"],
     [
-      "Changing Category or Item names will cause the row to be rejected during import.",
+      "Changing Category, Catalog_Item_ID, Item_Code, or Item names will cause the row to be rejected during import.",
+    ],
+    [
+      "Unit price, amount, vendor, model, package sub-item, and distribution fields are not part of Department Budget Entry.",
     ],
   ]);
 
@@ -53,7 +58,12 @@ export async function downloadBudgetTemplate(types) {
   saveAs(file, `Budget_Template_${new Date().getFullYear()}.xlsx`);
 }
 
-export async function importBudgetTemplate({ file, rows, allTypes }) {
+export async function importBudgetTemplate({
+  file,
+  rows,
+  allTypes,
+  categoryBudgets = [],
+}) {
   const XLSX = await import("xlsx");
   const buffer = await file.arrayBuffer();
 
@@ -68,6 +78,12 @@ export async function importBudgetTemplate({ file, rows, allTypes }) {
   const excelRows = XLSX.utils.sheet_to_json(sheet);
 
   const existingTypeIds = new Set(rows.map((r) => Number(r.item)));
+  const categoryBudgetByCategoryId = new Map(
+    categoryBudgets.map((categoryBudget) => [
+      Number(categoryBudget.category_id),
+      categoryBudget,
+    ]),
+  );
 
   const importedRows = [];
   const errors = [];
@@ -77,19 +93,13 @@ export async function importBudgetTemplate({ file, rows, allTypes }) {
   excelRows.forEach((row, index) => {
     const rowNumber = index + 2;
 
-    const typeId = Number(row.Type_ID);
+    const typeId = Number(row.Catalog_Item_ID ?? row.Type_ID);
 
-    const rawQuantity = row.Quantity;
-
-    const rawUnitPrice = row.Unit_Price;
+    const rawQuantity = row.Requested_Quantity ?? row.Quantity;
 
     const quantity = Number(rawQuantity);
 
-    const unitPrice = Number(rawUnitPrice);
-
-    const isEmpty =
-      (row.Quantity === undefined || row.Quantity === "") &&
-      (row.Unit_Price === undefined || row.Unit_Price === "");
+    const isEmpty = rawQuantity === undefined || rawQuantity === "";
 
     if (isEmpty) return;
 
@@ -107,10 +117,15 @@ export async function importBudgetTemplate({ file, rows, allTypes }) {
     const excelCategory = String(row.Category || "").trim();
 
     const excelItem = String(row.Item || "").trim();
+    const excelItemCode = String(row.Item_Code || "").trim();
+    const excelCategoryId = Number(row.Category_ID ?? matchedType.category_id);
 
     const systemCategory = String(matchedType.category_name || "").trim();
 
     const systemItem = String(matchedType.name || "").trim();
+    const systemItemCode = String(
+      matchedType.item_code || matchedType.code || "",
+    ).trim();
 
     if (excelCategory.toLowerCase() !== systemCategory.toLowerCase()) {
       errors.push({
@@ -122,11 +137,58 @@ export async function importBudgetTemplate({ file, rows, allTypes }) {
       return;
     }
 
+    const matchedCategoryBudget = categoryBudgetByCategoryId.get(
+      Number(matchedType.category_id),
+    );
+
+    if (!matchedCategoryBudget) {
+      errors.push({
+        row: rowNumber,
+        item: matchedType.name,
+        message: "No department category budget exists for this category",
+      });
+
+      return;
+    }
+
+    if (matchedCategoryBudget.status !== "DRAFT") {
+      errors.push({
+        row: rowNumber,
+        item: matchedType.name,
+        message: `${matchedType.category_name} category budget is read-only`,
+      });
+
+      return;
+    }
+
+    if (Number(excelCategoryId) !== Number(matchedType.category_id)) {
+      errors.push({
+        row: rowNumber,
+        item: excelItem || systemItem,
+        message: `Category ID was modified. Expected "${matchedType.category_id}"`,
+      });
+
+      return;
+    }
+
     if (excelItem.toLowerCase() !== systemItem.toLowerCase()) {
       errors.push({
         row: rowNumber,
         item: excelItem || systemItem,
         message: `Item was modified. Expected "${systemItem}"`,
+      });
+
+      return;
+    }
+
+    if (
+      systemItemCode &&
+      excelItemCode.toLowerCase() !== systemItemCode.toLowerCase()
+    ) {
+      errors.push({
+        row: rowNumber,
+        item: excelItem || systemItem,
+        message: `Item code was modified. Expected "${systemItemCode}"`,
       });
 
       return;
@@ -154,19 +216,6 @@ export async function importBudgetTemplate({ file, rows, allTypes }) {
       return;
     }
 
-    if (
-      rawUnitPrice !== undefined &&
-      rawUnitPrice !== "" &&
-      Number.isNaN(unitPrice)
-    ) {
-      errors.push({
-        row: rowNumber,
-        item: matchedType.name,
-        message: `Invalid unit price value "${rawUnitPrice}"`,
-      });
-
-      return;
-    }
     if (!quantity || quantity <= 0) {
       errors.push({
         row: rowNumber,
@@ -177,24 +226,13 @@ export async function importBudgetTemplate({ file, rows, allTypes }) {
       return;
     }
 
-    if (!unitPrice || unitPrice <= 0) {
-      errors.push({
-        row: rowNumber,
-        item: matchedType.name,
-        message: "Unit price must be greater than zero",
-      });
-
-      return;
-    }
-
     importedRows.push(
       createRow(
         `excel-${Date.now()}-${typeId}-${index}`,
         matchedType.category_id,
         matchedType.id,
-        "MONTHLY",
+        "ANNUAL",
         quantity,
-        unitPrice,
         Array(12).fill(0),
         Array(4).fill(0),
         true,

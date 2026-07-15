@@ -1,4 +1,5 @@
 import { can } from "../../helpers/permissions";
+import { PERMISSION_CODES } from "@qnh/permissions";
 
 import { getHodCards } from "./hodCards";
 import { getAdminCards } from "./adminCards";
@@ -10,21 +11,21 @@ export function getDashboardStatsCards(
   const isApprover =
     can(
       budgetAccess,
-      "can_approve_budget"
+      PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES
     ) ||
     can(
       budgetAccess,
-      "can_manage_users"
+      PERMISSION_CODES.MANAGE_BUDGET_ACCESS
     ) ||
     can(
       budgetAccess,
-      "can_approve_po_links"
+      PERMISSION_CODES.APPROVE_CATEGORY_PO_LINKS
     );
 
   const isHod =
     can(
       budgetAccess,
-      "can_edit_budget"
+      PERMISSION_CODES.MANAGE_DEPARTMENT_BUDGET_REQUESTS
     ) && !isApprover;
 
   if (isHod) {

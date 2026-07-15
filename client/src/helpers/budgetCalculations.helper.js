@@ -39,20 +39,16 @@ export function getDistributedQuantity(row) {
   );
 }
 export function getQuarterAmount(row, quarterIndex) {
-  const unitPrice = toNumber(row.unitPrice);
-
   if (row.method === "ANNUAL") {
-    return quarterIndex === 0 ? toNumber(row.quantity) * unitPrice : 0;
+    return quarterIndex === 0 ? toNumber(row.quantity) : 0;
   }
 
   if (row.method === "MONTHLY" || row.method === "CUSTOM_MONTHLY") {
     const monthly = getMonthlyDistribution(row);
     const start = quarterIndex * 3;
-    return monthly
-      .slice(start, start + 3)
-      .reduce((sum, qty) => sum + qty * unitPrice, 0);
+    return monthly.slice(start, start + 3).reduce((sum, qty) => sum + qty, 0);
   }
 
   const quarterly = getQuarterlyDistribution(row);
-  return toNumber(quarterly[quarterIndex]) * unitPrice;
+  return toNumber(quarterly[quarterIndex]);
 }

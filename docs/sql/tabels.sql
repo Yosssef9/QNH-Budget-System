@@ -299,6 +299,7 @@ CREATE TABLE BS_budget_item_requests (
     requested_type_name VARCHAR(200) NOT NULL,
 
     existing_category_id INT NULL,
+    unit_of_measure_id INT NULL,
 
     requested_by INT NOT NULL,
 
@@ -312,6 +313,9 @@ CREATE TABLE BS_budget_item_requests (
 
     CONSTRAINT FK_BS_budget_item_requests_existing_category
         FOREIGN KEY (existing_category_id) REFERENCES BS_budget_categories(id),
+
+    CONSTRAINT FK_BS_budget_item_requests_unit_of_measure
+        FOREIGN KEY (unit_of_measure_id) REFERENCES BS_units_of_measure(id),
 
     CONSTRAINT CK_BS_budget_item_requests_status
         CHECK (status IN ('PENDING','APPROVED','REJECTED')),

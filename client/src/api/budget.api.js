@@ -9,8 +9,14 @@ export async function getMyBudgets() {
   return response.data?.data || [];
 }
 
+export async function getCategoryBudgetOverview() {
+  const response = await api.get("/budgets/category-overview");
+  return response.data?.data || [];
+}
+
 export async function getAllBudgets() {
-  return getMyBudgets();
+  const response = await api.get("/budgets/all");
+  return response.data?.data || [];
 }
 
 export async function createBudget(payload = {}) {
@@ -24,37 +30,40 @@ export async function createBudgetItem(budgetId, payload) {
 }
 
 export async function getCategories() {
-  const response = await api.get("/categories");
+  const response = await api.get("/master-catalog/categories");
   return response.data?.data || [];
 }
 
 export async function getTypesByCategory(categoryId) {
   if (!categoryId) return [];
 
-  const response = await api.get(`/categories/${categoryId}/types`);
+  const response = await api.get(
+    `/master-catalog/categories/${categoryId}/catalog-items`,
+  );
   return response.data?.data || [];
 }
 
 export async function getBudgetItems(budgetId) {
-  const response = await api.get(`/budgets/${budgetId}/items`);
-  return response.data?.items || [];
+  const response = await api.get(`/budgets/${budgetId}`);
+  return response.data?.data?.items || [];
 }
 
-export async function deleteBudgetItem(budgetId, itemId) {
-  const response = await api.delete(`/budgets/${budgetId}/items/${itemId}`);
-  return response.data;
+export async function deleteBudgetItem() {
+  return { success: true };
 }
 
-export async function replaceBudgetItems(budgetId, items) {
-  const response = await api.put(`/budgets/${budgetId}/items`, {
+export async function replaceBudgetItems(departmentCategoryBudgetId, items) {
+  const response = await api.put(`/budgets/categories/${departmentCategoryBudgetId}/items`, {
     items,
   });
 
   return response.data?.data;
 }
 
-export async function submitBudget(budgetId) {
-  const response = await api.patch(`/budgets/${budgetId}/submit`);
+export async function submitBudget(departmentCategoryBudgetId) {
+  const response = await api.patch(
+    `/budgets/categories/${departmentCategoryBudgetId}/submit`,
+  );
   return response.data?.data;
 }
 
@@ -156,9 +165,19 @@ export async function getAvailableTransferTypes() {
   return response.data?.data || [];
 }
 export async function getAllBudgetTypes() {
-  const response = await api.get("/categories/types/all");
+  const categories = await getCategories();
+  const grouped = await Promise.all(
+    categories.map(async (category) => {
+      const items = await getTypesByCategory(category.id);
+      return items.map((item) => ({
+        ...item,
+        category_id: item.category_id ?? item.budget_category_id ?? category.id,
+        category_name: item.category_name ?? category.name,
+      }));
+    }),
+  );
 
-  return response.data?.data || [];
+  return grouped.flat();
 }
 export async function getApprovedBudgetHistory() {
   const response = await api.get("/budgets/history/approved");

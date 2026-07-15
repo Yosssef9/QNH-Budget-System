@@ -8,29 +8,33 @@ import compression from "compression";
 import authRoutes from "./routes/auth.routes.js";
 import { poolPromise } from "./config/db.js";
 // ✅ Budget Access feature (grouped clearly)
-import budgetAccessAssignmentsRoutes from "./routes/budgetAccessAssignments.routes.js";
-import budgetAccessUsersRoutes from "./routes/budgetAccessUsers.routes.js";
-import budgetAccessDepartmentsRoutes from "./routes/budgetAccessDepartments.routes.js";
-import budgetAccessRolesRoutes from "./routes/budgetAccessRoles.routes.js";
-import poItemMappingsRoutes from "./routes/poItemMappings.routes.js";
+import accessManagementRoutes from "./modules/access-management/access.routes.js";
+import masterCatalogRoutes from "./modules/master-catalog/masterCatalog.routes.js";
+import {
+  poItemMappingsRoutes,
+  poLinkingRoutes,
+} from "./modules/po-linking/poLinking.routes.js";
 import projectsRoutes from "./routes/projects.routes.js";
 
 // Other features
-import financialYearsRoutes from "./routes/financialYears.routes.js";
-import budgetsRoutes from "./routes/budgets.routes.js";
-import budgetItemsRoutes from "./routes/budgetItems.routes.js";
+import financialYearsRoutes from "./modules/financial-years/financialYears.routes.js";
+import departmentBudgetsRoutes from "./modules/department-budgets/departmentBudgets.routes.js";
+import categoryReviewRoutes from "./modules/category-review/categoryReview.routes.js";
+import categoryPackagesRoutes from "./modules/category-packages/categoryPackages.routes.js";
+import cfoPackageReviewRoutes from "./modules/cfo-package-review/cfoPackageReview.routes.js";
+import adjustmentRequestRoutes from "./modules/adjustment-requests/adjustmentRequests.routes.js";
 import budgetApprovalRoutes from "./routes/budgetApproval.routes.js";
-import categoryRoutes from "./routes/category.routes.js";
-import itemRequestRoutes from "./routes/itemRequest.routes.js";
+import itemRequestRoutes from "./modules/item-requests/itemRequests.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import auditRoutes from "./routes/audit.routes.js";
 import { errorHandler } from "./middleware/error.middleware.js";
 import { logger } from "./utils/logger.js";
 import { ApiError } from "./utils/apiError.js";
 import testRoutes from "./routes/test.routes.js";
-import transferRoutes from "./routes/transfer.routes.js";
+import transferRoutes from "./modules/transfers/transfers.routes.js";
 import budgetItemRoutes from "./routes/budgetItem.routes.js";
-import poRoutes from "./routes/po.routes.js";
+import budgetAnalyticsRoutes from "./modules/budget-analytics/budgetAnalytics.routes.js";
+import systemHealthRoutes from "./modules/system-health/systemHealth.routes.js";
 
 const app = express();
 
@@ -70,25 +74,27 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 
 // ✅ Budget Access routes (grouped under one feature)
-app.use("/api/admin/budget-access/assignments", budgetAccessAssignmentsRoutes);
-app.use("/api/admin/budget-access/users", budgetAccessUsersRoutes);
-app.use("/api/admin/budget-access/departments", budgetAccessDepartmentsRoutes);
-app.use("/api/admin/budget-access/roles", budgetAccessRolesRoutes);
+app.use("/api/admin/budget-access", accessManagementRoutes);
+app.use("/api/master-catalog", masterCatalogRoutes);
 app.use("/api/admin/po-item-mappings", poItemMappingsRoutes);
 
 // Other features
 app.use("/api/financial-years", financialYearsRoutes);
-app.use("/api/budgets", budgetsRoutes);
-app.use("/api/budgets", budgetItemsRoutes);
-app.use("/api/categories", categoryRoutes);
+app.use("/api/budgets", departmentBudgetsRoutes);
+app.use("/api/category-review", categoryReviewRoutes);
+app.use("/api/category-packages", categoryPackagesRoutes);
+app.use("/api/cfo-package-review", cfoPackageReviewRoutes);
+app.use("/api/adjustment-requests", adjustmentRequestRoutes);
 app.use("/api/budget-approval", budgetApprovalRoutes);
 app.use("/api/item-requests", itemRequestRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/budget-analytics", budgetAnalyticsRoutes);
 app.use("/api/audit-logs", auditRoutes);
+app.use("/api/system-health", systemHealthRoutes);
 app.use("/api/transfers", transferRoutes);
 app.use("/api/test", testRoutes);
 app.use("/api/budget-items", budgetItemRoutes);
-app.use("/api/po-links", poRoutes);
+app.use("/api/po-links", poLinkingRoutes);
 app.use("/api/projects", projectsRoutes);
 // 404
 app.use((req, res, next) => {

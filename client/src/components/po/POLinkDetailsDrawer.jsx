@@ -59,7 +59,7 @@ export default function POLinkDetailsDrawer({
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              Full request details, budget item, PO information, and approval
+              Full request details, package sub-item, PO information, and approval
               status.
             </p>
           </div>
@@ -120,7 +120,7 @@ export default function POLinkDetailsDrawer({
                 <DetailRow label="Request ID" value={details.id} />
 
                 <DetailRow
-                  label="Parent Budget Item"
+                  label="Package Sub-Item"
                   value={details.parent_item_name}
                 />
 
@@ -154,7 +154,7 @@ export default function POLinkDetailsDrawer({
                 title="Budget Information"
                 icon={<Building2 size={18} />}
               >
-                <DetailRow label="Department" value={details.department_name} />
+                <DetailRow label="Category" value={details.department_name} />
 
                 <DetailRow
                   label="Financial Year"
@@ -167,7 +167,7 @@ export default function POLinkDetailsDrawer({
                 />
 
                 <DetailRow
-                  label="Budget Type"
+                  label="Package Sub-Item"
                   value={details.budget_type_name}
                 />
 
@@ -176,7 +176,7 @@ export default function POLinkDetailsDrawer({
                 <DetailRow label="Budget ID" value={details.budget_id} />
 
                 <DetailRow
-                  label="Budget Item ID"
+                  label="Package Sub-Item ID"
                   value={details.budget_item_id}
                 />
               </DetailSection>

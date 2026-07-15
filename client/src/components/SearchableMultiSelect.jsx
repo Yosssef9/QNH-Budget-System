@@ -153,7 +153,7 @@ export default function SearchableMultiSelect({
           : rect.bottom + gap,
         left: rect.left,
         width: rect.width,
-        zIndex: 9999,
+        zIndex: 999999999,
       });
     };
 

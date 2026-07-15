@@ -5,9 +5,12 @@ import {
   updateBudgetAccessAssignment,
   updateBudgetAccessAssignmentStatus,
   deleteBudgetAccessAssignment,
+  getBudgetAccessAssignmentPermissionOverrides,
+  replaceBudgetAccessAssignmentPermissionOverrides,
 } from "../../api/budgetAccessAssignments.api";
 import toast from "react-hot-toast";
 const QUERY_KEY = ["budgetAccessAssignments"];
+const PERMISSION_OVERRIDES_QUERY_KEY = ["budgetAccessPermissionOverrides"];
 const FIVE_MINUTES = 5 * 60 * 1000;
 
 // 🔹 Get all assignments
@@ -110,6 +113,42 @@ export function useDeleteBudgetAccessAssignment() {
     onError: (error) => {
       toast.error(
         error?.response?.data?.message || "Failed to delete user access",
+      );
+    },
+  });
+}
+
+export function useBudgetAccessAssignmentPermissionOverrides(assignmentId) {
+  return useQuery({
+    queryKey: [...PERMISSION_OVERRIDES_QUERY_KEY, assignmentId],
+    queryFn: () => getBudgetAccessAssignmentPermissionOverrides(assignmentId),
+    enabled: Boolean(assignmentId),
+    staleTime: FIVE_MINUTES,
+  });
+}
+
+export function useReplaceBudgetAccessAssignmentPermissionOverrides() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, overrides }) =>
+      replaceBudgetAccessAssignmentPermissionOverrides(id, { overrides }),
+
+    onSuccess: (_, variables) => {
+      toast.success("Permission overrides updated successfully");
+
+      queryClient.invalidateQueries({
+        queryKey: [...PERMISSION_OVERRIDES_QUERY_KEY, variables.id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEY,
+      });
+    },
+
+    onError: (error) => {
+      toast.error(
+        error?.response?.data?.message ||
+          "Failed to update permission overrides",
       );
     },
   });

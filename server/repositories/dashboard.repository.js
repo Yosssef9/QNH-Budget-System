@@ -7,54 +7,60 @@ export async function getDashboardStatsRepo() {
    DECLARE @activeFinancialYearId INT;
 
 SELECT TOP 1 @activeFinancialYearId = id
-FROM BS_financial_years
+FROM dbo.BS_financial_years
 WHERE status IN ('OPEN', 'PRE_CLOSING')
-ORDER BY started_at DESC, id DESC;
+ORDER BY opened_at DESC, id DESC;
 
     SELECT
-      COUNT(*) AS total_budgets,
-      SUM(CASE WHEN status = 'PENDING_APPROVAL' THEN 1 ELSE 0 END) AS pending_budgets,
-      SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) AS approved_budgets,
-      SUM(CASE WHEN status = 'RETURNED' THEN 1 ELSE 0 END) AS returned_budgets,
-      SUM(CASE WHEN status = 'DRAFT' THEN 1 ELSE 0 END) AS draft_budgets
-    FROM BS_budgets
-    WHERE is_active = 1
-      AND financial_year_id = @activeFinancialYearId;
+      COUNT(DISTINCT db.id) AS total_budgets,
+      SUM(CASE WHEN dcb.status = 'IN_CATEGORY_REVIEW' THEN 1 ELSE 0 END) AS pending_budgets,
+      SUM(CASE WHEN dcb.status = 'CATEGORY_REVIEW_COMPLETED' THEN 1 ELSE 0 END) AS approved_budgets,
+      CAST(0 AS INT) AS returned_budgets,
+      SUM(CASE WHEN dcb.status = 'DRAFT' THEN 1 ELSE 0 END) AS draft_budgets
+    FROM dbo.BS_department_budgets AS db
+    LEFT JOIN dbo.BS_department_category_budgets AS dcb
+      ON dcb.department_budget_id = db.id
+    WHERE db.financial_year_id = @activeFinancialYearId;
 
     SELECT
-      COUNT(DISTINCT department_id) AS departments_with_budgets
-    FROM BS_budgets
-    WHERE is_active = 1
-      AND financial_year_id = @activeFinancialYearId;
+      COUNT(DISTINCT db.department_id) AS departments_with_budgets
+    FROM dbo.BS_department_budgets AS db
+    INNER JOIN dbo.BS_departments AS dept
+      ON dept.id = db.department_id
+     AND dept.is_active = 1
+    WHERE db.financial_year_id = @activeFinancialYearId;
 
     SELECT
-      ISNULL(SUM(bi.total_amount), 0) AS approved_total_amount
-    FROM BS_budgets b
-    INNER JOIN BS_budget_items bi
-      ON bi.budget_id = b.id
-     AND bi.is_active = 1
-    WHERE b.is_active = 1
-      AND b.status = 'APPROVED'
-      AND b.financial_year_id = @activeFinancialYearId;
+      ISNULL(SUM(allocation.allocated_quantity * ISNULL(subItem.unit_price, 0)), 0) AS approved_total_amount
+    FROM dbo.BS_category_budget_package_sub_item_allocations AS allocation
+    INNER JOIN dbo.BS_category_budget_package_sub_items AS subItem
+      ON subItem.id = allocation.category_budget_package_sub_item_id
+     AND subItem.is_active = 1
+    INNER JOIN dbo.BS_category_budget_package_items AS packageItem
+      ON packageItem.id = subItem.category_budget_package_item_id
+     AND packageItem.is_active = 1
+    INNER JOIN dbo.BS_category_budget_packages AS pkg
+      ON pkg.id = packageItem.category_budget_package_id
+    WHERE pkg.financial_year_id = @activeFinancialYearId;
 
    SELECT
   COUNT(*) AS pending_item_requests
-FROM BS_budget_item_requests
+FROM dbo.BS_budget_item_requests
 WHERE status = 'PENDING';
 
 SELECT
   COUNT(*) AS pending_transfer_requests
-FROM BS_budget_transfers
+FROM dbo.BS_category_budget_transfers
 WHERE status = 'PENDING_APPROVAL';
 
 SELECT
   COUNT(*) AS pending_po_links
-FROM BS_PO_LINKS
-WHERE STATUS = 'PENDING';
+FROM dbo.BS_category_po_links
+WHERE status = 'PENDING';
 
 SELECT
   COUNT(*) AS system_users
-FROM BS_budget_user_roles
+FROM dbo.BS_budget_user_roles
 WHERE is_active = 1;
   `);
 

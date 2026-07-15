@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import toast from "react-hot-toast";
 
@@ -9,12 +9,9 @@ import {
   Layers3,
   Loader2,
   PackagePlus,
-  PanelLeftClose,
-  PanelLeftOpen,
   Plus,
   RotateCcw,
   Save,
-  Search,
   Tag,
   Trash2,
   X,
@@ -30,8 +27,10 @@ import ConfirmModal from "../components/ConfirmModal";
 import SearchableMultiSelect from "../components/SearchableMultiSelect";
 import EnterpriseSearch from "../components/EnterpriseSearch";
 import {
+  useApproveAndCreateItemRequest,
   useApproveItemRequest,
   useCreateSetupCategory,
+  useCreateSetupSubItem,
   useCreateSetupType,
   useDeleteSetupCategory,
   useDeleteSetupType,
@@ -39,13 +38,17 @@ import {
   useRejectItemRequest,
   useSetupCategories,
   useSetupCategoryUsage,
+  useSetupSubItems,
   useSetupTypeUsage,
   useSetupTypes,
+  useSetupUnitsOfMeasure,
   useUpdateSetupCategory,
+  useUpdateSetupSubItem,
+  useUpdateSetupSubItemStatus,
   useUpdateSetupType,
-  useApproveItemRequestManual,
 } from "../hooks/budgets/useBudgetSetup";
 import { formatDateTime } from "../utils/dateFormatters";
+import CatalogSubItemDialog from "../components/catalog/CatalogSubItemDialog";
 
 const requestStatusOptions = ["PENDING", "APPROVED", "REJECTED", "ALL"];
 
@@ -63,6 +66,7 @@ export default function BudgetSetupPage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [categoryName, setCategoryName] = useState("");
   const [typeName, setTypeName] = useState("");
+  const [typeUnitId, setTypeUnitId] = useState("");
   const [expenseType, setExpenseType] = useState("OPEX");
   const [requestStatus, setRequestStatus] = useState("PENDING");
   const [adminNotes, setAdminNotes] = useState({});
@@ -78,7 +82,11 @@ export default function BudgetSetupPage() {
 
   const [editingTypeId, setEditingTypeId] = useState(null);
   const [editingTypeName, setEditingTypeName] = useState("");
+  const [editingTypeUnitId, setEditingTypeUnitId] = useState("");
   const [editingTypeExpenseType, setEditingTypeExpenseType] = useState("OPEX");
+  const [selectedSubItemCatalogItem, setSelectedSubItemCatalogItem] =
+    useState(null);
+  const [subItemDialog, setSubItemDialog] = useState(null);
 
   const [confirmAction, setConfirmAction] = useState(null);
   const [requestAction, setRequestAction] = useState(null);
@@ -87,12 +95,24 @@ export default function BudgetSetupPage() {
     isLoading: loadingCategories,
     isError: categoriesError,
   } = useSetupCategories();
+  const activeCategoryId =
+    selectedCategoryId || (categories[0]?.id ? String(categories[0].id) : "");
 
   const {
     data: types = [],
     isLoading: loadingTypes,
     isError: typesError,
-  } = useSetupTypes(selectedCategoryId);
+  } = useSetupTypes(activeCategoryId);
+  const {
+    data: subItems = [],
+    isLoading: loadingSubItems,
+    isError: subItemsError,
+  } = useSetupSubItems(selectedSubItemCatalogItem?.id);
+  const {
+    data: unitsOfMeasure = [],
+    isLoading: loadingUnitsOfMeasure,
+    isError: unitsOfMeasureError,
+  } = useSetupUnitsOfMeasure();
 
   const {
     data: requests = [],
@@ -102,31 +122,29 @@ export default function BudgetSetupPage() {
 
   const createCategoryMutation = useCreateSetupCategory();
   const createTypeMutation = useCreateSetupType();
+  const createSubItemMutation = useCreateSetupSubItem();
   const updateCategoryMutation = useUpdateSetupCategory();
   const updateTypeMutation = useUpdateSetupType();
+  const updateSubItemMutation = useUpdateSetupSubItem();
+  const updateSubItemStatusMutation = useUpdateSetupSubItemStatus();
   const categoryUsageMutation = useSetupCategoryUsage();
   const typeUsageMutation = useSetupTypeUsage();
   const deleteCategoryMutation = useDeleteSetupCategory();
   const deleteTypeMutation = useDeleteSetupType();
   const approveMutation = useApproveItemRequest();
+  const approveAndCreateMutation = useApproveAndCreateItemRequest();
   const rejectMutation = useRejectItemRequest();
-  const approveManualMutation = useApproveItemRequestManual();
-  useEffect(() => {
-    if (!selectedCategoryId && categories.length > 0) {
-      setSelectedCategoryId(String(categories[0].id));
-    }
-  }, [categories, selectedCategoryId]);
-
   const filteredTypes = useMemo(() => {
     const keyword = deferredItemSearch.trim().toLowerCase();
 
     if (!keyword) return types;
 
     return types.filter((item) =>
-      [item.name, item.expense_type].some((value) =>
-        String(value || "")
-          .toLowerCase()
-          .includes(keyword),
+      [item.name, item.item_code, item.expense_type, item.unit_name].some(
+        (value) =>
+          String(value || "")
+            .toLowerCase()
+            .includes(keyword),
       ),
     );
   }, [types, deferredItemSearch]);
@@ -144,7 +162,7 @@ export default function BudgetSetupPage() {
   }, [categories, deferredCategorySearch]);
 
   const selectedCategory = categories.find(
-    (category) => String(category.id) === String(selectedCategoryId),
+    (category) => String(category.id) === String(activeCategoryId),
   );
 
   function buildUsageMessage(action, targetName, usage) {
@@ -152,7 +170,7 @@ export default function BudgetSetupPage() {
       return `Are you sure you want to ${action} "${targetName}"?`;
     }
 
-    return `"${targetName}" is already used in ${usage.length} budget(s). Review the details before continuing.`;
+    return `"${targetName}" is already used in ${usage.length} department budget(s). Review the details before continuing.`;
   }
 
   async function handleCreateCategory(e) {
@@ -180,7 +198,7 @@ export default function BudgetSetupPage() {
   async function handleCreateType(e) {
     e.preventDefault();
 
-    if (!selectedCategoryId) {
+    if (!activeCategoryId) {
       toast.error("Select category first");
       return;
     }
@@ -188,24 +206,33 @@ export default function BudgetSetupPage() {
     const name = typeName.trim();
 
     if (!name) {
-      toast.error("Item/type name is required");
+      toast.error("Catalog item name is required");
+      return;
+    }
+
+    if (!typeUnitId) {
+      toast.error("Unit of Measure is required");
       return;
     }
 
     try {
       await createTypeMutation.mutateAsync({
-        categoryId: selectedCategoryId,
+        categoryId: activeCategoryId,
         payload: {
           name,
           expense_type: expenseType,
+          unit_of_measure_id: Number(typeUnitId),
         },
       });
 
-      toast.success("Item/type created successfully");
+      toast.success("Catalog item created successfully");
       setTypeName("");
+      setTypeUnitId("");
       setExpenseType("OPEX");
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Failed to create item");
+      toast.error(
+        error?.response?.data?.message || "Failed to create catalog item",
+      );
     }
   }
   function confirmRejectRequest(request) {
@@ -230,21 +257,23 @@ export default function BudgetSetupPage() {
       message:
         'Approve "' +
         request.requested_type_name +
-        '" without creating the item automatically? You will need to create it manually later.',
+        '"? Create the catalog item separately with its Unit of Measure after approval.',
       danger: false,
-      confirmText: "Approve Only",
+      confirmText: "Approve Request",
     });
   }
 
-  function confirmApproveAuto(request) {
+  function confirmApproveAndCreate(request) {
     setRequestAction({
-      type: "APPROVE_AUTO",
+      type: "APPROVE_AND_CREATE",
       request: request,
-      title: "Approve & Auto Create?",
+      title: "Approve and Create Catalog Item?",
       message:
         'Approve "' +
         request.requested_type_name +
-        '" and automatically create the item/type in the setup master data?',
+        '" and create it as a reusable generic catalog item under ' +
+        (request.existing_category_name || "the selected category") +
+        "? This will not add budget quantity, pricing, package models, or department rows.",
       danger: false,
       confirmText: "Approve & Auto Create",
     });
@@ -262,11 +291,11 @@ export default function BudgetSetupPage() {
           break;
 
         case "APPROVE_ONLY":
-          await handleApproveRequestManual(requestAction.request);
+          await handleApproveRequest(requestAction.request);
           break;
 
-        case "APPROVE_AUTO":
-          await handleApproveRequest(requestAction.request);
+        case "APPROVE_AND_CREATE":
+          await handleApproveAndCreateRequest(requestAction.request);
           break;
 
         default:
@@ -274,8 +303,8 @@ export default function BudgetSetupPage() {
       }
 
       setRequestAction(null);
-    } catch (error) {
-      setRequestAction(null);
+    } catch {
+      // The action handlers already show the specific toast error.
     }
   }
   function startEditCategory(category) {
@@ -314,12 +343,16 @@ export default function BudgetSetupPage() {
   function startEditType(item) {
     setEditingTypeId(item.id);
     setEditingTypeName(item.name);
+    setEditingTypeUnitId(
+      item.unit_of_measure_id ? String(item.unit_of_measure_id) : "",
+    );
     setEditingTypeExpenseType(item.expense_type || "OPEX");
   }
 
   function cancelEditType() {
     setEditingTypeId(null);
     setEditingTypeName("");
+    setEditingTypeUnitId("");
     setEditingTypeExpenseType("OPEX");
   }
 
@@ -327,24 +360,110 @@ export default function BudgetSetupPage() {
     const name = editingTypeName.trim();
 
     if (!name) {
-      toast.error("Item/type name is required");
+      toast.error("Catalog item name is required");
+      return;
+    }
+
+    if (!editingTypeUnitId) {
+      toast.error("Unit of Measure is required");
       return;
     }
 
     try {
       await updateTypeMutation.mutateAsync({
-        categoryId: selectedCategoryId,
+        categoryId: activeCategoryId,
         typeId: item.id,
         payload: {
           name,
           expense_type: editingTypeExpenseType,
+          unit_of_measure_id: Number(editingTypeUnitId),
         },
       });
 
-      toast.success("Item/type updated successfully");
+      toast.success("Catalog item updated successfully");
       cancelEditType();
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Failed to update item");
+      toast.error(
+        error?.response?.data?.message || "Failed to update catalog item",
+      );
+    }
+  }
+
+  function openSubItems(item) {
+    setSelectedSubItemCatalogItem(item);
+  }
+
+  function openCreateSubItem() {
+    if (!selectedSubItemCatalogItem) {
+      toast.error("Select a catalog item first");
+      return;
+    }
+
+    setSubItemDialog({ mode: "create", subItem: null });
+  }
+
+  function openEditSubItem(subItem) {
+    setSubItemDialog({ mode: "edit", subItem });
+  }
+
+  async function handleSubmitSubItem(payload) {
+    if (!selectedSubItemCatalogItem) {
+      toast.error("Select a catalog item first");
+      return;
+    }
+
+    if (!payload.default_unit_of_measure_id) {
+      toast.error("Default Unit of Measure is required");
+      return;
+    }
+
+    try {
+      if (subItemDialog?.mode === "edit") {
+        await updateSubItemMutation.mutateAsync({
+          catalogItemId: selectedSubItemCatalogItem.id,
+          subItemId: subItemDialog.subItem.id,
+          payload,
+        });
+        toast.success("Reusable sub-item updated successfully");
+      } else {
+        await createSubItemMutation.mutateAsync({
+          catalogItemId: selectedSubItemCatalogItem.id,
+          payload,
+        });
+        toast.success("Reusable sub-item created successfully");
+      }
+
+      setSubItemDialog(null);
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message || "Failed to save reusable sub-item",
+      );
+    }
+  }
+
+  async function handleToggleSubItemStatus(subItem) {
+    if (subItem.is_default_general) {
+      toast.error("The default General sub-item cannot be deactivated");
+      return;
+    }
+
+    try {
+      await updateSubItemStatusMutation.mutateAsync({
+        catalogItemId: selectedSubItemCatalogItem.id,
+        subItemId: subItem.id,
+        isActive: !subItem.is_active,
+      });
+
+      toast.success(
+        subItem.is_active
+          ? "Reusable sub-item deactivated"
+          : "Reusable sub-item activated",
+      );
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message ||
+          "Failed to update reusable sub-item status",
+      );
     }
   }
 
@@ -389,7 +508,7 @@ export default function BudgetSetupPage() {
   async function requestEditType(item) {
     try {
       const usage = await typeUsageMutation.mutateAsync({
-        categoryId: selectedCategoryId,
+        categoryId: activeCategoryId,
         typeId: item.id,
       });
 
@@ -397,7 +516,7 @@ export default function BudgetSetupPage() {
         type: "EDIT_TYPE",
         target: item,
         usage,
-        title: "Edit item/type?",
+        title: "Edit catalog item?",
         message: buildUsageMessage("edit", item.name, usage),
         danger: false,
       });
@@ -411,7 +530,7 @@ export default function BudgetSetupPage() {
   async function requestDeleteType(item) {
     try {
       const usage = await typeUsageMutation.mutateAsync({
-        categoryId: selectedCategoryId,
+        categoryId: activeCategoryId,
         typeId: item.id,
       });
 
@@ -419,7 +538,7 @@ export default function BudgetSetupPage() {
         type: "DELETE_TYPE",
         target: item,
         usage,
-        title: "Deactivate item/type?",
+        title: "Deactivate catalog item?",
         message: buildUsageMessage("delete", item.name, usage),
         danger: true,
       });
@@ -450,7 +569,7 @@ export default function BudgetSetupPage() {
         await deleteCategoryMutation.mutateAsync(confirmAction.target.id);
         toast.success("Category deactivated successfully");
 
-        if (String(selectedCategoryId) === String(confirmAction.target.id)) {
+        if (String(activeCategoryId) === String(confirmAction.target.id)) {
           setSelectedCategoryId("");
         }
 
@@ -467,15 +586,15 @@ export default function BudgetSetupPage() {
     if (confirmAction.type === "DELETE_TYPE") {
       try {
         await deleteTypeMutation.mutateAsync({
-          categoryId: selectedCategoryId,
+          categoryId: activeCategoryId,
           typeId: confirmAction.target.id,
         });
 
-        toast.success("Item/type deactivated successfully");
+        toast.success("Catalog item deactivated successfully");
         setConfirmAction(null);
       } catch (error) {
         toast.error(
-          error?.response?.data?.message || "Failed to delete item/type",
+          error?.response?.data?.message || "Failed to deactivate catalog item",
         );
       }
     }
@@ -488,25 +607,34 @@ export default function BudgetSetupPage() {
         adminNote: adminNotes[request.id] || null,
       });
 
-      toast.success("Request approved and item created");
+      toast.success("Request approved. Create the catalog item manually.");
     } catch (error) {
       toast.error(
         error?.response?.data?.message || "Failed to approve request",
       );
     }
   }
-  async function handleApproveRequestManual(request) {
+  async function handleApproveAndCreateRequest(request) {
+    if (!request.unit_of_measure_id) {
+      toast.error(
+        "This request does not include a Unit of Measure. Approve it manually and create the item from Catalog Setup.",
+      );
+      throw new Error("Request Unit of Measure is required");
+    }
+
     try {
-      await approveManualMutation.mutateAsync({
+      await approveAndCreateMutation.mutateAsync({
         requestId: request.id,
         adminNote: adminNotes[request.id] || null,
       });
 
-      toast.success("Request approved. You can create the item manually.");
+      toast.success("Request approved and catalog item created");
     } catch (error) {
       toast.error(
-        error?.response?.data?.message || "Failed to approve request",
+        error?.response?.data?.message ||
+          "Failed to approve and create catalog item",
       );
+      throw error;
     }
   }
   async function handleRejectRequest(request) {
@@ -548,7 +676,7 @@ export default function BudgetSetupPage() {
             </h1>
 
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-              Manage budget categories, item types, and requests submitted by
+              Manage budget categories, catalog items, and requests submitted by
               users when they cannot find the needed item.
             </p>
           </div>
@@ -592,8 +720,8 @@ export default function BudgetSetupPage() {
             </div>
 
             <p className="mt-1 text-sm text-slate-500">
-              Approve requests to create the missing category/item, or reject
-              them with an admin note.
+              Approve requests for missing catalog items, or reject them with an
+              admin note. New main categories are not requested from this flow.
             </p>
           </div>
 
@@ -651,7 +779,7 @@ export default function BudgetSetupPage() {
                           >
                             <div>
                               <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                Requested Item / Type
+                                Requested Catalog Item
                               </p>
                               <div className="mt-1 flex flex-wrap items-center gap-2">
                                 <h3 className="text-base font-bold text-slate-900">
@@ -725,8 +853,8 @@ export default function BudgetSetupPage() {
                                         ].join(" ")}
                                       >
                                         {request.existing_category_id
-                                          ? "Existing Category"
-                                          : "New Category Requested"}
+                                          ? "Catalog Item Category"
+                                          : "Unsupported Category Request"}
                                       </p>
 
                                       <p className="mt-1 font-bold text-slate-900">
@@ -785,6 +913,19 @@ export default function BudgetSetupPage() {
                                     </div>
                                     <div className="rounded-xl bg-white p-3">
                                       <p className="text-xs font-bold text-slate-500">
+                                        Unit of Measure
+                                      </p>
+                                      <p className="mt-1 font-semibold text-slate-900">
+                                        {request.unit_of_measure_name || "-"}
+                                      </p>
+                                      {request.unit_of_measure_code ? (
+                                        <p className="mt-1 text-xs font-semibold text-slate-500">
+                                          {request.unit_of_measure_code}
+                                        </p>
+                                      ) : null}
+                                    </div>
+                                    <div className="rounded-xl bg-white p-3">
+                                      <p className="text-xs font-bold text-slate-500">
                                         Requested At
                                       </p>
                                       <p className="mt-1 font-semibold text-slate-900">
@@ -829,23 +970,25 @@ export default function BudgetSetupPage() {
                                           confirmApproveOnly(request)
                                         }
                                         disabled={
-                                          approveManualMutation.isPending
+                                          approveMutation.isPending
                                         }
                                         className="inline-flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-700 transition hover:bg-blue-100 disabled:opacity-60"
                                       >
                                         <CheckCircle2 size={17} />
-                                        Approve Only
+                                        Approve Request
                                       </button>
 
                                       <button
                                         type="button"
                                         onClick={() =>
-                                          confirmApproveAuto(request)
+                                          confirmApproveAndCreate(request)
                                         }
-                                        disabled={approveMutation.isPending}
-                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                                        disabled={
+                                          approveAndCreateMutation.isPending
+                                        }
+                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
                                       >
-                                        <CheckCircle2 size={17} />
+                                        <PackagePlus size={17} />
                                         Approve & Auto Create
                                       </button>
                                     </div>
@@ -962,7 +1105,7 @@ export default function BudgetSetupPage() {
                         {filteredCategories.map((category) => {
                           const isEditing = editingCategoryId === category.id;
                           const isSelected =
-                            String(selectedCategoryId) === String(category.id);
+                            String(activeCategoryId) === String(category.id);
 
                           return (
                             <motion.div
@@ -1078,7 +1221,7 @@ export default function BudgetSetupPage() {
                 >
                   <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
                     <PackagePlus size={19} />
-                    Add Item / Type
+                    Add Catalog Item
                   </h2>
 
                   <div className="mt-4 space-y-3">
@@ -1104,6 +1247,26 @@ export default function BudgetSetupPage() {
                     <SearchableMultiSelect
                       multiple={false}
                       disableClear
+                      value={typeUnitId}
+                      onChange={(e) => setTypeUnitId(e.target.value)}
+                      options={unitsOfMeasure}
+                      placeholder={
+                        loadingUnitsOfMeasure
+                          ? "Loading units..."
+                          : "Select unit of measure"
+                      }
+                      searchPlaceholder="Search units..."
+                      getOptionLabel={(item) =>
+                        item.unit_code
+                          ? `${item.name} (${item.unit_code})`
+                          : item.name
+                      }
+                      getOptionValue={(item) => String(item.id)}
+                    />
+
+                    <SearchableMultiSelect
+                      multiple={false}
+                      disableClear
                       value={expenseType}
                       onChange={(e) => setExpenseType(e.target.value)}
                       options={expenseTypeOptions}
@@ -1114,7 +1277,10 @@ export default function BudgetSetupPage() {
                     <button
                       type="submit"
                       disabled={
-                        createTypeMutation.isPending || !selectedCategoryId
+                        createTypeMutation.isPending ||
+                        !activeCategoryId ||
+                        !typeUnitId ||
+                        loadingUnitsOfMeasure
                       }
                       className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:opacity-60"
                     >
@@ -1123,7 +1289,7 @@ export default function BudgetSetupPage() {
                       ) : (
                         <Plus size={18} />
                       )}
-                      Create Item / Type
+                      Create Catalog Item
                     </button>
                   </div>
                 </form>
@@ -1136,11 +1302,12 @@ export default function BudgetSetupPage() {
           <div className="flex flex-col justify-between gap-4 border-b border-slate-200 p-5 lg:flex-row lg:items-center">
             <div>
               <h2 className="text-lg font-bold text-slate-900">
-                Items under {selectedCategory?.name || "selected category"}
+                Catalog items under{" "}
+                {selectedCategory?.name || "selected category"}
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Review, edit, and delete existing items before adding
-                duplicates.
+                Review reusable catalog items before departments use them in
+                budget requests.
               </p>
             </div>
 
@@ -1158,20 +1325,21 @@ export default function BudgetSetupPage() {
                 <Loader2 className="mr-2 animate-spin" size={18} />
                 Loading setup data...
               </div>
-            ) : categoriesError || typesError ? (
+            ) : categoriesError || typesError || unitsOfMeasureError ? (
               <div className="rounded-2xl bg-red-50 p-4 text-sm font-semibold text-red-700">
                 Failed to load setup data.
               </div>
             ) : filteredTypes.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">
-                No items found for this category.
+                No catalog items found for this category.
               </div>
             ) : (
               <div className="overflow-visible rounded-2xl border border-slate-200">
                 <table className="w-full text-left text-sm">
                   <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                     <tr>
-                      <th className="px-4 py-3">Item / Type</th>
+                      <th className="px-4 py-3">Catalog Item</th>
+                      <th className="px-4 py-3">Unit of Measure</th>
                       <th className="px-4 py-3">Expense Type</th>
                       <th className="px-4 py-3 text-right">Actions</th>
                     </tr>
@@ -1197,6 +1365,32 @@ export default function BudgetSetupPage() {
                               />
                             ) : (
                               item.name
+                            )}
+                          </td>
+
+                          <td className="px-4 py-3">
+                            {isEditing ? (
+                              <SearchableMultiSelect
+                                multiple={false}
+                                disableClear
+                                value={editingTypeUnitId}
+                                onChange={(e) =>
+                                  setEditingTypeUnitId(e.target.value)
+                                }
+                                options={unitsOfMeasure}
+                                placeholder="Unit of measure"
+                                searchPlaceholder="Search units..."
+                                getOptionLabel={(unit) =>
+                                  unit.unit_code
+                                    ? `${unit.name} (${unit.unit_code})`
+                                    : unit.name
+                                }
+                                getOptionValue={(unit) => String(unit.id)}
+                              />
+                            ) : (
+                              <span className="font-medium text-slate-700">
+                                {item.unit_name || "Unassigned"}
+                              </span>
                             )}
                           </td>
 
@@ -1260,6 +1454,20 @@ export default function BudgetSetupPage() {
                               <div className="flex justify-end gap-2">
                                 <button
                                   type="button"
+                                  onClick={() => openSubItems(item)}
+                                  className={[
+                                    "inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-bold transition",
+                                    selectedSubItemCatalogItem?.id === item.id
+                                      ? "border-blue-200 bg-blue-50 text-blue-700"
+                                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                                  ].join(" ")}
+                                >
+                                  <Tag size={14} />
+                                  Models
+                                </button>
+
+                                <button
+                                  type="button"
                                   onClick={() => requestEditType(item)}
                                   className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
                                 >
@@ -1285,9 +1493,162 @@ export default function BudgetSetupPage() {
                 </table>
               </div>
             )}
+
+            {selectedSubItemCatalogItem && (
+              <section className="mt-5 rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
+                      <Tag size={18} />
+                      Reusable sub-items for {selectedSubItemCatalogItem.name}
+                    </h3>
+
+                    <p className="mt-1 text-sm leading-6 text-slate-500">
+                      Manage reusable models and default specifications only.
+                      Package quantity, price, notes, and attachments are
+                      handled during category package preparation.
+                    </p>
+                  </div>
+
+                  <div className="shrink-0 self-start">
+                    <button
+                      type="button"
+                      onClick={openCreateSubItem}
+                      className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 hover:shadow-md"
+                    >
+                      <Plus size={16} />
+                      Add Reusable Model
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                  {loadingSubItems ? (
+                    <div className="flex items-center justify-center py-10 text-sm text-slate-500">
+                      <Loader2 className="mr-2 animate-spin" size={18} />
+                      Loading reusable models...
+                    </div>
+                  ) : subItemsError ? (
+                    <div className="p-4 text-sm font-semibold text-red-700">
+                      Failed to load reusable sub-items.
+                    </div>
+                  ) : subItems.length === 0 ? (
+                    <div className="p-6 text-center text-sm text-slate-500">
+                      No reusable sub-items found. Every catalog item should
+                      have one protected General model.
+                    </div>
+                  ) : (
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-white text-xs uppercase text-slate-500">
+                        <tr>
+                          <th className="px-4 py-3">Reusable Model</th>
+                          <th className="px-4 py-3">Default Unit</th>
+                          <th className="px-4 py-3">Default Specification</th>
+                          <th className="px-4 py-3">Status</th>
+                          <th className="px-4 py-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+
+                      <tbody className="divide-y divide-slate-100">
+                        {subItems.map((subItem) => (
+                          <tr key={subItem.id}>
+                            <td className="px-4 py-3">
+                              <div className="font-semibold text-slate-900">
+                                {subItem.name}
+                              </div>
+                              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                <span>{subItem.sub_item_code}</span>
+                                {subItem.is_default_general && (
+                                  <span className="rounded-full bg-amber-50 px-2 py-0.5 font-bold text-amber-700">
+                                    Protected General
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            <td className="px-4 py-3 font-medium text-slate-700">
+                              {subItem.unit_name || "Unassigned"}
+                            </td>
+
+                            <td className="max-w-md px-4 py-3 text-slate-600">
+                              <p className="line-clamp-2">
+                                {subItem.default_specification ||
+                                  "No default specification"}
+                              </p>
+                            </td>
+
+                            <td className="px-4 py-3">
+                              <span
+                                className={[
+                                  "rounded-full px-3 py-1 text-xs font-bold",
+                                  subItem.is_active
+                                    ? "bg-emerald-50 text-emerald-700"
+                                    : "bg-slate-100 text-slate-500",
+                                ].join(" ")}
+                              >
+                                {subItem.is_active ? "Active" : "Inactive"}
+                              </span>
+                            </td>
+
+                            <td className="px-4 py-3">
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => openEditSubItem(subItem)}
+                                  className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
+                                >
+                                  <Edit3 size={14} />
+                                  Edit
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleToggleSubItemStatus(subItem)
+                                  }
+                                  disabled={
+                                    updateSubItemStatusMutation.isPending ||
+                                    subItem.is_default_general
+                                  }
+                                  className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {subItem.is_active ? (
+                                    <XCircle size={14} />
+                                  ) : (
+                                    <CheckCircle2 size={14} />
+                                  )}
+                                  {subItem.is_active
+                                    ? "Deactivate"
+                                    : "Activate"}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </section>
+            )}
           </div>
         </section>
       </div>
+      {subItemDialog && (
+        <CatalogSubItemDialog
+          open
+          mode={subItemDialog.mode}
+          catalogItem={selectedSubItemCatalogItem}
+          subItem={subItemDialog.subItem}
+          unitsOfMeasure={unitsOfMeasure}
+          loadingUnitsOfMeasure={loadingUnitsOfMeasure}
+          loading={
+            createSubItemMutation.isPending || updateSubItemMutation.isPending
+          }
+          onCancel={() => setSubItemDialog(null)}
+          onSubmit={handleSubmitSubItem}
+        />
+      )}
       <ConfirmModal
         open={Boolean(requestAction)}
         title={requestAction?.title}
@@ -1296,12 +1657,53 @@ export default function BudgetSetupPage() {
         confirmText={requestAction?.confirmText}
         loading={
           approveMutation.isPending ||
-          approveManualMutation.isPending ||
+          approveAndCreateMutation.isPending ||
           rejectMutation.isPending
         }
         onCancel={() => setRequestAction(null)}
         onConfirm={handleRequestActionConfirm}
-      />
+      >
+        {requestAction?.type === "APPROVE_AND_CREATE" && (
+          <div className="space-y-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 text-left">
+            <div className="grid gap-3 text-sm sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                  Category
+                </p>
+                <p className="mt-1 font-bold text-slate-900">
+                  {requestAction.request?.existing_category_name || "-"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                  Expense Type
+                </p>
+                <p className="mt-1 font-bold text-slate-900">
+                  {requestAction.request?.requested_expense_type || "OPEX"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                  Unit of Measure
+                </p>
+                <p className="mt-1 font-bold text-slate-900">
+                  {requestAction.request?.unit_of_measure_name || "-"}
+                  {requestAction.request?.unit_of_measure_code
+                    ? ` (${requestAction.request.unit_of_measure_code})`
+                    : ""}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs font-medium text-emerald-800">
+              Auto-create will use the request category, expense type, item
+              name, and Unit of Measure. No additional catalog fields are
+              required from admin.
+            </p>
+          </div>
+        )}
+      </ConfirmModal>
 
       <ConfirmModal
         open={Boolean(confirmAction)}
@@ -1319,13 +1721,13 @@ export default function BudgetSetupPage() {
           <div className="max-h-72 overflow-y-auto rounded-2xl border border-amber-200 bg-amber-50 p-3">
             <div className="mb-3 flex items-center gap-2 text-sm font-bold text-amber-900">
               <AlertTriangle size={16} />
-              Existing budgets using this record
+              Existing department budgets using this record
             </div>
 
             <div className="space-y-2">
               {confirmAction.usage.map((budget) => (
                 <div
-                  key={budget.budget_id}
+                  key={budget.usage_key || budget.budget_id}
                   className="rounded-xl border border-amber-100 bg-white p-3 text-sm"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1342,7 +1744,7 @@ export default function BudgetSetupPage() {
                     </span>
                   </div>
 
-                  <div className="mt-2 grid gap-2 text-xs text-slate-600 sm:grid-cols-3">
+                  <div className="mt-2 grid gap-2 text-xs text-slate-600 sm:grid-cols-4">
                     <p>
                       Year:{" "}
                       <span className="font-bold text-slate-900">
@@ -1358,9 +1760,20 @@ export default function BudgetSetupPage() {
                     </p>
 
                     <p>
-                      Total:{" "}
+                      Requested:{" "}
                       <span className="font-bold text-slate-900">
-                        {Number(budget.total_amount || 0).toLocaleString()}
+                        {Number(
+                          budget.total_requested_quantity ?? 0,
+                        ).toLocaleString()}
+                      </span>
+                    </p>
+
+                    <p>
+                      Approved:{" "}
+                      <span className="font-bold text-slate-900">
+                        {Number(
+                          budget.total_approved_quantity ?? 0,
+                        ).toLocaleString()}
                       </span>
                     </p>
                   </div>

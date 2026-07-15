@@ -62,7 +62,7 @@ export default function DashboardStatCard({ item }) {
       className={[
         "flex h-full min-h-[150px] flex-col rounded-2xl border bg-white p-4 shadow-sm transition-all duration-200",
         requiresAction
-          ? "border-amber-400 bg-amber-300/60 shadow-md"
+          ? "border-amber-600 bg-amber-300/50 shadow-md"
           : "border-blue-200 bg-white",
         item.route
           ? requiresAction

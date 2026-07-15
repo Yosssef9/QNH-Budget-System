@@ -2372,12 +2372,12 @@ Do not start Phase 4 until the user approves its detailed plan.
 
 ## 29. Phase 9 Plan - Production Readiness and Operational Monitoring
 
-Status: `PLANNED` / `UPCOMING` / `NOT STARTED`
+Status: `PARTIALLY STARTED`
 Position: after all core business and workflow modules are stable, before production deployment, go-live validation, and final handover.
 
-This section records approved upcoming work only. Implementation must not start until the roadmap reaches the Production Readiness and Operational Monitoring phase.
+This section records approved production-readiness and operational-monitoring work. The first protected administrator System Health slice was approved and started early by explicit user instruction so administrators can inspect database, notification-queue, and recent-error health during development.
 
-Do not implement these requirements during earlier business-module phases unless the user explicitly changes the roadmap. Do not create health routes, a system-health module, administrator pages, permissions, SQL backup scripts, SQL Server Agent jobs, environment variables, tests, database changes, or server bootstrapping changes before Phase 9 approval.
+Do not implement additional production-readiness requirements during earlier business-module phases unless the user explicitly changes the roadmap. Do not create backup scripts, SQL Server Agent jobs, environment variables, destructive database actions, restore automation, or operational test buttons without separate approval.
 
 ### Scope
 
@@ -2547,15 +2547,27 @@ Public health responses must not expose SQL Server hostnames, database names unl
 
 ### Protected System Health API
 
-Future protected endpoint:
+Current protected endpoint:
 
 ```http
-GET /api/admin/system-health
+GET /api/system-health/summary
 ```
 
-The final route name may be adjusted to match approved module conventions.
+The current route follows the implemented module convention under `server/modules/system-health`.
 
-Access must be limited to global administrators or users with an explicit system-health viewing permission. Do not reuse an unrelated permission merely to avoid creating the correct authorization rule. During Phase 9, determine whether a dedicated normalized permission such as `can_view_system_health` is required, and update database seeds/documentation only after approval.
+Access is limited to users with the explicit normalized permission:
+
+```text
+can_view_system_health
+```
+
+The permission is represented in the canonical shared contract as:
+
+```js
+PERMISSION_CODES.VIEW_SYSTEM_HEALTH
+```
+
+Do not reuse unrelated permissions such as audit-log or access-management permissions for this page.
 
 The detailed endpoint may return:
 
@@ -2577,45 +2589,46 @@ Use clear statuses:
 
 ```text
 HEALTHY
-WARNING
-UNAVAILABLE
-UNKNOWN
+DEGRADED
+CRITICAL
+NOT_CONFIGURED
 ```
 
-Do not report a component as healthy when it has not actually been checked. If a check cannot be performed because required database permissions are missing, report `UNKNOWN` with a safe administrative message.
+Do not report a component as healthy when it has not actually been checked. If a check cannot be performed because required database permissions or monitoring sources are missing, report `NOT_CONFIGURED`, `DEGRADED`, or `CRITICAL` with a safe administrative message according to impact.
 
 Never return secrets or raw infrastructure errors.
 
 ### Administrator System Health Page
 
-Add a future protected frontend page:
+Current protected frontend page:
 
 ```text
 Administration -> System Health
 ```
 
-Suggested page title:
+Page title:
 
 ```text
 System Health
 ```
 
-The page should provide an operational overview, not raw developer logs.
+The page provides an operational overview, not raw developer logs.
 
-Suggested summary cards:
+Current summary cards:
 
 - Overall Status
-- API Status
 - Database Status
-- Notification Worker Status
-- Database Backup Status
+- Notification Queue Status
+- Recent Errors
+- Database Backup Status / Not Configured
 
-Suggested sections:
+Current sections:
 
-- API: current status, uptime, application version, last health check, API response latency.
-- Database: connection status, response latency, recovery model, last successful connectivity check.
-- Notification worker: worker status, last successful run, last failed run, pending notification count, failed notification count, only when reliably available.
-- Database backups: last full backup, last differential backup, last transaction-log backup, backup age, latest backup result, last restore-test date, warning when backup is older than the approved threshold.
+- Runtime header: overall status, last check, API uptime, environment, process ID.
+- Database: SQL connectivity, response latency, current financial year.
+- Notification queue: pending, processing, failed, sent, stale queue indicators, recent queue rows.
+- Recent errors: sanitized server error log rows and audit rows indicating errors, failures, or denied operations.
+- Database backups: currently shown as `NOT_CONFIGURED` until an approved backup tracking source exists.
 
 The page must:
 
@@ -2628,6 +2641,243 @@ The page must:
 - be permission-protected in both frontend and backend.
 
 Optional auto-refresh may be added at a reasonable interval. Do not create aggressive polling that adds unnecessary load.
+
+### Initial System Health Implementation Record
+
+Initial implementation scope completed during development by explicit user approval:
+
+- Canonical permission: `PERMISSION_CODES.VIEW_SYSTEM_HEALTH`.
+- Backend module: `server/modules/system-health`.
+- Mounted route: `GET /api/system-health/summary`.
+- Frontend page: `client/src/pages/SystemHealthPage.jsx`.
+- Frontend route: `/admin/system-health`.
+- Sidebar entry: `Administration -> System Health`.
+- Current data sources:
+  - SQL connectivity and latency through `poolPromise`;
+  - current financial year from `BS_financial_years`;
+  - email/notification queue health from `BS_Notifications`;
+  - audit failure/denied/error indicators from `BS_audit_logs`;
+  - recent server error entries from `logs/error.log`.
+- Current UI components reused:
+  - `CollapsibleSection`;
+  - `EnterpriseSearch`;
+  - `SortableHeader`;
+  - `TablePagination`;
+  - `AnimatedDrawer`.
+
+Current implementation limitations:
+
+- Notification worker heartbeat support has been implemented in code and is activated after applying `server/scripts/add-system-health-worker-heartbeats.sql`. Until the table exists, the System Health page reports the worker heartbeat as `NOT_CONFIGURED`.
+- Backup monitoring is displayed as `NOT_CONFIGURED` until an approved backup tracking source is connected.
+- Storage health is implemented for package attachment storage. It checks root access, read/write/delete capability, active attachment counts, and sampled missing/invalid attachment files without exposing physical paths to the browser.
+- Health status history is implemented in code and is activated after applying `server/scripts/add-system-health-timeline.sql`. Until the table exists, the System Health page reports the timeline as not configured.
+- Slow API detection is not yet persisted or grouped.
+- Admin test buttons are not implemented.
+
+### System Health Enhancement Roadmap
+
+Implement these improvements one at a time. After each item, stop, summarize the result, validate the focused change, and wait for user approval before starting the next item.
+
+| Step | Enhancement | Goal | Backend impact | Frontend impact | Acceptance criteria |
+|---:|---|---|---|---|---|
+| 1 | Notification worker heartbeat | Show whether the email/notification worker is actually running, not only whether the queue is stale | Add a lightweight heartbeat source only if existing queue metadata cannot reliably prove worker activity; update worker processing path to record last seen/last success/last failure if approved | Add worker heartbeat card/detail row | Page shows `last seen`, `last success`, `last failure`, and clear `HEALTHY/DEGRADED/CRITICAL` worker state |
+| 2 | Error grouping | Reduce log noise by grouping repeated errors by normalized message/module | Add grouping query/parser for audit and server-log errors | Add grouped error table with count, first seen, last seen, affected users/modules | Repeated errors appear once with count and drill-down details |
+| 3 | Storage health | Verify attachment storage is usable | Check configured attachment/storage path readability, writability, and optional missing-file indicators without exposing physical paths | Add storage status card/section | Admin can see storage reachable/writable and safe warning details |
+| 4 | Backup monitoring | Display real database backup status | Read approved SQL Server backup history or approved monitoring table; no backup execution from the app | Replace `NOT_CONFIGURED` backup card with real last backup/age/status details | Page shows last full/differential/log backup where available and warning when stale |
+| 5 | Health timeline | Show health status trend over time | Add approved lightweight history source or derive from scheduled checks | Add 24-hour/7-day trend visualization | Admin can see when health changed and whether issues are recurring |
+| 6 | Slow API detection | Identify endpoints causing user delays | Persist or parse request timing data safely; group slow endpoints | Add slow endpoint table with module, route, count, average/max duration | Admin can identify slow routes without raw sensitive payloads |
+| 7 | Incident details drawer | Make each issue actionable | Map known issue categories to likely cause, impact, and suggested action | Enhance detail drawer with impact, likely cause, suggested action, related rows | Admin sees useful next action instead of raw JSON only |
+| 8 | Admin test buttons | Run safe operational checks on demand | Add audited commands for safe checks only: test email, test DB, test storage; no destructive commands | Add guarded action buttons with confirmation/toast feedback | Each action is permission-protected, audited, and safe |
+| 9 | Admin status notifications | Alert admins when health worsens | Queue notifications when status changes to degraded/critical, with rate limiting | Optional UI preference/status display | Admins receive useful alerts without notification spam |
+| 10 | Export health report | Support IT/admin reporting | Add safe export endpoint or client-side report generation | Add PDF/Excel export button | Export contains current status, checks, grouped issues, and timestamp without secrets |
+
+Recommended implementation order:
+
+1. Worker heartbeat.
+2. Error grouping.
+3. Storage health.
+4. Backup monitoring.
+5. Health timeline.
+6. Slow API detection.
+7. Incident details drawer.
+8. Admin test buttons.
+9. Admin status notifications.
+10. Export health report.
+
+This order prioritizes operational correctness first, then visibility, then convenience features.
+
+### System Health Step 1 Completion Record - Notification Worker Heartbeat
+
+Status: `IMPLEMENTED IN CODE` / `DB SCRIPT REQUIRED`
+
+Step 1 adds durable notification-worker heartbeat support without making the System Health page depend on a table that may not exist yet.
+
+Created:
+
+- `server/modules/system-health/systemHealthHeartbeat.repository.js`
+- `server/scripts/add-system-health-worker-heartbeats.sql`
+
+Changed:
+
+- `server/jobs/notification.worker.js`
+- `server/modules/system-health/systemHealth.constants.js`
+- `server/modules/system-health/systemHealth.service.js`
+- `client/src/pages/SystemHealthPage.jsx`
+
+Behavior:
+
+- The notification worker records `RUNNING` before each processing pass.
+- The worker records `SUCCESS` after a completed processing pass.
+- The worker records `FAILED` with a sanitized error message when the processing loop throws.
+- The System Health summary reads the worker heartbeat and reports:
+  - `last seen`;
+  - `last success`;
+  - `last failure`;
+  - process ID;
+  - host name from the backend response only where safe;
+  - safe error message.
+- If `dbo.BS_system_worker_heartbeats` does not exist, heartbeat writes no-op and the page reports `NOT_CONFIGURED`.
+
+Required manual database step before live heartbeat status becomes active:
+
+```sql
+-- Run once against QNHDB:
+-- server/scripts/add-system-health-worker-heartbeats.sql
+```
+
+Validation commands for this step:
+
+```text
+node --check server/jobs/notification.worker.js
+node --check server/modules/system-health/systemHealthHeartbeat.repository.js
+node --check server/modules/system-health/systemHealth.service.js
+npx.cmd eslint client/src/pages/SystemHealthPage.jsx
+npm.cmd run build
+```
+
+### System Health Step 2 Completion Record - Error Grouping
+
+Status: `IMPLEMENTED`
+
+Step 2 groups repeated System Health errors so administrators see error patterns instead of duplicated rows.
+
+Changed:
+
+- `server/modules/system-health/systemHealth.service.js`
+- `client/src/pages/SystemHealthPage.jsx`
+
+Behavior:
+
+- Server-log errors and audit failure/denied/error rows are normalized into grouped fingerprints.
+- Each group includes:
+  - sample message;
+  - count;
+  - first seen timestamp;
+  - last seen timestamp;
+  - sources;
+  - users;
+  - contexts/modules;
+  - latest individual occurrences for drill-down.
+- The System Health Recent Errors card now shows grouped count and total occurrence count.
+- The Recent Errors table now displays grouped rows with sortable columns.
+- The details drawer preserves the individual occurrences behind each group.
+
+Validation commands for this step:
+
+```text
+node --check server/modules/system-health/systemHealth.service.js
+npx.cmd eslint client/src/pages/SystemHealthPage.jsx
+npm.cmd run build
+```
+
+### System Health Step 3 Completion Record - Storage Health
+
+Status: `IMPLEMENTED`
+
+Step 3 adds read-only attachment-storage health checks for the package-sub-item attachment storage used by the new workflow.
+
+Created:
+
+- `server/modules/system-health/systemHealthStorage.repository.js`
+
+Changed:
+
+- `server/shared/files/packageAttachmentStorage.js`
+- `server/modules/system-health/systemHealth.service.js`
+- `client/src/pages/SystemHealthPage.jsx`
+
+Behavior:
+
+- Reuses the existing package attachment storage root:
+  - `BUDGET_ATTACHMENT_STORAGE_ROOT` when configured;
+  - otherwise the default `storage/category-package-attachments`.
+- Checks whether the storage root can be created/found, read, written to, and cleaned up.
+- Counts active attachment metadata rows from `BS_category_budget_package_sub_item_attachments`.
+- Samples the latest active attachment storage keys and reports missing files or invalid storage keys.
+- Does not expose physical storage paths to the frontend.
+- Shows a dedicated System Health storage card and an Attachment Storage section.
+
+Validation commands for this step:
+
+```text
+node --check server/shared/files/packageAttachmentStorage.js
+node --check server/modules/system-health/systemHealthStorage.repository.js
+node --check server/modules/system-health/systemHealth.service.js
+npx.cmd eslint client/src/pages/SystemHealthPage.jsx
+npm.cmd run build
+```
+
+### System Health Step 5 Completion Record - Health Timeline
+
+Status: `IMPLEMENTED IN CODE` / `DB SCRIPT REQUIRED`
+
+Step 5 adds a lightweight 24-hour System Health timeline so administrators can see whether health issues are recurring or newly introduced.
+
+Created:
+
+- `server/modules/system-health/systemHealthTimeline.repository.js`
+- `server/scripts/add-system-health-timeline.sql`
+
+Changed:
+
+- `server/modules/system-health/systemHealth.service.js`
+- `client/src/pages/SystemHealthPage.jsx`
+
+Behavior:
+
+- Adds optional durable snapshots in `dbo.BS_system_health_snapshots`.
+- Records safe component statuses for:
+  - overall health;
+  - database;
+  - notifications;
+  - recent errors;
+  - attachment storage;
+  - backups.
+- Stores only compact sanitized summary JSON, not raw stack traces, credentials, file paths, or large queue/error payloads.
+- Throttles repeated unchanged snapshots for five minutes so the auto-refreshing page does not create excessive rows.
+- Records a new row immediately when component status changes.
+- If the table does not exist, the backend keeps the System Health endpoint working and the page shows a clear setup message.
+- The page shows:
+  - status trend markers;
+  - counts by status;
+  - sortable and paginated snapshot table;
+  - details drawer for each snapshot.
+
+Required manual database step before timeline persistence becomes active:
+
+```sql
+-- Run once against QNHDB:
+-- server/scripts/add-system-health-timeline.sql
+```
+
+Validation commands for this step:
+
+```text
+node --check server/modules/system-health/systemHealthTimeline.repository.js
+node --check server/modules/system-health/systemHealth.service.js
+npx.cmd eslint client/src/pages/SystemHealthPage.jsx
+npm.cmd run build
+```
 
 ### Suggested Module Placement
 

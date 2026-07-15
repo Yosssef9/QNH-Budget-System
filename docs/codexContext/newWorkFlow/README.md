@@ -17,7 +17,7 @@ Phase 5C Category Package Preparation and Reconciliation is approved complete. P
 
 Source-of-truth priority remains defined by `AGENTS.md`: live database metadata first, then the database scope document, then the other current new-workflow documents.
 
-Upcoming production-readiness work includes SQL Server backup and recovery planning, liveness/readiness endpoints, a protected system-health API, and a read-only administrator System Health page. See the `Production Readiness and Operational Monitoring` phase in `QNH_New_Workflow_Modular_Refactor_Plan.md`.
+Production-readiness work is now partially started for development visibility. The protected administrator System Health page and `server/modules/system-health` initial read-only API exist behind the dedicated `can_view_system_health` permission. Remaining production-readiness work includes SQL Server backup and recovery planning, public liveness/readiness endpoints, notification-worker heartbeat, error grouping, storage health, backup monitoring, health timeline, slow API detection, incident details, admin test buttons, admin health notifications, and health report export. See the `Production Readiness and Operational Monitoring` phase in `QNH_New_Workflow_Modular_Refactor_Plan.md`.
 
 Canonical permission architecture: new-workflow code uses `shared/permissions/permissionCodes.js`; the database registry is `BS_budget_permissions.permission_code`; Access Management owns effective-permission resolution; notification permission recipients are resolved through Access Management, not permission-column SQL. See `QNH_New_Workflow_Modular_Refactor_Plan.md` for the current enforcement boundary and validation commands.
 

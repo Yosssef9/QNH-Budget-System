@@ -354,13 +354,19 @@ server/modules/system-health/
   systemHealth.service.js
 ```
 
-The detailed endpoint may be:
+The current detailed endpoint is:
 
 ```http
-GET /api/admin/system-health
+GET /api/system-health/summary
 ```
 
-The final route name must follow approved module conventions. Access must be limited to global administrators or users with an explicit system-health viewing permission. Do not reuse an unrelated permission merely to avoid adding the correct authorization rule. During implementation, determine whether a dedicated normalized permission such as `can_view_system_health` is required.
+Access must be limited to users with the explicit system-health viewing permission:
+
+```text
+can_view_system_health
+```
+
+Do not reuse an unrelated permission merely to avoid adding the correct authorization rule.
 
 The system-health service owns component status calculation and safe administrative messages. The controller returns only safe mapped responses. Do not return secrets or raw infrastructure errors.
 
@@ -368,9 +374,9 @@ Use component statuses:
 
 ```text
 HEALTHY
-WARNING
-UNAVAILABLE
-UNKNOWN
+DEGRADED
+CRITICAL
+NOT_CONFIGURED
 ```
 
 Do not report a component as healthy when it has not actually been checked.

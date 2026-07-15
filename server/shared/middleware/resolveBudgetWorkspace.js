@@ -5,18 +5,28 @@ function readRequestedUserRoleId(req) {
     req.headers["x-budget-user-role-id"] ||
     req.headers["x-budget-workspace-id"];
 
-  if (!rawHeader) return null;
+  if (!rawHeader) {
+    return null;
+  }
 
   const requestedUserRoleId = Number(rawHeader);
 
-  if (!Number.isInteger(requestedUserRoleId) || requestedUserRoleId <= 0) {
-    return NaN;
+  if (
+    !Number.isInteger(requestedUserRoleId) ||
+    requestedUserRoleId <= 0
+  ) {
+    return Number.NaN;
   }
 
   return requestedUserRoleId;
 }
 
-export async function resolveBudgetWorkspace(req, res, next) {
+async function resolveWorkspace({
+  req,
+  res,
+  next,
+  accessRequired,
+}) {
   try {
     const requestedUserRoleId = readRequestedUserRoleId(req);
 
@@ -32,16 +42,57 @@ export async function resolveBudgetWorkspace(req, res, next) {
       requestedUserRoleId,
     });
 
-    if (!access) {
+    /*
+      Protected Budget System routes require an active workspace.
+
+      These routes must continue returning HTTP 403 when the
+      authenticated portal user has no Budget System assignment.
+    */
+    if (!access && accessRequired) {
       return res.status(403).json({
         success: false,
         message: "You do not have access to Budget System",
       });
     }
 
-    req.budgetAccess = access;
-    next();
+    /*
+      The optional resolver is used by /auth/me.
+
+      A portal-authenticated user may legitimately have no Budget
+      System workspace. Preserve the authenticated user and expose
+      that condition as budgetAccess: null.
+    */
+    req.budgetAccess = access || null;
+
+    return next();
   } catch (error) {
-    next(error);
+    return next(error);
   }
+}
+
+/*
+  Use this middleware on protected Budget System routes.
+*/
+export function resolveBudgetWorkspace(req, res, next) {
+  return resolveWorkspace({
+    req,
+    res,
+    next,
+    accessRequired: true,
+  });
+}
+
+/*
+  Use this middleware only when authentication should succeed even
+  when the user has no active Budget System role or workspace.
+
+  The /auth/me endpoint is the intended consumer.
+*/
+export function resolveOptionalBudgetWorkspace(req, res, next) {
+  return resolveWorkspace({
+    req,
+    res,
+    next,
+    accessRequired: false,
+  });
 }

@@ -9,7 +9,7 @@ const DEFAULT_STORAGE_ROOT = path.resolve(
   "category-package-attachments",
 );
 
-function getStorageRoot() {
+export function getPackageAttachmentStorageRoot() {
   return path.resolve(
     process.env.BUDGET_ATTACHMENT_STORAGE_ROOT || DEFAULT_STORAGE_ROOT,
   );
@@ -21,7 +21,7 @@ function sanitizeExtension(originalName = "") {
 }
 
 function resolveStoragePath(storageKey) {
-  const root = getStorageRoot();
+  const root = getPackageAttachmentStorageRoot();
   const target = path.resolve(root, storageKey);
   const relative = path.relative(root, target);
 
@@ -33,7 +33,7 @@ function resolveStoragePath(storageKey) {
 }
 
 export async function savePackageAttachmentFile({ buffer, originalName }) {
-  const root = getStorageRoot();
+  const root = getPackageAttachmentStorageRoot();
   const now = new Date();
   const year = String(now.getUTCFullYear());
   const month = String(now.getUTCMonth() + 1).padStart(2, "0");

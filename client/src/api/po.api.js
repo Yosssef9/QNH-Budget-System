@@ -92,6 +92,16 @@ export async function getPackageSubItemPriceIntelligence(packageSubItemId) {
   return data.data;
 }
 
+export async function getPackageItemOverallAveragePriceIntelligence(
+  packageSubItemId,
+) {
+  const { data } = await api.get(
+    `/po-links/package-sub-items/${packageSubItemId}/price-intelligence/overall-average`,
+  );
+
+  return data.data;
+}
+
 export async function createPOLink(payload) {
   const { data } = await api.post("/po-links", payload);
 

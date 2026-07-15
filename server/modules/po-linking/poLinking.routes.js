@@ -13,6 +13,7 @@ import {
   getPODashboard,
   getPOBudgetItems,
   getPOItemMappings,
+  getPackageItemOverallAveragePriceIntelligence,
   getPackageSubItemPOLinks,
   getPackageSubItemPriceIntelligence,
   getPOLinkById,
@@ -82,6 +83,11 @@ poLinkingRoutes.get(
 poLinkingRoutes.get(
   "/package-sub-items/:packageSubItemId/price-intelligence",
   getPackageSubItemPriceIntelligence,
+);
+
+poLinkingRoutes.get(
+  "/package-sub-items/:packageSubItemId/price-intelligence/overall-average",
+  getPackageItemOverallAveragePriceIntelligence,
 );
 
 poLinkingRoutes.get("/po/:id/transparency", getPOTransparency);

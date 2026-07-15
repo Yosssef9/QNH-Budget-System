@@ -10,6 +10,7 @@ import {
   getPODashboardService,
   getPOBudgetItemsService,
   getPOItemMappingsService,
+  getPackageItemOverallAveragePriceIntelligenceService,
   getPackageSubItemPOLinksService,
   getPackageSubItemPriceIntelligenceService,
   getPOLinkByIdService,
@@ -151,6 +152,25 @@ export const getPackageSubItemPriceIntelligence = asyncHandler(async (req, res) 
   });
   res.json(new ApiResponse({ message: "Package sub-item price intelligence fetched successfully", data }));
 });
+
+export const getPackageItemOverallAveragePriceIntelligence = asyncHandler(
+  async (req, res) => {
+    const id = validatePOLinkId(req.params.packageSubItemId);
+    const data =
+      await getPackageItemOverallAveragePriceIntelligenceService({
+        packageSubItemId: id,
+        budgetAccess: req.budgetAccess,
+      });
+
+    res.json(
+      new ApiResponse({
+        message:
+          "Package item overall average price intelligence fetched successfully",
+        data,
+      }),
+    );
+  },
+);
 
 export const getPOItemMappings = asyncHandler(async (req, res) => {
   const data = await getPOItemMappingsService(req.query);

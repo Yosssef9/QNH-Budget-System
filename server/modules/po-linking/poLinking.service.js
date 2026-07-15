@@ -3,7 +3,10 @@ import {
   hasPermission,
   PERMISSION_CODES,
 } from "../../../shared/permissions/permissionCodes.js";
-import { buildPriceIntelligence } from "../../helpers/priceIntelligence.helper.js";
+import {
+  buildPackageItemOverallAveragePriceIntelligence,
+  buildPriceIntelligence,
+} from "../../helpers/priceIntelligence.helper.js";
 import { withTransaction } from "../../database/transaction.js";
 import { NOTIFICATION_TYPES } from "../../constants/notificationTypes.js";
 import { queueNotification } from "../../services/notification.service.js";
@@ -77,6 +80,15 @@ function assertAnyPermission(budgetAccess, permissions, message) {
   if (!hasAnyPermission(budgetAccess, permissions)) {
     throw new ApiError(403, message, "PO_LINK_PERMISSION_DENIED");
   }
+}
+
+function parseMappedItemCodes(value) {
+  if (!value) return [];
+
+  return String(value)
+    .split(",")
+    .map((code) => code.trim())
+    .filter(Boolean);
 }
 
 function assertCategoryScope(budgetAccess) {
@@ -663,6 +675,121 @@ export async function getPackageSubItemPOLinksService({
   };
 }
 
+export async function getPackageItemOverallAveragePriceIntelligenceService({
+  packageSubItemId,
+  budgetAccess,
+}) {
+  assertAnyPermission(
+    budgetAccess,
+    [
+      PERMISSION_CODES.MANAGE_CATEGORY_BUDGET_PACKAGES,
+      PERMISSION_CODES.MANAGE_CATEGORY_BUDGET_SUB_ITEMS,
+      PERMISSION_CODES.VIEW_CFO_CATEGORY_BUDGET_PACKAGES,
+      PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES,
+      PO_LINK_PERMISSIONS.REQUEST,
+      PO_LINK_PERMISSIONS.VIEW_ASSIGNED,
+      PO_LINK_PERMISSIONS.VIEW_ALL,
+      PO_LINK_PERMISSIONS.APPROVE,
+    ],
+    "You do not have permission to view price intelligence",
+  );
+
+  const {
+    packageSubItems,
+    benchmarks,
+    aggregateEvidence,
+    recentPurchases,
+  } = await getPackageSubItemPriceIntelligenceDetailsRepo({
+    packageSubItemId,
+    includeSiblingModels: true,
+  });
+
+  if (!packageSubItems.length) {
+    throw new ApiError(404, "Package item not found");
+  }
+
+  const anchorSubItem = packageSubItems[0];
+
+  if (
+    !hasAnyPermission(budgetAccess, [
+      PERMISSION_CODES.VIEW_CFO_CATEGORY_BUDGET_PACKAGES,
+      PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES,
+      PO_LINK_PERMISSIONS.VIEW_ALL,
+      PO_LINK_PERMISSIONS.APPROVE,
+    ])
+  ) {
+    const categoryId = assertCategoryScope(budgetAccess);
+    assertRequesterScope(anchorSubItem, categoryId);
+  }
+
+  const benchmarkBySubItemId = new Map(
+    benchmarks.map((benchmark) => [
+      Number(benchmark.package_sub_item_id),
+      {
+        ...benchmark,
+        mapped_item_codes: parseMappedItemCodes(
+          benchmark.mapped_item_codes,
+        ),
+      },
+    ]),
+  );
+
+  const models = packageSubItems.map((packageSubItem) => ({
+    packageSubItem,
+    priceIntelligence: buildPriceIntelligence(
+      packageSubItem,
+      benchmarkBySubItemId.get(
+        Number(packageSubItem.package_sub_item_id),
+      ),
+    ),
+  }));
+
+  const packageItem = {
+    id: anchorSubItem.package_item_id,
+    package_item_id: anchorSubItem.package_item_id,
+    catalog_item_id: anchorSubItem.catalog_item_id,
+    catalog_item_name: anchorSubItem.catalog_item_name,
+    catalog_item_code: anchorSubItem.catalog_item_code,
+    category_budget_package_id:
+      anchorSubItem.category_budget_package_id,
+    financial_year_id: anchorSubItem.financial_year_id,
+    financial_year: anchorSubItem.financial_year,
+    financial_year_status: anchorSubItem.financial_year_status,
+    package_status: anchorSubItem.package_status,
+    budget_category_id: anchorSubItem.budget_category_id,
+    category_name: anchorSubItem.category_name,
+    category_code: anchorSubItem.category_code,
+    model_count: packageSubItems.length,
+    total_quantity: packageSubItems.reduce(
+      (sum, model) => sum + Number(model.quantity || 0),
+      0,
+    ),
+    total_amount: packageSubItems.reduce(
+      (sum, model) => sum + Number(model.total_amount || 0),
+      0,
+    ),
+  };
+
+  const normalizedEvidence = {
+    ...aggregateEvidence,
+    mapped_item_codes: parseMappedItemCodes(
+      aggregateEvidence?.mapped_item_codes,
+    ),
+  };
+
+  return {
+    packageItem,
+    overallAveragePriceIntelligence:
+      buildPackageItemOverallAveragePriceIntelligence(
+        packageItem,
+        models,
+        normalizedEvidence,
+      ),
+    models,
+    historicalPurchases: recentPurchases,
+  };
+}
+
 export async function getPackageSubItemPriceIntelligenceService({
   packageSubItemId,
   budgetAccess,
@@ -701,12 +828,9 @@ export async function getPackageSubItemPriceIntelligenceService({
     assertRequesterScope(packageSubItem, categoryId);
   }
 
-  const mappedCodes = benchmark?.mapped_item_codes
-    ? String(benchmark.mapped_item_codes)
-        .split(",")
-        .map((code) => code.trim())
-        .filter(Boolean)
-    : [];
+  const mappedCodes = parseMappedItemCodes(
+    benchmark?.mapped_item_codes,
+  );
 
   return {
     packageSubItem,

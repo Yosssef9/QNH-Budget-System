@@ -819,15 +819,30 @@ export async function getPackageSubItemPOLinksRepo(packageSubItemId) {
 
 export async function getPackageSubItemPriceIntelligenceDetailsRepo({
   packageSubItemId,
+  includeSiblingModels = false,
 }) {
   const pool = await poolPromise;
 
   const result = await createRequest(pool)
     .input("packageSubItemId", sql.BigInt, packageSubItemId)
+    .input(
+      "includeSiblingModels",
+      sql.Bit,
+      includeSiblingModels ? 1 : 0,
+    )
     .query(`
-      DECLARE @evidenceWindowStart DATETIME2 = DATEADD(MONTH, -24, SYSUTCDATETIME());
+      DECLARE @evidenceWindowStart DATETIME2 =
+        DATEADD(MONTH, -24, SYSUTCDATETIME());
 
-      SELECT TOP 1
+      DECLARE @packageItemId BIGINT;
+
+      SELECT @packageItemId =
+        subItem.category_budget_package_item_id
+      FROM dbo.BS_category_budget_package_sub_items AS subItem
+      WHERE subItem.id = @packageSubItemId
+        AND subItem.is_active = 1;
+
+      SELECT
         subItem.id AS package_sub_item_id,
         subItem.id AS id,
         subItem.category_budget_package_item_id,
@@ -874,8 +889,18 @@ export async function getPackageSubItemPriceIntelligenceDetailsRepo({
       LEFT JOIN dbo.BS_category_budget_package_sub_item_attachments AS attachment
         ON attachment.category_budget_package_sub_item_id = subItem.id
        AND attachment.is_active = 1
-      WHERE subItem.id = @packageSubItemId
-        AND subItem.is_active = 1
+      WHERE subItem.is_active = 1
+        AND (
+          (
+            @includeSiblingModels = 0
+            AND subItem.id = @packageSubItemId
+          )
+          OR (
+            @includeSiblingModels = 1
+            AND subItem.category_budget_package_item_id =
+              @packageItemId
+          )
+        )
       GROUP BY
         subItem.id,
         subItem.category_budget_package_item_id,
@@ -1038,24 +1063,106 @@ export async function getPackageSubItemPriceIntelligenceDetailsRepo({
       LEFT JOIN mapped_codes
         ON mapped_codes.package_sub_item_id = packageSubItem.package_sub_item_id;
 
+      WITH deduplicated_history AS (
+        SELECT
+          history.*,
+          ROW_NUMBER() OVER (
+            PARTITION BY history.purchase_invoice_line_id
+            ORDER BY history.package_sub_item_id
+          ) AS duplicate_row_number
+        FROM #scoped_history AS history
+      ),
+      aggregate_history AS (
+        SELECT *
+        FROM deduplicated_history
+        WHERE duplicate_row_number = 1
+      ),
+      mapped_codes AS (
+        SELECT
+          STUFF((
+            SELECT DISTINCT
+              ', ' + active.po_item_code
+            FROM #active_mappings AS active
+            FOR XML PATH(''), TYPE
+          ).value('.', 'NVARCHAR(MAX)'), 1, 2, '')
+            AS mapped_item_codes
+      )
+      SELECT
+        COUNT(history.purchase_invoice_line_id)
+          AS purchase_count,
+        COUNT(
+          DISTINCT NULLIF(
+            LTRIM(RTRIM(history.supplier_name)),
+            ''
+          )
+        ) AS supplier_count,
+        MAX(history.created_at) AS last_purchase_at,
+        CASE
+          WHEN COUNT(DISTINCT history.evidence_window_used) > 1
+            THEN 'MIXED'
+          ELSE MAX(history.evidence_window_used)
+        END AS evidence_window_used,
+        mappedCodes.mapped_item_codes
+      FROM mapped_codes AS mappedCodes
+      LEFT JOIN aggregate_history AS history
+        ON 1 = 1
+      GROUP BY mappedCodes.mapped_item_codes;
+
+      WITH deduplicated_history AS (
+        SELECT
+          history.*,
+          ROW_NUMBER() OVER (
+            PARTITION BY history.purchase_invoice_line_id
+            ORDER BY history.package_sub_item_id
+          ) AS duplicate_row_number
+        FROM #scoped_history AS history
+      ),
+      matched_models AS (
+        SELECT
+          history.purchase_invoice_line_id,
+          STUFF((
+            SELECT DISTINCT
+              ', ' + packageSubItem2.sub_item_name
+            FROM #scoped_history AS history2
+            INNER JOIN #package_sub_item AS packageSubItem2
+              ON packageSubItem2.package_sub_item_id =
+                history2.package_sub_item_id
+            WHERE history2.purchase_invoice_line_id =
+              history.purchase_invoice_line_id
+            FOR XML PATH(''), TYPE
+          ).value('.', 'NVARCHAR(MAX)'), 1, 2, '')
+            AS model_names
+        FROM #scoped_history AS history
+        GROUP BY history.purchase_invoice_line_id
+      )
       SELECT TOP 50
-        purchase_invoice_line_id,
-        item_code,
-        item_description,
-        parent_item_name,
-        supplier_name,
-        quantity,
-        unit_cost,
-        net_amount,
-        created_at
-      FROM #scoped_history
-      ORDER BY created_at DESC, purchase_invoice_line_id DESC;
+        history.purchase_invoice_line_id,
+        history.item_code,
+        history.item_description,
+        history.parent_item_name,
+        history.supplier_name,
+        history.quantity,
+        history.unit_cost,
+        history.net_amount,
+        history.created_at,
+        models.model_names
+      FROM deduplicated_history AS history
+      LEFT JOIN matched_models AS models
+        ON models.purchase_invoice_line_id =
+          history.purchase_invoice_line_id
+      WHERE history.duplicate_row_number = 1
+      ORDER BY
+        history.created_at DESC,
+        history.purchase_invoice_line_id DESC;
     `);
 
   return {
     packageSubItem: result.recordsets?.[0]?.[0] || null,
     benchmark: result.recordsets?.[1]?.[0] || null,
-    recentPurchases: result.recordsets?.[2] || [],
+    packageSubItems: result.recordsets?.[0] || [],
+    benchmarks: result.recordsets?.[1] || [],
+    aggregateEvidence: result.recordsets?.[2]?.[0] || null,
+    recentPurchases: result.recordsets?.[3] || [],
   };
 }
 

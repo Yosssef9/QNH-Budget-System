@@ -2187,7 +2187,13 @@ function ItemPerspective({
                 {subItems.length > 0 ? (
                   <button
                     type="button"
-                    onClick={() => onViewPriceContext(subItems[0], subItems)}
+                    onClick={() =>
+                      onViewPriceContext(
+                        subItems[0],
+                        subItems,
+                        "OVERALL_AVERAGE",
+                      )
+                    }
                     className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 hover:bg-blue-100"
                   >
                     <CircleDollarSign className="h-4 w-4" />
@@ -2884,8 +2890,16 @@ const selectedItem =
     });
   }
 
-  function openPriceContext(subItem, subItems = []) {
-    setPriceContext({ subItem, subItems });
+  function openPriceContext(
+    subItem,
+    subItems = [],
+    view = "MODEL",
+  ) {
+    setPriceContext({
+      subItem,
+      subItems,
+      view,
+    });
   }
 
   if (packageQuery.isLoading) {
@@ -3371,10 +3385,12 @@ packageData.return_reason ? (
         open={Boolean(priceContext?.subItem)}
         subItem={priceContext?.subItem}
         subItems={priceContext?.subItems || []}
+        initialView={priceContext?.view || "MODEL"}
         onSelectSubItem={(subItem) =>
           setPriceContext((current) => ({
             subItem,
             subItems: current?.subItems || [],
+            view: "MODEL",
           }))
         }
         onClose={() => setPriceContext(null)}

@@ -289,6 +289,21 @@ const router = createBrowserRouter([
       },
 
       {
+        path: "admin/system-health",
+        async lazy() {
+          const module = await import("../pages/SystemHealthPage");
+
+          return {
+            Component: () => (
+              <RequirePermission permission={PERMISSION_CODES.VIEW_SYSTEM_HEALTH}>
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
+      },
+
+      {
         path: "transfers/requests",
         async lazy() {
           const module = await import("../pages/TransferPage");
@@ -400,6 +415,21 @@ const router = createBrowserRouter([
 
     // errorElement: <ErrorPage />,
   },
+  {
+  path: "/budget-access-denied",
+
+  async lazy() {
+    const module = await import(
+      "../pages/BudgetAccessDeniedPage"
+    );
+
+    return {
+      Component: module.default,
+    };
+  },
+
+  // errorElement: <ErrorPage />,
+},
 ]);
 
 export default function AppRouter() {

@@ -18,6 +18,14 @@ export async function getCfoPackage(packageId) {
   return response.data?.data;
 }
 
+export async function getCfoPackageTimeline(packageId) {
+  if (!packageId) return [];
+  const response = await api.get(
+    `/cfo-package-review/packages/${packageId}/timeline`,
+  );
+  return response.data?.data || [];
+}
+
 export async function getCfoPackageItemDetail({ packageId, packageItemId }) {
   if (!packageId || !packageItemId) return null;
   const response = await api.get(

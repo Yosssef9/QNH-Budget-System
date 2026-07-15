@@ -9,6 +9,7 @@ import {
   Building2,
   Layers3,
   ListChecks,
+  PanelRightOpen,
   RefreshCw,
   RotateCcw,
 } from "lucide-react";
@@ -20,6 +21,7 @@ import {
   getCfoFinancialYears,
   getCfoPackage,
   getCfoPackageItemDetail,
+  getCfoPackageTimeline,
   getCfoPackages,
   markAllCfoPackageItemsNeedModification,
   reopenCfoPackageReview,
@@ -27,6 +29,7 @@ import {
   setCfoPackageItemDecision,
 } from "../../api/cfoPackageReview.api";
 import ConfirmModal from "../../components/ConfirmModal";
+import BudgetTimeline from "../../components/BudgetTimeline";
 import SearchableMultiSelect from "../../components/SearchableMultiSelect";
 import CfoDepartmentView from "../../components/cfo-package-review/CfoDepartmentView";
 import CfoMetric from "../../components/cfo-package-review/CfoMetric";
@@ -305,6 +308,7 @@ export default function CfoPackageReviewPage() {
   const [perspective, setPerspective] = useState("ITEMS");
   const [modal, setModal] = useState(null);
   const [isPackageQueueOpen, setIsPackageQueueOpen] = useState(true);
+  const [isPackageTimelineOpen, setIsPackageTimelineOpen] = useState(false);
   const [selectedFinancialYearId, setSelectedFinancialYearId] = useState(null);
 
   const financialYearsQuery = useQuery({
@@ -751,6 +755,7 @@ export default function CfoPackageReviewPage() {
         );
         setSelectedPackageId(null);
         setSelectedPackageItemId(null);
+        setIsPackageTimelineOpen(false);
         setPerspective("ITEMS");
       }}
     />
@@ -844,6 +849,7 @@ export default function CfoPackageReviewPage() {
               onSelectPackage={(packageId) => {
                 setSelectedPackageId(packageId);
                 setSelectedPackageItemId(null);
+                setIsPackageTimelineOpen(false);
               }}
             />
           </div>
@@ -879,7 +885,14 @@ export default function CfoPackageReviewPage() {
                 No CFO package is selected.
               </div>
             ) : (
-              <div className="space-y-5">
+              <div
+                className={`grid gap-5 transition-all duration-300 ${
+                  isPackageTimelineOpen
+                    ? "xl:grid-cols-[minmax(0,1fr)_380px]"
+                    : "grid-cols-1"
+                }`}
+              >
+                <div className="min-w-0 space-y-5">
                 <section className="rounded-2xl border border-slate-200 bg-white p-5">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
@@ -1079,6 +1092,47 @@ export default function CfoPackageReviewPage() {
                     )}
                   </motion.div>
                 </AnimatePresence>
+                </div>
+
+                <AnimatePresence mode="wait">
+                  {isPackageTimelineOpen && (
+                    <motion.div
+                      initial={{ width: 0, opacity: 0 }}
+                      animate={{ width: 380, opacity: 1 }}
+                      exit={{ width: 0, opacity: 0 }}
+                      transition={{ duration: 0.25, ease: "easeInOut" }}
+                      className="hidden overflow-hidden xl:block"
+                    >
+                      <div className="sticky top-6 h-[calc(100vh-120px)]">
+                        <BudgetTimeline
+                          budgetId={selectedPackage.id}
+                          queryKey={[
+                            "cfo-package-review",
+                            "timeline",
+                            selectedPackage.id,
+                          ]}
+                          queryFn={() => getCfoPackageTimeline(selectedPackage.id)}
+                          enabled={Boolean(selectedPackage.id)}
+                          title={`${selectedPackage.category_name} Timeline`}
+                          subtitle={`FY ${selectedPackage.financial_year} package workflow history`}
+                          emptyMessage="CFO package workflow actions will appear here."
+                          onToggle={() => setIsPackageTimelineOpen(false)}
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {!isPackageTimelineOpen && (
+                  <button
+                    type="button"
+                    onClick={() => setIsPackageTimelineOpen(true)}
+                    className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-xl transition hover:scale-105"
+                  >
+                    <PanelRightOpen size={18} />
+                    <span className="text-sm font-semibold">Timeline</span>
+                  </button>
+                )}
               </div>
             )}
           </main>

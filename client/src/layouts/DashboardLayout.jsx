@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Tags,
   History,
+  Activity,
   Repeat2,
   Link2,
   BriefcaseBusiness,
@@ -185,6 +186,12 @@ function getSidebarSections(budgetAccess) {
           icon: History,
           show: can(budgetAccess, PERMISSION_CODES.VIEW_AUDIT_LOGS),
         },
+        {
+          label: "System Health",
+          path: "/admin/system-health",
+          icon: Activity,
+          show: can(budgetAccess, PERMISSION_CODES.VIEW_SYSTEM_HEALTH),
+        },
       ],
     },
   ]
@@ -251,6 +258,10 @@ function canAccessPath(pathname, budgetAccess) {
       permission: PERMISSION_CODES.MANAGE_PO_ITEM_MAPPINGS,
     },
     { path: "/admin/audit-logs", permission: PERMISSION_CODES.VIEW_AUDIT_LOGS },
+    {
+      path: "/admin/system-health",
+      permission: PERMISSION_CODES.VIEW_SYSTEM_HEALTH,
+    },
     {
       path: "/transfers/requests",
       permission: PERMISSION_CODES.CREATE_CATEGORY_TRANSFERS,

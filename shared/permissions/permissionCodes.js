@@ -35,6 +35,7 @@ export const PERMISSION_CODES = Object.freeze({
   MANAGE_BUDGET_CATALOG: "can_manage_budget_catalog",
   VIEW_BUDGET_REPORTS: "can_view_budget_reports",
   VIEW_AUDIT_LOGS: "can_view_audit_logs",
+  VIEW_SYSTEM_HEALTH: "can_view_system_health",
 });
 
 export const PERMISSION_CODE_VALUES = Object.freeze(

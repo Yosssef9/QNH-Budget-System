@@ -3,9 +3,10 @@ import {
   CheckCircle2,
   Clock3,
   FileEdit,
+  Flag,
+  ListChecks,
   RotateCcw,
   Send,
-  PanelRightOpen,
   PanelRightClose,
 } from "lucide-react";
 import { getBudgetTimeline } from "../api/budget.api";
@@ -52,13 +53,80 @@ const actionConfig = {
     label: "Budget Approved",
     showDescription: true,
   },
+
+  CATEGORY_PACKAGE_SUBMITTED_TO_CFO: {
+    icon: Send,
+    color: "bg-indigo-500",
+    label: "Submitted To CFO",
+    showDescription: true,
+  },
+
+  CFO_PACKAGE_ITEM_ACCEPTED: {
+    icon: CheckCircle2,
+    color: "bg-emerald-500",
+    label: "Package Item Accepted",
+    showDescription: true,
+  },
+
+  CFO_PACKAGE_ITEM_NEEDS_MODIFICATION: {
+    icon: FileEdit,
+    color: "bg-amber-500",
+    label: "Package Item Needs Modification",
+    showDescription: true,
+  },
+
+  CFO_PACKAGE_ALL_ITEMS_NEED_MODIFICATION: {
+    icon: ListChecks,
+    color: "bg-amber-600",
+    label: "All Items Need Modification",
+    showDescription: true,
+  },
+
+  CATEGORY_PACKAGE_RETURNED_BY_CFO: {
+    icon: RotateCcw,
+    color: "bg-red-500",
+    label: "Returned To Category Manager",
+    showDescription: true,
+  },
+
+  CATEGORY_PACKAGE_CFO_REVIEW_REOPENED: {
+    icon: RotateCcw,
+    color: "bg-blue-500",
+    label: "CFO Review Reopened",
+    showDescription: true,
+  },
+
+  CATEGORY_PACKAGE_CFO_REVIEW_COMPLETED: {
+    icon: CheckCircle2,
+    color: "bg-emerald-600",
+    label: "CFO Review Completed",
+    showDescription: true,
+  },
+
+  CFO_ANNUAL_PACKAGE_REVIEW_FINALIZED: {
+    icon: Flag,
+    color: "bg-blue-700",
+    label: "Annual CFO Review Finalized",
+    showDescription: true,
+  },
 };
 
-export default function BudgetTimeline({ budgetId, onToggle }) {
+export default function BudgetTimeline({
+  budgetId,
+  queryKey,
+  queryFn,
+  enabled,
+  title = "Activity Timeline",
+  subtitle = "Budget workflow history",
+  emptyTitle = "No Timeline Activity",
+  emptyMessage = "Budget workflow actions will appear here.",
+  onToggle,
+}) {
+  const isEnabled = enabled ?? Boolean(budgetId);
   const { data = [], isLoading } = useQuery({
-    queryKey: ["budget-timeline", budgetId],
-    queryFn: () => getBudgetTimeline(budgetId),
-    enabled: Boolean(budgetId),
+    queryKey: queryKey || ["budget-timeline", budgetId],
+    queryFn: queryFn || (() => getBudgetTimeline(budgetId)),
+    enabled: isEnabled,
   });
 
   if (isLoading) {
@@ -84,11 +152,11 @@ export default function BudgetTimeline({ budgetId, onToggle }) {
           </div>
 
           <h3 className="text-base font-bold text-slate-800">
-            No Timeline Activity
+            {emptyTitle}
           </h3>
 
           <p className="mt-2 text-sm text-slate-500">
-            Budget workflow actions will appear here.
+            {emptyMessage}
           </p>
         </div>
       </div>
@@ -100,23 +168,26 @@ export default function BudgetTimeline({ budgetId, onToggle }) {
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h3 className="text-lg font-bold text-slate-900">
-            Activity Timeline
+            {title}
           </h3>
 
-          <p className="mt-1 text-xs text-slate-500">Budget workflow history</p>
+          <p className="mt-1 text-xs text-slate-500">{subtitle}</p>
         </div>
 
-        <button
-          type="button"
-          onClick={onToggle}
-          className="
+        {onToggle && (
+          <button
+            type="button"
+            onClick={onToggle}
+            className="
       rounded-xl border border-slate-200
       bg-white p-2 transition
       hover:bg-slate-50
     "
-        >
-          <PanelRightClose size={18} className="text-slate-500" />
-        </button>
+            aria-label="Hide timeline"
+          >
+            <PanelRightClose size={18} className="text-slate-500" />
+          </button>
+        )}
       </div>
 
       <div className="h-[calc(100vh-220px)] overflow-y-auto pr-2 space-y-6">
@@ -145,7 +216,7 @@ export default function BudgetTimeline({ budgetId, onToggle }) {
                   </p>
 
                   <p className="text-xs text-slate-500">
-                    {item.user_name || "Unknown User"}
+                    {item.user_name || item.created_by_name || "Unknown User"}
                     {item.user_code ? ` (${item.user_code})` : ""}
                   </p>
 
@@ -154,11 +225,26 @@ export default function BudgetTimeline({ budgetId, onToggle }) {
                   </p>
                 </div>
 
-                {config.showDescription && item.description && (
+                {config.showDescription && (item.description || item.note) && (
                   <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
                     <p className="text-sm leading-relaxed text-slate-600">
-                      {item.description}
+                      {item.description || item.note}
                     </p>
+                  </div>
+                )}
+
+                {(item.old_status || item.new_status) && (
+                  <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-bold text-slate-500">
+                    {item.old_status && (
+                      <span className="rounded-full bg-slate-100 px-2 py-1">
+                        From {item.old_status}
+                      </span>
+                    )}
+                    {item.new_status && (
+                      <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-700">
+                        To {item.new_status}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>

@@ -34,6 +34,7 @@ import testRoutes from "./routes/test.routes.js";
 import transferRoutes from "./modules/transfers/transfers.routes.js";
 import budgetItemRoutes from "./routes/budgetItem.routes.js";
 import budgetAnalyticsRoutes from "./modules/budget-analytics/budgetAnalytics.routes.js";
+import systemHealthRoutes from "./modules/system-health/systemHealth.routes.js";
 
 const app = express();
 
@@ -89,6 +90,7 @@ app.use("/api/item-requests", itemRequestRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/budget-analytics", budgetAnalyticsRoutes);
 app.use("/api/audit-logs", auditRoutes);
+app.use("/api/system-health", systemHealthRoutes);
 app.use("/api/transfers", transferRoutes);
 app.use("/api/test", testRoutes);
 app.use("/api/budget-items", budgetItemRoutes);

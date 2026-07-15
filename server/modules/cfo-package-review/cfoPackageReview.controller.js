@@ -7,6 +7,7 @@ import {
   finalizeAnnualCfoPackageReviewService,
   getCfoPackageItemDetailService,
   getCfoPackageService,
+  getCfoPackageTimelineService,
   listCfoFinancialYearsService,
   listCfoPackageSubItemAttachmentsService,
   listCfoPackagesService,
@@ -78,6 +79,16 @@ export const getCfoPackage = asyncHandler(async (req, res) => {
   });
 
   res.json(new ApiResponse({ message: "CFO package fetched", data }));
+});
+
+export const getCfoPackageTimeline = asyncHandler(async (req, res) => {
+  const packageId = validatePackageId(req.params.packageId);
+  const data = await getCfoPackageTimelineService({
+    packageId,
+    budgetAccess: req.budgetAccess,
+  });
+
+  res.json(new ApiResponse({ message: "CFO package timeline fetched", data }));
 });
 
 export const getCfoPackageItemDetail = asyncHandler(async (req, res) => {

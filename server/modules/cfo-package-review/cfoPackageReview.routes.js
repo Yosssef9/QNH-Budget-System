@@ -10,6 +10,7 @@ import {
   finalizeAnnualCfoPackageReview,
   getCfoPackage,
   getCfoPackageItemDetail,
+  getCfoPackageTimeline,
   listCfoPackageSubItemAttachments,
   listCfoFinancialYears,
   listCfoPackages,
@@ -40,6 +41,12 @@ router.get(
   "/packages/:packageId",
   requireBudgetPermission(CFO_PACKAGE_REVIEW_PERMISSIONS.VIEW),
   getCfoPackage,
+);
+
+router.get(
+  "/packages/:packageId/timeline",
+  requireBudgetPermission(CFO_PACKAGE_REVIEW_PERMISSIONS.VIEW),
+  getCfoPackageTimeline,
 );
 
 router.get(

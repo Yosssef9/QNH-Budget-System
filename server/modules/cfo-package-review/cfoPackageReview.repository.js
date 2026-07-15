@@ -606,3 +606,86 @@ export async function findAnnualCfoReviewFinalizationRepo(
 
   return result.recordset[0] || null;
 }
+
+export async function listCfoPackageTimelineRepo({ packageId }) {
+  const pool = await poolPromise;
+  const result = await createRequest(pool)
+    .input("packageId", sql.BigInt, packageId)
+    .query(`
+      WITH packageHistory AS (
+        SELECT
+          history.id,
+          history.financial_year_id,
+          history.entity_type,
+          history.entity_id,
+          history.action,
+          history.old_status,
+          history.new_status,
+          history.note,
+          history.old_values_json,
+          history.new_values_json,
+          history.created_by,
+          history.created_at,
+          CAST(category.name AS NVARCHAR(300)) AS context_name,
+          CAST(NULL AS BIGINT) AS package_item_id,
+          CAST(NULL AS NVARCHAR(300)) AS package_item_name
+        FROM dbo.BS_budget_workflow_history AS history
+        INNER JOIN dbo.BS_category_budget_packages AS pkg
+          ON pkg.id = history.entity_id
+        INNER JOIN dbo.BS_budget_categories AS category
+          ON category.id = pkg.budget_category_id
+        WHERE history.entity_type = 'CATEGORY_BUDGET_PACKAGE'
+          AND history.entity_id = @packageId
+
+        UNION ALL
+
+        SELECT
+          history.id,
+          history.financial_year_id,
+          history.entity_type,
+          history.entity_id,
+          history.action,
+          history.old_status,
+          history.new_status,
+          history.note,
+          history.old_values_json,
+          history.new_values_json,
+          history.created_by,
+          history.created_at,
+          CAST(COALESCE(packageItem.catalog_item_name_snapshot, catalogItem.name) AS NVARCHAR(300)) AS context_name,
+          packageItem.id AS package_item_id,
+          CAST(COALESCE(packageItem.catalog_item_name_snapshot, catalogItem.name) AS NVARCHAR(300)) AS package_item_name
+        FROM dbo.BS_budget_workflow_history AS history
+        INNER JOIN dbo.BS_category_budget_package_items AS packageItem
+          ON packageItem.id = history.entity_id
+        INNER JOIN dbo.BS_budget_catalog_items AS catalogItem
+          ON catalogItem.id = packageItem.catalog_item_id
+        WHERE history.entity_type = 'CATEGORY_BUDGET_PACKAGE_ITEM'
+          AND packageItem.category_budget_package_id = @packageId
+      )
+      SELECT
+        packageHistory.id,
+        packageHistory.financial_year_id,
+        packageHistory.entity_type,
+        packageHistory.entity_id,
+        packageHistory.action,
+        packageHistory.old_status,
+        packageHistory.new_status,
+        packageHistory.note,
+        packageHistory.old_values_json,
+        packageHistory.new_values_json,
+        packageHistory.context_name,
+        packageHistory.package_item_id,
+        packageHistory.package_item_name,
+        packageHistory.created_by,
+        userRow.USER_NAME AS user_name,
+        userRow.USER_CODE AS user_code,
+        packageHistory.created_at
+      FROM packageHistory
+      LEFT JOIN dbo.users AS userRow
+        ON userRow.USER_ID = packageHistory.created_by
+      ORDER BY packageHistory.created_at ASC, packageHistory.id ASC;
+    `);
+
+  return result.recordset || [];
+}

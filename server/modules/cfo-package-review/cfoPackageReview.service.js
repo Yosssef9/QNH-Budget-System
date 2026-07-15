@@ -34,6 +34,7 @@ import {
   findAnnualCfoReviewFinalizationRepo,
   findPackageItemForCfoRepo,
   getFinancialYearPackageCompletionSummaryRepo,
+  listCfoPackageTimelineRepo,
   listCfoFinancialYearsRepo,
   listCfoPackagesRepo,
   markAllPackageItemsNeedModificationRepo,
@@ -149,6 +150,49 @@ export async function getCfoPackageService({ packageId, budgetAccess }) {
   );
 
   return loadPackageDetail(packageId);
+}
+
+export async function getCfoPackageTimelineService({ packageId, budgetAccess }) {
+  assertPermission(
+    budgetAccess,
+    CFO_PACKAGE_REVIEW_PERMISSIONS.VIEW,
+    "CFO_PACKAGE_VIEW_DENIED",
+    "You do not have permission to view CFO package reviews",
+  );
+
+  const packageRow = await findCfoPackageByIdRepo({ packageId });
+  assertPackageExists(packageRow);
+
+  const rows = await listCfoPackageTimelineRepo({ packageId });
+  return rows.map((row) => {
+    const context =
+      row.entity_type === "CATEGORY_BUDGET_PACKAGE_ITEM" && row.package_item_name
+        ? `Package item: ${row.package_item_name}`
+        : row.context_name
+          ? `Package: ${row.context_name}`
+          : null;
+    const note = row.note || null;
+
+    return {
+      id: row.id,
+      financial_year_id: row.financial_year_id,
+      entity_type: row.entity_type,
+      entity_id: row.entity_id,
+      package_item_id: row.package_item_id,
+      package_item_name: row.package_item_name,
+      action: row.action,
+      old_status: row.old_status,
+      new_status: row.new_status,
+      note,
+      description: [context, note].filter(Boolean).join("\n\n"),
+      old_values_json: row.old_values_json,
+      new_values_json: row.new_values_json,
+      created_by: row.created_by,
+      user_name: row.user_name,
+      user_code: row.user_code,
+      created_at: row.created_at,
+    };
+  });
 }
 
 export async function getCfoPackageItemDetailService({

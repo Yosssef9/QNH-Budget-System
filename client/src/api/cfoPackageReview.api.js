@@ -18,12 +18,39 @@ export async function getCfoPackage(packageId) {
   return response.data?.data;
 }
 
+export async function getCfoPackageDistribution({ packageId, packageItemId }) {
+  if (!packageId) return null;
+  const response = await api.get(
+    `/cfo-package-review/packages/${packageId}/distribution`,
+    {
+      params: packageItemId ? { packageItemId } : undefined,
+    },
+  );
+  return response.data?.data;
+}
+
+export async function getCfoFinancialYearDistribution(financialYearId) {
+  if (!financialYearId) return null;
+  const response = await api.get(
+    `/cfo-package-review/financial-years/${financialYearId}/distribution`,
+  );
+  return response.data?.data;
+}
+
 export async function getCfoPackageTimeline(packageId) {
   if (!packageId) return [];
   const response = await api.get(
     `/cfo-package-review/packages/${packageId}/timeline`,
   );
   return response.data?.data || [];
+}
+
+export async function getCfoPackageItemComparison({ packageId, packageItemId }) {
+  if (!packageId || !packageItemId) return null;
+  const response = await api.get(
+    `/cfo-package-review/packages/${packageId}/items/${packageItemId}/comparison`,
+  );
+  return response.data?.data;
 }
 
 export async function getCfoPackageItemDetail({ packageId, packageItemId }) {

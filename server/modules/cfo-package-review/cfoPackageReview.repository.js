@@ -689,3 +689,255 @@ export async function listCfoPackageTimelineRepo({ packageId }) {
 
   return result.recordset || [];
 }
+
+export async function getCfoPackageItemComparisonRepo({
+  packageId,
+  packageItemId,
+}) {
+  const pool = await poolPromise;
+  const result = await createRequest(pool)
+    .input("packageId", sql.BigInt, packageId)
+    .input("packageItemId", sql.BigInt, packageItemId)
+    .query(`
+      WITH itemContext AS (
+        SELECT
+          packageItem.id AS package_item_id,
+          packageItem.category_budget_package_id AS package_id,
+          packageItem.catalog_item_id,
+          packageItem.cfo_review_status,
+          packageItem.cfo_review_note,
+          packageItem.cfo_reviewed_at,
+          packageItem.cfo_reviewed_by,
+          COALESCE(packageItem.catalog_item_name_snapshot, catalogItem.name) AS package_item_name,
+          COALESCE(packageItem.catalog_item_code_snapshot, catalogItem.item_code) AS package_item_code,
+          pkg.financial_year_id,
+          fy.year AS financial_year,
+          pkg.status AS package_status,
+          pkg.return_reason AS package_return_reason,
+          pkg.returned_at AS package_returned_at,
+          category.name AS category_name,
+          category.category_code,
+          COALESCE(approved.approved_quantity, 0) AS approved_quantity,
+          COALESCE(packageTotals.estimated_total, 0) AS estimated_total
+        FROM dbo.BS_category_budget_package_items AS packageItem
+        INNER JOIN dbo.BS_category_budget_packages AS pkg
+          ON pkg.id = packageItem.category_budget_package_id
+        INNER JOIN dbo.BS_financial_years AS fy
+          ON fy.id = pkg.financial_year_id
+        INNER JOIN dbo.BS_budget_categories AS category
+          ON category.id = pkg.budget_category_id
+        INNER JOIN dbo.BS_budget_catalog_items AS catalogItem
+          ON catalogItem.id = packageItem.catalog_item_id
+        OUTER APPLY (
+          SELECT SUM(item.category_approved_quantity) AS approved_quantity
+          FROM dbo.BS_department_budgets AS departmentBudget
+          INNER JOIN dbo.BS_department_category_budgets AS departmentCategoryBudget
+            ON departmentCategoryBudget.department_budget_id = departmentBudget.id
+          INNER JOIN dbo.BS_category_budget_packages AS relatedPackage
+            ON relatedPackage.id = packageItem.category_budget_package_id
+           AND relatedPackage.financial_year_id = departmentBudget.financial_year_id
+           AND relatedPackage.budget_category_id = departmentCategoryBudget.budget_category_id
+          INNER JOIN dbo.BS_department_category_budget_items AS item
+            ON item.department_category_budget_id = departmentCategoryBudget.id
+           AND item.catalog_item_id = packageItem.catalog_item_id
+           AND item.is_active = 1
+           AND item.review_status = 'CATEGORY_REVIEW_COMPLETED'
+        ) AS approved
+        OUTER APPLY (
+          SELECT SUM(subItem.quantity * subItem.unit_price) AS estimated_total
+          FROM dbo.BS_category_budget_package_sub_items AS subItem
+          WHERE subItem.category_budget_package_item_id = packageItem.id
+            AND subItem.is_active = 1
+        ) AS packageTotals
+        WHERE packageItem.id = @packageItemId
+          AND packageItem.category_budget_package_id = @packageId
+          AND packageItem.is_active = 1
+      ),
+      relatedDepartmentItems AS (
+        SELECT item.id
+        FROM itemContext
+        INNER JOIN dbo.BS_department_budgets AS departmentBudget
+          ON departmentBudget.financial_year_id = itemContext.financial_year_id
+        INNER JOIN dbo.BS_department_category_budgets AS departmentCategoryBudget
+          ON departmentCategoryBudget.department_budget_id = departmentBudget.id
+        INNER JOIN dbo.BS_category_budget_packages AS pkg
+          ON pkg.id = itemContext.package_id
+         AND pkg.budget_category_id = departmentCategoryBudget.budget_category_id
+        INNER JOIN dbo.BS_department_category_budget_items AS item
+          ON item.department_category_budget_id = departmentCategoryBudget.id
+         AND item.catalog_item_id = itemContext.catalog_item_id
+         AND item.is_active = 1
+      ),
+      relatedSubItems AS (
+        SELECT
+          subItem.id,
+          subItem.name,
+          subItem.quantity,
+          subItem.unit_price,
+          subItem.quantity * subItem.unit_price AS total_amount
+        FROM dbo.BS_category_budget_package_sub_items AS subItem
+        WHERE subItem.category_budget_package_item_id = @packageItemId
+          AND subItem.is_active = 1
+      ),
+      lastReturn AS (
+        SELECT
+          MAX(history.created_at) AS marker_at
+        FROM dbo.BS_budget_workflow_history AS history
+        WHERE (
+            history.entity_type = 'CATEGORY_BUDGET_PACKAGE_ITEM'
+            AND history.entity_id = @packageItemId
+            AND history.action IN (
+              '${CFO_PACKAGE_REVIEW_WORKFLOW_ACTIONS.ITEM_NEEDS_MODIFICATION}'
+            )
+          )
+          OR (
+            history.entity_type = 'CATEGORY_BUDGET_PACKAGE'
+            AND history.entity_id = @packageId
+            AND history.action IN (
+              '${CFO_PACKAGE_REVIEW_WORKFLOW_ACTIONS.PACKAGE_RETURNED}',
+              '${CFO_PACKAGE_REVIEW_WORKFLOW_ACTIONS.ALL_ITEMS_NEED_MODIFICATION}'
+            )
+          )
+      ),
+      relevantHistory AS (
+        SELECT
+          history.id,
+          history.entity_type,
+          history.entity_id,
+          history.action,
+          history.note,
+          history.old_values_json,
+          history.new_values_json,
+          history.created_at,
+          CAST(packageSubItem.name AS NVARCHAR(300)) AS context_name
+        FROM dbo.BS_budget_workflow_history AS history
+        INNER JOIN dbo.BS_category_budget_package_sub_items AS packageSubItem
+          ON packageSubItem.id = history.entity_id
+        CROSS JOIN lastReturn
+        WHERE history.entity_type = 'CATEGORY_PACKAGE_SUB_ITEM'
+          AND packageSubItem.category_budget_package_item_id = @packageItemId
+          AND (
+            lastReturn.marker_at IS NULL
+            OR history.created_at > lastReturn.marker_at
+          )
+
+        UNION ALL
+
+        SELECT
+          history.id,
+          history.entity_type,
+          history.entity_id,
+          history.action,
+          history.note,
+          history.old_values_json,
+          history.new_values_json,
+          history.created_at,
+          CAST(department.name AS NVARCHAR(300)) AS context_name
+        FROM dbo.BS_budget_workflow_history AS history
+        INNER JOIN relatedDepartmentItems
+          ON relatedDepartmentItems.id = history.entity_id
+        INNER JOIN dbo.BS_department_category_budget_items AS departmentItem
+          ON departmentItem.id = relatedDepartmentItems.id
+        INNER JOIN dbo.BS_department_category_budgets AS departmentCategoryBudget
+          ON departmentCategoryBudget.id = departmentItem.department_category_budget_id
+        INNER JOIN dbo.BS_department_budgets AS departmentBudget
+          ON departmentBudget.id = departmentCategoryBudget.department_budget_id
+        INNER JOIN dbo.BS_departments AS department
+          ON department.id = departmentBudget.department_id
+        CROSS JOIN lastReturn
+        WHERE history.entity_type = 'DEPARTMENT_CATEGORY_BUDGET_ITEM'
+          AND (
+            lastReturn.marker_at IS NULL
+            OR history.created_at > lastReturn.marker_at
+          )
+      )
+      SELECT
+        itemContext.package_id,
+        itemContext.package_item_id,
+        itemContext.package_item_name,
+        itemContext.package_item_code,
+        itemContext.financial_year_id,
+        itemContext.financial_year,
+        itemContext.package_status,
+        itemContext.package_return_reason,
+        itemContext.package_returned_at,
+        itemContext.category_name AS package_category_name,
+        itemContext.category_code AS package_category_code,
+        itemContext.approved_quantity,
+        itemContext.estimated_total,
+        itemContext.cfo_review_status,
+        itemContext.cfo_review_note,
+        itemContext.cfo_reviewed_at,
+        reviewedUser.USER_NAME AS cfo_reviewed_by_name,
+        CAST(NULL AS BIGINT) AS package_sub_item_id,
+        CAST(NULL AS NVARCHAR(300)) AS package_sub_item_name,
+        CAST(NULL AS DECIMAL(18,4)) AS quantity,
+        CAST(NULL AS DECIMAL(18,6)) AS unit_price,
+        CAST(NULL AS DECIMAL(38,10)) AS total_amount,
+        history.id AS history_id,
+        history.entity_type,
+        history.entity_id,
+        history.action,
+        history.note,
+        history.old_values_json,
+        history.new_values_json,
+        history.context_name,
+        history.created_at AS history_created_at,
+        lastReturn.marker_at AS comparison_marker_at
+      FROM itemContext
+      CROSS JOIN lastReturn
+      LEFT JOIN relevantHistory AS history
+        ON 1 = 1
+      LEFT JOIN dbo.users AS reviewedUser
+        ON reviewedUser.USER_ID = itemContext.cfo_reviewed_by
+
+      UNION ALL
+
+      SELECT
+        itemContext.package_id,
+        itemContext.package_item_id,
+        itemContext.package_item_name,
+        itemContext.package_item_code,
+        itemContext.financial_year_id,
+        itemContext.financial_year,
+        itemContext.package_status,
+        itemContext.package_return_reason,
+        itemContext.package_returned_at,
+        itemContext.category_name AS package_category_name,
+        itemContext.category_code AS package_category_code,
+        itemContext.approved_quantity,
+        itemContext.estimated_total,
+        itemContext.cfo_review_status,
+        itemContext.cfo_review_note,
+        itemContext.cfo_reviewed_at,
+        reviewedUser.USER_NAME AS cfo_reviewed_by_name,
+        subItem.id AS package_sub_item_id,
+        subItem.name AS package_sub_item_name,
+        subItem.quantity,
+        subItem.unit_price,
+        subItem.total_amount,
+        CAST(NULL AS BIGINT) AS history_id,
+        CAST(NULL AS VARCHAR(80)) AS entity_type,
+        CAST(NULL AS BIGINT) AS entity_id,
+        CAST(NULL AS VARCHAR(120)) AS action,
+        CAST(NULL AS NVARCHAR(MAX)) AS note,
+        CAST(NULL AS NVARCHAR(MAX)) AS old_values_json,
+        CAST(NULL AS NVARCHAR(MAX)) AS new_values_json,
+        CAST(NULL AS NVARCHAR(300)) AS context_name,
+        CAST(NULL AS DATETIME2(3)) AS history_created_at,
+        lastReturn.marker_at AS comparison_marker_at
+      FROM itemContext
+      CROSS JOIN lastReturn
+      INNER JOIN relatedSubItems AS subItem
+        ON 1 = 1
+      LEFT JOIN dbo.users AS reviewedUser
+        ON reviewedUser.USER_ID = itemContext.cfo_reviewed_by
+
+      ORDER BY
+        package_sub_item_name,
+        history_created_at,
+        history_id;
+    `);
+
+  return result.recordset || [];
+}

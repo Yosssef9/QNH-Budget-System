@@ -3,17 +3,20 @@ import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import toast from "react-hot-toast";
 import {
+  CalendarDays,
   CheckCircle2,
   CircleDollarSign,
   Download,
   Eye,
   FileText,
+  History,
   MessageSquareWarning,
   Paperclip,
   X,
 } from "lucide-react";
 import CurrencyText from "../CurrencyText";
 import CfoReviewStatusBadge from "./CfoReviewStatusBadge";
+import CfoPackageItemComparisonDrawer from "./CfoPackageItemComparisonDrawer";
 import CollapsiblePanelToggle from "../layout/CollapsiblePanelToggle";
 import AnimatedDrawer from "../budgets/shared/drawers/AnimatedDrawer";
 import PackageSubItemPriceIntelligenceDrawer from "../budgets/price-intelligence/PackageSubItemPriceIntelligenceDrawer";
@@ -301,6 +304,7 @@ function CfoSubItemDrawer({ subItem, departments = [], open, onClose }) {
 }
 
 export default function CfoPackageItemsView({
+  packageId,
   items,
   selectedItemId,
   itemDetail,
@@ -309,12 +313,14 @@ export default function CfoPackageItemsView({
   onSelectItem,
   onAccept,
   onNeedsModification,
+  onViewDistribution,
 }) {
   const selectedItem = itemDetail?.package_item;
   const [isItemListOpen, setIsItemListOpen] = useState(true);
   const [itemFilter, setItemFilter] = useState("ALL");
   const [selectedSubItem, setSelectedSubItem] = useState(null);
   const [priceContext, setPriceContext] = useState(null);
+  const [comparisonItem, setComparisonItem] = useState(null);
   const subItems = itemDetail?.sub_items || [];
   const counts = items.reduce(
     (result, item) => {
@@ -548,8 +554,24 @@ export default function CfoPackageItemsView({
                 </div>
               )}
 
-              {subItems.length > 0 ? (
-                <div className="mt-3">
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => onViewDistribution?.(selectedItem)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100"
+                >
+                  <CalendarDays size={16} />
+                  View distribution
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setComparisonItem(selectedItem)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  <History size={16} />
+                  View changes
+                </button>
+                {subItems.length > 0 ? (
                   <button
                     type="button"
                     onClick={() =>
@@ -563,8 +585,8 @@ export default function CfoPackageItemsView({
                     <CircleDollarSign size={16} />
                     Item price context
                   </button>
-                </div>
-              ) : null}
+                ) : null}
+              </div>
             </div>
 
             <div className="grid gap-4 p-5 xl:grid-cols-2">
@@ -699,6 +721,12 @@ export default function CfoPackageItemsView({
           }))
         }
         onClose={() => setPriceContext(null)}
+      />
+      <CfoPackageItemComparisonDrawer
+        open={Boolean(comparisonItem)}
+        onClose={() => setComparisonItem(null)}
+        packageId={packageId}
+        packageItem={comparisonItem}
       />
     </div>
   );

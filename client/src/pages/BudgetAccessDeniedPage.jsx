@@ -31,7 +31,7 @@ export default function BudgetAccessDeniedPage() {
       A full navigation reruns the authentication bootstrap and requests
       the latest Budget System workspace assignments from /auth/me.
     */
-    window.location.assign("/");
+  window.location.assign(import.meta.env.BASE_URL);
   }
 
   function returnToHospitalPortal() {

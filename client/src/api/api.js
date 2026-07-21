@@ -2,13 +2,8 @@ import axios from "axios";
 import { getToken } from "../helpers/getToken";
 import { getSelectedBudgetWorkspaceId } from "./workspaceHeader";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-console.log("Axios baseURL:", API_BASE_URL);
-
-if (!API_BASE_URL) {
-  console.error("❌ VITE_API_BASE_URL is missing. Check .env and restart Vite");
-}
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL?.trim() || "/api";
 
 const api = axios.create({
   baseURL: API_BASE_URL,

@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import toast from "react-hot-toast";
 import {
   CheckCircle2,
+  CalendarDays,
   ClipboardCheck,
   Flag,
   Building2,
@@ -19,7 +20,9 @@ import {
   completeCfoPackageReview,
   finalizeAnnualCfoPackageReview,
   getCfoFinancialYears,
+  getCfoFinancialYearDistribution,
   getCfoPackage,
+  getCfoPackageDistribution,
   getCfoPackageItemDetail,
   getCfoPackageTimeline,
   getCfoPackages,
@@ -37,6 +40,8 @@ import CfoPackageItemsView from "../../components/cfo-package-review/CfoPackageI
 import CfoPackageQueue from "../../components/cfo-package-review/CfoPackageQueue";
 import CfoReviewStatusBadge from "../../components/cfo-package-review/CfoReviewStatusBadge";
 import CfoTotalPackageOverview from "../../components/cfo-package-review/CfoTotalPackageOverview";
+import PackageDistributionDrawer from "../../components/category-packages/PackageDistributionDrawer";
+import CollapsibleSection from "../../components/CollapsibleSection";
 import { useAuth } from "../../context/AuthContext";
 import CollapsiblePanelToggle from "../../components/layout/CollapsiblePanelToggle";
 
@@ -77,13 +82,19 @@ function DepartmentCoveragePanel({
     coverage.total > 0 ? (coverage.submitted / coverage.total) * 100 : 0;
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-white via-blue-50/40 to-slate-50 shadow-sm">
+    <CollapsibleSection
+      title="Department-category coverage"
+      description={`FY ${financialYear || "-"} - Visible category packages`}
+      icon={<Building2 className="h-5 w-5" />}
+      defaultOpen={false}
+      openText="Hide coverage"
+      closedText="Show coverage"
+      className="rounded-2xl border-blue-100"
+      headerClassName="bg-gradient-to-br from-white via-blue-50/40 to-slate-50"
+    >
       <div className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white">
-              <Building2 className="h-4 w-4" />
-            </span>
             <div>
               <p className="text-sm font-black text-slate-950">
                 Department-category coverage
@@ -164,7 +175,7 @@ function DepartmentCoveragePanel({
           </div>
         ) : null}
       </div>
-    </section>
+    </CollapsibleSection>
   );
 }
 
@@ -310,6 +321,7 @@ export default function CfoPackageReviewPage() {
   const [isPackageQueueOpen, setIsPackageQueueOpen] = useState(true);
   const [isPackageTimelineOpen, setIsPackageTimelineOpen] = useState(false);
   const [selectedFinancialYearId, setSelectedFinancialYearId] = useState(null);
+  const [distributionContext, setDistributionContext] = useState(null);
 
   const financialYearsQuery = useQuery({
     queryKey: ["cfo-package-review", "financial-years"],
@@ -494,6 +506,25 @@ export default function CfoPackageReviewPage() {
         effectiveSelectedPackageItemId &&
         !totalPackageSelected,
     ),
+  });
+
+  const distributionQuery = useQuery({
+    queryKey: [
+      "cfo-package-review",
+      "distribution",
+      distributionContext?.type || null,
+      distributionContext?.financialYearId || null,
+      distributionContext?.packageId || null,
+      distributionContext?.packageItemId || null,
+    ],
+    queryFn: () =>
+      distributionContext?.type === "FINANCIAL_YEAR"
+        ? getCfoFinancialYearDistribution(distributionContext.financialYearId)
+        : getCfoPackageDistribution({
+            packageId: distributionContext.packageId,
+            packageItemId: distributionContext.packageItemId || null,
+          }),
+    enabled: Boolean(distributionContext),
   });
 
   function invalidatePackageQueries() {
@@ -756,6 +787,7 @@ export default function CfoPackageReviewPage() {
         setSelectedPackageId(null);
         setSelectedPackageItemId(null);
         setIsPackageTimelineOpen(false);
+        setDistributionContext(null);
         setPerspective("ITEMS");
       }}
     />
@@ -775,6 +807,23 @@ export default function CfoPackageReviewPage() {
                     : "Active CFO review year"}
                 </div>
               ) : null}
+              <button
+                type="button"
+                disabled={!activeFinancialYearId}
+                onClick={() =>
+                  setDistributionContext({
+                    type: "FINANCIAL_YEAR",
+                    financialYearId: activeFinancialYearId,
+                    title: `FY ${selectedFinancialYear?.year || ""} Distribution`,
+                    subtitle:
+                      "All submitted category packages across IT, Biomedical, and General",
+                  })
+                }
+                className="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <CalendarDays size={16} />
+                Year Distribution
+              </button>
               <button
                 type="button"
                 disabled={!canFinalizeAnnualReview}
@@ -850,6 +899,7 @@ export default function CfoPackageReviewPage() {
                 setSelectedPackageId(packageId);
                 setSelectedPackageItemId(null);
                 setIsPackageTimelineOpen(false);
+                setDistributionContext(null);
               }}
             />
           </div>
@@ -941,6 +991,24 @@ export default function CfoPackageReviewPage() {
                         </button>
                       </div>
                     ) : null}
+
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDistributionContext({
+                            type: "CATEGORY_PACKAGE",
+                            packageId: selectedPackage.id,
+                            title: `${selectedPackage.category_name} Package Distribution`,
+                            subtitle: `FY ${selectedPackage.financial_year} approved package value across the year`,
+                          })
+                        }
+                        className="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100"
+                      >
+                        <CalendarDays size={16} />
+                        Package Distribution
+                      </button>
+                    </div>
 
                     {canDecide && !selectedYearReadOnly && packageInReview && (
                       <div className="flex flex-wrap gap-2">
@@ -1065,6 +1133,7 @@ export default function CfoPackageReviewPage() {
                   >
                     {perspective === "ITEMS" ? (
                       <CfoPackageItemsView
+                        packageId={selectedPackage.id}
                         items={packageItems}
                         selectedItemId={effectiveSelectedPackageItemId}
                         itemDetail={itemDetailQuery.data}
@@ -1076,6 +1145,15 @@ export default function CfoPackageReviewPage() {
                         onAccept={(item) => setModal({ type: "ACCEPT", item })}
                         onNeedsModification={(item) =>
                           setModal({ type: "NEEDS_MODIFICATION", item })
+                        }
+                        onViewDistribution={(item) =>
+                          setDistributionContext({
+                            type: "PACKAGE_ITEM",
+                            packageId: selectedPackage.id,
+                            packageItemId: item.id,
+                            title: `${item.catalog_item_name} Distribution`,
+                            subtitle: `${selectedPackage.category_name} package - FY ${selectedPackage.financial_year}`,
+                          })
                         }
                       />
                     ) : (
@@ -1145,6 +1223,16 @@ export default function CfoPackageReviewPage() {
         loading={modalLoading}
         onCancel={() => setModal(null)}
         onConfirm={handleModalConfirm}
+      />
+
+      <PackageDistributionDrawer
+        open={Boolean(distributionContext)}
+        onClose={() => setDistributionContext(null)}
+        title={distributionContext?.title}
+        subtitle={distributionContext?.subtitle}
+        data={distributionQuery.data}
+        loading={distributionQuery.isLoading}
+        error={distributionQuery.error}
       />
     </div>
   );

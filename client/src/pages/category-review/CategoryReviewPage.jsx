@@ -32,6 +32,7 @@ import {
 import ConfirmModal from "../../components/ConfirmModal";
 import Input from "../../components/Input";
 import EnterpriseSearch from "../../components/EnterpriseSearch";
+import CollapsibleSection from "../../components/CollapsibleSection";
 import CategoryPackageWorkbench from "../../components/category-packages/CategoryPackageWorkbench";
 import CollapsiblePanelToggle from "../../components/layout/CollapsiblePanelToggle";
 import {
@@ -1526,13 +1527,19 @@ const reopenWindowMutation = useMutation({
   ) : null}
 </header>
 
-        <section className="overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-white via-blue-50/40 to-slate-50 shadow-sm">
+        <CollapsibleSection
+          title="Department coverage"
+          description={`FY ${financialYear} - ${activeCategoryName}`}
+          icon={<Building2 className="h-5 w-5" />}
+          defaultOpen={false}
+          openText="Hide coverage"
+          closedText="Show coverage"
+          className="rounded-2xl border-blue-100"
+          headerClassName="bg-gradient-to-br from-white via-blue-50/40 to-slate-50"
+        >
           <div className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white">
-                  <Building2 className="h-4 w-4" />
-                </span>
                 <div>
                   <p className="text-sm font-black text-slate-950">
                     Department coverage
@@ -1595,7 +1602,7 @@ const reopenWindowMutation = useMutation({
             </div>
             <ProgressBar value={departmentCoverageProgress} className="mt-2" />
           </div>
-        </section>
+        </CollapsibleSection>
 
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="grid divide-y divide-slate-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">

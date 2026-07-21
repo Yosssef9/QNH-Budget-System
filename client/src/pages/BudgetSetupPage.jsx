@@ -210,8 +210,15 @@ export default function BudgetSetupPage() {
     (category) => String(category.id) === String(activeCategoryId),
   );
 
+  function closeSubItemsPanel() {
+    setSelectedSubItemCatalogItem(null);
+    setSubItemDialog(null);
+    subItemsPagination.resetPage();
+  }
+
   function handleSelectCategory(categoryId) {
     setSelectedCategoryId(categoryId ? String(categoryId) : "");
+    closeSubItemsPanel();
     catalogItemsPagination.resetPage();
   }
 
@@ -1600,7 +1607,7 @@ export default function BudgetSetupPage() {
                     </p>
                   </div>
 
-                  <div className="shrink-0 self-start">
+                  <div className="flex shrink-0 flex-wrap items-center gap-2 self-start">
                     <button
                       type="button"
                       onClick={openCreateSubItem}
@@ -1608,6 +1615,15 @@ export default function BudgetSetupPage() {
                     >
                       <Plus size={16} />
                       Add Reusable Model
+                    </button>
+                    <button
+                      type="button"
+                      onClick={closeSubItemsPanel}
+                      className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                      aria-label="Close reusable models table"
+                    >
+                      <X size={16} />
+                      Close
                     </button>
                   </div>
                 </div>

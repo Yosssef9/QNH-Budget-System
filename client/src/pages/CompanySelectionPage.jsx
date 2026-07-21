@@ -1,136 +1,6 @@
-// import { ArrowRight } from "lucide-react";
-
-// export default function CompanySelectionPage() {
-//   const handleSelectCompany = (company) => {
-//     localStorage.setItem("selectedCompany", JSON.stringify(company));
-//     window.location.reload();
-//   };
-
-//   const companies = [
-//     {
-//       id: "qnh",
-//       name: "Qassim National Hospital",
-//       subtitle: "Hospital Budget Management System",
-//       logo: "/companies/qnh-logo.png",
-//     },
-//     {
-//       id: "qh",
-//       name: "Al-Qassim Medical Services Company",
-//       subtitle: "Corporate Budget Management System",
-//       logo: "/companies/qc-logo-removebg-preview.png",
-//     },
-//   ];
-
-//   return (
-//     <div className="min-h-screen bg-slate-50">
-//       <div className="mx-auto max-w-7xl px-6 py-12">
-//         {/* Header */}
-//         <div className="mb-14 text-center">
-//           <img
-//             src="/images/logo.png"
-//             alt="QNH"
-//             className="mx-auto h-24 w-auto"
-//           />
-
-//           <h1 className="mt-6 text-4xl font-semibold tracking-tight text-slate-800">
-//             Budget Management Platform
-//           </h1>
-
-//           <p className="mt-3 text-base text-slate-500">
-//             Select a company to continue
-//           </p>
-//         </div>
-
-//         {/* Companies */}
-//         <div className="grid gap-8 lg:grid-cols-2">
-//           {companies.map((company) => (
-//             <button
-//               key={company.id}
-//               onClick={() => handleSelectCompany(company)}
-//               className="
-//                 group
-//                 overflow-hidden
-//                 rounded-3xl
-//                 border
-//                 border-slate-200
-//                 bg-white
-//                 text-left
-//                 shadow-sm
-//                 transition-all
-//                 duration-300
-//                 hover:-translate-y-0.5
-//                 hover:border-blue-200
-//                 hover:shadow-lg
-//               "
-//             >
-//               {/* Logo Area */}
-//               <div className="flex h-72 items-center justify-center bg-slate-100 p-10">
-//                 <img
-//                   src={company.logo}
-//                   alt={company.name}
-//                   className="
-//                     max-h-52
-//                     w-auto
-//                     object-contain
-//                     transition-transform
-//                     duration-300
-//                     group-hover:scale-[1.02]
-//                   "
-//                 />
-//               </div>
-
-//               {/* Content */}
-//               <div className="p-7">
-//                 <h2 className="text-2xl font-semibold text-slate-800">
-//                   {company.name}
-//                 </h2>
-
-//                 <p className="mt-2 text-sm text-slate-500">
-//                   {company.subtitle}
-//                 </p>
-
-//                 <div className="mt-6 flex items-center gap-2 text-sm font-medium text-blue-600">
-//                   Enter Workspace
-//                   <ArrowRight
-//                     size={16}
-//                     className="transition-transform duration-300 group-hover:translate-x-1"
-//                   />
-//                 </div>
-//               </div>
-//             </button>
-//           ))}
-//         </div>
-
-//         {/* Footer */}
-//         {/* Footer */}
-//         <div className="mt-16 border-t border-slate-200 pt-8">
-//           <div className="flex flex-col items-center justify-between gap-3 text-center md:flex-row md:text-left">
-//             <div>
-//               <p className="text-sm font-medium text-slate-600">
-//                 Budget Management Platform
-//               </p>
-
-//               <p className="mt-1 text-xs text-slate-400">
-//                 Multi-Company Budget Management System
-//               </p>
-//             </div>
-
-//             <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 shadow-sm">
-//               <div className="h-2 w-2 rounded-full bg-emerald-500" />
-
-//               <span className="text-xs font-medium text-slate-500">
-//                 Developed by Information Technology Department
-//               </span>
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
 
 import { ArrowRight, Building2, ShieldCheck } from "lucide-react";
-
+const appBaseUrl = import.meta.env.BASE_URL;
 export default function CompanySelectionPage() {
   const handleSelectCompany = (company) => {
     localStorage.setItem("selectedCompany", JSON.stringify(company));
@@ -142,14 +12,14 @@ export default function CompanySelectionPage() {
       id: "qnh",
       name: "Qassim National Hospital",
       subtitle: "Hospital Budget Management System",
-      logo: "/companies/qnh-logo.png",
+     logo: `${appBaseUrl}companies/qnh-logo.png`,
       badge: "Healthcare",
     },
     {
       id: "qh",
       name: "Al-Qassim Medical Services Company",
       subtitle: "Corporate Budget Management System",
-      logo: "/companies/qc-logo-removebg-preview.png",
+     logo: `${appBaseUrl}companies/qc-logo-removebg-preview.png`,
       badge: "Corporate",
     },
   ];
@@ -164,7 +34,7 @@ export default function CompanySelectionPage() {
         {/* Header */}
         <div className="mx-auto max-w-3xl text-center">
           <img
-            src="/images/logo.png"
+            src={`${appBaseUrl}images/logo.png`}
             alt="QNH"
             className="mx-auto h-24 w-auto"
           />

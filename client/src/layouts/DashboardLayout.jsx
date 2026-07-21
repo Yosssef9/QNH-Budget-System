@@ -26,7 +26,7 @@ import { PERMISSION_CODES } from "@qnh/permissions";
 import WorkspaceSelectionDialog from "../components/WorkspaceSelectionDialog";
 import { formatWorkspaceSummary } from "../helpers/workspaceLabels";
 import toast from "react-hot-toast";
-
+const appBaseUrl = import.meta.env.BASE_URL;
 function getSidebarSections(budgetAccess) {
   const canViewDepartmentBudgets = can(
     budgetAccess,
@@ -360,13 +360,13 @@ export default function DashboardLayout() {
         <div className="flex h-[90px] items-center justify-center border-b border-enterprise-border px-4">
           {sidebarOpen ? (
             <img
-              src="/images/fullLogo.png"
+             src={`${appBaseUrl}images/fullLogo.png`}
               alt="Qassim National Hospital"
               className="h-auto max-h-[54px] w-full object-contain transition-all duration-300"
             />
           ) : (
             <img
-              src="/images/logo.png"
+             src={`${appBaseUrl}images/logo.png`}
               alt="QNH Logo"
               className="h-14 w-14 object-contain transition-all duration-300"
             />

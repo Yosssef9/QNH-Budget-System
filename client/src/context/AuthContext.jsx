@@ -123,7 +123,9 @@ export function AuthProvider({ children }) {
     // localStorage.removeItem("token");
     // sessionStorage.removeItem("token");
     // Configure VITE_AUTH_LOGOUT_URL with the external auth/portal logout URL when available.
-    const logoutUrl = import.meta.env.VITE_AUTH_LOGOUT_URL || "/login-required";
+   const logoutUrl =
+  import.meta.env.VITE_AUTH_LOGOUT_URL ||
+  `${import.meta.env.BASE_URL}login-required`;
     window.location.href = logoutUrl;
   }
 

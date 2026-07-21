@@ -9,6 +9,10 @@ import { PERMISSION_CODES } from "@qnh/permissions";
 import DashboardLayout from "../layouts/DashboardLayout";
 
 import LoadingSpinner from "../components/LoadingSpinner";
+const routerBasename =
+  import.meta.env.BASE_URL === "/"
+    ? "/"
+    : import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const router = createBrowserRouter([
   {
@@ -430,7 +434,11 @@ const router = createBrowserRouter([
 
   // errorElement: <ErrorPage />,
 },
-]);
+ ],
+ {
+    basename: routerBasename,
+  },
+);
 
 export default function AppRouter() {
   return <RouterProvider router={router} />;

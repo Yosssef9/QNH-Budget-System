@@ -42,8 +42,28 @@ app.use(helmet());
 app.use(compression());
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
-  }),
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:4000",
+      "http://10.0.110.28:4000",
+    ],
+
+    methods: [
+      "GET",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS",
+    ],
+
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "x-budget-user-role-id",
+      "x-budget-workspace-id",
+    ],
+  })
 );
 app.use(express.json());
 

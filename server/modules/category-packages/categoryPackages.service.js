@@ -39,10 +39,12 @@ import {
   findPackageContextBySubItemRepo,
   listAllocationsForPackageItemRepo,
   listDepartmentPackageViewRowsRepo,
+  listPackageDistributionRowsRepo,
   listPackageItemDetailRowsRepo,
   listPackageItemsRepo,
   listPackageSubItemAttachmentsRepo,
   listPackageSubItemsForDepartmentItemRepo,
+  listCurrentAllocationsForDepartmentItemRepo,
   markPackageSubmittedToCfoRepo,
   recalculatePackageSubItemQuantitiesRepo,
  
@@ -227,6 +229,272 @@ function assertAttachmentFile(file) {
       "ATTACHMENT_MIME_TYPE_BLOCKED",
     );
   }
+}
+
+const MONTH_LABELS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+const QUARTER_LABELS = ["Q1", "Q2", "Q3", "Q4"];
+
+function getPeriodDefinitions() {
+  return {
+    monthly: MONTH_LABELS.map((label, index) => ({
+      key: String(index + 1),
+      label,
+      periodNo: index + 1,
+    })),
+    quarterly: QUARTER_LABELS.map((label, index) => ({
+      key: String(index + 1),
+      label,
+      periodNo: index + 1,
+    })),
+    annual: [{ key: "1", label: "Annual", periodNo: 1 }],
+  };
+}
+
+function getPeriodKeys(row) {
+  const type = String(row.period_type || "").toUpperCase();
+  const periodNo = Number(row.period_no || 1);
+
+  if (type === "MONTH") {
+    return {
+      monthly: String(Math.min(12, Math.max(1, periodNo))),
+      quarterly: String(Math.ceil(Math.min(12, Math.max(1, periodNo)) / 3)),
+      annual: "1",
+    };
+  }
+
+  if (type === "QUARTER") {
+    const quarter = Math.min(4, Math.max(1, periodNo));
+    return {
+      monthly: String((quarter - 1) * 3 + 1),
+      quarterly: String(quarter),
+      annual: "1",
+    };
+  }
+
+  return {
+    monthly: "1",
+    quarterly: "1",
+    annual: "1",
+  };
+}
+
+function createDistributionGroup({ key, label, type, meta = {} }) {
+  return {
+    key,
+    label,
+    type,
+    meta,
+    requested_quantity: 0,
+    approved_quantity: 0,
+    allocated_quantity: 0,
+    estimated_total: 0,
+    periods: {
+      monthly: Object.fromEntries(MONTH_LABELS.map((_, index) => [String(index + 1), 0])),
+      quarterly: Object.fromEntries(QUARTER_LABELS.map((_, index) => [String(index + 1), 0])),
+      annual: { 1: 0 },
+    },
+  };
+}
+
+function addDistributionValue(group, periodKeys, amount) {
+  group.periods.monthly[periodKeys.monthly] += amount;
+  group.periods.quarterly[periodKeys.quarterly] += amount;
+  group.periods.annual[periodKeys.annual] += amount;
+  group.estimated_total += amount;
+}
+
+function distributeRowAmount(row) {
+  const requestedQuantity = Number(row.requested_quantity || 0);
+  const distributionQuantity = Number(
+    row.distribution_quantity ?? row.requested_quantity ?? 0,
+  );
+  const allocatedQuantity = Number(row.allocated_quantity || 0);
+  const unitPrice = Number(row.unit_price || 0);
+
+  if (requestedQuantity <= 0 || allocatedQuantity <= 0 || unitPrice <= 0) {
+    return 0;
+  }
+
+  return (distributionQuantity / requestedQuantity) * allocatedQuantity * unitPrice;
+}
+
+export function buildPackageDistributionAnalysis({ rows, scope }) {
+  const categoryMap = new Map();
+  const itemMap = new Map();
+  const departmentMap = new Map();
+  const modelMap = new Map();
+  const distributionSeen = new Set();
+  const allocationSeen = new Set();
+  const totals = createDistributionGroup({
+    key: "TOTAL",
+    label: scope?.label || "Distribution total",
+    type: "TOTAL",
+    meta: {},
+  });
+
+  for (const row of rows || []) {
+    const categoryKey = `category:${row.budget_category_id}`;
+    const itemKey = `item:${row.package_item_id}`;
+    const departmentKey = `department:${row.department_id}`;
+    const modelKey = row.package_sub_item_id
+      ? `model:${row.package_sub_item_id}`
+      : `model:unallocated:${row.package_item_id}`;
+
+    if (!categoryMap.has(categoryKey)) {
+      categoryMap.set(
+        categoryKey,
+        createDistributionGroup({
+          key: categoryKey,
+          label: row.category_name || "Budget category",
+          type: "CATEGORY",
+          meta: {
+            categoryId: row.budget_category_id,
+            categoryCode: row.category_code,
+            financialYearId: row.financial_year_id,
+            financialYear: row.financial_year,
+          },
+        }),
+      );
+    }
+
+    if (!itemMap.has(itemKey)) {
+      itemMap.set(
+        itemKey,
+        createDistributionGroup({
+          key: itemKey,
+          label: row.catalog_item_name || "Package item",
+          type: "ITEM",
+          meta: {
+            packageId: row.package_id,
+            packageItemId: row.package_item_id,
+            catalogItemId: row.catalog_item_id,
+            catalogItemCode: row.catalog_item_code,
+            categoryName: row.category_name,
+            categoryCode: row.category_code,
+          },
+        }),
+      );
+    }
+
+    if (!departmentMap.has(departmentKey)) {
+      departmentMap.set(
+        departmentKey,
+        createDistributionGroup({
+          key: departmentKey,
+          label: row.department_name || "Department",
+          type: "DEPARTMENT",
+          meta: {
+            departmentId: row.department_id,
+            departmentCode: row.department_code,
+          },
+        }),
+      );
+    }
+
+    if (!modelMap.has(modelKey)) {
+      modelMap.set(
+        modelKey,
+        createDistributionGroup({
+          key: modelKey,
+          label: row.package_sub_item_name || "Unallocated package model",
+          type: "MODEL",
+          meta: {
+            packageId: row.package_id,
+            packageItemId: row.package_item_id,
+            packageSubItemId: row.package_sub_item_id,
+            categoryName: row.category_name,
+            categoryCode: row.category_code,
+            itemName: row.catalog_item_name,
+            unitPrice: Number(row.unit_price || 0),
+            unitOfMeasureName: row.unit_of_measure_name,
+            unitOfMeasureCode: row.unit_of_measure_code,
+          },
+        }),
+      );
+    }
+
+    const distributionKey = [
+      row.department_item_id,
+      row.distribution_id || "default",
+    ].join(":");
+    if (!distributionSeen.has(distributionKey)) {
+      distributionSeen.add(distributionKey);
+      const distributionQuantity = Number(
+        row.distribution_quantity ?? row.requested_quantity ?? 0,
+      );
+      const requestedQuantity = Number(row.requested_quantity || 0);
+      const approvedQuantity = Number(row.category_approved_quantity || 0);
+      const approvedPeriodQuantity =
+        requestedQuantity > 0
+          ? (distributionQuantity / requestedQuantity) * approvedQuantity
+          : 0;
+
+      totals.requested_quantity += distributionQuantity;
+      totals.approved_quantity += approvedPeriodQuantity;
+      categoryMap.get(categoryKey).requested_quantity += distributionQuantity;
+      categoryMap.get(categoryKey).approved_quantity += approvedPeriodQuantity;
+      itemMap.get(itemKey).requested_quantity += distributionQuantity;
+      itemMap.get(itemKey).approved_quantity += approvedPeriodQuantity;
+      departmentMap.get(departmentKey).requested_quantity += distributionQuantity;
+      departmentMap.get(departmentKey).approved_quantity += approvedPeriodQuantity;
+    }
+
+    const allocationKey = [
+      row.department_item_id,
+      row.package_sub_item_id || "unallocated",
+      row.allocation_id || "none",
+    ].join(":");
+    if (!allocationSeen.has(allocationKey)) {
+      allocationSeen.add(allocationKey);
+      const allocatedQuantity = Number(row.allocated_quantity || 0);
+
+      totals.allocated_quantity += allocatedQuantity;
+      categoryMap.get(categoryKey).allocated_quantity += allocatedQuantity;
+      itemMap.get(itemKey).allocated_quantity += allocatedQuantity;
+      departmentMap.get(departmentKey).allocated_quantity += allocatedQuantity;
+      modelMap.get(modelKey).allocated_quantity += allocatedQuantity;
+    }
+
+    const amount = distributeRowAmount(row);
+    if (amount <= 0) continue;
+
+    const periodKeys = getPeriodKeys(row);
+    addDistributionValue(totals, periodKeys, amount);
+    addDistributionValue(categoryMap.get(categoryKey), periodKeys, amount);
+    addDistributionValue(itemMap.get(itemKey), periodKeys, amount);
+    addDistributionValue(departmentMap.get(departmentKey), periodKeys, amount);
+    addDistributionValue(modelMap.get(modelKey), periodKeys, amount);
+  }
+
+  const sortByLabel = (left, right) =>
+    String(left.label || "").localeCompare(String(right.label || ""));
+
+  return {
+    scope,
+    periodDefinitions: getPeriodDefinitions(),
+    totals,
+    rows: {
+      total: [totals],
+      byCategory: Array.from(categoryMap.values()).sort(sortByLabel),
+      byItem: Array.from(itemMap.values()).sort(sortByLabel),
+      byDepartment: Array.from(departmentMap.values()).sort(sortByLabel),
+      byModel: Array.from(modelMap.values()).sort(sortByLabel),
+    },
+  };
 }
 
 function safeDownloadName(fileName) {
@@ -496,6 +764,61 @@ export async function getCategoryPackageDepartmentsService({ budgetAccess }) {
 
   return mapDepartmentPackageView(rows);
 }
+
+export async function getCategoryPackageDistributionService({
+  packageItemId = null,
+  budgetAccess,
+}) {
+  assertPermission(
+    budgetAccess,
+    CATEGORY_PACKAGE_PERMISSIONS.VIEW,
+    "CATEGORY_PACKAGE_VIEW_DENIED",
+    "You do not have permission to view category packages",
+  );
+
+  const budgetCategoryId = assertCategoryWorkspace(budgetAccess);
+  const packageRow = await findCurrentPackageForCategoryRepo({
+    budgetCategoryId,
+  });
+
+  assertCategoryScope(packageRow, budgetCategoryId);
+
+  if (packageItemId) {
+    const context = await findPackageContextByItemRepo({ packageItemId });
+    assertCategoryScope(context, budgetCategoryId);
+
+    if (Number(context.package_id) !== Number(packageRow.id)) {
+      throw new ApiError(
+        403,
+        "You cannot access another category package item",
+        "CATEGORY_PACKAGE_ITEM_SCOPE_DENIED",
+      );
+    }
+  }
+
+  const rows = await listPackageDistributionRowsRepo({
+    packageId: packageRow.id,
+    packageItemId,
+  });
+
+  return buildPackageDistributionAnalysis({
+    rows,
+    scope: {
+      type: packageItemId ? "PACKAGE_ITEM" : "CATEGORY_PACKAGE",
+      packageId: packageRow.id,
+      packageItemId,
+      financialYearId: packageRow.financial_year_id,
+      financialYear: packageRow.financial_year,
+      categoryId: packageRow.budget_category_id,
+      categoryName: packageRow.category_name,
+      categoryCode: packageRow.category_code,
+      label: packageItemId
+        ? rows[0]?.catalog_item_name || "Package item distribution"
+        : `${packageRow.category_name} package distribution`,
+    },
+  });
+}
+
 export async function getCategoryPackageItemDetailService({
   packageItemId,
   budgetAccess,
@@ -651,7 +974,18 @@ export async function updatePackageSubItemService({
       entity_type: "CATEGORY_PACKAGE_SUB_ITEM",
       entity_id: packageSubItemId,
       action: CATEGORY_PACKAGE_WORKFLOW_ACTIONS.PACKAGE_SUB_ITEM_UPDATED,
-      new_values_json: JSON.stringify(payload),
+      old_values_json: JSON.stringify({
+        unit_price: context.unit_price,
+        specification: context.specification,
+        note: context.note,
+        quantity: context.quantity,
+      }),
+      new_values_json: JSON.stringify({
+        unit_price: payload.unit_price,
+        specification: payload.specification,
+        note: payload.note,
+        quantity: context.quantity,
+      }),
       user_role_id: getUserRoleId(budgetAccess),
       acting_workspace: getActingWorkspace(budgetAccess),
       created_by: actorUserId,
@@ -1041,6 +1375,15 @@ export async function replaceDepartmentItemAllocationsService({
 
    assertPackageItemEditable(packageContext);
 
+      const previousAllocations =
+        await listCurrentAllocationsForDepartmentItemRepo(
+          {
+            departmentItemId,
+            packageItemId,
+          },
+          transaction,
+        );
+
       const allocationBySubItem = new Map();
 
       for (const allocation of payload.allocations) {
@@ -1203,6 +1546,41 @@ export async function replaceDepartmentItemAllocationsService({
           action:
             CATEGORY_PACKAGE_WORKFLOW_ACTIONS
               .DEPARTMENT_ALLOCATIONS_UPDATED,
+
+          old_values_json:
+            JSON.stringify({
+              allocations:
+                previousAllocations.map(
+                  (allocation) => ({
+                    package_sub_item_id:
+                      Number(
+                        allocation
+                          .package_sub_item_id,
+                      ),
+                    package_sub_item_name:
+                      allocation
+                        .package_sub_item_name,
+                    allocated_quantity:
+                      Number(
+                        allocation
+                          .allocated_quantity ||
+                          0,
+                      ),
+                  }),
+                ),
+
+              totalAllocated:
+                previousAllocations.reduce(
+                  (sum, allocation) =>
+                    sum +
+                    Number(
+                      allocation
+                        .allocated_quantity ||
+                        0,
+                    ),
+                  0,
+                ),
+            }),
 
           new_values_json:
             JSON.stringify({

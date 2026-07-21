@@ -6,6 +6,7 @@ import {
   AlertCircle,
   Boxes,
   Building2,
+  CalendarDays,
   Check,
   CheckCircle2,
   CircleDollarSign,
@@ -38,6 +39,7 @@ import CatalogSubItemFields from "../catalog/CatalogSubItemFields";
 import AnimatedDrawer from "../budgets/shared/drawers/AnimatedDrawer";
 import CollapsiblePanelToggle from "../layout/CollapsiblePanelToggle";
 import PackageSubItemPriceIntelligenceDrawer from "../budgets/price-intelligence/PackageSubItemPriceIntelligenceDrawer";
+import PackageDistributionDrawer from "./PackageDistributionDrawer";
 import {
   downloadBlobAttachment,
   viewBlobAttachment,
@@ -48,6 +50,7 @@ import {
   deletePackageSubItemAttachment,
   downloadPackageSubItemAttachment,
   getCategoryPackageDepartments,
+  getCategoryPackageDistribution,
   getCategoryPackageItemDetail,
   getCurrentCategoryPackage,
   getPackageSubItemAttachments,
@@ -2088,6 +2091,7 @@ function ItemPerspective({
   onEditModel,
   onRemoveModel,
   onViewPriceContext,
+  onViewDistribution,
   onAllocate,
 }) {
   const subItems = selectedItemDetail?.sub_items || [];
@@ -2184,22 +2188,32 @@ function ItemPerspective({
                   {selectedItem.department_count} requesting department
                   {Number(selectedItem.department_count) === 1 ? "" : "s"}
                 </div>
-                {subItems.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() =>
-                      onViewPriceContext(
-                        subItems[0],
-                        subItems,
-                        "OVERALL_AVERAGE",
-                      )
-                    }
-                    className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 hover:bg-blue-100"
+                    onClick={() => onViewDistribution?.(selectedItem)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-black text-violet-700 hover:bg-violet-100"
                   >
-                    <CircleDollarSign className="h-4 w-4" />
-                    Item Price Context
+                    <CalendarDays className="h-4 w-4" />
+                    View Distribution
                   </button>
-                ) : null}
+                  {subItems.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onViewPriceContext(
+                          subItems[0],
+                          subItems,
+                          "OVERALL_AVERAGE",
+                        )
+                      }
+                      className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 hover:bg-blue-100"
+                    >
+                      <CircleDollarSign className="h-4 w-4" />
+                      Item Price Context
+                    </button>
+                  ) : null}
+                </div>
               </div>
 
               {selectedItem.cfo_review_note ? (
@@ -2660,6 +2674,7 @@ export default function CategoryPackageWorkbench() {
   const [submitOpen, setSubmitOpen] = useState(false);
   const [showAllBlockers, setShowAllBlockers] = useState(false);
   const [priceContext, setPriceContext] = useState(null);
+  const [distributionContext, setDistributionContext] = useState(null);
 
   const packageQuery = useQuery({
     queryKey: ["category-packages", "current"],
@@ -2771,6 +2786,19 @@ const selectedItem =
   const allocationPackageItem =
     allocationDetailQuery.data?.package_item || null;
   const allocationSubItems = allocationDetailQuery.data?.sub_items || [];
+
+  const distributionQuery = useQuery({
+    queryKey: [
+      "category-packages",
+      "distribution",
+      distributionContext?.packageItemId || "category",
+    ],
+    queryFn: () =>
+      getCategoryPackageDistribution({
+        packageItemId: distributionContext?.packageItemId || null,
+      }),
+    enabled: Boolean(distributionContext),
+  });
 
   const blockers = packageData?.readiness?.blockers || [];
   const ready = Boolean(packageData?.readiness?.ready);
@@ -2986,6 +3014,20 @@ const selectedItem =
           <div className="flex flex-col gap-2 sm:flex-row">
             <button
               type="button"
+              onClick={() =>
+                setDistributionContext({
+                  type: "CATEGORY_PACKAGE",
+                  title: `${packageData.category_name} Package Distribution`,
+                  subtitle: `FY ${packageData.financial_year} approved package value across the year`,
+                })
+              }
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-bold text-violet-700 transition hover:bg-violet-100"
+            >
+              <CalendarDays className="h-4 w-4" />
+              Package Distribution
+            </button>
+            <button
+              type="button"
               onClick={() => invalidatePackageWorkspace()}
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
             >
@@ -3139,6 +3181,14 @@ packageData.return_reason ? (
           onEditModel={setEditingSubItem}
           onRemoveModel={setRemoveCandidate}
           onViewPriceContext={openPriceContext}
+          onViewDistribution={(item) =>
+            setDistributionContext({
+              type: "PACKAGE_ITEM",
+              packageItemId: item.id,
+              title: `${item.catalog_item_name} Distribution`,
+              subtitle: `${packageData.category_name} package - FY ${packageData.financial_year}`,
+            })
+          }
           onAllocate={openAllocationForItemDepartment}
         />
       ) : (
@@ -3202,6 +3252,16 @@ packageData.return_reason ? (
             payload,
           })
         }
+      />
+
+      <PackageDistributionDrawer
+        open={Boolean(distributionContext)}
+        onClose={() => setDistributionContext(null)}
+        title={distributionContext?.title}
+        subtitle={distributionContext?.subtitle}
+        data={distributionQuery.data}
+        loading={distributionQuery.isLoading}
+        error={distributionQuery.error}
       />
 
       <ConfirmModal

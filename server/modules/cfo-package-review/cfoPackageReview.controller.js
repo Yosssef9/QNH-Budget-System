@@ -5,7 +5,10 @@ import {
   completeCfoPackageReviewService,
   downloadCfoPackageSubItemAttachmentService,
   finalizeAnnualCfoPackageReviewService,
+  getCfoFinancialYearDistributionService,
   getCfoPackageItemDetailService,
+  getCfoPackageItemComparisonService,
+  getCfoPackageDistributionService,
   getCfoPackageService,
   getCfoPackageTimelineService,
   listCfoFinancialYearsService,
@@ -81,6 +84,44 @@ export const getCfoPackage = asyncHandler(async (req, res) => {
   res.json(new ApiResponse({ message: "CFO package fetched", data }));
 });
 
+export const getCfoPackageDistribution = asyncHandler(async (req, res) => {
+  const packageId = validatePackageId(req.params.packageId);
+  const packageItemId = req.query.packageItemId
+    ? validatePackageItemId(req.query.packageItemId)
+    : null;
+  const data = await getCfoPackageDistributionService({
+    packageId,
+    packageItemId,
+    budgetAccess: req.budgetAccess,
+  });
+
+  res.json(
+    new ApiResponse({
+      message: "CFO package distribution fetched",
+      data,
+    }),
+  );
+});
+
+export const getCfoFinancialYearDistribution = asyncHandler(
+  async (req, res) => {
+    const financialYearId = validateFinancialYearId(
+      req.params.financialYearId,
+    );
+    const data = await getCfoFinancialYearDistributionService({
+      financialYearId,
+      budgetAccess: req.budgetAccess,
+    });
+
+    res.json(
+      new ApiResponse({
+        message: "CFO financial year distribution fetched",
+        data,
+      }),
+    );
+  },
+);
+
 export const getCfoPackageTimeline = asyncHandler(async (req, res) => {
   const packageId = validatePackageId(req.params.packageId);
   const data = await getCfoPackageTimelineService({
@@ -89,6 +130,20 @@ export const getCfoPackageTimeline = asyncHandler(async (req, res) => {
   });
 
   res.json(new ApiResponse({ message: "CFO package timeline fetched", data }));
+});
+
+export const getCfoPackageItemComparison = asyncHandler(async (req, res) => {
+  const packageId = validatePackageId(req.params.packageId);
+  const packageItemId = validatePackageItemId(req.params.packageItemId);
+  const data = await getCfoPackageItemComparisonService({
+    packageId,
+    packageItemId,
+    budgetAccess: req.budgetAccess,
+  });
+
+  res.json(
+    new ApiResponse({ message: "CFO package item comparison fetched", data }),
+  );
 });
 
 export const getCfoPackageItemDetail = asyncHandler(async (req, res) => {

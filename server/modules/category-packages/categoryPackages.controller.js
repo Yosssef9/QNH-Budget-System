@@ -16,6 +16,7 @@ import {
   uploadPackageSubItemAttachmentService,
   updatePackageSubItemService,
   getCategoryPackageDepartmentsService,
+  getCategoryPackageDistributionService,
 } from "./categoryPackages.service.js";
 import {
   validateAttachmentId,
@@ -80,6 +81,24 @@ export const getCategoryPackageDepartments = asyncHandler(async (req, res) => {
     }),
   );
 });
+
+export const getCategoryPackageDistribution = asyncHandler(async (req, res) => {
+  const packageItemId = req.query.packageItemId
+    ? validatePackageItemId(req.query.packageItemId)
+    : null;
+  const data = await getCategoryPackageDistributionService({
+    packageItemId,
+    budgetAccess: req.budgetAccess,
+  });
+
+  res.json(
+    new ApiResponse({
+      message: "Category package distribution fetched successfully",
+      data,
+    }),
+  );
+});
+
 export const getCategoryPackageItemDetail = asyncHandler(async (req, res) => {
   const packageItemId = validatePackageItemId(req.params.packageItemId);
 

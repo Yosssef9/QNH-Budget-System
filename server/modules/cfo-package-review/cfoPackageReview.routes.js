@@ -8,8 +8,11 @@ import {
   completeCfoPackageReview,
   downloadCfoPackageSubItemAttachment,
   finalizeAnnualCfoPackageReview,
+  getCfoFinancialYearDistribution,
   getCfoPackage,
+  getCfoPackageDistribution,
   getCfoPackageItemDetail,
+  getCfoPackageItemComparison,
   getCfoPackageTimeline,
   listCfoPackageSubItemAttachments,
   listCfoFinancialYears,
@@ -44,9 +47,21 @@ router.get(
 );
 
 router.get(
+  "/packages/:packageId/distribution",
+  requireBudgetPermission(CFO_PACKAGE_REVIEW_PERMISSIONS.VIEW),
+  getCfoPackageDistribution,
+);
+
+router.get(
   "/packages/:packageId/timeline",
   requireBudgetPermission(CFO_PACKAGE_REVIEW_PERMISSIONS.VIEW),
   getCfoPackageTimeline,
+);
+
+router.get(
+  "/packages/:packageId/items/:packageItemId/comparison",
+  requireBudgetPermission(CFO_PACKAGE_REVIEW_PERMISSIONS.VIEW),
+  getCfoPackageItemComparison,
 );
 
 router.get(
@@ -101,6 +116,12 @@ router.patch(
   "/financial-years/:financialYearId/finalize",
   requireBudgetPermission(CFO_PACKAGE_REVIEW_PERMISSIONS.APPROVE),
   finalizeAnnualCfoPackageReview,
+);
+
+router.get(
+  "/financial-years/:financialYearId/distribution",
+  requireBudgetPermission(CFO_PACKAGE_REVIEW_PERMISSIONS.VIEW),
+  getCfoFinancialYearDistribution,
 );
 
 export default router;

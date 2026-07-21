@@ -14,6 +14,7 @@ import {
   deletePackageSubItemAttachment,
   downloadPackageSubItemAttachment,
   getCategoryPackageDepartments,
+  getCategoryPackageDistribution,
   getCategoryPackageItemDetail,
   getCategoryPackageReadiness,
   getCurrentCategoryPackage,
@@ -47,6 +48,12 @@ router.get(
   "/readiness",
   requireBudgetPermission(CATEGORY_PACKAGE_PERMISSIONS.VIEW),
   getCategoryPackageReadiness,
+);
+
+router.get(
+  "/distribution",
+  requireBudgetPermission(CATEGORY_PACKAGE_PERMISSIONS.VIEW),
+  getCategoryPackageDistribution,
 );
 
 router.get(

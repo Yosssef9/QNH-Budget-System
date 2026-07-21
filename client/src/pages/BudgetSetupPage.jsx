@@ -26,6 +26,10 @@ import CollapsiblePanelToggle from "../components/layout/CollapsiblePanelToggle"
 import ConfirmModal from "../components/ConfirmModal";
 import SearchableMultiSelect from "../components/SearchableMultiSelect";
 import EnterpriseSearch from "../components/EnterpriseSearch";
+import SortableHeader from "../components/SortableHeader";
+import TablePagination from "../components/TablePagination";
+import usePagination from "../hooks/usePagination";
+import useTableSort from "../hooks/useTableSort";
 import {
   useApproveAndCreateItemRequest,
   useApproveItemRequest,
@@ -161,9 +165,62 @@ export default function BudgetSetupPage() {
     );
   }, [categories, deferredCategorySearch]);
 
+  const {
+    sortedRows: sortedCatalogItems,
+    sortColumn: catalogItemsSortColumn,
+    sortDirection: catalogItemsSortDirection,
+    handleSort: handleCatalogItemsSort,
+  } = useTableSort(filteredTypes, "name", "asc");
+
+  const catalogItemsPagination = usePagination(sortedCatalogItems.length, 25);
+
+  const paginatedCatalogItems = useMemo(() => {
+    const start =
+      (catalogItemsPagination.page - 1) * catalogItemsPagination.pageSize;
+    const end = start + catalogItemsPagination.pageSize;
+
+    return sortedCatalogItems.slice(start, end);
+  }, [
+    sortedCatalogItems,
+    catalogItemsPagination.page,
+    catalogItemsPagination.pageSize,
+  ]);
+
+  const {
+    sortedRows: sortedSubItems,
+    sortColumn: subItemsSortColumn,
+    sortDirection: subItemsSortDirection,
+    handleSort: handleSubItemsSort,
+  } = useTableSort(subItems, "name", "asc");
+
+  const subItemsPagination = usePagination(sortedSubItems.length, 25);
+
+  const paginatedSubItems = useMemo(() => {
+    const start = (subItemsPagination.page - 1) * subItemsPagination.pageSize;
+    const end = start + subItemsPagination.pageSize;
+
+    return sortedSubItems.slice(start, end);
+  }, [
+    sortedSubItems,
+    subItemsPagination.page,
+    subItemsPagination.pageSize,
+  ]);
+
   const selectedCategory = categories.find(
     (category) => String(category.id) === String(activeCategoryId),
   );
+
+  function closeSubItemsPanel() {
+    setSelectedSubItemCatalogItem(null);
+    setSubItemDialog(null);
+    subItemsPagination.resetPage();
+  }
+
+  function handleSelectCategory(categoryId) {
+    setSelectedCategoryId(categoryId ? String(categoryId) : "");
+    closeSubItemsPanel();
+    catalogItemsPagination.resetPage();
+  }
 
   function buildUsageMessage(action, targetName, usage) {
     if (!usage?.length) {
@@ -187,7 +244,7 @@ export default function BudgetSetupPage() {
       const category = await createCategoryMutation.mutateAsync({ name });
       toast.success("Category created successfully");
       setCategoryName("");
-      setSelectedCategoryId(String(category.id));
+      handleSelectCategory(category.id);
     } catch (error) {
       toast.error(
         error?.response?.data?.message || "Failed to create category",
@@ -391,6 +448,7 @@ export default function BudgetSetupPage() {
 
   function openSubItems(item) {
     setSelectedSubItemCatalogItem(item);
+    subItemsPagination.resetPage();
   }
 
   function openCreateSubItem() {
@@ -570,7 +628,7 @@ export default function BudgetSetupPage() {
         toast.success("Category deactivated successfully");
 
         if (String(activeCategoryId) === String(confirmAction.target.id)) {
-          setSelectedCategoryId("");
+          handleSelectCategory("");
         }
 
         setConfirmAction(null);
@@ -1169,7 +1227,7 @@ export default function BudgetSetupPage() {
                                   <button
                                     type="button"
                                     onClick={() =>
-                                      setSelectedCategoryId(String(category.id))
+                                      handleSelectCategory(category.id)
                                     }
                                     className="min-w-0 text-left"
                                   >
@@ -1229,7 +1287,9 @@ export default function BudgetSetupPage() {
                       multiple={false}
                       disableClear
                       value={selectedCategoryId}
-                      onChange={(e) => setSelectedCategoryId(e.target.value)}
+                      onChange={(e) =>
+                        handleSelectCategory(e.target.value)
+                      }
                       options={categories}
                       placeholder="Select category"
                       searchPlaceholder="Search categories..."
@@ -1313,7 +1373,10 @@ export default function BudgetSetupPage() {
 
             <EnterpriseSearch
               value={search}
-              onChange={setSearch}
+              onChange={(value) => {
+                setSearch(value);
+                catalogItemsPagination.resetPage();
+              }}
               placeholder="Search items..."
               showClear={true}
             />
@@ -1338,15 +1401,38 @@ export default function BudgetSetupPage() {
                 <table className="w-full text-left text-sm">
                   <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                     <tr>
-                      <th className="px-4 py-3">Catalog Item</th>
-                      <th className="px-4 py-3">Unit of Measure</th>
-                      <th className="px-4 py-3">Expense Type</th>
-                      <th className="px-4 py-3 text-right">Actions</th>
+                      <SortableHeader
+                        label="Catalog Item"
+                        column="name"
+                        sortColumn={catalogItemsSortColumn}
+                        sortDirection={catalogItemsSortDirection}
+                        onSort={handleCatalogItemsSort}
+                        className="text-left"
+                      />
+                      <SortableHeader
+                        label="Unit of Measure"
+                        column="unit_name"
+                        sortColumn={catalogItemsSortColumn}
+                        sortDirection={catalogItemsSortDirection}
+                        onSort={handleCatalogItemsSort}
+                        className="text-left"
+                      />
+                      <SortableHeader
+                        label="Expense Type"
+                        column="expense_type"
+                        sortColumn={catalogItemsSortColumn}
+                        sortDirection={catalogItemsSortDirection}
+                        onSort={handleCatalogItemsSort}
+                        className="text-left"
+                      />
+                      <th className="border border-slate-200 px-4 py-3 text-right">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
 
                   <tbody className="divide-y divide-slate-100">
-                    {filteredTypes.map((item) => {
+                    {paginatedCatalogItems.map((item) => {
                       const isEditing = editingTypeId === item.id;
 
                       return (
@@ -1491,6 +1577,17 @@ export default function BudgetSetupPage() {
                     })}
                   </tbody>
                 </table>
+
+                <TablePagination
+                  page={catalogItemsPagination.page}
+                  totalPages={catalogItemsPagination.totalPages}
+                  pageSize={catalogItemsPagination.pageSize}
+                  startRow={catalogItemsPagination.startRow}
+                  endRow={catalogItemsPagination.endRow}
+                  totalRows={sortedCatalogItems.length}
+                  onPageChange={catalogItemsPagination.setPage}
+                  onPageSizeChange={catalogItemsPagination.setPageSize}
+                />
               </div>
             )}
 
@@ -1510,7 +1607,7 @@ export default function BudgetSetupPage() {
                     </p>
                   </div>
 
-                  <div className="shrink-0 self-start">
+                  <div className="flex shrink-0 flex-wrap items-center gap-2 self-start">
                     <button
                       type="button"
                       onClick={openCreateSubItem}
@@ -1518,6 +1615,15 @@ export default function BudgetSetupPage() {
                     >
                       <Plus size={16} />
                       Add Reusable Model
+                    </button>
+                    <button
+                      type="button"
+                      onClick={closeSubItemsPanel}
+                      className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                      aria-label="Close reusable models table"
+                    >
+                      <X size={16} />
+                      Close
                     </button>
                   </div>
                 </div>
@@ -1538,95 +1644,138 @@ export default function BudgetSetupPage() {
                       have one protected General model.
                     </div>
                   ) : (
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-white text-xs uppercase text-slate-500">
-                        <tr>
-                          <th className="px-4 py-3">Reusable Model</th>
-                          <th className="px-4 py-3">Default Unit</th>
-                          <th className="px-4 py-3">Default Specification</th>
-                          <th className="px-4 py-3">Status</th>
-                          <th className="px-4 py-3 text-right">Actions</th>
-                        </tr>
-                      </thead>
-
-                      <tbody className="divide-y divide-slate-100">
-                        {subItems.map((subItem) => (
-                          <tr key={subItem.id}>
-                            <td className="px-4 py-3">
-                              <div className="font-semibold text-slate-900">
-                                {subItem.name}
-                              </div>
-                              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                                <span>{subItem.sub_item_code}</span>
-                                {subItem.is_default_general && (
-                                  <span className="rounded-full bg-amber-50 px-2 py-0.5 font-bold text-amber-700">
-                                    Protected General
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-
-                            <td className="px-4 py-3 font-medium text-slate-700">
-                              {subItem.unit_name || "Unassigned"}
-                            </td>
-
-                            <td className="max-w-md px-4 py-3 text-slate-600">
-                              <p className="line-clamp-2">
-                                {subItem.default_specification ||
-                                  "No default specification"}
-                              </p>
-                            </td>
-
-                            <td className="px-4 py-3">
-                              <span
-                                className={[
-                                  "rounded-full px-3 py-1 text-xs font-bold",
-                                  subItem.is_active
-                                    ? "bg-emerald-50 text-emerald-700"
-                                    : "bg-slate-100 text-slate-500",
-                                ].join(" ")}
-                              >
-                                {subItem.is_active ? "Active" : "Inactive"}
-                              </span>
-                            </td>
-
-                            <td className="px-4 py-3">
-                              <div className="flex justify-end gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => openEditSubItem(subItem)}
-                                  className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
-                                >
-                                  <Edit3 size={14} />
-                                  Edit
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleToggleSubItemStatus(subItem)
-                                  }
-                                  disabled={
-                                    updateSubItemStatusMutation.isPending ||
-                                    subItem.is_default_general
-                                  }
-                                  className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  {subItem.is_active ? (
-                                    <XCircle size={14} />
-                                  ) : (
-                                    <CheckCircle2 size={14} />
-                                  )}
-                                  {subItem.is_active
-                                    ? "Deactivate"
-                                    : "Activate"}
-                                </button>
-                              </div>
-                            </td>
+                    <>
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-white text-xs uppercase text-slate-500">
+                          <tr>
+                            <SortableHeader
+                              label="Reusable Model"
+                              column="name"
+                              sortColumn={subItemsSortColumn}
+                              sortDirection={subItemsSortDirection}
+                              onSort={handleSubItemsSort}
+                              className="text-left"
+                            />
+                            <SortableHeader
+                              label="Default Unit"
+                              column="unit_name"
+                              sortColumn={subItemsSortColumn}
+                              sortDirection={subItemsSortDirection}
+                              onSort={handleSubItemsSort}
+                              className="text-left"
+                            />
+                            <SortableHeader
+                              label="Default Specification"
+                              column="default_specification"
+                              sortColumn={subItemsSortColumn}
+                              sortDirection={subItemsSortDirection}
+                              onSort={handleSubItemsSort}
+                              className="text-left"
+                            />
+                            <SortableHeader
+                              label="Status"
+                              column="is_active"
+                              sortColumn={subItemsSortColumn}
+                              sortDirection={subItemsSortDirection}
+                              onSort={handleSubItemsSort}
+                              className="text-left"
+                            />
+                            <th className="border border-slate-200 px-4 py-3 text-right">
+                              Actions
+                            </th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+  
+                        <tbody className="divide-y divide-slate-100">
+                          {paginatedSubItems.map((subItem) => (
+                            <tr key={subItem.id}>
+                              <td className="px-4 py-3">
+                                <div className="font-semibold text-slate-900">
+                                  {subItem.name}
+                                </div>
+                                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                  <span>{subItem.sub_item_code}</span>
+                                  {subItem.is_default_general && (
+                                    <span className="rounded-full bg-amber-50 px-2 py-0.5 font-bold text-amber-700">
+                                      Protected General
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+  
+                              <td className="px-4 py-3 font-medium text-slate-700">
+                                {subItem.unit_name || "Unassigned"}
+                              </td>
+  
+                              <td className="max-w-md px-4 py-3 text-slate-600">
+                                <p className="line-clamp-2">
+                                  {subItem.default_specification ||
+                                    "No default specification"}
+                                </p>
+                              </td>
+  
+                              <td className="px-4 py-3">
+                                <span
+                                  className={[
+                                    "rounded-full px-3 py-1 text-xs font-bold",
+                                    subItem.is_active
+                                      ? "bg-emerald-50 text-emerald-700"
+                                      : "bg-slate-100 text-slate-500",
+                                  ].join(" ")}
+                                >
+                                  {subItem.is_active ? "Active" : "Inactive"}
+                                </span>
+                              </td>
+  
+                              <td className="px-4 py-3">
+                                <div className="flex justify-end gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => openEditSubItem(subItem)}
+                                    className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
+                                  >
+                                    <Edit3 size={14} />
+                                    Edit
+                                  </button>
+  
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleToggleSubItemStatus(subItem)
+                                    }
+                                    disabled={
+                                      updateSubItemStatusMutation.isPending ||
+                                      subItem.is_default_general
+                                    }
+                                    className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    {subItem.is_active ? (
+                                      <XCircle size={14} />
+                                    ) : (
+                                      <CheckCircle2 size={14} />
+                                    )}
+                                    {subItem.is_active
+                                      ? "Deactivate"
+                                      : "Activate"}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+
+                      <TablePagination
+                        page={subItemsPagination.page}
+                        totalPages={subItemsPagination.totalPages}
+                        pageSize={subItemsPagination.pageSize}
+                        startRow={subItemsPagination.startRow}
+                        endRow={subItemsPagination.endRow}
+                        totalRows={sortedSubItems.length}
+                        onPageChange={subItemsPagination.setPage}
+                        onPageSizeChange={subItemsPagination.setPageSize}
+                      />
+                    </>
                   )}
                 </div>
               </section>

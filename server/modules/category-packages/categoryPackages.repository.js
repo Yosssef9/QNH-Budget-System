@@ -335,6 +335,121 @@ export async function listDepartmentPackageViewRowsRepo(
   }));
 }
 
+export async function listPackageDistributionRowsRepo({
+  packageId = null,
+  financialYearId = null,
+  packageItemId = null,
+} = {}) {
+  const pool = await poolPromise;
+  const request = createRequest(pool);
+  const result = await request
+    .input("packageId", sql.BigInt, packageId)
+    .input("financialYearId", sql.Int, financialYearId)
+    .input("packageItemId", sql.BigInt, packageItemId)
+    .query(`
+      SELECT
+        pkg.id AS package_id,
+        pkg.financial_year_id,
+        fy.year AS financial_year,
+        fy.status AS financial_year_status,
+        pkg.budget_category_id,
+        category.name AS category_name,
+        category.category_code,
+
+        packageItem.id AS package_item_id,
+        packageItem.catalog_item_id,
+        COALESCE(packageItem.catalog_item_name_snapshot, catalog.name) AS catalog_item_name,
+        COALESCE(packageItem.catalog_item_code_snapshot, catalog.item_code) AS catalog_item_code,
+
+        department.id AS department_id,
+        department.name AS department_name,
+        department.department_code,
+
+        item.id AS department_item_id,
+        item.requested_quantity,
+        item.category_approved_quantity,
+        item.distribution_method,
+
+        distribution.id AS distribution_id,
+        distribution.period_type,
+        distribution.period_no,
+        distribution.quantity AS distribution_quantity,
+
+        allocation.id AS allocation_id,
+        allocation.allocated_quantity,
+
+        subItem.id AS package_sub_item_id,
+        subItem.name AS package_sub_item_name,
+        subItem.unit_price,
+        subItem.quantity AS package_sub_item_quantity,
+        unit.name AS unit_of_measure_name,
+        unit.unit_code AS unit_of_measure_code
+
+      FROM dbo.BS_category_budget_packages AS pkg
+
+      INNER JOIN dbo.BS_financial_years AS fy
+        ON fy.id = pkg.financial_year_id
+
+      INNER JOIN dbo.BS_budget_categories AS category
+        ON category.id = pkg.budget_category_id
+
+      INNER JOIN dbo.BS_category_budget_package_items AS packageItem
+        ON packageItem.category_budget_package_id = pkg.id
+       AND packageItem.is_active = 1
+
+      INNER JOIN dbo.BS_budget_catalog_items AS catalog
+        ON catalog.id = packageItem.catalog_item_id
+
+      INNER JOIN dbo.BS_department_budgets AS departmentBudget
+        ON departmentBudget.financial_year_id = pkg.financial_year_id
+
+      INNER JOIN dbo.BS_departments AS department
+        ON department.id = departmentBudget.department_id
+       AND department.is_active = 1
+
+      INNER JOIN dbo.BS_department_category_budgets AS departmentCategoryBudget
+        ON departmentCategoryBudget.department_budget_id = departmentBudget.id
+       AND departmentCategoryBudget.budget_category_id = pkg.budget_category_id
+       AND departmentCategoryBudget.status = '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
+
+      INNER JOIN dbo.BS_department_category_budget_items AS item
+        ON item.department_category_budget_id = departmentCategoryBudget.id
+       AND item.catalog_item_id = packageItem.catalog_item_id
+       AND item.is_active = 1
+       AND item.review_status = '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
+
+      LEFT JOIN dbo.BS_department_category_budget_item_distributions AS distribution
+        ON distribution.department_budget_item_id = item.id
+
+      LEFT JOIN dbo.BS_category_budget_package_sub_item_allocations AS allocation
+        ON allocation.department_category_budget_item_id = item.id
+
+      LEFT JOIN dbo.BS_category_budget_package_sub_items AS subItem
+        ON subItem.id = allocation.category_budget_package_sub_item_id
+       AND subItem.category_budget_package_item_id = packageItem.id
+       AND subItem.is_active = 1
+
+      LEFT JOIN dbo.BS_units_of_measure AS unit
+        ON unit.id = subItem.unit_of_measure_id
+
+      WHERE
+        (@packageId IS NULL OR pkg.id = @packageId)
+        AND (@financialYearId IS NULL OR pkg.financial_year_id = @financialYearId)
+        AND (@packageItemId IS NULL OR packageItem.id = @packageItemId)
+
+      ORDER BY
+        category.sort_order,
+        category.name,
+        COALESCE(packageItem.catalog_item_name_snapshot, catalog.name),
+        department.name,
+        distribution.period_type,
+        distribution.period_no,
+        subItem.name;
+    `);
+
+  return result.recordset || [];
+}
+
 export async function listPackageItemDetailRowsRepo(
   { packageItemId },
   transaction = null,
@@ -586,8 +701,10 @@ export async function findPackageContextBySubItemRepo(
         subItem.category_budget_package_item_id AS package_item_id,
         subItem.catalog_sub_item_id,
         subItem.name,
+        subItem.specification,
         subItem.quantity,
         subItem.unit_price,
+        subItem.note,
         subItem.row_version AS package_sub_item_row_version,
         packageItem.catalog_item_id,
         packageItem.cfo_review_status,
@@ -1315,6 +1432,30 @@ export async function listPackageSubItemsForDepartmentItemRepo(
     `);
 
   return result.recordset;
+}
+
+export async function listCurrentAllocationsForDepartmentItemRepo(
+  { departmentItemId, packageItemId },
+  transaction,
+) {
+  const result = await requestFor(transaction)
+    .input("departmentItemId", sql.BigInt, departmentItemId)
+    .input("packageItemId", sql.BigInt, packageItemId).query(`
+      SELECT
+        allocation.id,
+        allocation.category_budget_package_sub_item_id AS package_sub_item_id,
+        allocation.department_category_budget_item_id AS department_item_id,
+        allocation.allocated_quantity,
+        subItem.name AS package_sub_item_name
+      FROM dbo.BS_category_budget_package_sub_item_allocations AS allocation
+      INNER JOIN dbo.BS_category_budget_package_sub_items AS subItem
+        ON subItem.id = allocation.category_budget_package_sub_item_id
+      WHERE allocation.department_category_budget_item_id = @departmentItemId
+        AND subItem.category_budget_package_item_id = @packageItemId
+      ORDER BY subItem.name;
+    `);
+
+  return result.recordset || [];
 }
 
 export async function markPackageSubmittedToCfoRepo(transaction, payload) {

@@ -8,11 +8,13 @@ import {
   findPackageAttachmentContextRepo,
   listAllocationsForPackageItemRepo,
   listDepartmentPackageViewRowsRepo,
+  listPackageDistributionRowsRepo,
   listPackageItemDetailRowsRepo,
   listPackageItemsRepo,
   listPackageSubItemAttachmentsRepo,
   createWorkflowHistoryRepo,
 } from "../category-packages/categoryPackages.repository.js";
+import { buildPackageDistributionAnalysis } from "../category-packages/categoryPackages.service.js";
 import {
   mapDepartmentPackageView,
   mapPackage,
@@ -35,6 +37,7 @@ import {
   findPackageItemForCfoRepo,
   getFinancialYearPackageCompletionSummaryRepo,
   listCfoPackageTimelineRepo,
+  getCfoPackageItemComparisonRepo,
   listCfoFinancialYearsRepo,
   listCfoPackagesRepo,
   markAllPackageItemsNeedModificationRepo,
@@ -101,6 +104,41 @@ function safeDownloadName(fileName) {
   return String(fileName || "attachment").replace(/[\r\n"]/g, "_");
 }
 
+function parseHistoryJson(value) {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function toNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function buildAllocationQuantityMap(values) {
+  const map = new Map();
+  for (const allocation of values?.allocations || []) {
+    const subItemId = Number(allocation.package_sub_item_id);
+    if (!subItemId) continue;
+    map.set(
+      subItemId,
+      toNumber(map.get(subItemId)) + toNumber(allocation.allocated_quantity),
+    );
+  }
+  return map;
+}
+
+function getChangeDirection(before, after) {
+  const previous = toNumber(before);
+  const current = toNumber(after);
+  if (current > previous) return "INCREASED";
+  if (current < previous) return "DECREASED";
+  return "SAME";
+}
+
 async function loadPackageDetail(packageId) {
   const packageRow = await findCfoPackageByIdRepo({ packageId });
   assertPackageExists(packageRow);
@@ -152,6 +190,78 @@ export async function getCfoPackageService({ packageId, budgetAccess }) {
   return loadPackageDetail(packageId);
 }
 
+export async function getCfoPackageDistributionService({
+  packageId,
+  packageItemId = null,
+  budgetAccess,
+}) {
+  assertPermission(
+    budgetAccess,
+    CFO_PACKAGE_REVIEW_PERMISSIONS.VIEW,
+    "CFO_PACKAGE_VIEW_DENIED",
+    "You do not have permission to view CFO package reviews",
+  );
+
+  const packageRow = await findCfoPackageByIdRepo({ packageId });
+  assertPackageExists(packageRow);
+
+  if (packageItemId) {
+    const packageItem = await findPackageItemForCfoRepo({
+      packageId,
+      packageItemId,
+    });
+    assertPackageItemExists(packageItem);
+  }
+
+  const rows = await listPackageDistributionRowsRepo({
+    packageId,
+    packageItemId,
+  });
+
+  return buildPackageDistributionAnalysis({
+    rows,
+    scope: {
+      type: packageItemId ? "PACKAGE_ITEM" : "CATEGORY_PACKAGE",
+      packageId,
+      packageItemId,
+      financialYearId: packageRow.financial_year_id,
+      financialYear: packageRow.financial_year,
+      categoryId: packageRow.budget_category_id,
+      categoryName: packageRow.category_name,
+      categoryCode: packageRow.category_code,
+      label: packageItemId
+        ? rows[0]?.catalog_item_name || "Package item distribution"
+        : `${packageRow.category_name} package distribution`,
+    },
+  });
+}
+
+export async function getCfoFinancialYearDistributionService({
+  financialYearId,
+  budgetAccess,
+}) {
+  assertPermission(
+    budgetAccess,
+    CFO_PACKAGE_REVIEW_PERMISSIONS.VIEW,
+    "CFO_PACKAGE_VIEW_DENIED",
+    "You do not have permission to view CFO package reviews",
+  );
+
+  const rows = await listPackageDistributionRowsRepo({ financialYearId });
+
+  return buildPackageDistributionAnalysis({
+    rows,
+    scope: {
+      type: "FINANCIAL_YEAR",
+      financialYearId,
+      financialYear: rows[0]?.financial_year || null,
+      label: rows[0]?.financial_year
+        ? `FY ${rows[0].financial_year} distribution`
+        : "Financial year distribution",
+    },
+  });
+}
+
 export async function getCfoPackageTimelineService({ packageId, budgetAccess }) {
   assertPermission(
     budgetAccess,
@@ -193,6 +303,169 @@ export async function getCfoPackageTimelineService({ packageId, budgetAccess }) 
       created_at: row.created_at,
     };
   });
+}
+
+export async function getCfoPackageItemComparisonService({
+  packageId,
+  packageItemId,
+  budgetAccess,
+}) {
+  assertPermission(
+    budgetAccess,
+    CFO_PACKAGE_REVIEW_PERMISSIONS.VIEW,
+    "CFO_PACKAGE_VIEW_DENIED",
+    "You do not have permission to view CFO package reviews",
+  );
+
+  const packageItem = await findPackageItemForCfoRepo({
+    packageId,
+    packageItemId,
+  });
+  assertPackageItemExists(packageItem);
+
+  const rows = await getCfoPackageItemComparisonRepo({
+    packageId,
+    packageItemId,
+  });
+  const context = rows[0] || packageItem;
+  const historyRows = rows.filter((row) => row.history_id);
+  const subItemRows = rows.filter((row) => row.package_sub_item_id);
+  const subItemById = new Map(
+    subItemRows.map((row) => [
+      Number(row.package_sub_item_id),
+      {
+        package_sub_item_id: Number(row.package_sub_item_id),
+        name: row.package_sub_item_name,
+        quantity_after: toNumber(row.quantity),
+        unit_price_after: toNumber(row.unit_price),
+        total_after: toNumber(row.total_amount),
+        quantity_before: toNumber(row.quantity),
+        unit_price_before: toNumber(row.unit_price),
+        total_before: toNumber(row.total_amount),
+        old_value_recorded: true,
+      },
+    ]),
+  );
+
+  let approvedDelta = 0;
+  let hasApprovedChange = false;
+
+  for (const row of historyRows) {
+    const oldValues = parseHistoryJson(row.old_values_json);
+    const newValues = parseHistoryJson(row.new_values_json);
+
+    if (
+      row.entity_type === "DEPARTMENT_CATEGORY_BUDGET_ITEM" &&
+      row.action ===
+        "CATEGORY_PACKAGE_DEPARTMENT_APPROVED_QUANTITY_UPDATED"
+    ) {
+      const previous = toNumber(oldValues?.categoryApprovedQuantity);
+      const current = toNumber(newValues?.categoryApprovedQuantity);
+      approvedDelta += current - previous;
+      hasApprovedChange = true;
+    }
+
+    if (
+      row.entity_type === "CATEGORY_PACKAGE_SUB_ITEM" &&
+      row.action === "CATEGORY_PACKAGE_SUB_ITEM_UPDATED"
+    ) {
+      const subItemId = Number(row.entity_id);
+      const item = subItemById.get(subItemId);
+      if (!item) continue;
+      if (oldValues?.unit_price !== undefined) {
+        item.unit_price_before = toNumber(oldValues.unit_price);
+      } else {
+        item.old_value_recorded = false;
+      }
+      if (oldValues?.quantity !== undefined) {
+        item.quantity_before = toNumber(oldValues.quantity);
+      }
+      item.total_before = item.quantity_before * item.unit_price_before;
+    }
+
+    if (
+      row.entity_type === "DEPARTMENT_CATEGORY_BUDGET_ITEM" &&
+      row.action === "CATEGORY_PACKAGE_DEPARTMENT_ALLOCATIONS_UPDATED"
+    ) {
+      const oldAllocationMap = buildAllocationQuantityMap(oldValues);
+      const newAllocationMap = buildAllocationQuantityMap(newValues);
+      const subItemIds = new Set([
+        ...oldAllocationMap.keys(),
+        ...newAllocationMap.keys(),
+      ]);
+
+      for (const subItemId of subItemIds) {
+        const item = subItemById.get(subItemId);
+        if (!item) continue;
+        item.quantity_before -=
+          toNumber(newAllocationMap.get(subItemId)) -
+          toNumber(oldAllocationMap.get(subItemId));
+        item.total_before = item.quantity_before * item.unit_price_before;
+      }
+    }
+  }
+
+  const approvedAfter = toNumber(context.approved_quantity);
+  const approvedBefore = hasApprovedChange
+    ? approvedAfter - approvedDelta
+    : approvedAfter;
+  const subItems = Array.from(subItemById.values()).map((item) => ({
+    ...item,
+    quantity_change: item.quantity_after - item.quantity_before,
+    quantity_direction: getChangeDirection(
+      item.quantity_before,
+      item.quantity_after,
+    ),
+    unit_price_change: item.unit_price_after - item.unit_price_before,
+    unit_price_direction: getChangeDirection(
+      item.unit_price_before,
+      item.unit_price_after,
+    ),
+    total_change: item.total_after - item.total_before,
+    total_direction: getChangeDirection(item.total_before, item.total_after),
+  }));
+  const totalAfter = subItems.reduce((sum, item) => sum + item.total_after, 0);
+  const totalBefore = subItems.reduce((sum, item) => sum + item.total_before, 0);
+
+  return {
+    summary: {
+      package_id: Number(packageId),
+      package_item_id: Number(packageItemId),
+      package_item_name:
+        context.package_item_name || packageItem.catalog_item_name,
+      package_item_code:
+        context.package_item_code || packageItem.catalog_item_code,
+      financial_year_id:
+        context.financial_year_id || packageItem.financial_year_id,
+      financial_year: context.financial_year || null,
+      category_name: context.package_category_name || packageItem.category_name,
+      category_code: context.package_category_code || packageItem.category_code,
+      package_status: context.package_status || packageItem.package_status,
+      package_return_reason: context.package_return_reason || null,
+      package_returned_at: context.package_returned_at || null,
+      cfo_review_status:
+        context.cfo_review_status || packageItem.cfo_review_status,
+      cfo_review_note: context.cfo_review_note || packageItem.cfo_review_note,
+      cfo_reviewed_at:
+        context.cfo_reviewed_at || packageItem.cfo_reviewed_at || null,
+      cfo_reviewed_by_name: context.cfo_reviewed_by_name || null,
+      comparison_marker_at: context.comparison_marker_at || null,
+    },
+    item: {
+      approved_quantity_before: approvedBefore,
+      approved_quantity_after: approvedAfter,
+      approved_quantity_change: approvedAfter - approvedBefore,
+      approved_quantity_direction: getChangeDirection(
+        approvedBefore,
+        approvedAfter,
+      ),
+      total_amount_before: totalBefore,
+      total_amount_after: totalAfter,
+      total_amount_change: totalAfter - totalBefore,
+      total_amount_direction: getChangeDirection(totalBefore, totalAfter),
+    },
+    sub_items: subItems,
+  };
 }
 
 export async function getCfoPackageItemDetailService({

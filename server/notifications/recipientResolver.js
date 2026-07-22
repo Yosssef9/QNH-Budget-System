@@ -2,7 +2,7 @@ import { NOTIFICATION_CONFIG } from "./notificationConfig.js";
 import { getUsersByEffectivePermission } from "../modules/access-management/access.service.js";
 
 import {
-  getAllActiveUsersExceptRepo,
+  getActiveBudgetUsersExceptRepo,
   getTransferRequesterRepo,
   getBudgetOwnerRepo,
   getItemRequestOwnerRepo,
@@ -45,7 +45,7 @@ export async function resolveRecipients(notificationType, payload) {
       });
 
     case "BROADCAST":
-      return getAllActiveUsersExceptRepo(payload.actorUserId);
+      return getActiveBudgetUsersExceptRepo(payload.actorUserId);
 
     case "OWNER":
       switch (config.ownerType) {

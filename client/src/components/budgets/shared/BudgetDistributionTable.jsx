@@ -29,7 +29,7 @@ function BudgetDistributionTable({
   setDeleteRowId,
 }) {
   return (
-    <table className="min-w-[1550px] table-fixed border-collapse text-sm">
+    <table className="w-full min-w-[1550px] table-fixed border-collapse text-sm">
       <thead className="sticky top-0 z-20 bg-white">
         <tr className="text-slate-700">
           <th rowSpan="2" className="border border-slate-200 px-3 py-4">

@@ -607,7 +607,7 @@ export default function PackageDistributionDrawer({
                 iconClassName="border-slate-200 text-slate-600"
               >
                 <div className="enterprise-scrollbar overflow-x-auto">
-                  <table className="min-w-[1100px] border-collapse text-sm">
+                  <table className="w-full min-w-[1100px] border-collapse text-sm">
                     <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                       <tr>
                         <th className="sticky left-0 z-10 border-b border-slate-200 bg-slate-50 px-4 py-3 text-left">

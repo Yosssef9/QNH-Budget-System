@@ -21,17 +21,21 @@ export async function queueNotification(data) {
     return;
   }
 
-  const validRecipients = [];
+  const validRecipientsByEmail = new Map();
   const skippedRecipients = [];
 
   for (const recipient of recipients) {
     const email = recipient?.email?.trim?.();
 
     if (email) {
-      validRecipients.push({
-        ...recipient,
-        email,
-      });
+      const emailKey = email.toLowerCase();
+
+      if (!validRecipientsByEmail.has(emailKey)) {
+        validRecipientsByEmail.set(emailKey, {
+          ...recipient,
+          email,
+        });
+      }
     } else {
       skippedRecipients.push(recipient);
     }
@@ -47,6 +51,8 @@ export async function queueNotification(data) {
       })),
     );
   }
+
+  const validRecipients = [...validRecipientsByEmail.values()];
 
   if (!validRecipients.length) {
     return;

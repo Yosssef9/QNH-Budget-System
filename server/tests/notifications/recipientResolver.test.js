@@ -7,7 +7,7 @@ vi.mock("../../modules/access-management/access.service.js", () => ({
 }));
 
 vi.mock("../../repositories/notificationRecipients.repository.js", () => ({
-  getAllActiveUsersExceptRepo: vi.fn(),
+  getActiveBudgetUsersExceptRepo: vi.fn(),
   getTransferRequesterRepo: vi.fn(),
   getBudgetOwnerRepo: vi.fn(),
   getItemRequestOwnerRepo: vi.fn(),
@@ -15,6 +15,7 @@ vi.mock("../../repositories/notificationRecipients.repository.js", () => ({
 }));
 
 import { getUsersByEffectivePermission } from "../../modules/access-management/access.service.js";
+import { getActiveBudgetUsersExceptRepo } from "../../repositories/notificationRecipients.repository.js";
 import { resolveRecipients } from "../../notifications/recipientResolver.js";
 
 describe("notification recipient permission resolution", () => {
@@ -48,5 +49,15 @@ describe("notification recipient permission resolution", () => {
       permissionCode: PERMISSION_CODES.REVIEW_DEPARTMENT_CATEGORY_REQUESTS,
       scope: { type: "CATEGORY", categoryId: 2 },
     });
+  });
+
+  it("routes financial-year broadcasts only through active budget users", async () => {
+    getActiveBudgetUsersExceptRepo.mockResolvedValue([]);
+
+    await resolveRecipients(NOTIFICATION_TYPES.FINANCIAL_YEAR_OPENED, {
+      actorUserId: 1080,
+    });
+
+    expect(getActiveBudgetUsersExceptRepo).toHaveBeenCalledWith(1080);
   });
 });

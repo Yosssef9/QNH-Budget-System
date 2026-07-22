@@ -30,9 +30,24 @@ function BudgetDistributionTable({
 }) {
   return (
     <table className="w-full min-w-[1550px] table-fixed border-collapse text-sm">
+      <colgroup>
+        <col className="w-[72px]" />
+        <col className="w-[220px]" />
+        <col className="w-[280px]" />
+        <col className="w-[210px]" />
+        <col className="w-[130px]" />
+        {months.map((month) => (
+          <col key={month} className="w-[76px]" />
+        ))}
+        <col className="w-[110px]" />
+      </colgroup>
+
       <thead className="sticky top-0 z-20 bg-white">
         <tr className="text-slate-700">
-          <th rowSpan="2" className="border border-slate-200 px-3 py-4">
+          <th
+            rowSpan="2"
+            className="w-[72px] border border-slate-200 px-3 py-4"
+          >
             #
           </th>
           <th
@@ -43,19 +58,19 @@ function BudgetDistributionTable({
           </th>
           <th
             rowSpan="2"
-            className="w-[260px] border border-slate-200 px-4 py-4"
+            className="w-[280px] border border-slate-200 px-4 py-4"
           >
             Generic Item
           </th>
           <th
             rowSpan="2"
-            className="w-[180px] border border-slate-200 px-4 py-4"
+            className="w-[210px] border border-slate-200 px-4 py-4"
           >
             Method
           </th>
           <th
             rowSpan="2"
-            className="w-[120px] border border-slate-200 px-4 py-4"
+            className="w-[130px] border border-slate-200 px-4 py-4"
           >
             Requested Quantity
           </th>
@@ -87,7 +102,10 @@ function BudgetDistributionTable({
             QUARTER 4<br />
             <span className="text-xs font-medium">Oct - Dec</span>
           </th>
-          <th rowSpan="2" className="border border-slate-200 px-4 py-4">
+          <th
+            rowSpan="2"
+            className="w-[110px] border border-slate-200 px-4 py-4"
+          >
             Actions
           </th>
         </tr>

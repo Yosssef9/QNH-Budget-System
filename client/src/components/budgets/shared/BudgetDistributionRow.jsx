@@ -129,7 +129,7 @@ function BudgetDistributionRow({
                 : "",
         ].join(" ")}
       >
-        <td className="truncate border border-slate-200 px-3 py-4 text-center font-semibold text-slate-600">
+        <td className="w-[72px] truncate border border-slate-200 px-3 py-4 text-center font-semibold text-slate-600">
           <div className="flex flex-col items-center gap-1">
             <span>
               {(budgetItemsPage - 1) * BUDGET_ITEMS_PAGE_SIZE +
@@ -162,7 +162,7 @@ function BudgetDistributionRow({
           </div>
         </td>
 
-        <td className="w-[260px] border border-slate-200 px-3 py-4">
+        <td className="w-[280px] border border-slate-200 px-3 py-4">
           <div className="w-full min-w-[200px]">
             <SearchableMultiSelect
               disabled={isCatalogLocked}
@@ -247,7 +247,7 @@ function BudgetDistributionRow({
           )}
         </td>
 
-        <td className="w-[180px] border border-slate-200 px-3 py-4 align-middle">
+        <td className="w-[210px] border border-slate-200 px-3 py-4 align-middle">
           <div className="flex flex-col items-center justify-center gap-2">
             <div className="w-full min-w-[200px]">
               <SearchableMultiSelect
@@ -272,7 +272,7 @@ function BudgetDistributionRow({
           </div>
         </td>
 
-        <td className="border border-slate-200 px-3 py-4 text-center">
+        <td className="w-[130px] border border-slate-200 px-3 py-4 text-center">
           <input
             type="number"
             disabled={isRowLocked}
@@ -305,7 +305,7 @@ function BudgetDistributionRow({
           monthly.map((quantity, index) => (
             <td
               key={index}
-              className="border border-slate-200 px-2 py-2 text-center"
+              className="w-[76px] border border-slate-200 px-2 py-2 text-center"
             >
               <input
                 type="number"
@@ -378,7 +378,7 @@ function BudgetDistributionRow({
           </td>
         )}
 
-        <td className="border border-slate-200 px-3 py-4 text-center">
+        <td className="w-[110px] border border-slate-200 px-3 py-4 text-center">
           <button
             type="button"
             disabled={isDeleteLocked}

@@ -772,6 +772,27 @@ export async function upsertDepartmentCategoryBudgetItemRepo(
 
     IF NOT EXISTS (SELECT 1 FROM @Updated)
     BEGIN
+      UPDATE dbo.BS_department_category_budget_items
+      SET
+        catalog_item_name_snapshot = @catalogItemNameSnapshot,
+        catalog_item_code_snapshot = @catalogItemCodeSnapshot,
+        expense_type_snapshot = @expenseTypeSnapshot,
+        unit_of_measure_id_snapshot = @unitOfMeasureIdSnapshot,
+        unit_name_snapshot = @unitNameSnapshot,
+        unit_code_snapshot = @unitCodeSnapshot,
+        requested_quantity = @requestedQuantity,
+        distribution_method = @distributionMethod,
+        review_status = '${DEPARTMENT_BUDGET_ITEM_STATUS.DRAFT}',
+        is_active = 1,
+        updated_by = @actorUserId,
+        updated_at = SYSUTCDATETIME()
+      OUTPUT INSERTED.id INTO @Updated (id)
+      WHERE department_category_budget_id = @departmentCategoryBudgetId
+        AND catalog_item_id = @catalogItemId;
+    END
+
+    IF NOT EXISTS (SELECT 1 FROM @Updated)
+    BEGIN
       INSERT INTO dbo.BS_department_category_budget_items
       (
         department_category_budget_id,

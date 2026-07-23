@@ -1,8 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import toast from "react-hot-toast";
-import LockedPage from "../../components/LockedPage";
-import useLockToast from "../../hooks/useLockToast";
-import { getBudgetEntryPageLock } from "../../helpers/pageLockRules";
 import {
   ChevronDown,
   Download,
@@ -78,7 +75,7 @@ export default function BudgetEnteryPage() {
     openYear,
     loadingSetup,
     saving,
-    removedPersistedItemIds,
+    removedPersistedItemIdsByCategoryBudget,
     importRowsToCategoryBudgets,
     updateRow,
     addItem,
@@ -103,22 +100,7 @@ export default function BudgetEnteryPage() {
   const submitBudgetMutation = useSubmitBudget();
   const [summaryView, setSummaryView] = useState("QUARTER");
   const [budgetItemsPage, setBudgetItemsPage] = useState(1);
-  const hasUnsavedChanges = useMemo(
-    () =>
-      Object.values(rowsByCategoryBudget)
-        .flat()
-        .some((row) => !row.isSaved) ||
-      removedPersistedItemIds.length > 0,
-    [removedPersistedItemIds.length, rowsByCategoryBudget],
-  );
   const { setHasUnsavedChanges } = useUnsavedChanges();
-  useEffect(() => {
-    setHasUnsavedChanges(hasUnsavedChanges);
-
-    return () => {
-      setHasUnsavedChanges(false);
-    };
-  }, [hasUnsavedChanges, setHasUnsavedChanges]);
   const [deleteRowId, setDeleteRowId] = useState(null);
   const [deletingRowIds, setDeletingRowIds] = useState([]);
   const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
@@ -131,6 +113,8 @@ export default function BudgetEnteryPage() {
   const [importSummary, setImportSummary] = useState(null);
   const importInputRef = useRef(null);
   const saveDraftLockRef = useRef(false);
+  const [savingAllDrafts, setSavingAllDrafts] = useState(false);
+  const [switchingCategoryId, setSwitchingCategoryId] = useState(null);
   const budgetStatus =
     localBudgetStatus || activeCategoryBudget?.status || "DRAFT";
   const activeCategoryName = activeCategoryBudget?.category_name || "selected";
@@ -152,6 +136,103 @@ export default function BudgetEnteryPage() {
 
   const canSubmitActiveCategory =
     activeSubmissionWindowState.canSubmit;
+
+  const isCategoryReadOnly = useCallback(
+    (categoryBudget) =>
+      ["IN_CATEGORY_REVIEW", "CATEGORY_REVIEW_COMPLETED"].includes(
+        categoryBudget?.status || "DRAFT",
+      ),
+    [],
+  );
+
+  const buildCategoryPayloadRows = useCallback((categoryBudget, sourceRows) => {
+    return sourceRows.map((row) => ({
+      id: row.isNew ? null : Number(row.id),
+      category_id: Number(categoryBudget?.category_id),
+      catalog_item_id: Number(row.item),
+      requested_quantity: toNumber(row.quantity),
+      distribution_method: getApiDistributionMethod(row.method),
+      distribution: getApiDistributionRows(row),
+    }));
+  }, []);
+
+  const categoryStateById = useMemo(() => {
+    return Object.fromEntries(
+      categoryBudgets.map((categoryBudget) => {
+        const key = String(categoryBudget.id);
+        const categoryRows = rowsByCategoryBudget[key] || [];
+        const removedIds =
+          removedPersistedItemIdsByCategoryBudget[key] || [];
+        const validation = validateRowsDetailed(categoryRows);
+        const readOnly = isCategoryReadOnly(categoryBudget);
+        const dirty =
+          categoryRows.some((row) => !row.isSaved) ||
+          removedIds.length > 0;
+
+        return [
+          key,
+          {
+            categoryBudget,
+            rows: categoryRows,
+            validation,
+            readOnly,
+            dirty,
+            itemCount: categoryRows.length,
+            removedCount: removedIds.length,
+          },
+        ];
+      }),
+    );
+  }, [
+    categoryBudgets,
+    isCategoryReadOnly,
+    removedPersistedItemIdsByCategoryBudget,
+    rowsByCategoryBudget,
+  ]);
+
+  const activeCategoryState =
+    categoryStateById[String(activeCategoryBudgetId)] || null;
+
+  const validationError = activeCategoryState?.validation || null;
+
+  const invalidCategoryStates = useMemo(
+    () =>
+      Object.values(categoryStateById).filter(
+        (state) => !state.readOnly && state.validation,
+      ),
+    [categoryStateById],
+  );
+
+  const dirtyCategoryStates = useMemo(
+    () =>
+      Object.values(categoryStateById).filter(
+        (state) => !state.readOnly && state.dirty,
+      ),
+    [categoryStateById],
+  );
+
+  const activeCategoryIsDirty = Boolean(activeCategoryState?.dirty);
+
+  const hasUnsavedChanges = dirtyCategoryStates.length > 0;
+  const isDraftOperationPending =
+    saving || savingAllDrafts || Boolean(switchingCategoryId);
+
+  const formatCategoryList = useCallback(
+    (states) =>
+      states
+        .map((state) => state.categoryBudget?.category_name)
+        .filter(Boolean)
+        .join(", "),
+    [],
+  );
+
+  useEffect(() => {
+    setHasUnsavedChanges(hasUnsavedChanges);
+
+    return () => {
+      setHasUnsavedChanges(false);
+    };
+  }, [hasUnsavedChanges, setHasUnsavedChanges]);
 
   const getRowSnapshot = useCallback((row) => {
     return JSON.stringify({
@@ -203,6 +284,131 @@ export default function BudgetEnteryPage() {
   }, []);
   useEscapeKey(closeExcelMenu, excelMenuOpen);
   useClickOutside(excelMenuRef, closeExcelMenu, excelMenuOpen);
+
+  async function saveCategoryDraft(categoryBudget, categoryRows, options = {}) {
+    if (!categoryBudget?.id) return false;
+
+    if (isCategoryReadOnly(categoryBudget)) {
+      if (!options.silent) {
+        toast.error(`${categoryBudget.category_name} is read-only`);
+      }
+      return false;
+    }
+
+    const categoryValidation = validateRowsDetailed(categoryRows);
+    if (categoryValidation) {
+      toast.error(`${categoryBudget.category_name}: ${categoryValidation}`, {
+        duration: 4500,
+      });
+      return false;
+    }
+
+    await saveDraft(buildCategoryPayloadRows(categoryBudget, categoryRows), {
+      departmentCategoryBudgetId: categoryBudget.id,
+    });
+
+    return true;
+  }
+
+  async function handleSaveAllDrafts() {
+    if (saveDraftLockRef.current) {
+      return false;
+    }
+
+    saveDraftLockRef.current = true;
+    setSavingAllDrafts(true);
+
+    try {
+      if (invalidCategoryStates.length > 0) {
+        toast.error(
+          `Fix validation issues before saving: ${formatCategoryList(
+            invalidCategoryStates,
+          )}`,
+          { duration: 5000 },
+        );
+        return false;
+      }
+
+      if (dirtyCategoryStates.length === 0) {
+        toast.success("All category drafts are already saved");
+        return true;
+      }
+
+      for (const state of dirtyCategoryStates) {
+        const saved = await saveCategoryDraft(
+          state.categoryBudget,
+          state.rows,
+          { silent: true },
+        );
+
+        if (!saved) return false;
+      }
+
+      toast.success("All category drafts saved");
+      return true;
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to save drafts");
+      return false;
+    } finally {
+      setSavingAllDrafts(false);
+      saveDraftLockRef.current = false;
+    }
+  }
+
+  async function handleCategoryTabClick(categoryBudget) {
+    if (
+      Number(categoryBudget.id) === Number(activeCategoryBudgetId) ||
+      saving ||
+      savingAllDrafts ||
+      switchingCategoryId ||
+      saveDraftLockRef.current
+    ) {
+      return;
+    }
+
+    const currentState = activeCategoryState;
+
+    if (currentState && !currentState.readOnly && currentState.validation) {
+      toast.error(
+        `Fix ${currentState.categoryBudget.category_name} validation errors before switching category.`,
+        { duration: 4500 },
+      );
+      return;
+    }
+
+    if (currentState && !currentState.readOnly && currentState.dirty) {
+      setSwitchingCategoryId(categoryBudget.id);
+      saveDraftLockRef.current = true;
+
+      try {
+        const saved = await saveCategoryDraft(
+          currentState.categoryBudget,
+          currentState.rows,
+          { silent: true },
+        );
+
+        if (!saved) return;
+
+        toast.success(
+          `${currentState.categoryBudget.category_name} draft saved`,
+        );
+      } catch (error) {
+        toast.error(
+          error?.response?.data?.message ||
+            `Failed to save ${currentState.categoryBudget.category_name}`,
+        );
+        return;
+      } finally {
+        setSwitchingCategoryId(null);
+        saveDraftLockRef.current = false;
+      }
+    }
+
+    setActiveCategoryBudgetId(categoryBudget.id);
+    setBudgetItemsPage(1);
+    setLocalBudgetStatus(null);
+  }
+
   async function handleSubmitBudget() {
     if (isBudgetLocked) {
       toast.error("This budget cannot be submitted");
@@ -224,12 +430,28 @@ export default function BudgetEnteryPage() {
         return;
       }
 
+      const otherDirtyCategories = dirtyCategoryStates.filter(
+        (state) =>
+          Number(state.categoryBudget?.id) !==
+          Number(activeCategoryBudget?.id),
+      );
+
+      if (otherDirtyCategories.length > 0) {
+        toast.error(
+          `Save all drafts before submitting ${activeCategoryName}. Unsaved: ${formatCategoryList(
+            otherDirtyCategories,
+          )}`,
+          { duration: 5000 },
+        );
+        return;
+      }
+
       if (validationError) {
         toast.error(validationError, { duration: 3500 });
         return;
       }
 
-      if (hasUnsavedChanges) {
+      if (activeCategoryIsDirty) {
         const saveSuccess = await handleSaveDraft();
 
         if (!saveSuccess) return;
@@ -311,8 +533,12 @@ export default function BudgetEnteryPage() {
     }
   }
   async function handleImportExcel(event) {
-    if (isBudgetLocked) {
-      toast.error("Submitted category budgets are read-only.");
+    if (isBudgetLocked || isDraftOperationPending) {
+      toast.error(
+        isBudgetLocked
+          ? "Submitted category budgets are read-only."
+          : "Wait for the current save to finish.",
+      );
       event.target.value = "";
       return;
     }
@@ -372,26 +598,12 @@ export default function BudgetEnteryPage() {
         return false;
       }
 
-      if (rows.length === 0) {
-        toast.error("Please add at least one budget item before saving");
-        return false;
-      }
-
       if (validationError) {
         toast.error(validationError, { duration: 3500 });
         return false;
       }
 
-      await saveDraft(
-        rows.map((row) => ({
-          id: row.isNew ? null : Number(row.id),
-          category_id: Number(activeCategoryBudget?.category_id),
-          catalog_item_id: Number(row.item),
-          requested_quantity: toNumber(row.quantity),
-          distribution_method: getApiDistributionMethod(row.method),
-          distribution: getApiDistributionRows(row),
-        })),
-      );
+      await saveCategoryDraft(activeCategoryBudget, rows);
 
       return true;
     } catch (error) {
@@ -413,7 +625,7 @@ export default function BudgetEnteryPage() {
       try {
         await deleteItem(rowId);
 
-        toast.success("Budget item deleted successfully");
+        toast.success("Row removed from draft. Save drafts to persist it.");
 
         setDeletingRowIds((prev) => prev.filter((id) => id !== rowId));
       } catch (error) {
@@ -436,7 +648,6 @@ export default function BudgetEnteryPage() {
     [typesByCategory],
   );
 
-  const validationError = validateRowsDetailed(rows);
   const duplicateTypeRowIds = getDuplicateTypeRowIds(rows);
   const totalBudgetItemsPages = useMemo(
     () => Math.max(1, Math.ceil(rows.length / BUDGET_ITEMS_PAGE_SIZE)),
@@ -452,7 +663,7 @@ export default function BudgetEnteryPage() {
     return rows.slice(start, start + BUDGET_ITEMS_PAGE_SIZE);
   }, [rows, currentBudgetItemsPage]);
   const handleCopyBudget = (copiedRows) => {
-    if (isBudgetLocked) {
+    if (isBudgetLocked || isDraftOperationPending) {
       toast.error("Submitted category budgets are read-only.");
       return;
     }
@@ -495,7 +706,7 @@ export default function BudgetEnteryPage() {
           <button
             type="button"
             onClick={() => setRequestItemModalOpen(true)}
-            disabled={isBudgetLocked || loadingSetup}
+            disabled={isBudgetLocked || loadingSetup || isDraftOperationPending}
             title={isBudgetLocked ? "Submitted category budgets are read-only." : undefined}
             className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-semibold text-amber-700 shadow-sm transition-all duration-200 hover:scale-[1.02] hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -505,14 +716,12 @@ export default function BudgetEnteryPage() {
 
           <button
             type="button"
-            onClick={handleSaveDraft}
-            disabled={
-              isBudgetLocked || !!validationError || saving || loadingSetup
-            }
+            onClick={handleSaveAllDrafts}
+            disabled={loadingSetup || isDraftOperationPending}
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Save size={17} />
-            {saving ? "Saving..." : "Save Draft"}
+            {savingAllDrafts || saving ? "Saving..." : "Save All Drafts"}
           </button>
 
           <button
@@ -522,7 +731,7 @@ export default function BudgetEnteryPage() {
               isBudgetLocked ||
               !canSubmitActiveCategory ||
               !!validationError ||
-              saving ||
+              isDraftOperationPending ||
               loadingSetup ||
               submitBudgetMutation.isPending
             }
@@ -544,25 +753,36 @@ export default function BudgetEnteryPage() {
           </button>
         </div>
       </div>
-      {!loadingSetup && rows.length > 0 && (
+      {!loadingSetup && (
         <div
           className={`rounded-xl border px-4 py-3 text-sm font-semibold flex items-center gap-2 mt-2
       ${
-        hasUnsavedChanges
+        invalidCategoryStates.length > 0
+          ? "border-red-200 bg-red-50 text-red-700"
+          : hasUnsavedChanges
           ? "border-amber-200 bg-amber-50 text-amber-700"
           : "border-emerald-200 bg-emerald-50 text-emerald-700"
       }
     `}
         >
-          {hasUnsavedChanges ? (
+          {invalidCategoryStates.length > 0 ? (
             <>
               <AlertCircle size={16} />
-              You have unsaved changes
+              {`Validation issues in ${formatCategoryList(
+                invalidCategoryStates,
+              )}`}
+            </>
+          ) : hasUnsavedChanges ? (
+            <>
+              <AlertCircle size={16} />
+              {`Unsaved changes in ${formatCategoryList(
+                dirtyCategoryStates,
+              )}`}
             </>
           ) : (
             <>
               <CheckCircle2 size={16} />
-              All changes are saved
+              All category drafts are saved
             </>
           )}
         </div>
@@ -588,7 +808,7 @@ export default function BudgetEnteryPage() {
             <div ref={excelMenuRef} className="relative">
               <button
                 type="button"
-                disabled={isBudgetLocked}
+                disabled={isBudgetLocked || isDraftOperationPending}
                 title={isBudgetLocked ? "Submitted category budgets are read-only." : undefined}
                 onClick={() => setExcelMenuOpen((prev) => !prev)}
                 className="
@@ -674,10 +894,10 @@ export default function BudgetEnteryPage() {
                 <div className="p-3">
                   <button
                     type="button"
-                    disabled={isBudgetLocked}
+                    disabled={isBudgetLocked || isDraftOperationPending}
                     title={isBudgetLocked ? "Submitted category budgets are read-only." : undefined}
                     onClick={() => {
-                      if (isBudgetLocked) return;
+                      if (isBudgetLocked || isDraftOperationPending) return;
                       setExcelMenuOpen(false);
                       handleDownloadTemplate();
                     }}
@@ -741,10 +961,10 @@ export default function BudgetEnteryPage() {
 
                   <button
                     type="button"
-                    disabled={isBudgetLocked}
+                    disabled={isBudgetLocked || isDraftOperationPending}
                     title={isBudgetLocked ? "Submitted category budgets are read-only." : undefined}
                     onClick={() => {
-                      if (isBudgetLocked) return;
+                      if (isBudgetLocked || isDraftOperationPending) return;
                       setExcelMenuOpen(false);
                       importInputRef.current?.click();
                     }}
@@ -825,7 +1045,7 @@ export default function BudgetEnteryPage() {
             <button
               type="button"
               onClick={() => setCopyDrawerOpen(true)}
-              disabled={isBudgetLocked}
+              disabled={isBudgetLocked || isDraftOperationPending}
               title={isBudgetLocked ? "Submitted category budgets are read-only." : undefined}
               className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -837,7 +1057,7 @@ export default function BudgetEnteryPage() {
             <button
               type="button"
               onClick={addItem}
-              disabled={isBudgetLocked}
+              disabled={isBudgetLocked || isDraftOperationPending}
               title={isBudgetLocked ? "Submitted category budgets are read-only." : undefined}
               className="
     group
@@ -888,15 +1108,31 @@ export default function BudgetEnteryPage() {
             const active =
               Number(categoryBudget.id) ===
               Number(activeCategoryBudgetId);
-
-            const count =
-              categoryBudget.items?.length ??
-              categoryBudget.item_count ??
-              0;
+            const categoryState =
+              categoryStateById[String(categoryBudget.id)] || {};
+            const count = categoryState.itemCount ?? 0;
+            const isSwitching =
+              Number(switchingCategoryId) === Number(categoryBudget.id);
 
             const label =
               categoryBudget.status?.replaceAll("_", " ") ||
               "DRAFT";
+
+            const draftStateLabel = categoryState.readOnly
+              ? "Read-only"
+              : categoryState.validation
+                ? "Invalid"
+                : categoryState.dirty
+                  ? "Unsaved"
+                  : "Saved";
+
+            const draftStateClassName = categoryState.readOnly
+              ? "bg-slate-100 text-slate-600"
+              : categoryState.validation
+                ? "bg-red-50 text-red-700"
+                : categoryState.dirty
+                  ? "bg-amber-50 text-amber-700"
+                  : "bg-emerald-50 text-emerald-700";
 
             return (
               <button
@@ -904,16 +1140,16 @@ export default function BudgetEnteryPage() {
                 type="button"
                 role="tab"
                 aria-selected={active}
-                onClick={() => {
-                  setActiveCategoryBudgetId(categoryBudget.id);
-                  setBudgetItemsPage(1);
-                  setLocalBudgetStatus(null);
-                }}
+                disabled={isDraftOperationPending && !isSwitching}
+                onClick={() => handleCategoryTabClick(categoryBudget)}
                 className={[
                   "rounded-2xl border px-4 py-4 text-left transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100",
                   active
                     ? "border-blue-300 bg-blue-50 shadow-sm ring-1 ring-blue-100"
                     : "border-slate-200 bg-white hover:border-blue-200 hover:bg-slate-50",
+                  isDraftOperationPending && !isSwitching
+                    ? "cursor-not-allowed opacity-70"
+                    : "",
                 ].join(" ")}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -927,10 +1163,17 @@ export default function BudgetEnteryPage() {
                     </div>
                   </div>
 
-                  <CategorySubmissionWindowBadge
-                    categoryBudget={categoryBudget}
-                    financialYearStatus={financialYearStatus}
-                  />
+                  <div className="flex flex-col items-end gap-2">
+                    <CategorySubmissionWindowBadge
+                      categoryBudget={categoryBudget}
+                      financialYearStatus={financialYearStatus}
+                    />
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-black ${draftStateClassName}`}
+                    >
+                      {isSwitching ? "Saving..." : draftStateLabel}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="mt-3 border-t border-slate-200/70 pt-3">
@@ -940,6 +1183,11 @@ export default function BudgetEnteryPage() {
                   <p className="mt-1 text-xs font-bold text-slate-700">
                     {label}
                   </p>
+                  {categoryState.validation && (
+                    <p className="mt-2 line-clamp-2 text-xs font-semibold text-red-600">
+                      {categoryState.validation}
+                    </p>
+                  )}
                 </div>
               </button>
             );
@@ -961,7 +1209,7 @@ export default function BudgetEnteryPage() {
             methodOptions={methodOptions}
             duplicateTypeRowIds={duplicateTypeRowIds}
             deletingRowIds={deletingRowIds}
-            isBudgetLocked={isBudgetLocked}
+            isBudgetLocked={isBudgetLocked || isDraftOperationPending}
             getMonthlyDistribution={getMonthlyDistribution}
             getQuarterlyDistribution={getQuarterlyDistribution}
             getDistributedQuantity={getDistributedQuantity}
@@ -1079,7 +1327,8 @@ export default function BudgetEnteryPage() {
                   validationError ? "text-red-500" : "text-emerald-600"
                 }`}
               >
-                {validationError || "All items are valid and ready to save."}
+                {validationError ||
+                  `${activeCategoryName} items are valid. Save All Drafts will validate every category.`}
               </p>
             </div>
           </div>
@@ -1157,10 +1406,10 @@ export default function BudgetEnteryPage() {
       <ConfirmModal
         open={deleteRowId !== null}
         danger
-        title="Delete budget item?"
-        message="This item will be removed from the table. If it already exists in the database, it will also be deleted permanently."
-        confirmText="Delete"
-        loading={saving}
+        title="Remove row from draft?"
+        message="This row will be removed from this draft. Use Save All Drafts to persist the removal."
+        confirmText="Remove Row"
+        loading={isDraftOperationPending}
         onCancel={() => setDeleteRowId(null)}
         onConfirm={handleDeleteRowWithAnimation}
       />

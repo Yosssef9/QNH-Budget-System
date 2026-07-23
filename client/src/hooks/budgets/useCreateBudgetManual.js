@@ -106,6 +106,43 @@ export function useCreateBudgetManual() {
     );
   }, [activeCategoryBudget, removedPersistedItemIdsByCategoryBudget]);
 
+  const updateSavedCategoryFromBudget = useCallback(
+    ({ budget, categoryBudgetId }) => {
+      const budgetCategories = budget?.categories || [];
+      const savedCategory = budgetCategories.find(
+        (categoryBudget) =>
+          Number(categoryBudget.id) === Number(categoryBudgetId),
+      );
+
+      if (!savedCategory) {
+        throw new Error("Saved category budget was not returned by the API");
+      }
+
+      setCurrentBudget(budget);
+      setCategoryBudgets((prev) =>
+        prev.map((categoryBudget) =>
+          Number(categoryBudget.id) === Number(categoryBudgetId)
+            ? savedCategory
+            : categoryBudget,
+        ),
+      );
+      setRowsByCategoryBudget((prev) => ({
+        ...prev,
+        [String(categoryBudgetId)]: lockRowsToCategory(
+          (savedCategory.items || []).map(mapBudgetItemToRow),
+          savedCategory.category_id,
+        ),
+      }));
+      setRemovedPersistedItemIdsByCategoryBudget((prev) => {
+        const next = { ...prev };
+        delete next[String(categoryBudgetId)];
+        return next;
+      });
+      localStorage.removeItem(getBudgetDraftKey(categoryBudgetId));
+    },
+    [],
+  );
+
   const setRows = useCallback(
     (updater) => {
       if (!activeCategoryBudget?.id) return;
@@ -421,11 +458,12 @@ export function useCreateBudgetManual() {
   }, [currentBudget]);
 
   const saveDraft = useCallback(
-    async (payloadRows) => {
+    async (payloadRows, options = {}) => {
       setSaving(true);
 
       try {
-        const categoryBudgetId = activeCategoryBudget?.id;
+        const categoryBudgetId =
+          options.departmentCategoryBudgetId || activeCategoryBudget?.id;
 
         if (!categoryBudgetId) {
           throw new Error("Current category budget was not loaded");
@@ -440,23 +478,14 @@ export function useCreateBudgetManual() {
           },
         );
 
-        const budget = savedBudget || (await getCurrentBudget()).budget;
-        const budgetCategories = budget?.categories || [];
-
-        setCurrentBudget(budget);
-        setCategoryBudgets(budgetCategories);
-        setRowsByCategoryBudget(mapRowsByCategoryBudget(budgetCategories));
-        setRemovedPersistedItemIdsByCategoryBudget((prev) => {
-          const next = { ...prev };
-          delete next[String(categoryBudgetId)];
-          return next;
-        });
-        localStorage.removeItem(getBudgetDraftKey(categoryBudgetId));
+        const latestBudget = savedBudget ? null : await getCurrentBudget();
+        const budget = savedBudget || latestBudget?.budget || latestBudget;
+        updateSavedCategoryFromBudget({ budget, categoryBudgetId });
       } finally {
         setSaving(false);
       }
     },
-    [activeCategoryBudget],
+    [activeCategoryBudget, updateSavedCategoryFromBudget],
   );
 
   return {
@@ -474,6 +503,7 @@ export function useCreateBudgetManual() {
     loadingSetup,
     saving,
     removedPersistedItemIds,
+    removedPersistedItemIdsByCategoryBudget,
     importRowsToCategoryBudgets,
     updateRow,
     addItem,

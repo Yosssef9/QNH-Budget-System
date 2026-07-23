@@ -15,6 +15,8 @@ import {
 import PageLoader from "../components/PageLoader";
 import SearchableMultiSelect from "../components/SearchableMultiSelect";
 import ConfirmModal from "../components/ConfirmModal";
+import SortableHeader from "../components/SortableHeader";
+import TablePagination from "../components/TablePagination";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   useBudgetAccessAssignments,
@@ -30,6 +32,8 @@ import { useBudgetAccessUsers } from "../hooks/budget-access/useBudgetAccessUser
 import { useBudgetAccessDepartments } from "../hooks/budget-access/useBudgetAccessDepartments";
 import { useBudgetAccessRoles } from "../hooks/budget-access/useBudgetAccessRoles";
 import { useSetupCategories } from "../hooks/budgets/useBudgetSetup";
+import usePagination from "../hooks/usePagination";
+import useTableSort from "../hooks/useTableSort";
 import toast from "react-hot-toast";
 
 const departmentScopedRoles = [
@@ -168,17 +172,28 @@ export default function BudgetAccessManagementPage() {
     }, {});
   }, [permissionRows]);
 
+  const tableRows = useMemo(() => {
+    return rows.map((row) => ({
+      ...row,
+      user_display_code: row.user_code || row.userCode || `User ${row.user_id}`,
+      user_display_name: row.user_name || row.userName || "No user name",
+      scope_sort: scopeLabel(row),
+      role_sort: row.role_name || `Role #${row.role_id}`,
+      status_sort: row.is_active ? "Active" : "Inactive",
+    }));
+  }, [rows]);
+
   const filteredRows = useMemo(() => {
     const q = tableSearch.trim().toLowerCase();
-    if (!q) return rows;
+    if (!q) return tableRows;
 
-    return rows.filter((row) => {
-      const code = String(row.user_code || row.userCode || "").toLowerCase();
-      const name = String(row.user_name || row.userName || "").toLowerCase();
-      const role = String(row.role_name || "").toLowerCase();
+    return tableRows.filter((row) => {
+      const code = String(row.user_display_code || "").toLowerCase();
+      const name = String(row.user_display_name || "").toLowerCase();
+      const role = String(row.role_sort || "").toLowerCase();
       const department = String(row.department_name || "").toLowerCase();
       const category = String(row.budget_category_name || "").toLowerCase();
-      const scope = scopeLabel(row).toLowerCase();
+      const scope = String(row.scope_sort || "").toLowerCase();
 
       return (
         code.includes(q) ||
@@ -189,7 +204,23 @@ export default function BudgetAccessManagementPage() {
         scope.includes(q)
       );
     });
-  }, [rows, tableSearch]);
+  }, [tableRows, tableSearch]);
+
+  const {
+    sortedRows,
+    sortColumn,
+    sortDirection,
+    handleSort,
+  } = useTableSort(filteredRows, "user_display_code", "asc");
+
+  const usersPagination = usePagination(sortedRows.length, 25);
+
+  const paginatedRows = useMemo(() => {
+    const start = (usersPagination.page - 1) * usersPagination.pageSize;
+    const end = start + usersPagination.pageSize;
+
+    return sortedRows.slice(start, end);
+  }, [sortedRows, usersPagination.page, usersPagination.pageSize]);
 
   const isEditing = Boolean(form.id);
 
@@ -804,7 +835,10 @@ export default function BudgetAccessManagementPage() {
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-enterprise-muted" />
                 <input
                   value={tableSearch}
-                  onChange={(e) => setTableSearch(e.target.value)}
+                  onChange={(e) => {
+                    setTableSearch(e.target.value);
+                    usersPagination.resetPage();
+                  }}
                   placeholder="Search current users..."
                   className="h-11 w-full rounded-xl border border-enterprise-border bg-enterprise-soft pl-10 pr-3 text-sm outline-none transition focus:border-primary-300 focus:bg-white focus:ring-4 focus:ring-primary-50"
                 />
@@ -817,18 +851,38 @@ export default function BudgetAccessManagementPage() {
               <table className="w-full min-w-[900px] border-separate border-spacing-0 text-left text-sm">
                 <thead className="sticky top-0 z-10 bg-enterprise-soft">
                   <tr className="bg-enterprise-soft text-xs font-semibold uppercase tracking-wide text-enterprise-muted">
-                    <th className="border-b border-enterprise-border px-4 py-3">
-                      User
-                    </th>
-                    <th className="border-b border-enterprise-border px-4 py-3">
-                      Scope
-                    </th>
-                    <th className="border-b border-enterprise-border px-4 py-3">
-                      Role
-                    </th>
-                    <th className="border-b border-enterprise-border px-4 py-3">
-                      Status
-                    </th>
+                    <SortableHeader
+                      label="User"
+                      column="user_display_code"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={handleSort}
+                      className="text-left"
+                    />
+                    <SortableHeader
+                      label="Scope"
+                      column="scope_sort"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={handleSort}
+                      className="text-left"
+                    />
+                    <SortableHeader
+                      label="Role"
+                      column="role_sort"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={handleSort}
+                      className="text-left"
+                    />
+                    <SortableHeader
+                      label="Status"
+                      column="status_sort"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={handleSort}
+                      className="text-left"
+                    />
                     <th className="border-b border-enterprise-border px-4 py-3 text-right">
                       Actions
                     </th>
@@ -836,7 +890,7 @@ export default function BudgetAccessManagementPage() {
                 </thead>
 
                 <tbody>
-                  {filteredRows.map((row) => (
+                  {paginatedRows.map((row) => (
                     <tr
                       key={row.id}
                       onClick={() => handleEdit(row)}
@@ -853,26 +907,24 @@ export default function BudgetAccessManagementPage() {
 
                           <div>
                             <p className="font-semibold">
-                              {row.user_code ||
-                                row.userCode ||
-                                `User ${row.user_id}`}
+                              {row.user_display_code}
                             </p>
 
                             <p className="text-xs text-enterprise-muted">
-                              {row.user_name || row.userName || "No user name"}
+                              {row.user_display_name}
                             </p>
                           </div>
                         </div>
                       </td>
 
                       <td className="border-b border-enterprise-border px-4 py-4">
-                        {scopeLabel(row)}
+                        {row.scope_sort}
                       </td>
 
                       <td className="border-b border-enterprise-border px-4 py-4">
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1 text-xs font-medium text-primary-700">
                           <ShieldCheck size={14} />
-                          {row.role_name || `Role #${row.role_id}`}
+                          {row.role_sort}
                         </span>
                       </td>
 
@@ -932,7 +984,7 @@ export default function BudgetAccessManagementPage() {
                     </tr>
                   ))}
 
-                  {filteredRows.length === 0 && (
+                  {sortedRows.length === 0 && (
                     <tr>
                       <td
                         colSpan="5"
@@ -945,6 +997,17 @@ export default function BudgetAccessManagementPage() {
                 </tbody>
               </table>
             </div>
+
+            <TablePagination
+              page={usersPagination.page}
+              totalPages={usersPagination.totalPages}
+              pageSize={usersPagination.pageSize}
+              startRow={usersPagination.startRow}
+              endRow={usersPagination.endRow}
+              totalRows={sortedRows.length}
+              onPageChange={usersPagination.setPage}
+              onPageSizeChange={usersPagination.setPageSize}
+            />
           </div>
         </section>
       </section>

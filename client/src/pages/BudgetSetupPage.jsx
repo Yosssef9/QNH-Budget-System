@@ -37,7 +37,6 @@ import {
   useCreateSetupSubItem,
   useCreateSetupType,
   useDeleteSetupCategory,
-  useDeleteSetupType,
   useItemRequests,
   useRejectItemRequest,
   useSetupCategories,
@@ -49,12 +48,18 @@ import {
   useUpdateSetupCategory,
   useUpdateSetupSubItem,
   useUpdateSetupSubItemStatus,
+  useUpdateSetupTypeStatus,
   useUpdateSetupType,
 } from "../hooks/budgets/useBudgetSetup";
 import { formatDateTime } from "../utils/dateFormatters";
 import CatalogSubItemDialog from "../components/catalog/CatalogSubItemDialog";
 
 const requestStatusOptions = ["PENDING", "APPROVED", "REJECTED", "ALL"];
+const catalogItemStatusOptions = [
+  { value: "ALL", label: "All items" },
+  { value: "ACTIVE", label: "Active" },
+  { value: "INACTIVE", label: "Inactive" },
+];
 
 const expenseTypeOptions = [
   { value: "OPEX", label: "OPEX" },
@@ -73,6 +78,7 @@ export default function BudgetSetupPage() {
   const [typeUnitId, setTypeUnitId] = useState("");
   const [expenseType, setExpenseType] = useState("OPEX");
   const [requestStatus, setRequestStatus] = useState("PENDING");
+  const [catalogItemStatus, setCatalogItemStatus] = useState("ALL");
   const [adminNotes, setAdminNotes] = useState({});
   const [search, setSearch] = useState("");
   const [categorySearch, setCategorySearch] = useState("");
@@ -129,21 +135,28 @@ export default function BudgetSetupPage() {
   const createSubItemMutation = useCreateSetupSubItem();
   const updateCategoryMutation = useUpdateSetupCategory();
   const updateTypeMutation = useUpdateSetupType();
+  const updateTypeStatusMutation = useUpdateSetupTypeStatus();
   const updateSubItemMutation = useUpdateSetupSubItem();
   const updateSubItemStatusMutation = useUpdateSetupSubItemStatus();
   const categoryUsageMutation = useSetupCategoryUsage();
   const typeUsageMutation = useSetupTypeUsage();
   const deleteCategoryMutation = useDeleteSetupCategory();
-  const deleteTypeMutation = useDeleteSetupType();
   const approveMutation = useApproveItemRequest();
   const approveAndCreateMutation = useApproveAndCreateItemRequest();
   const rejectMutation = useRejectItemRequest();
   const filteredTypes = useMemo(() => {
     const keyword = deferredItemSearch.trim().toLowerCase();
+    const status = catalogItemStatus;
 
-    if (!keyword) return types;
+    const statusFilteredTypes = types.filter((item) => {
+      if (status === "ACTIVE") return item.is_active;
+      if (status === "INACTIVE") return !item.is_active;
+      return true;
+    });
 
-    return types.filter((item) =>
+    if (!keyword) return statusFilteredTypes;
+
+    return statusFilteredTypes.filter((item) =>
       [item.name, item.item_code, item.expense_type, item.unit_name].some(
         (value) =>
           String(value || "")
@@ -151,7 +164,7 @@ export default function BudgetSetupPage() {
             .includes(keyword),
       ),
     );
-  }, [types, deferredItemSearch]);
+  }, [types, deferredItemSearch, catalogItemStatus]);
 
   const filteredCategories = useMemo(() => {
     const keyword = deferredCategorySearch.trim().toLowerCase();
@@ -586,6 +599,20 @@ export default function BudgetSetupPage() {
   }
 
   async function requestDeleteType(item) {
+    if (!item.is_active) {
+      setConfirmAction({
+        type: "UPDATE_TYPE_STATUS",
+        target: item,
+        isActive: true,
+        usage: [],
+        title: "Activate catalog item?",
+        message: `"${item.name}" will become available for new department budget requests again.`,
+        confirmText: "Activate",
+        danger: false,
+      });
+      return;
+    }
+
     try {
       const usage = await typeUsageMutation.mutateAsync({
         categoryId: activeCategoryId,
@@ -593,11 +620,13 @@ export default function BudgetSetupPage() {
       });
 
       setConfirmAction({
-        type: "DELETE_TYPE",
+        type: "UPDATE_TYPE_STATUS",
         target: item,
+        isActive: false,
         usage,
         title: "Deactivate catalog item?",
-        message: buildUsageMessage("delete", item.name, usage),
+        message: buildUsageMessage("deactivate", item.name, usage),
+        confirmText: "Deactivate",
         danger: true,
       });
     } catch (error) {
@@ -641,18 +670,33 @@ export default function BudgetSetupPage() {
       return;
     }
 
-    if (confirmAction.type === "DELETE_TYPE") {
+    if (confirmAction.type === "UPDATE_TYPE_STATUS") {
       try {
-        await deleteTypeMutation.mutateAsync({
+        await updateTypeStatusMutation.mutateAsync({
           categoryId: activeCategoryId,
           typeId: confirmAction.target.id,
+          isActive: confirmAction.isActive,
         });
 
-        toast.success("Catalog item deactivated successfully");
+        toast.success(
+          confirmAction.isActive
+            ? "Catalog item activated successfully"
+            : "Catalog item deactivated successfully",
+        );
+
+        if (
+          !confirmAction.isActive &&
+          String(selectedSubItemCatalogItem?.id) ===
+            String(confirmAction.target.id)
+        ) {
+          closeSubItemsPanel();
+        }
+
         setConfirmAction(null);
       } catch (error) {
         toast.error(
-          error?.response?.data?.message || "Failed to deactivate catalog item",
+          error?.response?.data?.message ||
+            "Failed to update catalog item status",
         );
       }
     }
@@ -715,7 +759,7 @@ export default function BudgetSetupPage() {
   }
   const isConfirmLoading =
     deleteCategoryMutation.isPending ||
-    deleteTypeMutation.isPending ||
+    updateTypeStatusMutation.isPending ||
     categoryUsageMutation.isPending ||
     typeUsageMutation.isPending;
 
@@ -1371,15 +1415,32 @@ export default function BudgetSetupPage() {
               </p>
             </div>
 
-            <EnterpriseSearch
-              value={search}
-              onChange={(value) => {
-                setSearch(value);
-                catalogItemsPagination.resetPage();
-              }}
-              placeholder="Search items..."
-              showClear={true}
-            />
+            <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto lg:items-center">
+              <div className="min-w-0 sm:w-56">
+                <SearchableMultiSelect
+                  multiple={false}
+                  disableClear
+                  value={catalogItemStatus}
+                  onChange={(event) => {
+                    setCatalogItemStatus(event.target.value || "ALL");
+                    catalogItemsPagination.resetPage();
+                  }}
+                  options={catalogItemStatusOptions}
+                  placeholder="Status"
+                  searchPlaceholder="Search status..."
+                />
+              </div>
+
+              <EnterpriseSearch
+                value={search}
+                onChange={(value) => {
+                  setSearch(value);
+                  catalogItemsPagination.resetPage();
+                }}
+                placeholder="Search items..."
+                showClear={true}
+              />
+            </div>
           </div>
 
           <div className="p-5">
@@ -1425,6 +1486,14 @@ export default function BudgetSetupPage() {
                         onSort={handleCatalogItemsSort}
                         className="text-left"
                       />
+                      <SortableHeader
+                        label="Status"
+                        column="is_active"
+                        sortColumn={catalogItemsSortColumn}
+                        sortDirection={catalogItemsSortDirection}
+                        onSort={handleCatalogItemsSort}
+                        className="text-left"
+                      />
                       <th className="border border-slate-200 px-4 py-3 text-right">
                         Actions
                       </th>
@@ -1438,7 +1507,10 @@ export default function BudgetSetupPage() {
                       return (
                         <tr
                           key={item.id}
-                          className="transition-colors duration-200 hover:bg-slate-50"
+                          className={[
+                            "transition-colors duration-200 hover:bg-slate-50",
+                            item.is_active ? "" : "bg-slate-50/70",
+                          ].join(" ")}
                         >
                           <td className="px-4 py-3 font-semibold text-slate-900">
                             {isEditing ? (
@@ -1507,6 +1579,24 @@ export default function BudgetSetupPage() {
                             )}
                           </td>
 
+                          <td className="px-4 py-3">
+                            <span
+                              className={[
+                                "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold",
+                                item.is_active
+                                  ? "bg-emerald-50 text-emerald-700"
+                                  : "bg-slate-100 text-slate-600",
+                              ].join(" ")}
+                            >
+                              {item.is_active ? (
+                                <CheckCircle2 size={13} />
+                              ) : (
+                                <XCircle size={13} />
+                              )}
+                              {item.is_active ? "Active" : "Inactive"}
+                            </span>
+                          </td>
+
                           <td className="px-4 py-3 text-right">
                             {isEditing ? (
                               <div className="flex justify-end gap-2">
@@ -1541,9 +1631,18 @@ export default function BudgetSetupPage() {
                                 <button
                                   type="button"
                                   onClick={() => openSubItems(item)}
+                                  disabled={!item.is_active}
+                                  title={
+                                    item.is_active
+                                      ? "Manage reusable models"
+                                      : "Activate this item before managing reusable models"
+                                  }
                                   className={[
                                     "inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-bold transition",
-                                    selectedSubItemCatalogItem?.id === item.id
+                                    !item.is_active
+                                      ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+                                      : selectedSubItemCatalogItem?.id ===
+                                          item.id
                                       ? "border-blue-200 bg-blue-50 text-blue-700"
                                       : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
                                   ].join(" ")}
@@ -1555,7 +1654,18 @@ export default function BudgetSetupPage() {
                                 <button
                                   type="button"
                                   onClick={() => requestEditType(item)}
-                                  className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
+                                  disabled={!item.is_active}
+                                  title={
+                                    item.is_active
+                                      ? "Edit catalog item"
+                                      : "Activate this item before editing it"
+                                  }
+                                  className={[
+                                    "inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-bold transition",
+                                    item.is_active
+                                      ? "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                                      : "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400",
+                                  ].join(" ")}
                                 >
                                   <Edit3 size={14} />
                                   Edit
@@ -1564,10 +1674,19 @@ export default function BudgetSetupPage() {
                                 <button
                                   type="button"
                                   onClick={() => requestDeleteType(item)}
-                                  className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-100"
+                                  className={[
+                                    "inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-bold transition",
+                                    item.is_active
+                                      ? "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                                      : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
+                                  ].join(" ")}
                                 >
-                                  <Trash2 size={14} />
-                                  Delete
+                                  {item.is_active ? (
+                                    <XCircle size={14} />
+                                  ) : (
+                                    <CheckCircle2 size={14} />
+                                  )}
+                                  {item.is_active ? "Deactivate" : "Activate"}
                                 </button>
                               </div>
                             )}
@@ -1860,7 +1979,10 @@ export default function BudgetSetupPage() {
         message={confirmAction?.message}
         danger={confirmAction?.danger}
         confirmText={
-          confirmAction?.type?.startsWith("DELETE") ? "Yes, Delete" : "Continue"
+          confirmAction?.confirmText ||
+          (confirmAction?.type?.startsWith("DELETE")
+            ? "Yes, Deactivate"
+            : "Continue")
         }
         loading={isConfirmLoading}
         onCancel={() => setConfirmAction(null)}

@@ -264,12 +264,28 @@ export async function getUnitsService(access) {
   return (await getUnitsRepo()).map(mapUnit);
 }
 
-export async function getCatalogItemsByCategoryService(categoryId, access) {
+export async function getCatalogItemsByCategoryService(
+  categoryId,
+  access,
+  options = {},
+) {
   assertCatalogLookupAccess(access, categoryId);
+
+  if (options.includeInactive && !hasCatalogManagementAccess(access)) {
+    throw new ApiError(
+      403,
+      "Only catalog administrators can view inactive catalog items",
+      "INACTIVE_CATALOG_ITEMS_FORBIDDEN",
+    );
+  }
 
   await requireCategory(categoryId);
 
-  return (await getCatalogItemsByCategoryRepo(categoryId)).map(mapCatalogItem);
+  return (
+    await getCatalogItemsByCategoryRepo(categoryId, {
+      includeInactive: Boolean(options.includeInactive),
+    })
+  ).map(mapCatalogItem);
 }
 
 export async function getAllCatalogItemsService() {
@@ -383,7 +399,11 @@ export async function updateCatalogItemStatusService({
   isActive,
   actorUserId = null,
 }) {
-  await requireCatalogItem(id);
+  const existing = await findCatalogItemByIdRepo(id);
+
+  if (!existing) {
+    throw new ApiError(404, "Catalog item not found", "CATALOG_ITEM_NOT_FOUND");
+  }
 
   const updated = await updateCatalogItemStatusRepo(
     id,

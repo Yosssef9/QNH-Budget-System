@@ -9,6 +9,7 @@ import {
   updateSetupCategory,
   updateSetupSubItem,
   updateSetupSubItemStatus,
+  updateSetupTypeStatus,
   updateSetupType,
   deleteSetupCategory,
   deleteSetupType,
@@ -33,8 +34,9 @@ export function useSetupCategories() {
 
 export function useSetupTypes(categoryId) {
   return useQuery({
-    queryKey: ["budget-setup", "types", categoryId],
-    queryFn: () => getSetupTypesByCategory(categoryId),
+    queryKey: ["budget-setup", "types", categoryId, "include-inactive"],
+    queryFn: () =>
+      getSetupTypesByCategory(categoryId, { includeInactive: true }),
     enabled: Boolean(categoryId),
   });
 }
@@ -199,6 +201,20 @@ export function useDeleteSetupType() {
 
   return useMutation({
     mutationFn: deleteSetupType,
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["budget-setup"] });
+      queryClient.invalidateQueries({
+        queryKey: ["budget-setup", "types", variables.categoryId],
+      });
+    },
+  });
+}
+
+export function useUpdateSetupTypeStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateSetupTypeStatus,
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["budget-setup"] });
       queryClient.invalidateQueries({

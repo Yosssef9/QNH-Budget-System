@@ -118,10 +118,14 @@ export const getUnits = asyncHandler(async (req, res) => {
 });
 export const getCatalogItemsByCategory = asyncHandler(async (req, res) => {
   const categoryId = validatePositiveInt(req.params.categoryId, "categoryId");
+  const includeInactive =
+    req.query.includeInactive === "1" ||
+    req.query.includeInactive === "true";
 
   const data = await getCatalogItemsByCategoryService(
     categoryId,
     req.budgetAccess,
+    { includeInactive },
   );
 
   res.json(

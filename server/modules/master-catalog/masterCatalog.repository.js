@@ -124,9 +124,12 @@ export async function findUnitByIdRepo(id) {
   return result.recordset[0] || null;
 }
 
-export async function getCatalogItemsByCategoryRepo(categoryId) {
+export async function getCatalogItemsByCategoryRepo(categoryId, options = {}) {
   const pool = await poolPromise;
-  const result = await pool.request().input("categoryId", sql.Int, categoryId).query(`
+  const result = await pool
+    .request()
+    .input("categoryId", sql.Int, categoryId)
+    .input("includeInactive", sql.Bit, options.includeInactive ? 1 : 0).query(`
     SELECT
       ci.id,
       ci.budget_category_id,
@@ -152,7 +155,7 @@ export async function getCatalogItemsByCategoryRepo(categoryId) {
       AND general.is_default_general = 1
       AND general.is_active = 1
     WHERE ci.budget_category_id = @categoryId
-      AND ci.is_active = 1
+      AND (@includeInactive = 1 OR ci.is_active = 1)
     ORDER BY ci.sort_order, ci.name;
   `);
   return result.recordset;

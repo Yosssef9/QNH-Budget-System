@@ -10,11 +10,16 @@ export async function createSetupCategory(payload) {
   return response.data?.data;
 }
 
-export async function getSetupTypesByCategory(categoryId) {
+export async function getSetupTypesByCategory(categoryId, options = {}) {
   if (!categoryId) return [];
 
   const response = await api.get(
     `/master-catalog/categories/${categoryId}/catalog-items`,
+    {
+      params: {
+        includeInactive: options.includeInactive ? "1" : undefined,
+      },
+    },
   );
   return response.data?.data || [];
 }
@@ -91,6 +96,14 @@ export async function deleteSetupType({ typeId }) {
   const response = await api.patch(
     `/master-catalog/catalog-items/${typeId}/status`,
     { is_active: false },
+  );
+  return response.data?.data;
+}
+
+export async function updateSetupTypeStatus({ typeId, isActive }) {
+  const response = await api.patch(
+    `/master-catalog/catalog-items/${typeId}/status`,
+    { is_active: Boolean(isActive) },
   );
   return response.data?.data;
 }

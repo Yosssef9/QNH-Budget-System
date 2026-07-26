@@ -19,13 +19,20 @@ export function departmentBudgetApprovalUpdatedTemplate(payload = {}) {
       payload.reviewNote ||
       `The approved quantity for ${itemName} has been updated by the Category Manager.`,
     status: "INFO",
-    details: [
-      { label: "Department", value: payload.departmentName || "Department" },
-      { label: "Category", value: categoryName },
-      { label: "Item", value: itemName },
-      { label: "Previous approved quantity", value: previousQuantity },
-      { label: "New approved quantity", value: newQuantity },
-      { label: "Financial year", value: payload.financialYear || "-" },
-    ],
+    actionText: "View Budget Decisions",
+    actionUrl: process.env.APP_URL,
+    details: {
+      Department: payload.departmentName || "Department",
+      Category: categoryName,
+      Item: itemName,
+      "Requested Quantity": payload.requestedQuantity ?? "-",
+      "Previous Approved Quantity": previousQuantity,
+      "New Approved Quantity": newQuantity,
+      Difference:
+        previousQuantity === "Not reviewed" || newQuantity === "Not reviewed"
+          ? "-"
+          : Number(newQuantity) - Number(previousQuantity),
+      "Financial Year": payload.financialYear || "-",
+    },
   };
 }

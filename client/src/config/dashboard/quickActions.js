@@ -10,6 +10,7 @@ import {
   Repeat2,
   ShieldCheck,
   Tags,
+  ClipboardCheck,
 } from "lucide-react";
 
 export function getQuickActions(budgetAccess) {
@@ -53,6 +54,13 @@ export function getQuickActions(budgetAccess) {
       description: "Review your category balances and department requests.",
       path: "/budgets",
       icon: Wallet,
+      show: canViewCategoryBudget && !canViewCfoReview,
+    },
+    {
+      title: "Category Review",
+      description: "Review department submissions and prepare your category package.",
+      path: "/category-review",
+      icon: ClipboardCheck,
       show: canViewCategoryBudget && !canViewCfoReview,
     },
     {

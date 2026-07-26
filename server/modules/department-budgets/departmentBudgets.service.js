@@ -761,6 +761,7 @@ export async function submitDepartmentCategoryBudgetService({
 
     return {
       categoryBudget,
+      itemCount: items.length,
       detail: await buildDepartmentBudgetDetail(
         categoryBudget.department_budget_id,
         transaction,
@@ -780,6 +781,7 @@ export async function submitDepartmentCategoryBudgetService({
       departmentName: submitted.categoryBudget.department_name,
       categoryName: submitted.categoryBudget.category_name,
       financialYear: submitted.categoryBudget.financial_year,
+      itemCount: submitted.itemCount,
       submittedBy: actorUserId,
       actorUserId,
     },

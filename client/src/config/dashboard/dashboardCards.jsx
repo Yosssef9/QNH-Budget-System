@@ -3,6 +3,7 @@ import { PERMISSION_CODES } from "@qnh/permissions";
 
 import { getHodCards } from "./hodCards";
 import { getAdminCards } from "./adminCards";
+import { getCategoryManagerCards } from "./categoryManagerCards";
 
 export function getDashboardStatsCards(
   budgetAccess,
@@ -28,10 +29,23 @@ export function getDashboardStatsCards(
       PERMISSION_CODES.MANAGE_DEPARTMENT_BUDGET_REQUESTS
     ) && !isApprover;
 
+  const isCategoryManager =
+    can(
+      budgetAccess,
+      PERMISSION_CODES.VIEW_CATEGORY_BUDGET_REQUESTS,
+    ) && !isApprover && !isHod;
+
   if (isHod) {
     return getHodCards(
       budgetAccess,
       dashboardData
+    );
+  }
+
+  if (isCategoryManager) {
+    return getCategoryManagerCards(
+      budgetAccess,
+      dashboardData,
     );
   }
 

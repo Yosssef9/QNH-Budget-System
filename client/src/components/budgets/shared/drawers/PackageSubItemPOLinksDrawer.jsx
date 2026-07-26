@@ -265,7 +265,7 @@ export default function PackageSubItemPOLinksDrawer({
         <div className="flex-1 overflow-y-auto p-6">
           {isLoading && (
             <div className="flex min-h-[360px] items-center justify-center rounded-3xl border border-slate-200 bg-white">
-              <LoadingSpinner />
+              <LoadingSpinner fill />
             </div>
           )}
 

@@ -43,50 +43,19 @@ export async function getActiveBudgetUsersExceptRepo(actorUserId) {
 export async function getTransferRequesterRepo(transferId) {
   const pool = await poolPromise;
 
-  const result = await pool.request().input("transferId", sql.Int, transferId)
+  const result = await pool.request().input("transferId", sql.BigInt, transferId)
     .query(`
       SELECT TOP 1
         u.USER_ID,
         u.USER_NAME,
         u.email
-      FROM BS_budget_transfers t
+      FROM dbo.BS_category_budget_transfers t
       INNER JOIN dbo.USERS u
         ON u.USER_ID = t.requested_by
       WHERE t.id = @transferId
         AND u.IS_ACTIVE = 1
         AND u.email IS NOT NULL
         AND ${activeBudgetUserExistsSql("u")}
-    `);
-
-  return result.recordset;
-}
-
-export async function getBudgetOwnerRepo(budgetId) {
-  const pool = await poolPromise;
-
-  const result = await pool.request().input("budgetId", sql.Int, budgetId)
-    .query(`
-      SELECT TOP 1
-        u.USER_ID,
-        u.USER_NAME,
-        u.email
-      FROM BS_budgets b
-
-      INNER JOIN BS_budget_user_roles bur
-        ON bur.department_id = b.department_id
-       AND bur.is_active = 1
-
-      INNER JOIN BS_budget_roles br
-        ON br.id = bur.role_id
-       AND UPPER(br.name) = 'HOD'
-
-      INNER JOIN dbo.USERS u
-        ON u.USER_ID = bur.user_id
-
-      WHERE b.id = @budgetId
-        AND br.is_active = 1
-        AND u.IS_ACTIVE = 1
-        AND u.email IS NOT NULL
     `);
 
   return result.recordset;

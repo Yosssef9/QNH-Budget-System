@@ -4,7 +4,6 @@ import { getUsersByEffectivePermission } from "../modules/access-management/acce
 import {
   getActiveBudgetUsersExceptRepo,
   getTransferRequesterRepo,
-  getBudgetOwnerRepo,
   getItemRequestOwnerRepo,
   getPOLinkRequesterRepo,
 } from "../repositories/notificationRecipients.repository.js";
@@ -51,9 +50,6 @@ export async function resolveRecipients(notificationType, payload) {
       switch (config.ownerType) {
         case "TRANSFER":
           return getTransferRequesterRepo(payload.transferId);
-
-        case "BUDGET":
-          return getBudgetOwnerRepo(payload.budgetId);
 
         case "ITEM_REQUEST":
           return getItemRequestOwnerRepo(payload.requestId);

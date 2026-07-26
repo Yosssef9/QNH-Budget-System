@@ -10,8 +10,13 @@ export function poLinkRejectedTemplate(payload) {
 
     message: "Your Purchase Order link request has been rejected.",
 
+    actionText: "View PO Link Request",
+
+    actionUrl: process.env.APP_URL,
+
     details: {
       "PO Link ID": payload.poLinkId,
+      "Package Sub-Item": payload.packageSubItem,
       Reason: payload.reason,
     },
   };

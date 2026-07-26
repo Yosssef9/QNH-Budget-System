@@ -539,6 +539,7 @@ export async function getFinancialYearPackageCompletionSummaryRepo(
     .input("financialYearId", sql.Int, financialYearId)
     .query(`
       SELECT
+        MAX(fy.year) AS financial_year,
         MAX(fy.status) AS financial_year_status,
         COUNT(1) AS package_count,
 
@@ -570,6 +571,7 @@ export async function getFinancialYearPackageCompletionSummaryRepo(
 
   return {
     package_count: Number(row.package_count || 0),
+    financial_year: row.financial_year || null,
     financial_year_status:
       row.financial_year_status || null,
     completed_count: Number(

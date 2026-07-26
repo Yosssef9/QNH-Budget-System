@@ -15,24 +15,61 @@ import { PERMISSION_CODES } from "@qnh/permissions";
 
 import { createFinancialYearCard } from "./commonCards";
 
+function renderCfoPackageProgressBadge({ submittedCount, totalCount }) {
+  const hasSubmittedPackages = submittedCount > 0;
+
+  return (
+    <span
+      className={[
+        "inline-flex rounded-full border px-3 py-1 text-sm font-bold uppercase tracking-[0.12em]",
+        hasSubmittedPackages
+          ? "border-blue-200 bg-blue-50 text-blue-700"
+          : "border-slate-200 bg-slate-50 text-slate-600",
+      ].join(" ")}
+    >
+      {submittedCount} / {totalCount} Submitted
+    </span>
+  );
+}
+
 export function getAdminCards(budgetAccess, dashboardData) {
   const dashboardStats = dashboardData.dashboardStats;
   const pendingPOLinkCount = (
     dashboardData.dashboardPOLinks?.requests || []
   ).filter((request) => request.status === "PENDING").length;
+  const cfoPackageReview = dashboardStats?.cfo?.packageReview || {};
+  const totalCategoryPackages = Number(
+    cfoPackageReview.total_category_packages || 3,
+  );
+  const submittedCategoryPackages = Number(
+    cfoPackageReview.submitted_category_packages || 0,
+  );
+  const waitingForCfoPackages = Number(
+    cfoPackageReview.waiting_for_cfo_packages || 0,
+  );
+  const pendingCfoPackageItems = Number(
+    cfoPackageReview.pending_cfo_package_items || 0,
+  );
 
   return [
     createFinancialYearCard(dashboardData.activeYear),
 
     {
       title: "CFO Package Review",
-      value: "Review",
+      value: renderCfoPackageProgressBadge({
+        submittedCount: submittedCategoryPackages,
+        totalCount: totalCategoryPackages,
+      }),
 
-      description: "Review category packages submitted by Category Managers",
+      description:
+        waitingForCfoPackages > 0
+          ? `${waitingForCfoPackages} package(s) and ${pendingCfoPackageItems} item(s) waiting for CFO decision`
+          : "No category packages are waiting for CFO review",
 
       icon: Clock3,
 
       route: "/cfo-review",
+      highlight: waitingForCfoPackages > 0 ? "pending" : null,
       show:
         can(
           budgetAccess,

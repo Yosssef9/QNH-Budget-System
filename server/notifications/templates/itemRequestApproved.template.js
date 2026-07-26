@@ -1,6 +1,6 @@
 export function itemRequestApprovedTemplate(payload) {
   return {
-    subject: `Item Request Approved`,
+    subject: `Catalog item request approved: ${payload.itemName || payload.requestId}`,
 
     status: "APPROVED",
 
@@ -8,7 +8,9 @@ export function itemRequestApprovedTemplate(payload) {
 
     title: "Item Request Approved",
 
-    message: "Your budget item request has been approved.",
+    message: payload.autoCreated
+      ? "Your budget item request has been approved and the catalog item was created."
+      : "Your budget item request has been approved.",
 
     actionText: "Open Budget",
 
@@ -16,6 +18,9 @@ export function itemRequestApprovedTemplate(payload) {
 
     details: {
       Item: payload.itemName,
+      Category: payload.categoryName,
+      "Unit of Measure": payload.unitOfMeasure,
+      "Catalog Item Created": payload.autoCreated ? "Yes" : "No",
       ApprovedBy: payload.approvedBy,
     },
   };

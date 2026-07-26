@@ -1,12 +1,12 @@
 export function itemRequestCreatedTemplate(payload) {
   return {
-    subject: `Item Request #${payload.requestId}`,
+    subject: `New catalog item request: ${payload.itemName || payload.requestId}`,
 
     status: "ACTION_REQUIRED",
 
     recipientName: payload.recipientName,
 
-    title: "Item Request Requires Approval",
+    title: "Catalog item request requires review",
 
     message: "A new budget item request requires your review.",
 
@@ -16,6 +16,9 @@ export function itemRequestCreatedTemplate(payload) {
 
     details: {
       Item: payload.itemName,
+      Category: payload.categoryName,
+      "Unit of Measure": payload.unitOfMeasure,
+      "Expense Type": payload.expenseType,
       RequestedBy: payload.requestedBy,
     },
   };

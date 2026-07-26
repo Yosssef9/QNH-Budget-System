@@ -1,15 +1,15 @@
 export function transferApprovedTemplate(payload) {
   return {
-    subject: `Transfer #${payload.transferId} Approved`,
+    subject: `Category transfer approved #${payload.transferId}`,
 
     status: "APPROVED",
 
     recipientName: payload.recipientName,
 
-    title: "Transfer Approved Successfully",
+    title: "Category transfer approved",
 
     message:
-      "Your transfer request has been approved and the budget has been updated successfully.",
+      "Your category transfer request has been approved.",
 
     actionText: "Open Budget System",
 
@@ -17,9 +17,12 @@ export function transferApprovedTemplate(payload) {
 
     details: {
       "Transfer ID": payload.transferId,
-      Budget: payload.budgetName,
+      Category: payload.categoryName,
+      From: `${payload.fromItemName || "-"} / ${payload.fromSubItemName || "-"}`,
+      To: `${payload.toItemName || "-"} / ${payload.toSubItemName || "-"}`,
+      "Source Quantity": payload.sourceQuantity,
+      "Destination Quantity": payload.destinationQuantity,
       Amount: payload.amount,
-      "Approved By": payload.approvedBy,
     },
   };
 }

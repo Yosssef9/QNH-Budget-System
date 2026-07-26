@@ -39,7 +39,7 @@ function formatQuantity(value) {
   });
 }
 
-function ItemCard({ item, selected, disabled, label, onClick }) {
+function ItemCard({ item, selected, disabled, onClick }) {
   return (
     <button
       type="button"
@@ -763,12 +763,10 @@ export default function TransferForm() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Business Reason
-                </label>
-
-                <textarea
+                <Input
                   required
+                  label="Business Reason"
+                  multiline
                   rows={5}
                   value={form.reason}
                   onChange={(e) =>
@@ -778,7 +776,6 @@ export default function TransferForm() {
                     }))
                   }
                   placeholder="Explain why this transfer is needed..."
-                  className="w-full resize-none rounded-2xl border border-slate-200 p-3 text-sm outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all duration-300"
                 />
               </div>
 

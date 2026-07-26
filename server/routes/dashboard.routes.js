@@ -1,11 +1,12 @@
 import express from "express";
 import { getDashboardStats } from "../controllers/dashboard.controller.js";
-import { verifyPortalJwt } from "../middleware/verifyPortalJwt.middleware.js";
-import { verifyBudgetAccess } from "../middleware/verifyBudgetAccess.middleware.js";
+import { verifyPortalJwt } from "../shared/auth/verifyPortalJwt.js";
+import { resolveBudgetWorkspace } from "../shared/middleware/resolveBudgetWorkspace.js";
 
 const router = express.Router();
 
-router.use(verifyPortalJwt, verifyBudgetAccess);
+router.use(verifyPortalJwt);
+router.use(resolveBudgetWorkspace);
 
 router.get("/stats", getDashboardStats);
 

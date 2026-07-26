@@ -1,14 +1,14 @@
 export function transferRejectedTemplate(payload) {
   return {
-    subject: `Transfer #${payload.transferId} Rejected`,
+    subject: `Category transfer rejected #${payload.transferId}`,
 
     status: "REJECTED",
 
     recipientName: payload.recipientName,
 
-    title: "Transfer Rejected",
+    title: "Category transfer rejected",
 
-    message: "Your transfer request has been rejected.",
+    message: "Your category transfer request has been rejected.",
 
     actionText: "View Transfer",
 
@@ -16,9 +16,10 @@ export function transferRejectedTemplate(payload) {
 
     details: {
       "Transfer ID": payload.transferId,
-      Budget: payload.budgetName,
+      Category: payload.categoryName,
+      From: `${payload.fromItemName || "-"} / ${payload.fromSubItemName || "-"}`,
+      To: `${payload.toItemName || "-"} / ${payload.toSubItemName || "-"}`,
       Amount: payload.amount,
-      RejectedBy: payload.rejectedBy,
       Reason: payload.reason,
     },
   };

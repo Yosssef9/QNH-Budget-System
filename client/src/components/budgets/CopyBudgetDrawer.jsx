@@ -130,7 +130,7 @@ export default function CopyBudgetDrawer({
 
           {loadingHistory ? (
             <div className="flex flex-1 items-center justify-center">
-              <LoadingSpinner />
+              <LoadingSpinner fill />
             </div>
           ) : (
             <div className="flex flex-1 overflow-hidden">
@@ -170,7 +170,7 @@ export default function CopyBudgetDrawer({
                 <div className="flex-1 overflow-hidden">
                   {loadingItems ? (
                     <div className="h-full w-full p-5">
-                      <LoadingSpinner />
+                      <LoadingSpinner fill />
                     </div>
                   ) : (
                     <CopyBudgetPreview

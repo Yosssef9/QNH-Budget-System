@@ -1042,7 +1042,7 @@ export default function PackageSubItemPriceIntelligenceDrawer({
 
           {isLoading ? (
             <div className="flex min-h-[360px] items-center justify-center rounded-3xl border border-slate-200 bg-white">
-              <LoadingSpinner />
+              <LoadingSpinner fill />
             </div>
           ) : null}
 

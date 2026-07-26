@@ -1,3 +1,4 @@
+import Input from "../Input";
 import SearchableMultiSelect from "../SearchableMultiSelect";
 
 export default function CatalogSubItemFields({
@@ -34,12 +35,13 @@ export default function CatalogSubItemFields({
           <span className="text-xs font-bold uppercase text-slate-500">
             Model name
           </span>
-          <input
+          <Input
             value={value.name}
             onChange={(event) => updateField("name", event.target.value)}
             disabled={disabled || lockIdentity}
             placeholder="Example: Dell Latitude 5450"
-            className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100 disabled:text-slate-500"
+            containerClassName="mt-1"
+            className="px-4 py-3 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100 disabled:text-slate-500"
           />
         </label>
       </div>
@@ -48,7 +50,8 @@ export default function CatalogSubItemFields({
         <span className="text-xs font-bold uppercase text-slate-500">
           Default specification
         </span>
-        <textarea
+        <Input
+          multiline
           value={value.default_specification}
           onChange={(event) =>
             updateField("default_specification", event.target.value)
@@ -56,7 +59,8 @@ export default function CatalogSubItemFields({
           disabled={disabled}
           rows={4}
           placeholder="Reusable default specification copied into future package snapshots"
-          className="mt-1 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100 disabled:text-slate-500"
+          containerClassName="mt-1"
+          className="px-4 py-3 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100 disabled:text-slate-500"
         />
       </label>
 

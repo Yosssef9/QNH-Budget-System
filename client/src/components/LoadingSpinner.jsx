@@ -4,6 +4,7 @@ export default function LoadingSpinner({
   title = "Loading...",
   subtitle = "Please wait",
   fullPage = false,
+  fill = false,
 }) {
   const content = (
     <div className="flex flex-col items-center justify-center gap-4 py-12">
@@ -36,6 +37,14 @@ export default function LoadingSpinner({
   if (fullPage) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
+        {content}
+      </div>
+    );
+  }
+
+  if (fill) {
+    return (
+      <div className="flex h-full min-h-[320px] w-full items-center justify-center rounded-3xl border border-slate-200 bg-white shadow-sm">
         {content}
       </div>
     );

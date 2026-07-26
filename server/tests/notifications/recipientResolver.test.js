@@ -51,6 +51,45 @@ describe("notification recipient permission resolution", () => {
     });
   });
 
+  it("routes category package submissions to CFO approvers", async () => {
+    await resolveRecipients(NOTIFICATION_TYPES.CATEGORY_BUDGET_PACKAGE_SUBMITTED, {
+      packageId: 12,
+      categoryId: 2,
+    });
+
+    expect(getUsersByEffectivePermission).toHaveBeenCalledWith({
+      permissionCode: PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES,
+      scope: { type: "GLOBAL" },
+    });
+  });
+
+  it("routes completed category review notifications to the owning department", async () => {
+    await resolveRecipients(
+      NOTIFICATION_TYPES.DEPARTMENT_CATEGORY_REVIEW_COMPLETED,
+      {
+        departmentCategoryBudgetId: 44,
+        departmentId: 8,
+      },
+    );
+
+    expect(getUsersByEffectivePermission).toHaveBeenCalledWith({
+      permissionCode: PERMISSION_CODES.VIEW_DEPARTMENT_BUDGET_REQUESTS,
+      scope: { type: "DEPARTMENT", departmentId: 8 },
+    });
+  });
+
+  it("routes adjustment request submissions to the assigned category manager", async () => {
+    await resolveRecipients(NOTIFICATION_TYPES.ADJUSTMENT_REQUEST_SUBMITTED, {
+      adjustmentRequestId: 22,
+      categoryId: 3,
+    });
+
+    expect(getUsersByEffectivePermission).toHaveBeenCalledWith({
+      permissionCode: PERMISSION_CODES.REVIEW_CATEGORY_BUDGET_CHANGE_REQUESTS,
+      scope: { type: "CATEGORY", categoryId: 3 },
+    });
+  });
+
   it("routes financial-year broadcasts only through active budget users", async () => {
     getActiveBudgetUsersExceptRepo.mockResolvedValue([]);
 

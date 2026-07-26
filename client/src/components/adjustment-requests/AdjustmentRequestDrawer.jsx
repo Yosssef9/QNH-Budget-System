@@ -8,7 +8,7 @@ import {
   getAdjustmentRequestOptions,
 } from "../../api/adjustmentRequests.api";
 import AnimatedDrawer from "../budgets/shared/drawers/AnimatedDrawer";
-import CurrencyText from "../CurrencyText";
+import Input from "../Input";
 import SearchableMultiSelect from "../SearchableMultiSelect";
 
 const requestTypeOptions = [
@@ -476,16 +476,16 @@ export default function AdjustmentRequestDrawer({
                   <div>
                     <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-500">
                       Requested Quantity
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        step="1"
-                        value={form.requestedQuantity}
-                        onChange={(event) =>
-                          updateField("requestedQuantity", event.target.value)
-                        }
-                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                    </label>
+                    <Input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={form.requestedQuantity}
+                      onChange={(event) =>
+                        updateField("requestedQuantity", event.target.value)
+                      }
+                      className="rounded-xl px-4 py-3 text-sm font-semibold focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
                       placeholder="Quantity needed"
                     />
                   </div>
@@ -503,11 +503,12 @@ export default function AdjustmentRequestDrawer({
                 <label className="mb-2 mt-5 block text-xs font-bold uppercase tracking-wide text-slate-500">
                   Reason
                 </label>
-                <textarea
+                <Input
+                  multiline
                   rows={4}
                   value={form.reason}
                   onChange={(event) => updateField("reason", event.target.value)}
-                  className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                  className="rounded-xl px-4 py-3 text-sm font-semibold focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
                   placeholder="Explain why this adjustment is needed"
                 />
               </section>

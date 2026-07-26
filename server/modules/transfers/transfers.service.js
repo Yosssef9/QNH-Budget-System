@@ -1,5 +1,7 @@
 import { withTransaction } from "../../database/transaction.js";
 import { ApiError } from "../../utils/apiError.js";
+import { NOTIFICATION_TYPES } from "../../constants/notificationTypes.js";
+import { queueNotification } from "../../services/notification.service.js";
 import { hasPermission } from "../../../shared/permissions/permissionCodes.js";
 import { TRANSFER_PERMISSIONS, TRANSFER_STATUS } from "./transfers.constants.js";
 import {
@@ -93,6 +95,25 @@ function calculateTransferAmounts({ payload, source, target }) {
     destinationQuantity,
     sourceUnitPrice,
     destinationUnitPrice,
+  };
+}
+
+function buildTransferNotificationPayload(transfer, actorUserId, note = null) {
+  return {
+    transferId: transfer.id,
+    categoryId: transfer.budget_category_id,
+    categoryName: transfer.category_name,
+    financialYear: transfer.financial_year,
+    fromItemName: transfer.from_item_name,
+    fromSubItemName: transfer.from_sub_item_name,
+    toItemName: transfer.to_item_name,
+    toSubItemName: transfer.to_sub_item_name,
+    amount: transfer.transfer_amount ?? transfer.amount,
+    sourceQuantity: transfer.source_quantity,
+    destinationQuantity: transfer.destination_quantity,
+    requestedBy: transfer.requested_by_name || transfer.requested_by,
+    reason: note || transfer.rejection_note || transfer.reason,
+    actorUserId,
   };
 }
 
@@ -214,7 +235,16 @@ export async function createTransferService({ payload, actorUserId, budgetAccess
     return inserted;
   });
 
-  return mapTransfer(await getTransferByIdRepo({ transferId: created.id }));
+  const mapped = mapTransfer(await getTransferByIdRepo({ transferId: created.id }));
+
+  await queueNotification({
+    notificationType: NOTIFICATION_TYPES.TRANSFER_CREATED,
+    entityType: "CATEGORY_BUDGET_TRANSFER",
+    entityId: mapped.id,
+    payload: buildTransferNotificationPayload(mapped, actorUserId),
+  });
+
+  return mapped;
 }
 
 export async function getTransfersService({ query, budgetAccess }) {
@@ -298,7 +328,16 @@ export async function approveTransferService({ transferId, actorUserId, budgetAc
     });
   });
 
-  return mapTransfer(await getTransferByIdRepo({ transferId }));
+  const mapped = mapTransfer(await getTransferByIdRepo({ transferId }));
+
+  await queueNotification({
+    notificationType: NOTIFICATION_TYPES.TRANSFER_APPROVED,
+    entityType: "CATEGORY_BUDGET_TRANSFER",
+    entityId: transferId,
+    payload: buildTransferNotificationPayload(mapped, actorUserId),
+  });
+
+  return mapped;
 }
 
 export async function rejectTransferService({ transferId, note, actorUserId, budgetAccess }) {
@@ -337,7 +376,16 @@ export async function rejectTransferService({ transferId, note, actorUserId, bud
     });
   });
 
-  return mapTransfer(await getTransferByIdRepo({ transferId }));
+  const mapped = mapTransfer(await getTransferByIdRepo({ transferId }));
+
+  await queueNotification({
+    notificationType: NOTIFICATION_TYPES.TRANSFER_REJECTED,
+    entityType: "CATEGORY_BUDGET_TRANSFER",
+    entityId: transferId,
+    payload: buildTransferNotificationPayload(mapped, actorUserId, note),
+  });
+
+  return mapped;
 }
 
 export async function getTransferDashboardService({ actorUserId, budgetAccess }) {

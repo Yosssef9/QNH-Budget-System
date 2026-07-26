@@ -13,6 +13,7 @@ import Breadcrumbs from "../components/Breadcrumbs";
 import LoadingSpinner from "../components/LoadingSpinner";
 import CollapsibleSection from "../components/CollapsibleSection";
 import ConfirmModal from "../components/ConfirmModal";
+import Input from "../components/Input";
 import SearchableMultiSelect from "../components/SearchableMultiSelect";
 import EnterpriseSearch from "../components/EnterpriseSearch";
 import TransferApprovalTable from "../components/transfers/TransferApprovalTable";
@@ -416,12 +417,13 @@ export default function TransferApprovalPage() {
           }
         }}
       >
-        <textarea
+        <Input
+          multiline
           value={rejectionNote}
           onChange={(event) => setRejectionNote(event.target.value)}
           rows={4}
           placeholder="Enter rejection reason..."
-          className="w-full rounded-xl border border-slate-300 p-3"
+          className="rounded-xl border-slate-300"
         />
       </ConfirmModal>
     </div>

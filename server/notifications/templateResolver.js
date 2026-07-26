@@ -4,13 +4,19 @@ import { transferCreatedTemplate } from "./templates/transferCreated.template.js
 import { transferApprovedTemplate } from "./templates/transferApproved.template.js";
 import { transferRejectedTemplate } from "./templates/transferRejected.template.js";
 
-import { budgetSubmittedTemplate } from "./templates/budgetSubmitted.template.js";
-import { budgetApprovedTemplate } from "./templates/budgetApproved.template.js";
-import { budgetReturnedTemplate } from "./templates/budgetReturned.template.js";
+import { departmentCategoryBudgetSubmittedTemplate } from "./templates/departmentCategoryBudgetSubmitted.template.js";
+import { departmentCategoryReviewCompletedTemplate } from "./templates/departmentCategoryReviewCompleted.template.js";
+import { categoryPackageSubmittedTemplate } from "./templates/categoryPackageSubmitted.template.js";
+import { categoryPackageReturnedTemplate } from "./templates/categoryPackageReturned.template.js";
+import { categoryPackageCompletedTemplate } from "./templates/categoryPackageCompleted.template.js";
+import { cfoAnnualPackageReviewFinalizedTemplate } from "./templates/cfoAnnualPackageReviewFinalized.template.js";
 
 import { itemRequestCreatedTemplate } from "./templates/itemRequestCreated.template.js";
 import { itemRequestApprovedTemplate } from "./templates/itemRequestApproved.template.js";
 import { itemRequestRejectedTemplate } from "./templates/itemRequestRejected.template.js";
+import { adjustmentRequestSubmittedTemplate } from "./templates/adjustmentRequestSubmitted.template.js";
+import { adjustmentRequestApprovedTemplate } from "./templates/adjustmentRequestApproved.template.js";
+import { adjustmentRequestRejectedTemplate } from "./templates/adjustmentRequestRejected.template.js";
 
 import { financialYearOpenedTemplate } from "./templates/financialYearOpened.template.js";
 import { financialYearPreClosingTemplate } from "./templates/financialYearPreClosing.template.js";
@@ -31,19 +37,23 @@ export function resolveTemplate(notificationType, payload) {
     case NOTIFICATION_TYPES.TRANSFER_REJECTED:
       return transferRejectedTemplate(payload);
 
-    case NOTIFICATION_TYPES.BUDGET_SUBMITTED:
     case NOTIFICATION_TYPES.DEPARTMENT_CATEGORY_BUDGET_SUBMITTED:
+      return departmentCategoryBudgetSubmittedTemplate(payload);
+
+    case NOTIFICATION_TYPES.DEPARTMENT_CATEGORY_REVIEW_COMPLETED:
+      return departmentCategoryReviewCompletedTemplate(payload);
+
     case NOTIFICATION_TYPES.CATEGORY_BUDGET_PACKAGE_SUBMITTED:
-      return budgetSubmittedTemplate(payload);
+      return categoryPackageSubmittedTemplate(payload);
 
-    case NOTIFICATION_TYPES.BUDGET_APPROVED:
-    case NOTIFICATION_TYPES.CATEGORY_REVIEW_COMPLETED:
     case NOTIFICATION_TYPES.CATEGORY_BUDGET_PACKAGE_COMPLETED:
-      return budgetApprovedTemplate(payload);
+      return categoryPackageCompletedTemplate(payload);
 
-    case NOTIFICATION_TYPES.BUDGET_RETURNED:
     case NOTIFICATION_TYPES.CATEGORY_BUDGET_PACKAGE_RETURNED:
-      return budgetReturnedTemplate(payload);
+      return categoryPackageReturnedTemplate(payload);
+
+    case NOTIFICATION_TYPES.CFO_ANNUAL_PACKAGE_REVIEW_FINALIZED:
+      return cfoAnnualPackageReviewFinalizedTemplate(payload);
 
     case NOTIFICATION_TYPES.DEPARTMENT_BUDGET_APPROVAL_UPDATED:
       return departmentBudgetApprovalUpdatedTemplate(payload);
@@ -60,6 +70,15 @@ export function resolveTemplate(notificationType, payload) {
 
     case NOTIFICATION_TYPES.ITEM_REQUEST_REJECTED:
       return itemRequestRejectedTemplate(payload);
+
+    case NOTIFICATION_TYPES.ADJUSTMENT_REQUEST_SUBMITTED:
+      return adjustmentRequestSubmittedTemplate(payload);
+
+    case NOTIFICATION_TYPES.ADJUSTMENT_REQUEST_APPROVED:
+      return adjustmentRequestApprovedTemplate(payload);
+
+    case NOTIFICATION_TYPES.ADJUSTMENT_REQUEST_REJECTED:
+      return adjustmentRequestRejectedTemplate(payload);
 
     case NOTIFICATION_TYPES.FINANCIAL_YEAR_OPENED:
       return financialYearOpenedTemplate(payload);

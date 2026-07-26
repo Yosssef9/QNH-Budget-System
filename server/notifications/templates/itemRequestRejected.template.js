@@ -1,6 +1,6 @@
 export function itemRequestRejectedTemplate(payload) {
   return {
-    subject: `Item Request Rejected`,
+    subject: `Catalog item request rejected: ${payload.itemName || payload.requestId}`,
 
     status: "REJECTED",
 
@@ -16,6 +16,7 @@ export function itemRequestRejectedTemplate(payload) {
 
     details: {
       Item: payload.itemName,
+      Category: payload.categoryName,
       RejectedBy: payload.rejectedBy,
       Reason: payload.reason,
     },

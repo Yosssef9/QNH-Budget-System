@@ -24,6 +24,7 @@ import {
 } from "../theme/statusStyles";
 import CollapsiblePanelToggle from "../components/layout/CollapsiblePanelToggle";
 import ConfirmModal from "../components/ConfirmModal";
+import Input from "../components/Input";
 import SearchableMultiSelect from "../components/SearchableMultiSelect";
 import EnterpriseSearch from "../components/EnterpriseSearch";
 import SortableHeader from "../components/SortableHeader";
@@ -327,7 +328,7 @@ export default function BudgetSetupPage() {
       message:
         'Approve "' +
         request.requested_type_name +
-        '"? Create the catalog item separately with its Unit of Measure after approval.',
+        '"? You can create this catalog item separately after approval.',
       danger: false,
       confirmText: "Approve Request",
     });
@@ -1038,7 +1039,8 @@ export default function BudgetSetupPage() {
                                     </div>
                                   </div>
 
-                                  <textarea
+                                  <Input
+                                    multiline
                                     value={adminNotes[request.id] || ""}
                                     onChange={(e) =>
                                       setAdminNotes((prev) => ({
@@ -1049,7 +1051,8 @@ export default function BudgetSetupPage() {
                                     disabled={!isPending}
                                     rows={3}
                                     placeholder="Admin note, optional"
-                                    className="mt-4 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
+                                    containerClassName="mt-4"
+                                    className="px-4 py-3 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
                                   />
 
                                   {isPending ? (
@@ -1157,11 +1160,11 @@ export default function BudgetSetupPage() {
                   </h2>
 
                   <div className="mt-4 space-y-3">
-                    <input
+                    <Input
                       value={categoryName}
                       onChange={(e) => setCategoryName(e.target.value)}
                       placeholder="Example: IT Equipment"
-                      className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                      className="px-4 py-3 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
                     />
 
                     <button
@@ -1226,12 +1229,12 @@ export default function BudgetSetupPage() {
                             >
                               {isEditing ? (
                                 <div className="space-y-3">
-                                  <input
+                                  <Input
                                     value={editingCategoryName}
                                     onChange={(e) =>
                                       setEditingCategoryName(e.target.value)
                                     }
-                                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                                    className="rounded-xl px-3 py-2 text-sm font-semibold focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
                                   />
 
                                   <div className="flex gap-2">
@@ -1341,11 +1344,11 @@ export default function BudgetSetupPage() {
                       getOptionValue={(item) => String(item.id)}
                     />
 
-                    <input
+                    <Input
                       value={typeName}
                       onChange={(e) => setTypeName(e.target.value)}
                       placeholder="Example: Laptop"
-                      className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                      className="px-4 py-3 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
                     />
 
                     <SearchableMultiSelect
@@ -1514,12 +1517,12 @@ export default function BudgetSetupPage() {
                         >
                           <td className="px-4 py-3 font-semibold text-slate-900">
                             {isEditing ? (
-                              <input
+                              <Input
                                 value={editingTypeName}
                                 onChange={(e) =>
                                   setEditingTypeName(e.target.value)
                                 }
-                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                                className="rounded-xl px-3 py-2 text-sm font-semibold focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
                               />
                             ) : (
                               item.name

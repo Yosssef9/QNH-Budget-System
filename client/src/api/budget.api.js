@@ -113,8 +113,10 @@ export async function getApprovedApprovals() {
   const response = await api.get("/budget-approval/approved");
   return response.data?.data || [];
 }
-export async function getDashboardStats() {
-  const response = await api.get("/dashboard/stats");
+export async function getDashboardStats(financialYearId = null) {
+  const response = await api.get("/dashboard/stats", {
+    params: financialYearId ? { financialYearId } : undefined,
+  });
   return response.data?.data;
 }
 export async function getAuditLogs(params = {}) {

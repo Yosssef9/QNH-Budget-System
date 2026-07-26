@@ -647,7 +647,7 @@ export async function completeDepartmentCategoryReviewService({
   });
 
   await queueNotification({
-    notificationType: NOTIFICATION_TYPES.CATEGORY_REVIEW_COMPLETED,
+    notificationType: NOTIFICATION_TYPES.DEPARTMENT_CATEGORY_REVIEW_COMPLETED,
     entityType: "DEPARTMENT_CATEGORY_BUDGET",
     entityId: departmentCategoryBudgetId,
     payload: {
@@ -657,6 +657,8 @@ export async function completeDepartmentCategoryReviewService({
       categoryId: completed.budget.budget_category_id,
       categoryName: completed.budget.category_name,
       financialYear: completed.budget.financial_year,
+      reviewedItemCount: completed.detail?.items?.length,
+      completedBy: actorUserId,
       actorUserId,
     },
   });

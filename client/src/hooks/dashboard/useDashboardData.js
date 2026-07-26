@@ -53,8 +53,14 @@ export function useDashboardData() {
   });
 
   const { data: dashboardStats } = useQuery({
-    queryKey: ["dashboard", "stats"],
-    queryFn: getDashboardStats,
+    queryKey: [
+      "dashboard",
+      "stats",
+      budgetAccess?.userRoleId || budgetAccess?.activeUserRoleId || null,
+      activeYear?.id || null,
+    ],
+    queryFn: () => getDashboardStats(activeYear?.id),
+    enabled: Boolean(activeYear?.id),
     refetchOnWindowFocus: true,
   });
 

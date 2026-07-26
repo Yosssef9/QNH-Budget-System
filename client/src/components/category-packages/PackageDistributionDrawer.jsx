@@ -240,6 +240,9 @@ function DistributionChart({ rows, periodDefinitions, periodView }) {
 function RowDetailsPanel({ row, periodDefinitions, periodView, onClose }) {
   if (!row) return null;
 
+  const isModelRow = row.type === "MODEL";
+  const distributedValue = getPeriodTotal(row, periodView);
+
   return (
     <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-5">
       <div className="flex items-start justify-between gap-3">
@@ -265,25 +268,44 @@ function RowDetailsPanel({ row, periodDefinitions, periodView, onClose }) {
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <SummaryMetric
-          icon={Activity}
-          label="Approved"
-          value={formatQuantity(row.approved_quantity)}
-          tone="blue"
-        />
-        <SummaryMetric
-          icon={Layers3}
-          label="Allocated"
-          value={formatQuantity(row.allocated_quantity)}
-          tone="emerald"
-        />
+        {isModelRow ? (
+          <SummaryMetric
+            icon={Layers3}
+            label="Allocated quantity"
+            value={formatQuantity(row.allocated_quantity)}
+            tone="emerald"
+          />
+        ) : (
+          <SummaryMetric
+            icon={Activity}
+            label="Approved quantity"
+            value={formatQuantity(row.approved_quantity)}
+            tone="blue"
+          />
+        )}
         <SummaryMetric
           icon={TrendingUp}
-          label="Value"
-          value={getPeriodTotal(row, periodView)}
+          label="Distributed value"
+          value={distributedValue}
           currency
           tone="violet"
         />
+        {isModelRow ? (
+          <SummaryMetric
+            icon={Activity}
+            label="Unit price"
+            value={row.meta?.unitPrice || 0}
+            currency
+            tone="blue"
+          />
+        ) : (
+          <SummaryMetric
+            icon={Layers3}
+            label="Allocated quantity"
+            value={formatQuantity(row.allocated_quantity)}
+            tone="emerald"
+          />
+        )}
       </div>
 
       <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -425,6 +447,7 @@ export default function PackageDistributionDrawer({
   const peak = getPeakPeriod(periodDefinitions, periodTotals);
   const activePeriods = periodTotals.filter((value) => value > 0).length;
   const maxCellValue = Math.max(...periodTotals, 0);
+  const isModelBreakdown = groupView === "byModel";
 
   return (
     <AnimatedDrawer open={open} onClose={onClose} fullScreen>
@@ -614,7 +637,7 @@ export default function PackageDistributionDrawer({
                           Name
                         </th>
                         <th className="border-b border-slate-200 px-4 py-3 text-right">
-                          Approved
+                          {isModelBreakdown ? "Unit price" : "Approved"}
                         </th>
                         <th className="border-b border-slate-200 px-4 py-3 text-right">
                           Allocated
@@ -651,7 +674,11 @@ export default function PackageDistributionDrawer({
                             </p>
                           </td>
                           <td className="px-4 py-3 text-right font-bold text-slate-700">
-                            {formatQuantity(row.approved_quantity)}
+                            {isModelBreakdown ? (
+                              <CurrencyText compact value={row.meta?.unitPrice || 0} />
+                            ) : (
+                              formatQuantity(row.approved_quantity)
+                            )}
                           </td>
                           <td className="px-4 py-3 text-right font-bold text-slate-700">
                             {formatQuantity(row.allocated_quantity)}

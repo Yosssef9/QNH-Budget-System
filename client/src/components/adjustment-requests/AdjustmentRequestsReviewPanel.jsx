@@ -18,6 +18,7 @@ import {
 import CollapsibleSection from "../CollapsibleSection";
 import ConfirmModal from "../ConfirmModal";
 import EnterpriseSearch from "../EnterpriseSearch";
+import Input from "../Input";
 import AdjustmentRequestDetailsDrawer from "./AdjustmentRequestDetailsDrawer";
 import { formatDateTime } from "../../utils/dateFormatters";
 
@@ -384,7 +385,8 @@ export default function AdjustmentRequestsReviewPanel() {
         onCancel={() => setDecision(null)}
         onConfirm={confirmDecision}
       >
-        <textarea
+        <Input
+          multiline
           rows={4}
           value={decisionNote}
           onChange={(event) => setDecisionNote(event.target.value)}
@@ -393,7 +395,7 @@ export default function AdjustmentRequestsReviewPanel() {
               ? "Optional note"
               : "Reason for rejection"
           }
-          className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+          className="px-4 py-3 text-sm font-semibold focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
         />
       </ConfirmModal>
     </CollapsibleSection>

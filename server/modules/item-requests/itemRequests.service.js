@@ -202,6 +202,8 @@ export async function createItemRequestService({ payload, requestedBy, budgetAcc
       categoryId: category.id,
       itemName: request.requested_type_name,
       categoryName: category.name,
+      unitOfMeasure: unit.unit_code ? `${unit.name} (${unit.unit_code})` : unit.name,
+      expenseType: request.requested_expense_type,
       requestedBy,
       actorUserId: requestedBy,
     },
@@ -244,6 +246,10 @@ export async function approveItemRequestService({
     payload: {
       requestId,
       itemName: request.requested_type_name,
+      categoryName: request.existing_category_name,
+      unitOfMeasure: request.unit_of_measure_code
+        ? `${request.unit_of_measure_name} (${request.unit_of_measure_code})`
+        : request.unit_of_measure_name,
       approvedBy: reviewedBy,
     },
   });
@@ -335,6 +341,11 @@ export async function approveAndCreateItemRequestService({
       requestId,
       itemName: request.requested_type_name,
       catalogItemId: catalogItem.id,
+      categoryName: request.existing_category_name,
+      unitOfMeasure: request.unit_of_measure_code
+        ? `${request.unit_of_measure_name} (${request.unit_of_measure_code})`
+        : request.unit_of_measure_name,
+      autoCreated: true,
       approvedBy: reviewedBy,
     },
   });
@@ -371,6 +382,7 @@ export async function rejectItemRequestService({
     payload: {
       requestId,
       itemName: request.requested_type_name,
+      categoryName: request.existing_category_name,
       rejectedBy: reviewedBy,
       reason: adminNote,
     },

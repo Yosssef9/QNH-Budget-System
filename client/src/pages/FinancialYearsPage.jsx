@@ -10,6 +10,7 @@ import {
 import { formatDateTime } from "../utils/dateFormatters";
 import ConfirmModal from "../components/ConfirmModal";
 import Breadcrumbs from "../components/Breadcrumbs";
+import Input from "../components/Input";
 import { getFinancialYearStatusLabel } from "../theme/statusStyles";
 
 function getErrorMessage(error, fallback) {
@@ -105,13 +106,14 @@ export default function FinancialYearsPage() {
           <label className="text-sm font-bold text-slate-700">
             New Financial Year
           </label>
-          <input
+          <Input
             type="number"
             min="2000"
             max="2200"
             value={year}
             onChange={(e) => setYear(e.target.value)}
-            className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-4 text-sm font-semibold outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+            containerClassName="mt-2"
+            className="h-11 rounded-xl px-4 py-0 text-sm font-semibold focus:ring-2"
           />
         </div>
 

@@ -18,22 +18,16 @@ export const NOTIFICATION_CONFIG = {
     ownerType: "TRANSFER",
   },
 
-  [NOTIFICATION_TYPES.BUDGET_SUBMITTED]: {
-    strategy: "PERMISSION",
-    permission: PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES,
-    scope: { type: "GLOBAL" },
-  },
-
   [NOTIFICATION_TYPES.DEPARTMENT_CATEGORY_BUDGET_SUBMITTED]: {
     strategy: "PERMISSION",
     permission: PERMISSION_CODES.REVIEW_DEPARTMENT_CATEGORY_REQUESTS,
     scope: { type: "CATEGORY", payloadField: "categoryId" },
   },
 
-  [NOTIFICATION_TYPES.CATEGORY_REVIEW_COMPLETED]: {
+  [NOTIFICATION_TYPES.DEPARTMENT_CATEGORY_REVIEW_COMPLETED]: {
     strategy: "PERMISSION",
-    permission: PERMISSION_CODES.VIEW_CATEGORY_BUDGET_REQUESTS,
-    scope: { type: "CATEGORY", payloadField: "categoryId" },
+    permission: PERMISSION_CODES.VIEW_DEPARTMENT_BUDGET_REQUESTS,
+    scope: { type: "DEPARTMENT", payloadField: "departmentId" },
   },
 
   [NOTIFICATION_TYPES.DEPARTMENT_BUDGET_APPROVAL_UPDATED]: {
@@ -72,14 +66,10 @@ export const NOTIFICATION_CONFIG = {
     scope: { type: "CATEGORY", payloadField: "categoryId" },
   },
 
-  [NOTIFICATION_TYPES.BUDGET_APPROVED]: {
-    strategy: "OWNER",
-    ownerType: "BUDGET",
-  },
-
-  [NOTIFICATION_TYPES.BUDGET_RETURNED]: {
-    strategy: "OWNER",
-    ownerType: "BUDGET",
+  [NOTIFICATION_TYPES.CFO_ANNUAL_PACKAGE_REVIEW_FINALIZED]: {
+    strategy: "PERMISSION",
+    permission: PERMISSION_CODES.MANAGE_FINANCIAL_YEAR_LIFECYCLE,
+    scope: { type: "GLOBAL" },
   },
 
   [NOTIFICATION_TYPES.ITEM_REQUEST_CREATED]: {
@@ -96,6 +86,24 @@ export const NOTIFICATION_CONFIG = {
   [NOTIFICATION_TYPES.ITEM_REQUEST_REJECTED]: {
     strategy: "OWNER",
     ownerType: "ITEM_REQUEST",
+  },
+
+  [NOTIFICATION_TYPES.ADJUSTMENT_REQUEST_SUBMITTED]: {
+    strategy: "PERMISSION",
+    permission: PERMISSION_CODES.REVIEW_CATEGORY_BUDGET_CHANGE_REQUESTS,
+    scope: { type: "CATEGORY", payloadField: "categoryId" },
+  },
+
+  [NOTIFICATION_TYPES.ADJUSTMENT_REQUEST_APPROVED]: {
+    strategy: "PERMISSION",
+    permission: PERMISSION_CODES.VIEW_DEPARTMENT_BUDGET_REQUESTS,
+    scope: { type: "DEPARTMENT", payloadField: "departmentId" },
+  },
+
+  [NOTIFICATION_TYPES.ADJUSTMENT_REQUEST_REJECTED]: {
+    strategy: "PERMISSION",
+    permission: PERMISSION_CODES.VIEW_DEPARTMENT_BUDGET_REQUESTS,
+    scope: { type: "DEPARTMENT", payloadField: "departmentId" },
   },
 
   [NOTIFICATION_TYPES.FINANCIAL_YEAR_OPENED]: {

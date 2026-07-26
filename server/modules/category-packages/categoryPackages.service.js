@@ -1699,6 +1699,14 @@ export async function submitCategoryPackageToCfoService({
       categoryId: packageRow.budget_category_id,
       categoryName: packageRow.category_name,
       financialYear: packageRow.financial_year,
+      previousStatus: packageRow.status,
+      packageItemCount: packageData.items.length,
+      estimatedTotal: packageData.items.reduce(
+        (sum, item) => sum + Number(item.estimated_total || 0),
+        0,
+      ),
+      reconciliationStatus:
+        packageData.summary.blockerCount > 0 ? "NEEDS_RECONCILIATION" : "RECONCILED",
       actorUserId,
     };
   });
@@ -1712,6 +1720,10 @@ export async function submitCategoryPackageToCfoService({
     categoryId: submitted.categoryId,
     categoryName: submitted.categoryName,
     financialYear: submitted.financialYear,
+    isResubmission: submitted.previousStatus === CATEGORY_PACKAGE_STATUS.RETURNED_BY_CFO,
+    packageItemCount: submitted.packageItemCount,
+    estimatedTotal: submitted.estimatedTotal,
+    reconciliationStatus: submitted.reconciliationStatus,
     submittedBy: actorUserId,
     actorUserId,
   },

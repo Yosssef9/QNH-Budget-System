@@ -748,6 +748,7 @@ export async function returnCfoPackageToCategoryManagerService({
       categoryName: packageRow.category_name,
       financialYear: packageRow.financial_year,
       reason: payload.reason,
+      needsModificationCount: counts.needs_modification_count,
     };
   });
 
@@ -761,6 +762,8 @@ export async function returnCfoPackageToCategoryManagerService({
       categoryName: returned.categoryName,
       financialYear: returned.financialYear,
       reason: returned.reason,
+      needsModificationCount: returned.needsModificationCount,
+      returnedBy: actorUserId,
       actorUserId,
     },
   });
@@ -833,6 +836,7 @@ export async function completeCfoPackageReviewService({
       categoryId: packageRow.budget_category_id,
       categoryName: packageRow.category_name,
       financialYear: packageRow.financial_year,
+      acceptedItemCount: counts.accepted_count,
     };
   });
 
@@ -845,6 +849,8 @@ export async function completeCfoPackageReviewService({
       categoryId: completed.categoryId,
       categoryName: completed.categoryName,
       financialYear: completed.financialYear,
+      acceptedItemCount: completed.acceptedItemCount,
+      completedBy: actorUserId,
       actorUserId,
     },
   });
@@ -936,7 +942,7 @@ export async function finalizeAnnualCfoPackageReviewService({
     "You do not have permission to finalize CFO package review",
   );
 
-  await withTransaction(async (transaction) => {
+  const finalizedSummary = await withTransaction(async (transaction) => {
     const summary = await getFinancialYearPackageCompletionSummaryRepo(
       { financialYearId },
       transaction,
@@ -996,6 +1002,23 @@ export async function finalizeAnnualCfoPackageReviewService({
       acting_workspace: getActingWorkspace(budgetAccess),
       created_by: actorUserId,
     });
+
+    return summary;
+  });
+
+  await queueNotification({
+    notificationType: NOTIFICATION_TYPES.CFO_ANNUAL_PACKAGE_REVIEW_FINALIZED,
+    entityType: "FINANCIAL_YEAR",
+    entityId: financialYearId,
+    payload: {
+      financialYearId,
+      financialYear: finalizedSummary.financial_year,
+      totalPackageCount: finalizedSummary.package_count,
+      completedPackageCount:
+        finalizedSummary.package_count - finalizedSummary.incomplete_count,
+      finalizedBy: actorUserId,
+      actorUserId,
+    },
   });
 
   const rows = await listCfoPackagesRepo({ financialYearId });

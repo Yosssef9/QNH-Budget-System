@@ -1,5 +1,7 @@
 import { withTransaction } from "../../database/transaction.js";
 import { ApiError } from "../../utils/apiError.js";
+import { NOTIFICATION_TYPES } from "../../constants/notificationTypes.js";
+import { queueNotification } from "../../services/notification.service.js";
 import { hasPermission } from "../../../shared/permissions/permissionCodes.js";
 import {
   ADJUSTMENT_REQUEST_PERMISSIONS,
@@ -34,6 +36,36 @@ function getUserRoleId(budgetAccess) {
 
 function getActingWorkspace(budgetAccess) {
   return budgetAccess?.workspaceType ?? budgetAccess?.type ?? null;
+}
+
+function buildAdjustmentNotificationPayload(request, actorId, note = null) {
+  const currentQuantity = request.item?.current_requested_quantity;
+  const requestedQuantity = request.item?.requested_quantity;
+  const difference =
+    currentQuantity === null ||
+    currentQuantity === undefined ||
+    requestedQuantity === null ||
+    requestedQuantity === undefined
+      ? null
+      : Number(requestedQuantity) - Number(currentQuantity);
+
+  return {
+    adjustmentRequestId: request.id,
+    departmentCategoryBudgetId: request.department_category_budget_id,
+    departmentId: request.department?.id,
+    departmentName: request.department?.name,
+    categoryId: request.category?.id,
+    categoryName: request.category?.name,
+    itemName: request.item?.catalog_item_name,
+    requestType: request.item?.change_type,
+    currentApprovedQuantity: currentQuantity,
+    requestedQuantity,
+    quantityDifference: difference,
+    reason: request.reason,
+    note,
+    financialYear: request.financial_year?.year,
+    actorUserId: actorId,
+  };
 }
 
 function assertDepartmentAccess(budgetAccess) {
@@ -261,7 +293,16 @@ export async function createAdjustmentRequestService({
     return request;
   });
 
-  return mapAdjustmentRequest(await findAdjustmentRequestByIdRepo(created.id));
+  const mapped = mapAdjustmentRequest(await findAdjustmentRequestByIdRepo(created.id));
+
+  await queueNotification({
+    notificationType: NOTIFICATION_TYPES.ADJUSTMENT_REQUEST_SUBMITTED,
+    entityType: "ADJUSTMENT_REQUEST",
+    entityId: mapped.id,
+    payload: buildAdjustmentNotificationPayload(mapped, actorId),
+  });
+
+  return mapped;
 }
 
 export async function listMyAdjustmentRequestsService({ budgetAccess, status }) {
@@ -344,9 +385,21 @@ async function decideAdjustmentRequest({
     });
   });
 
-  return mapAdjustmentRequest(
+  const mapped = mapAdjustmentRequest(
     await findAdjustmentRequestByIdRepo(adjustmentRequestId),
   );
+
+  await queueNotification({
+    notificationType:
+      status === ADJUSTMENT_REQUEST_STATUS.APPROVED_FOR_ACTION
+        ? NOTIFICATION_TYPES.ADJUSTMENT_REQUEST_APPROVED
+        : NOTIFICATION_TYPES.ADJUSTMENT_REQUEST_REJECTED,
+    entityType: "ADJUSTMENT_REQUEST",
+    entityId: adjustmentRequestId,
+    payload: buildAdjustmentNotificationPayload(mapped, actorId, note),
+  });
+
+  return mapped;
 }
 
 export function approveAdjustmentRequestService(args) {

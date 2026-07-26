@@ -7,6 +7,7 @@ export function createRow(
   monthly = [],
   quarterly = [],
   isNew = true,
+  hodItemNote = "",
 ) {
   return {
     id,
@@ -16,6 +17,7 @@ export function createRow(
     quantity,
     monthly,
     quarterly,
+    hodItemNote,
     isSaved: false,
     isNew,
   };
@@ -53,6 +55,7 @@ export function mapBudgetItemToRow(item) {
     monthly,
     quarterly,
     false,
+    item.hod_item_note ?? item.hodItemNote ?? "",
   );
 
   return {
@@ -82,6 +85,7 @@ export function mapBudgetItemToRow(item) {
       quantity: row.quantity,
       monthly: row.monthly,
       quarterly: row.quarterly,
+      hodItemNote: row.hodItemNote || "",
     }),
   };
 }

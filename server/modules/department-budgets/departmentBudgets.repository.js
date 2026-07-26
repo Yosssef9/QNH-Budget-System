@@ -132,6 +132,7 @@ export async function listCategoryDepartmentItemsOverviewRepo({
         COALESCE(item.catalog_item_code_snapshot, catalog.item_code) AS item_code,
         COALESCE(item.expense_type_snapshot, catalog.expense_type) AS expense_type,
         item.requested_quantity,
+        item.hod_item_note,
         item.category_approved_quantity,
         item.review_status,
         item.review_note,
@@ -362,6 +363,7 @@ export async function listHistoryItemsForCategoryBudgetRepo(
         category.category_code,
         category.name AS category_name,
         item.requested_quantity,
+        item.hod_item_note,
         item.category_approved_quantity,
         item.distribution_method,
         item.review_status,
@@ -547,6 +549,7 @@ export async function listItemsForDepartmentBudgetRepo(
         category.category_code,
         category.name AS category_name,
         item.requested_quantity,
+        item.hod_item_note,
         item.category_approved_quantity,
         item.distribution_method,
         item.review_status,
@@ -641,6 +644,7 @@ export async function listItemsForCategoryBudgetRepo(
         item.unit_name_snapshot AS unit_name,
         item.unit_code_snapshot AS unit_code,
         item.requested_quantity,
+        item.hod_item_note,
         item.category_approved_quantity,
         item.distribution_method,
         item.review_status,
@@ -744,6 +748,7 @@ export async function upsertDepartmentCategoryBudgetItemRepo(
     .input("unitCodeSnapshot", sql.VarChar(30), payload.unit_code_snapshot)
     .input("requestedQuantity", sql.Decimal(18, 4), payload.requested_quantity)
     .input("distributionMethod", sql.VarChar(40), payload.distribution_method)
+    .input("hodItemNote", sql.NVarChar(3000), payload.hod_item_note ?? null)
     .input("actorUserId", sql.Int, payload.actor_user_id);
 
   const result = await request.query(`
@@ -762,6 +767,7 @@ export async function upsertDepartmentCategoryBudgetItemRepo(
         unit_code_snapshot = @unitCodeSnapshot,
         requested_quantity = @requestedQuantity,
         distribution_method = @distributionMethod,
+        hod_item_note = @hodItemNote,
         updated_by = @actorUserId,
         updated_at = SYSUTCDATETIME()
       OUTPUT INSERTED.id INTO @Updated (id)
@@ -782,6 +788,7 @@ export async function upsertDepartmentCategoryBudgetItemRepo(
         unit_code_snapshot = @unitCodeSnapshot,
         requested_quantity = @requestedQuantity,
         distribution_method = @distributionMethod,
+        hod_item_note = @hodItemNote,
         review_status = '${DEPARTMENT_BUDGET_ITEM_STATUS.DRAFT}',
         is_active = 1,
         updated_by = @actorUserId,
@@ -805,6 +812,7 @@ export async function upsertDepartmentCategoryBudgetItemRepo(
         unit_code_snapshot,
         requested_quantity,
         distribution_method,
+        hod_item_note,
         review_status,
         is_active,
         created_by
@@ -822,6 +830,7 @@ export async function upsertDepartmentCategoryBudgetItemRepo(
         @unitCodeSnapshot,
         @requestedQuantity,
         @distributionMethod,
+        @hodItemNote,
         '${DEPARTMENT_BUDGET_ITEM_STATUS.DRAFT}',
         1,
         @actorUserId

@@ -3,6 +3,7 @@ import {
   AlertCircle,
   CheckCircle2,
   ChevronRight,
+  FileText,
   Trash2,
 } from "lucide-react";
 
@@ -14,6 +15,7 @@ import BudgetMethodBadge from "./BudgetMethodBadge";
 import CategoryManagerReviewDetailsDrawer, {
   getCategoryManagerReviewDisplay,
 } from "./drawers/CategoryManagerReviewDetailsDrawer";
+import BudgetItemRequestNoteDrawer from "./drawers/BudgetItemRequestNoteDrawer";
 
 function BudgetDistributionRow({
   row,
@@ -24,6 +26,7 @@ function BudgetDistributionRow({
   categories,
   typesByCategory,
   methodOptions,
+  departmentName,
 
   duplicateTypeRowIds,
   deletingRowIds,
@@ -42,6 +45,7 @@ function BudgetDistributionRow({
   setDeleteRowId,
 }) {
   const [reviewDrawerOpen, setReviewDrawerOpen] = useState(false);
+  const [noteDrawerOpen, setNoteDrawerOpen] = useState(false);
 
   const monthly = getMonthlyDistribution(row);
 
@@ -378,20 +382,41 @@ function BudgetDistributionRow({
           </td>
         )}
 
-        <td className="w-[110px] border border-slate-200 px-3 py-4 text-center">
-          <button
-            type="button"
-            disabled={isDeleteLocked}
-            onClick={() => setDeleteRowId(row.id)}
-            title={
-              isDeleteLocked
-                ? deleteLockMessage
-                : "Remove item"
-            }
-            className="rounded-lg bg-red-50 p-2 text-red-500 transition-all duration-200 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <Trash2 size={17} />
-          </button>
+        <td className="w-[150px] border border-slate-200 px-3 py-4 text-center">
+          <div className="flex flex-col items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setNoteDrawerOpen(true)}
+              title={
+                row.hodItemNote
+                  ? "View or edit HOD request note"
+                  : "Add HOD request note"
+              }
+              className={[
+                "inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-black transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100",
+                row.hodItemNote
+                  ? "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+              ].join(" ")}
+            >
+              <FileText size={15} />
+              {row.hodItemNote ? "HOD note" : "Add note"}
+            </button>
+
+            <button
+              type="button"
+              disabled={isDeleteLocked}
+              onClick={() => setDeleteRowId(row.id)}
+              title={
+                isDeleteLocked
+                  ? deleteLockMessage
+                  : "Remove item"
+              }
+              className="rounded-lg bg-red-50 p-2 text-red-500 transition-all duration-200 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Trash2 size={17} />
+            </button>
+          </div>
         </td>
       </tr>
 
@@ -403,6 +428,21 @@ function BudgetDistributionRow({
           itemName={itemName}
           categoryName={categoryName}
           expenseType={expenseType}
+        />
+      )}
+
+      {noteDrawerOpen && (
+        <BudgetItemRequestNoteDrawer
+          open={noteDrawerOpen}
+          onClose={() => setNoteDrawerOpen(false)}
+          itemName={itemName}
+          categoryName={categoryName}
+          departmentName={departmentName}
+          requestedQuantity={row.quantity}
+          distributionMethod={row.method}
+          note={row.hodItemNote}
+          editable={!isRowLocked}
+          onNoteChange={(value) => updateRow(row.id, "hodItemNote", value)}
         />
       )}
     </>

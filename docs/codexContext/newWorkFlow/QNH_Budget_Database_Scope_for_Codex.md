@@ -921,6 +921,7 @@ Generic item requested by one department in one category budget.
 | `unit_name_snapshot` | `NVARCHAR(100)` | Yes | Unit name frozen when the department item is saved |
 | `unit_code_snapshot` | `VARCHAR(30)` | Yes | Unit code frozen when the department item is saved |
 | `requested_quantity` | `DECIMAL(18, 4)` | No |  |
+| `hod_item_note` | `NVARCHAR(3000)` | Yes | HOD-entered item context for Category Manager review |
 | `category_approved_quantity` | `DECIMAL(18, 4)` | Yes |  |
 | `distribution_method` | `VARCHAR(40)` | No |  |
 | `review_status` | `VARCHAR(40)` | No | default `'DRAFT'` |

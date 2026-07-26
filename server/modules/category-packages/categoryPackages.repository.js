@@ -248,6 +248,7 @@ export async function listDepartmentPackageViewRowsRepo(
         item.catalog_item_id,
         item.requested_quantity,
         item.category_approved_quantity,
+        item.hod_item_note,
         item.review_note,
         item.row_version AS department_item_row_version,
 
@@ -534,6 +535,7 @@ export async function listPackageItemDetailRowsRepo(
         item.catalog_item_id,
         item.requested_quantity,
         item.category_approved_quantity,
+        item.hod_item_note,
         item.review_note,
         item.row_version,
 
@@ -587,6 +589,7 @@ export async function listPackageItemDetailRowsRepo(
         item.catalog_item_id,
         item.requested_quantity,
         item.category_approved_quantity,
+        item.hod_item_note,
         item.review_note,
         item.row_version,
 
@@ -1229,6 +1232,7 @@ export async function findDepartmentItemPackageEditContextRepo(
         item.catalog_item_id,
         item.requested_quantity,
         item.category_approved_quantity,
+        item.hod_item_note,
         item.review_status,
         item.review_note,
         item.row_version AS department_item_row_version,

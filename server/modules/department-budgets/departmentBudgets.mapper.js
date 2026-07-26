@@ -121,6 +121,8 @@ export function mapDepartmentBudgetDetail({
         unit_code: row.unit_code || null,
         requested_quantity: toNumber(row.requested_quantity),
         quantity: toNumber(row.requested_quantity),
+        hod_item_note: row.hod_item_note || null,
+        hodItemNote: row.hod_item_note || null,
         category_approved_quantity:
           row.category_approved_quantity === null
             ? null
@@ -238,6 +240,8 @@ export function mapCategoryDepartmentItemOverview(row) {
     item_code: row.item_code,
     expense_type: row.expense_type,
     requested_quantity: toNumber(row.requested_quantity),
+    hod_item_note: row.hod_item_note || null,
+    hodItemNote: row.hod_item_note || null,
     category_approved_quantity: toNumber(row.category_approved_quantity),
     distribution_method: row.distribution_method,
     distribution: row.distribution_id ? [mapDistribution(row)] : [],

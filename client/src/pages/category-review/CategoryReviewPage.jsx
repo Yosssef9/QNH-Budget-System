@@ -35,6 +35,7 @@ import EnterpriseSearch from "../../components/EnterpriseSearch";
 import CollapsibleSection from "../../components/CollapsibleSection";
 import CategoryPackageWorkbench from "../../components/category-packages/CategoryPackageWorkbench";
 import CollapsiblePanelToggle from "../../components/layout/CollapsiblePanelToggle";
+import BudgetItemRequestNoteDrawer from "../../components/budgets/shared/drawers/BudgetItemRequestNoteDrawer";
 import {
   closeCategorySubmissionWindow,
   completeDepartmentCategoryReview,
@@ -510,7 +511,9 @@ function areReviewItemRowPropsEqual(previous, next) {
     String(previous.draft.category_approved_quantity ?? "") ===
       String(next.draft.category_approved_quantity ?? "") &&
     String(previous.draft.review_note || "") ===
-      String(next.draft.review_note || "")
+      String(next.draft.review_note || "") &&
+    String(previous.item.hod_item_note || previous.item.hodItemNote || "") ===
+      String(next.item.hod_item_note || next.item.hodItemNote || "")
   );
 }
 
@@ -526,7 +529,9 @@ const ReviewItemRow = memo(function ReviewItemRow({
   onDraftChange,
   onSave,
   onSaveAndNext,
+  departmentName,
 }) {
+  const [hodNoteOpen, setHodNoteOpen] = useState(false);
   const difference = getDifferenceMeta(
     item.requested_quantity,
     draft.category_approved_quantity,
@@ -546,6 +551,7 @@ const ReviewItemRow = memo(function ReviewItemRow({
     0,
   );
   const panelId = `category-review-item-panel-${item.id}`;
+  const hodItemNote = item.hod_item_note || item.hodItemNote || "";
 
   return (
     <article
@@ -671,6 +677,52 @@ const ReviewItemRow = memo(function ReviewItemRow({
                     {item.unit_code || ""}
                   </p>
                 </div>
+              </div>
+
+              <div
+                className={classNames(
+                  "mt-4 flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between",
+                  hodItemNote
+                    ? "border-blue-100 bg-blue-50/70"
+                    : "border-slate-200 bg-white",
+                )}
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <FileText
+                      className={classNames(
+                        "h-4 w-4 shrink-0",
+                        hodItemNote ? "text-blue-700" : "text-slate-400",
+                      )}
+                    />
+                    <p
+                      className={classNames(
+                        "text-sm font-black",
+                        hodItemNote ? "text-blue-900" : "text-slate-700",
+                      )}
+                    >
+                      {hodItemNote ? "HOD request note" : "No HOD note"}
+                    </p>
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">
+                    {hodItemNote ||
+                      "The department did not add extra context for this item."}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setHodNoteOpen(true)}
+                  className={classNames(
+                    "inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-black transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100",
+                    hodItemNote
+                      ? "border-blue-200 bg-white text-blue-700 hover:bg-blue-50"
+                      : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-white",
+                  )}
+                >
+                  <FileText className="h-4 w-4" />
+                  {hodItemNote ? "Open note" : "View"}
+                </button>
               </div>
 
               <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
@@ -861,6 +913,20 @@ const ReviewItemRow = memo(function ReviewItemRow({
           </div>
         </div>
       </CollapsiblePanel>
+
+      {hodNoteOpen && (
+        <BudgetItemRequestNoteDrawer
+          open={hodNoteOpen}
+          onClose={() => setHodNoteOpen(false)}
+          itemName={item.catalog_item_name}
+          categoryName={item.category_name}
+          departmentName={departmentName}
+          requestedQuantity={item.requested_quantity}
+          distributionMethod={item.distribution_method}
+          note={hodItemNote}
+          editable={false}
+        />
+      )}
     </article>
   );
 }, areReviewItemRowPropsEqual);
@@ -2012,6 +2078,7 @@ const reopenWindowMutation = useMutation({
                           onSaveAndNext={() =>
                             saveDecision(item, { advance: true })
                           }
+                          departmentName={selectedBudget.department_name}
                         />
                       ))}
                     </div>

@@ -527,6 +527,7 @@ export async function saveDepartmentCategoryItemsService({
           unit_code_snapshot: catalogItem.unit_code,
           requested_quantity: item.requested_quantity,
           distribution_method: item.distribution_method,
+          hod_item_note: item.hod_item_note,
           actor_user_id: actorUserId,
         },
       );

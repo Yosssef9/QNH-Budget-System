@@ -37,6 +37,7 @@ import Input from "../Input";
 import SearchableMultiSelect from "../SearchableMultiSelect";
 import CatalogSubItemFields from "../catalog/CatalogSubItemFields";
 import AnimatedDrawer from "../budgets/shared/drawers/AnimatedDrawer";
+import BudgetItemRequestNoteDrawer from "../budgets/shared/drawers/BudgetItemRequestNoteDrawer";
 import CollapsiblePanelToggle from "../layout/CollapsiblePanelToggle";
 import PackageSubItemPriceIntelligenceDrawer from "../budgets/price-intelligence/PackageSubItemPriceIntelligenceDrawer";
 import PackageDistributionDrawer from "./PackageDistributionDrawer";
@@ -1950,6 +1951,7 @@ function DepartmentDemandPanel({
   subItems,
   editable,
   onAllocate,
+  onViewHodNote,
 }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -2016,6 +2018,21 @@ function DepartmentDemandPanel({
                           Review note: {department.review_note}
                         </p>
                       ) : null}
+                      <button
+                        type="button"
+                        onClick={() => onViewHodNote?.(department)}
+                        className={[
+                          "mt-2 inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-black transition",
+                          department.hod_item_note || department.hodItemNote
+                            ? "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                            : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50",
+                        ].join(" ")}
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        {department.hod_item_note || department.hodItemNote
+                          ? "HOD note"
+                          : "No HOD note"}
+                      </button>
                     </td>
                     <td className="px-5 py-4">
                       {formatNumber(department.requested_quantity)}
@@ -2093,6 +2110,7 @@ function ItemPerspective({
   onViewPriceContext,
   onViewDistribution,
   onAllocate,
+  onViewHodNote,
 }) {
   const subItems = selectedItemDetail?.sub_items || [];
   const departments = selectedItemDetail?.departments || [];
@@ -2292,6 +2310,7 @@ function ItemPerspective({
                   subItems={subItems}
                   editable={editable}
                   onAllocate={onAllocate}
+                  onViewHodNote={onViewHodNote}
                 />
               </>
             )}
@@ -2371,6 +2390,7 @@ function DepartmentPerspective({
   packageStatus,
   onEditAllocation,
   onViewPriceContext,
+  onViewHodNote,
   loading,
 }) {
   const [isDepartmentListOpen, setIsDepartmentListOpen] = useState(true);
@@ -2616,6 +2636,29 @@ function DepartmentPerspective({
                               Category review note: {item.review_note}
                             </p>
                           ) : null}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onViewHodNote?.({
+                                ...item,
+                                department_name:
+                                  selectedDepartment.department_name,
+                                department_code:
+                                  selectedDepartment.department_code,
+                              })
+                            }
+                            className={[
+                              "mt-3 inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-black transition",
+                              item.hod_item_note || item.hodItemNote
+                                ? "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                                : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50",
+                            ].join(" ")}
+                          >
+                            <FileText className="h-3.5 w-3.5" />
+                            {item.hod_item_note || item.hodItemNote
+                              ? "HOD note"
+                              : "No HOD note"}
+                          </button>
                           {item.cfo_review_note ? (
                             <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
                               <span className="font-black">CFO note:</span>{" "}
@@ -2675,6 +2718,7 @@ export default function CategoryPackageWorkbench() {
   const [showAllBlockers, setShowAllBlockers] = useState(false);
   const [priceContext, setPriceContext] = useState(null);
   const [distributionContext, setDistributionContext] = useState(null);
+  const [hodNoteContext, setHodNoteContext] = useState(null);
 
   const packageQuery = useQuery({
     queryKey: ["category-packages", "current"],
@@ -2928,6 +2972,10 @@ const selectedItem =
       subItems,
       view,
     });
+  }
+
+  function openHodNoteContext(row) {
+    setHodNoteContext(row);
   }
 
   if (packageQuery.isLoading) {
@@ -3190,6 +3238,7 @@ packageData.return_reason ? (
             })
           }
           onAllocate={openAllocationForItemDepartment}
+          onViewHodNote={openHodNoteContext}
         />
       ) : (
         <DepartmentPerspective
@@ -3204,6 +3253,7 @@ packageData.return_reason ? (
           packageStatus={packageData.status}
           onEditAllocation={openAllocationFromDepartmentView}
           onViewPriceContext={openPriceContext}
+          onViewHodNote={openHodNoteContext}
           loading={departmentViewQuery.isLoading}
         />
       )}
@@ -3455,6 +3505,24 @@ packageData.return_reason ? (
         }
         onClose={() => setPriceContext(null)}
       />
+
+      {hodNoteContext && (
+        <BudgetItemRequestNoteDrawer
+          open={Boolean(hodNoteContext)}
+          onClose={() => setHodNoteContext(null)}
+          itemName={
+            hodNoteContext.catalog_item_name ||
+            selectedItem?.catalog_item_name ||
+            "Budget item"
+          }
+          categoryName={packageData?.category_name}
+          departmentName={hodNoteContext.department_name}
+          requestedQuantity={hodNoteContext.requested_quantity}
+          distributionMethod={hodNoteContext.distribution_method}
+          note={hodNoteContext.hod_item_note || hodNoteContext.hodItemNote}
+          editable={false}
+        />
+      )}
     </section>
   );
 }

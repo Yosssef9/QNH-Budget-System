@@ -11,6 +11,7 @@ function BudgetDistributionTable({
   categories,
   typesByCategory,
   methodOptions,
+  departmentName,
 
   duplicateTypeRowIds,
   deletingRowIds,
@@ -39,7 +40,7 @@ function BudgetDistributionTable({
         {months.map((month) => (
           <col key={month} className="w-[76px]" />
         ))}
-        <col className="w-[110px]" />
+        <col className="w-[150px]" />
       </colgroup>
 
       <thead className="sticky top-0 z-20 bg-white">
@@ -104,7 +105,7 @@ function BudgetDistributionTable({
           </th>
           <th
             rowSpan="2"
-            className="w-[110px] border border-slate-200 px-4 py-4"
+            className="w-[150px] border border-slate-200 px-4 py-4"
           >
             Actions
           </th>
@@ -132,6 +133,7 @@ function BudgetDistributionTable({
             categories={categories}
             typesByCategory={typesByCategory}
             methodOptions={methodOptions}
+            departmentName={departmentName}
             duplicateTypeRowIds={duplicateTypeRowIds}
             deletingRowIds={deletingRowIds}
             isBudgetLocked={isBudgetLocked}

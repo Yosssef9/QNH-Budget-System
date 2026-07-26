@@ -153,6 +153,7 @@ export default function BudgetEnteryPage() {
       requested_quantity: toNumber(row.quantity),
       distribution_method: getApiDistributionMethod(row.method),
       distribution: getApiDistributionRows(row),
+      hod_item_note: row.hodItemNote?.trim() || null,
     }));
   }, []);
 
@@ -242,6 +243,7 @@ export default function BudgetEnteryPage() {
       quantity: row.quantity,
       monthly: row.monthly,
       quarterly: row.quarterly,
+      hodItemNote: row.hodItemNote || "",
     });
   }, []);
 
@@ -1207,6 +1209,7 @@ export default function BudgetEnteryPage() {
             categories={categories}
             typesByCategory={typesByCategory}
             methodOptions={methodOptions}
+            departmentName={currentBudget?.department_name}
             duplicateTypeRowIds={duplicateTypeRowIds}
             deletingRowIds={deletingRowIds}
             isBudgetLocked={isBudgetLocked || isDraftOperationPending}

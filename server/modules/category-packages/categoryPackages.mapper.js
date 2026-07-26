@@ -180,6 +180,8 @@ export function mapDepartmentDemand(row, allocations = []) {
     approved_quantity: approvedQuantity,
     allocated_quantity: allocatedQuantity,
     remaining_quantity: remainingQuantity,
+    hod_item_note: row.hod_item_note || null,
+    hodItemNote: row.hod_item_note || null,
     review_note: row.review_note,
     row_version: row.row_version,
     reconciliation_status:
@@ -295,6 +297,8 @@ export function mapDepartmentPackageView(rows = []) {
         catalog_item_code: row.catalog_item_code,
         requested_quantity: toNumber(row.requested_quantity),
         approved_quantity: toNumber(row.category_approved_quantity),
+        hod_item_note: row.hod_item_note || null,
+        hodItemNote: row.hod_item_note || null,
         review_note: row.review_note || null,
         needs_reconciliation: Boolean(row.needs_reconciliation),
         cfo_review_status: row.cfo_review_status || null,

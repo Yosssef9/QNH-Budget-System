@@ -55,6 +55,27 @@ function normalizeDistributionMethod(value) {
   return method;
 }
 
+function normalizeOptionalNote(value, fieldName, maxLength = 3000) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const note = String(value).trim();
+
+  if (!note) {
+    return null;
+  }
+
+  if (note.length > maxLength) {
+    const error = new Error(`${fieldName} must not exceed ${maxLength} characters`);
+    error.statusCode = 400;
+    error.errorCode = "INVALID_NOTE_LENGTH";
+    throw error;
+  }
+
+  return note;
+}
+
 function normalizeDistributionPeriod(row, index) {
   const periodType = String(row?.period_type || "").trim().toUpperCase();
 
@@ -139,6 +160,10 @@ export function validateSaveCategoryItemsPayload(body = {}) {
         ),
         distribution_method: normalizeDistributionMethod(
           item.distribution_method ?? item.method,
+        ),
+        hod_item_note: normalizeOptionalNote(
+          item.hod_item_note ?? item.hodItemNote,
+          `items[${index}].hod_item_note`,
         ),
         distribution: Array.isArray(item.distribution)
           ? item.distribution.map(normalizeDistributionPeriod)

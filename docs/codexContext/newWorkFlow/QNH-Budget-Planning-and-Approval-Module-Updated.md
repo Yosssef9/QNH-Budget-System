@@ -800,6 +800,7 @@ Purpose:
 | `department_category_budget_id` | `BIGINT` | No | Parent category budget |
 | `catalog_item_id` | `INT` | No | Generic catalog item |
 | `requested_quantity` | `DECIMAL(18,4)` | No | HOD-entered quantity |
+| `hod_item_note` | `NVARCHAR(3000)` | Yes | Optional HOD item context for Category Manager review |
 | `category_approved_quantity` | `DECIMAL(18,4)` | Yes | Category Manager decision |
 | `distribution_method` | `VARCHAR(40)` | No | Annual, quarterly, monthly, custom |
 | `review_status` | `VARCHAR(40)` | No | Item review state |

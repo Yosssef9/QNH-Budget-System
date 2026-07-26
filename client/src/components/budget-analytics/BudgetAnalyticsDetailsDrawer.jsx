@@ -1,7 +1,12 @@
 import { X } from "lucide-react";
+import { useMemo } from "react";
 
 import CurrencyText from "../CurrencyText";
+import SortableHeader from "../SortableHeader";
+import TablePagination from "../TablePagination";
 import AnimatedDrawer from "../budgets/shared/drawers/AnimatedDrawer";
+import usePagination from "../../hooks/usePagination";
+import useTableSort from "../../hooks/useTableSort";
 
 function formatValue(value) {
   if (value === null || value === undefined || value === "") return "-";
@@ -43,6 +48,17 @@ export default function BudgetAnalyticsDetailsDrawer({
   relatedColumns = [],
 }) {
   const visibleRelatedColumns = relatedColumns.filter(Boolean);
+  const {
+    sortedRows,
+    sortColumn,
+    sortDirection,
+    handleSort,
+  } = useTableSort(relatedRows, visibleRelatedColumns[0]?.key, "asc");
+  const pagination = usePagination(sortedRows.length, 15);
+  const paginatedRelatedRows = useMemo(() => {
+    const start = (pagination.page - 1) * pagination.pageSize;
+    return sortedRows.slice(start, start + pagination.pageSize);
+  }, [pagination.page, pagination.pageSize, sortedRows]);
 
   return (
     <AnimatedDrawer open={open} onClose={onClose} fullScreen>
@@ -87,17 +103,20 @@ export default function BudgetAnalyticsDetailsDrawer({
                   <thead className="bg-slate-50 text-left text-xs font-black uppercase tracking-[0.12em] text-slate-500">
                     <tr>
                       {visibleRelatedColumns.map((column) => (
-                        <th
+                        <SortableHeader
                           key={column.key}
-                          className="border border-slate-200 px-4 py-3"
-                        >
-                          {column.label}
-                        </th>
+                          label={column.label}
+                          column={column.key}
+                          sortColumn={sortColumn}
+                          sortDirection={sortDirection}
+                          onSort={handleSort}
+                          className={column.className}
+                        />
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {relatedRows.length === 0 ? (
+                    {sortedRows.length === 0 ? (
                       <tr>
                         <td
                           colSpan={visibleRelatedColumns.length}
@@ -107,12 +126,18 @@ export default function BudgetAnalyticsDetailsDrawer({
                         </td>
                       </tr>
                     ) : (
-                      relatedRows.map((row, index) => (
-                        <tr key={row.id || index}>
+                      paginatedRelatedRows.map((row, index) => (
+                        <tr
+                          key={row.id || `${pagination.page}-${index}`}
+                          className="border-b border-slate-100 transition hover:bg-blue-50/40"
+                        >
                           {visibleRelatedColumns.map((column) => (
                             <td
                               key={column.key}
-                              className="border border-slate-100 px-4 py-3 font-semibold text-slate-700"
+                              className={[
+                                "border border-slate-100 px-4 py-3 align-top font-semibold text-slate-700",
+                                column.tdClassName || "",
+                              ].join(" ")}
                             >
                               {column.currency ? (
                                 <CurrencyText value={row[column.key] || 0} />
@@ -127,6 +152,17 @@ export default function BudgetAnalyticsDetailsDrawer({
                   </tbody>
                 </table>
               </div>
+              <TablePagination
+                page={pagination.page}
+                totalPages={pagination.totalPages}
+                pageSize={pagination.pageSize}
+                startRow={pagination.startRow}
+                endRow={pagination.endRow}
+                totalRows={sortedRows.length}
+                onPageChange={pagination.setPage}
+                onPageSizeChange={pagination.setPageSize}
+                pageSizes={[15, 25, 50]}
+              />
             </section>
           )}
         </div>

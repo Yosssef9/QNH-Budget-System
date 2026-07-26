@@ -280,7 +280,7 @@ function canAccessPath(pathname, budgetAccess) {
     },
     {
       path: "/budget-analytics",
-      permission: PERMISSION_CODES.VIEW_CFO_CATEGORY_BUDGET_PACKAGES,
+      permission: PERMISSION_CODES.VIEW_BUDGET_REPORTS,
     },
     { path: "/reports", permission: PERMISSION_CODES.VIEW_BUDGET_REPORTS },
   ];

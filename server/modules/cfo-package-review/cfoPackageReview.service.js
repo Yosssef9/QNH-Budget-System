@@ -32,6 +32,7 @@ import {
 import {
   completeCfoPackageReviewRepo,
   countPackageCfoReviewStatusesRepo,
+  createCfoPackageItemReturnSnapshotsRepo,
   findCfoPackageByIdRepo,
   findAnnualCfoReviewFinalizationRepo,
   findPackageItemForCfoRepo,
@@ -104,31 +105,9 @@ function safeDownloadName(fileName) {
   return String(fileName || "attachment").replace(/[\r\n"]/g, "_");
 }
 
-function parseHistoryJson(value) {
-  if (!value) return null;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
-}
-
 function toNumber(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number : 0;
-}
-
-function buildAllocationQuantityMap(values) {
-  const map = new Map();
-  for (const allocation of values?.allocations || []) {
-    const subItemId = Number(allocation.package_sub_item_id);
-    if (!subItemId) continue;
-    map.set(
-      subItemId,
-      toNumber(map.get(subItemId)) + toNumber(allocation.allocated_quantity),
-    );
-  }
-  return map;
 }
 
 function getChangeDirection(before, after) {
@@ -137,6 +116,79 @@ function getChangeDirection(before, after) {
   if (current > previous) return "INCREASED";
   if (current < previous) return "DECREASED";
   return "SAME";
+}
+
+function parseSnapshotJson(value) {
+  if (!value) return { subItems: [] };
+  const parsed = JSON.parse(value);
+  return {
+    ...parsed,
+    subItems: Array.isArray(parsed?.subItems) ? parsed.subItems : [],
+  };
+}
+
+function getSubItemComparisonKey(item) {
+  const catalogSubItemId = Number(item.catalog_sub_item_id);
+  if (catalogSubItemId) return `catalog:${catalogSubItemId}`;
+  return `package:${Number(item.package_sub_item_id) || 0}`;
+}
+
+function normalizeSnapshotSubItem(item) {
+  const quantity = toNumber(item.quantity);
+  const unitPrice = toNumber(item.unit_price);
+  return {
+    package_sub_item_id: item.package_sub_item_id
+      ? Number(item.package_sub_item_id)
+      : null,
+    catalog_sub_item_id: item.catalog_sub_item_id
+      ? Number(item.catalog_sub_item_id)
+      : null,
+    name: item.name || "Package model",
+    quantity,
+    unit_price: unitPrice,
+    total_amount:
+      item.total_amount === undefined
+        ? quantity * unitPrice
+        : toNumber(item.total_amount),
+  };
+}
+
+function normalizeCurrentSubItem(item) {
+  const quantity = toNumber(item.quantity);
+  const unitPrice = toNumber(item.unit_price);
+  return {
+    package_sub_item_id: item.package_sub_item_id
+      ? Number(item.package_sub_item_id)
+      : null,
+    catalog_sub_item_id: item.catalog_sub_item_id
+      ? Number(item.catalog_sub_item_id)
+      : null,
+    name: item.package_sub_item_name || item.name || "Package model",
+    quantity,
+    unit_price: unitPrice,
+    total_amount:
+      item.total_amount === undefined
+        ? quantity * unitPrice
+        : toNumber(item.total_amount),
+  };
+}
+
+function getSubItemChangeStatus(beforeItem, afterItem) {
+  if (beforeItem && !afterItem) return "REMOVED";
+  if (!beforeItem && afterItem) return "NEW";
+  if (!beforeItem && !afterItem) return "UNCHANGED";
+
+  const quantityChanged =
+    getChangeDirection(beforeItem.quantity, afterItem.quantity) !== "SAME";
+  const priceChanged =
+    getChangeDirection(beforeItem.unit_price, afterItem.unit_price) !== "SAME";
+  const totalChanged =
+    getChangeDirection(beforeItem.total_amount, afterItem.total_amount) !==
+    "SAME";
+
+  return quantityChanged || priceChanged || totalChanged
+    ? "CHANGED"
+    : "UNCHANGED";
 }
 
 async function loadPackageDetail(packageId) {
@@ -323,111 +375,109 @@ export async function getCfoPackageItemComparisonService({
   });
   assertPackageItemExists(packageItem);
 
-  const rows = await getCfoPackageItemComparisonRepo({
+  const comparisonData = await getCfoPackageItemComparisonRepo({
     packageId,
     packageItemId,
   });
-  const context = rows[0] || packageItem;
-  const historyRows = rows.filter((row) => row.history_id);
-  const subItemRows = rows.filter((row) => row.package_sub_item_id);
-  const subItemById = new Map(
-    subItemRows.map((row) => [
-      Number(row.package_sub_item_id),
-      {
-        package_sub_item_id: Number(row.package_sub_item_id),
-        name: row.package_sub_item_name,
-        quantity_after: toNumber(row.quantity),
-        unit_price_after: toNumber(row.unit_price),
-        total_after: toNumber(row.total_amount),
-        quantity_before: toNumber(row.quantity),
-        unit_price_before: toNumber(row.unit_price),
-        total_before: toNumber(row.total_amount),
-        old_value_recorded: true,
+  const context = comparisonData.context || packageItem;
+  const snapshot = comparisonData.snapshot;
+
+  if (!snapshot) {
+    return {
+      comparison_available: false,
+      reason: "NO_RETURN_SNAPSHOT",
+      summary: {
+        package_id: Number(packageId),
+        package_item_id: Number(packageItemId),
+        package_item_name:
+          context.package_item_name || packageItem.catalog_item_name,
+        package_item_code:
+          context.package_item_code || packageItem.catalog_item_code,
+        financial_year_id:
+          context.financial_year_id || packageItem.financial_year_id,
+        financial_year: context.financial_year || null,
+        category_name:
+          context.package_category_name || packageItem.category_name,
+        category_code:
+          context.package_category_code || packageItem.category_code,
+        package_status: context.package_status || packageItem.package_status,
+        package_return_reason: context.package_return_reason || null,
+        package_returned_at: context.package_returned_at || null,
+        cfo_review_status:
+          context.cfo_review_status || packageItem.cfo_review_status,
+        cfo_review_note:
+          context.cfo_review_note || packageItem.cfo_review_note,
+        cfo_reviewed_at:
+          context.cfo_reviewed_at || packageItem.cfo_reviewed_at || null,
+        cfo_reviewed_by_name: context.cfo_reviewed_by_name || null,
+        comparison_marker_at: null,
+        snapshot_id: null,
       },
-    ]),
-  );
-
-  let approvedDelta = 0;
-  let hasApprovedChange = false;
-
-  for (const row of historyRows) {
-    const oldValues = parseHistoryJson(row.old_values_json);
-    const newValues = parseHistoryJson(row.new_values_json);
-
-    if (
-      row.entity_type === "DEPARTMENT_CATEGORY_BUDGET_ITEM" &&
-      row.action ===
-        "CATEGORY_PACKAGE_DEPARTMENT_APPROVED_QUANTITY_UPDATED"
-    ) {
-      const previous = toNumber(oldValues?.categoryApprovedQuantity);
-      const current = toNumber(newValues?.categoryApprovedQuantity);
-      approvedDelta += current - previous;
-      hasApprovedChange = true;
-    }
-
-    if (
-      row.entity_type === "CATEGORY_PACKAGE_SUB_ITEM" &&
-      row.action === "CATEGORY_PACKAGE_SUB_ITEM_UPDATED"
-    ) {
-      const subItemId = Number(row.entity_id);
-      const item = subItemById.get(subItemId);
-      if (!item) continue;
-      if (oldValues?.unit_price !== undefined) {
-        item.unit_price_before = toNumber(oldValues.unit_price);
-      } else {
-        item.old_value_recorded = false;
-      }
-      if (oldValues?.quantity !== undefined) {
-        item.quantity_before = toNumber(oldValues.quantity);
-      }
-      item.total_before = item.quantity_before * item.unit_price_before;
-    }
-
-    if (
-      row.entity_type === "DEPARTMENT_CATEGORY_BUDGET_ITEM" &&
-      row.action === "CATEGORY_PACKAGE_DEPARTMENT_ALLOCATIONS_UPDATED"
-    ) {
-      const oldAllocationMap = buildAllocationQuantityMap(oldValues);
-      const newAllocationMap = buildAllocationQuantityMap(newValues);
-      const subItemIds = new Set([
-        ...oldAllocationMap.keys(),
-        ...newAllocationMap.keys(),
-      ]);
-
-      for (const subItemId of subItemIds) {
-        const item = subItemById.get(subItemId);
-        if (!item) continue;
-        item.quantity_before -=
-          toNumber(newAllocationMap.get(subItemId)) -
-          toNumber(oldAllocationMap.get(subItemId));
-        item.total_before = item.quantity_before * item.unit_price_before;
-      }
-    }
+      item: null,
+      sub_items: [],
+    };
   }
 
+  const snapshotData = parseSnapshotJson(snapshot.snapshot_json);
+  const beforeSubItems = snapshotData.subItems.map(normalizeSnapshotSubItem);
+  const afterSubItems = comparisonData.currentSubItems.map(
+    normalizeCurrentSubItem,
+  );
+  const beforeByKey = new Map(
+    beforeSubItems.map((item) => [getSubItemComparisonKey(item), item]),
+  );
+  const afterByKey = new Map(
+    afterSubItems.map((item) => [getSubItemComparisonKey(item), item]),
+  );
+  const comparisonKeys = new Set([
+    ...beforeByKey.keys(),
+    ...afterByKey.keys(),
+  ]);
+
+  const subItems = Array.from(comparisonKeys)
+    .map((key) => {
+      const beforeItem = beforeByKey.get(key) || null;
+      const afterItem = afterByKey.get(key) || null;
+      const displayItem = afterItem || beforeItem;
+      const quantityBefore = toNumber(beforeItem?.quantity);
+      const quantityAfter = toNumber(afterItem?.quantity);
+      const unitPriceBefore = toNumber(beforeItem?.unit_price);
+      const unitPriceAfter = toNumber(afterItem?.unit_price);
+      const totalBefore = toNumber(beforeItem?.total_amount);
+      const totalAfter = toNumber(afterItem?.total_amount);
+
+      return {
+        package_sub_item_id: displayItem.package_sub_item_id,
+        catalog_sub_item_id: displayItem.catalog_sub_item_id,
+        name: displayItem.name,
+        change_status: getSubItemChangeStatus(beforeItem, afterItem),
+        quantity_before: quantityBefore,
+        quantity_after: quantityAfter,
+        quantity_change: quantityAfter - quantityBefore,
+        quantity_direction: getChangeDirection(quantityBefore, quantityAfter),
+        unit_price_before: unitPriceBefore,
+        unit_price_after: unitPriceAfter,
+        unit_price_change: unitPriceAfter - unitPriceBefore,
+        unit_price_direction: getChangeDirection(
+          unitPriceBefore,
+          unitPriceAfter,
+        ),
+        total_before: totalBefore,
+        total_after: totalAfter,
+        total_change: totalAfter - totalBefore,
+        total_direction: getChangeDirection(totalBefore, totalAfter),
+      };
+    })
+    .sort((left, right) => left.name.localeCompare(right.name));
+
   const approvedAfter = toNumber(context.approved_quantity);
-  const approvedBefore = hasApprovedChange
-    ? approvedAfter - approvedDelta
-    : approvedAfter;
-  const subItems = Array.from(subItemById.values()).map((item) => ({
-    ...item,
-    quantity_change: item.quantity_after - item.quantity_before,
-    quantity_direction: getChangeDirection(
-      item.quantity_before,
-      item.quantity_after,
-    ),
-    unit_price_change: item.unit_price_after - item.unit_price_before,
-    unit_price_direction: getChangeDirection(
-      item.unit_price_before,
-      item.unit_price_after,
-    ),
-    total_change: item.total_after - item.total_before,
-    total_direction: getChangeDirection(item.total_before, item.total_after),
-  }));
-  const totalAfter = subItems.reduce((sum, item) => sum + item.total_after, 0);
-  const totalBefore = subItems.reduce((sum, item) => sum + item.total_before, 0);
+  const approvedBefore = toNumber(snapshot.approved_quantity);
+  const totalAfter = toNumber(context.estimated_total);
+  const totalBefore = toNumber(snapshot.item_total_amount);
 
   return {
+    comparison_available: true,
+    reason: null,
     summary: {
       package_id: Number(packageId),
       package_item_id: Number(packageItemId),
@@ -449,7 +499,8 @@ export async function getCfoPackageItemComparisonService({
       cfo_reviewed_at:
         context.cfo_reviewed_at || packageItem.cfo_reviewed_at || null,
       cfo_reviewed_by_name: context.cfo_reviewed_by_name || null,
-      comparison_marker_at: context.comparison_marker_at || null,
+      comparison_marker_at: snapshot.created_at || null,
+      snapshot_id: Number(snapshot.id),
     },
     item: {
       approved_quantity_before: approvedBefore,
@@ -714,6 +765,15 @@ export async function returnCfoPackageToCategoryManagerService({
       );
     }
 
+    const snapshotCount = await createCfoPackageItemReturnSnapshotsRepo(
+      transaction,
+      {
+        package_id: packageId,
+        reason: payload.reason,
+        actor_user_id: actorUserId,
+      },
+    );
+
     const updated = await returnPackageToCategoryManagerRepo(transaction, {
       package_id: packageId,
       row_version: payload.row_version,
@@ -749,6 +809,7 @@ export async function returnCfoPackageToCategoryManagerService({
       financialYear: packageRow.financial_year,
       reason: payload.reason,
       needsModificationCount: counts.needs_modification_count,
+      snapshotCount,
     };
   });
 

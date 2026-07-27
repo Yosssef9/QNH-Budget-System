@@ -2,7 +2,7 @@ const STATUS_STYLES = {
   IN_CFO_REVIEW: "border-blue-200 bg-blue-50 text-blue-700",
   RETURNED_BY_CFO: "border-amber-200 bg-amber-50 text-amber-700",
   CFO_REVIEW_COMPLETED: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  PENDING_CFO_REVIEW: "border-slate-200 bg-slate-50 text-slate-700",
+  PENDING_CFO_REVIEW: "border-amber-200 bg-amber-50 text-amber-700",
   CFO_ACCEPTED: "border-emerald-200 bg-emerald-50 text-emerald-700",
   NEEDS_MODIFICATION: "border-amber-200 bg-amber-50 text-amber-700",
   RECONCILED: "border-emerald-200 bg-emerald-50 text-emerald-700",

@@ -1230,6 +1230,10 @@ When migrating a module:
 
 The frontend is not a security boundary.
 
+When UI text is visually truncated or line-clamped, provide the full value
+through an accessible label or native `title` tooltip unless the full value is
+shown elsewhere in the same component.
+
 ---
 
 ## 34. Testing and Validation Rules

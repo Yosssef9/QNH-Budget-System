@@ -29,11 +29,12 @@ const Input = forwardRef(
   border
   bg-white
   p-3
+  text-slate-800
   outline-none
   transition
   focus:ring-4
-  focus:ring-blue-50
-  ${error ? "border-red-400" : "border-slate-200 focus:border-blue-400"}
+  focus:ring-blue-100
+  ${error ? "border-red-400" : "border-blue-200 focus:border-blue-400"}
   ${leftIcon ? "pl-10" : ""}
   ${rightIcon ? "pr-10" : ""}
   ${className}

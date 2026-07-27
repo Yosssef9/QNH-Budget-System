@@ -36,6 +36,7 @@ import CollapsibleSection from "../../components/CollapsibleSection";
 import CategoryPackageWorkbench from "../../components/category-packages/CategoryPackageWorkbench";
 import CollapsiblePanelToggle from "../../components/layout/CollapsiblePanelToggle";
 import BudgetItemRequestNoteDrawer from "../../components/budgets/shared/drawers/BudgetItemRequestNoteDrawer";
+import BudgetDistributionDetailsDrawer from "../../components/budgets/shared/drawers/BudgetDistributionDetailsDrawer";
 import {
   closeCategorySubmissionWindow,
   completeDepartmentCategoryReview,
@@ -94,6 +95,10 @@ CFO_REVIEW_COMPLETED: {
 CFO_ACCEPTED: {
   label: "CFO Accepted",
   className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+},
+NEEDS_MODIFICATION: {
+  label: "Needs Modification",
+  className: "border-amber-200 bg-amber-50 text-amber-700",
 },
 };
 
@@ -366,43 +371,6 @@ function getDistributionLabel(method) {
   );
 }
 
-function getDistributionPeriodLabel(row) {
-  const periodType = String(row.period_type || "Period").toUpperCase();
-
-  if (periodType === "MONTH") return `Month ${row.period_no}`;
-  if (periodType === "QUARTER") return `Quarter ${row.period_no}`;
-  if (periodType === "YEAR") return "Annual";
-  return `${periodType} ${row.period_no}`;
-}
-
-function DistributionGrid({ rows = [] }) {
-  if (!rows.length) {
-    return (
-      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500">
-        No distribution rows were submitted for this item.
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-      {rows.map((row) => (
-        <div
-          key={`${row.period_type}-${row.period_no}`}
-          className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5"
-        >
-          <span className="text-xs font-semibold text-slate-500">
-            {getDistributionPeriodLabel(row)}
-          </span>
-          <span className="text-sm font-bold text-slate-900">
-            {formatNumber(row.quantity)}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function CollapsiblePanel({ open, id, children }) {
   const [rendered, setRendered] = useState(open);
   const [height, setHeight] = useState(open ? "auto" : 0);
@@ -532,6 +500,7 @@ const ReviewItemRow = memo(function ReviewItemRow({
   departmentName,
 }) {
   const [hodNoteOpen, setHodNoteOpen] = useState(false);
+  const [distributionOpen, setDistributionOpen] = useState(false);
   const difference = getDifferenceMeta(
     item.requested_quantity,
     draft.category_approved_quantity,
@@ -726,23 +695,47 @@ const ReviewItemRow = memo(function ReviewItemRow({
               </div>
 
               <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
-                    <p className="text-sm font-bold text-slate-900">
-                      {getDistributionLabel(item.distribution_method)}{" "}
-                      distribution
+                    <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+                      Distribution
                     </p>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-base font-black text-slate-950">
+                      {getDistributionLabel(item.distribution_method)}
+                    </p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">
                       {item.distribution?.length || 0} period
-                      {(item.distribution?.length || 0) === 1 ? "" : "s"} ·
+                      {(item.distribution?.length || 0) === 1 ? "" : "s"} -
                       Total {formatNumber(distributionTotal)}
                     </p>
                   </div>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                    Read only
-                  </span>
+                  <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+                    <div className="rounded-xl bg-blue-50 px-3 py-2">
+                      <p className="text-[11px] font-bold uppercase text-blue-600">
+                        Requested
+                      </p>
+                      <p className="text-sm font-black text-blue-950">
+                        {formatNumber(item.requested_quantity)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 px-3 py-2">
+                      <p className="text-[11px] font-bold uppercase text-slate-500">
+                        Distributed
+                      </p>
+                      <p className="text-sm font-black text-slate-950">
+                        {formatNumber(distributionTotal)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDistributionOpen(true)}
+                      className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs font-black text-blue-700 transition hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 sm:col-span-1"
+                    >
+                      <BarChart3 className="h-4 w-4" />
+                      View Distribution
+                    </button>
+                  </div>
                 </div>
-                <DistributionGrid rows={item.distribution} />
               </div>
             </section>
 
@@ -927,6 +920,13 @@ const ReviewItemRow = memo(function ReviewItemRow({
           editable={false}
         />
       )}
+
+      <BudgetDistributionDetailsDrawer
+        open={distributionOpen}
+        onClose={() => setDistributionOpen(false)}
+        item={item}
+        title="Department Item Distribution"
+      />
     </article>
   );
 }, areReviewItemRowPropsEqual);

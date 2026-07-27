@@ -425,13 +425,13 @@ export default function CfoPackageItemsView({
                   : "border-slate-200 bg-white hover:bg-slate-50"
               }`}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="font-bold text-slate-900">
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div
+                    title={item.catalog_item_name}
+                    className="line-clamp-2 break-words font-bold leading-5 text-slate-900"
+                  >
                     {item.catalog_item_name}
-                  </div>
-                  <div className="mt-1 text-xs font-semibold text-slate-500">
-                    {item.catalog_item_code}
                   </div>
                 </div>
                 <CfoReviewStatusBadge status={item.cfo_review_status} />

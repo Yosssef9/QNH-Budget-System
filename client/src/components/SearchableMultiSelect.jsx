@@ -245,7 +245,7 @@ export default function SearchableMultiSelect({
         ref={dropdownRef}
         style={usePortal ? dropdownStyle : undefined}
         className={[
-          "origin-top transform-gpu transition-all duration-200 ease-out overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-[0_20px_40px_rgba(15,23,42,0.12)] ring-1 ring-slate-200",
+          "origin-top transform-gpu transition-all duration-200 ease-out overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-[0_20px_40px_rgba(15,23,42,0.12)] ring-1 ring-blue-100",
           open
             ? "opacity-100 scale-100 translate-y-0 visible"
             : "opacity-0 scale-95 -translate-y-2 invisible pointer-events-none",
@@ -264,7 +264,7 @@ export default function SearchableMultiSelect({
               value={actualSearch}
               onChange={handleSearchChange}
               placeholder={searchPlaceholder}
-              className="h-11 w-full rounded-xl border border-enterprise-border bg-enterprise-soft pl-10 pr-3 text-left text-sm outline-none transition focus:border-primary-300 focus:bg-white focus:ring-4 focus:ring-primary-50"
+              className="h-11 w-full rounded-xl border border-blue-200 bg-enterprise-soft pl-10 pr-3 text-left text-sm text-slate-800 outline-none transition focus:border-primary-300 focus:bg-white focus:ring-4 focus:ring-blue-100"
             />
           </div>
         </div>
@@ -364,7 +364,7 @@ export default function SearchableMultiSelect({
         type="button"
         disabled={disabled}
         onClick={() => setOpen((prev) => !prev)}
-        className={`min-h-[46px] w-full rounded-[10px] border border-enterprise-border bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-300 focus:ring-4 focus:ring-primary-50 ${
+        className={`min-h-[46px] w-full rounded-[10px] border border-blue-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-primary-300 focus:ring-4 focus:ring-blue-100 ${
           disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
         }`}
       >
@@ -396,12 +396,12 @@ export default function SearchableMultiSelect({
                   })}
                 </>
               ) : (
-                <span className="w-full text-center font-semibold text-slate-700">
+                <span className="w-full text-center font-semibold text-slate-800">
                   {optionLabel(selectedOptions[0])}
                 </span>
               )
             ) : (
-              <span className="w-full text-center text-enterprise-muted">
+              <span className="w-full text-center font-medium text-enterprise-muted">
                 {placeholder}
               </span>
             )}

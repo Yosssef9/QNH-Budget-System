@@ -52,6 +52,30 @@ function DirectionBadge({ direction, value, currency = false }) {
   );
 }
 
+function ChangeStatusBadge({ status }) {
+  const normalized = status || "UNCHANGED";
+  const styles = {
+    NEW: "border-blue-200 bg-blue-50 text-blue-700",
+    REMOVED: "border-rose-200 bg-rose-50 text-rose-700",
+    CHANGED: "border-amber-200 bg-amber-50 text-amber-700",
+    UNCHANGED: "border-slate-200 bg-slate-50 text-slate-600",
+  };
+  const labels = {
+    NEW: "New model",
+    REMOVED: "Removed",
+    CHANGED: "Changed",
+    UNCHANGED: "Unchanged",
+  };
+
+  return (
+    <span
+      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-black ${styles[normalized] || styles.UNCHANGED}`}
+    >
+      {labels[normalized] || labels.UNCHANGED}
+    </span>
+  );
+}
+
 function ComparisonCard({
   label,
   before,
@@ -134,6 +158,8 @@ export default function CfoPackageItemComparisonDrawer({
   const summary = data.summary || {};
   const item = data.item || {};
   const subItems = data.sub_items || [];
+  const hasNoReturnSnapshot =
+    data.comparison_available === false && data.reason === "NO_RETURN_SNAPSHOT";
 
   return (
     <AnimatedDrawer open={open} onClose={onClose} fullScreen>
@@ -182,6 +208,32 @@ export default function CfoPackageItemComparisonDrawer({
           ) : query.isError ? (
             <div className="rounded-3xl border border-rose-200 bg-rose-50 p-8 text-sm font-bold text-rose-700">
               Failed to load item changes.
+            </div>
+          ) : hasNoReturnSnapshot ? (
+            <div className="rounded-3xl border border-blue-200 bg-white p-8 shadow-sm">
+              <div className="mx-auto max-w-2xl text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
+                  <Calculator size={24} />
+                </div>
+                <h3 className="mt-5 text-2xl font-black text-slate-950">
+                  No returned changes yet
+                </h3>
+                <p className="mt-3 text-sm font-semibold leading-6 text-slate-500">
+                  This item has not been returned to the Category Manager, so
+                  there are no before/after changes to compare yet.
+                </p>
+                <div className="mt-5 flex flex-wrap justify-center gap-2 text-xs font-black">
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
+                    {summary.category_name || "Category"}
+                  </span>
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
+                    FY {summary.financial_year || "-"}
+                  </span>
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
+                    {summary.cfo_review_status || "CFO review"}
+                  </span>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="space-y-5">
@@ -265,6 +317,7 @@ export default function CfoPackageItemComparisonDrawer({
                     <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                       <tr>
                         <th className="px-4 py-3 text-left">Model</th>
+                        <th className="px-4 py-3 text-left">Status</th>
                         <th className="px-4 py-3 text-right">Quantity</th>
                         <th className="px-4 py-3 text-right">Unit price</th>
                         <th className="px-4 py-3 text-right">Total amount</th>
@@ -278,11 +331,11 @@ export default function CfoPackageItemComparisonDrawer({
                               <p className="font-black text-slate-950">
                                 {subItem.name}
                               </p>
-                              {!subItem.old_value_recorded ? (
-                                <p className="mt-1 text-xs font-semibold text-amber-700">
-                                  Some older before-values were not recorded.
-                                </p>
-                              ) : null}
+                            </td>
+                            <td className="px-4 py-4">
+                              <ChangeStatusBadge
+                                status={subItem.change_status}
+                              />
                             </td>
                             <td className="px-4 py-4">
                               <ValueCell
@@ -315,11 +368,11 @@ export default function CfoPackageItemComparisonDrawer({
                       ) : (
                         <tr>
                           <td
-                            colSpan={4}
+                            colSpan={5}
                             className="px-4 py-10 text-center text-sm font-semibold text-slate-500"
                           >
-                            No active package sub-items are available for this
-                            item.
+                            No package sub-item comparison is available for
+                            this item.
                           </td>
                         </tr>
                       )}

@@ -60,7 +60,7 @@ export default function DashboardStatCard({ item }) {
     <div
       onClick={() => item.route && navigate(item.route)}
       className={[
-        "flex h-full min-h-[150px] flex-col rounded-2xl border bg-white p-4 shadow-sm transition-all duration-200",
+        "flex h-full min-h-[150px] flex-col rounded-2xl border  p-4 shadow-sm transition-all duration-200",
         requiresAction
           ? "border-amber-600 bg-amber-300/30 shadow-md"
           : "border-blue-200 bg-white",

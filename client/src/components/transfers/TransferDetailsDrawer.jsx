@@ -100,6 +100,7 @@ export default function TransferDetailsDrawer({
   onClose,
   onApprove,
   onReject,
+  canApprove = false,
 }) {
   if (!open || !transfer) return null;
 
@@ -238,7 +239,7 @@ export default function TransferDetailsDrawer({
           </div>
         </div>
 
-        {isPending ? (
+        {isPending && canApprove && onApprove && onReject ? (
           <div className="border-t border-slate-200 bg-white px-6 py-4">
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button

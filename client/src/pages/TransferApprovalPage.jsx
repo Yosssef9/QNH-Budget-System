@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
@@ -19,6 +19,9 @@ import EnterpriseSearch from "../components/EnterpriseSearch";
 import TransferApprovalTable from "../components/transfers/TransferApprovalTable";
 import TransferDetailsDrawer from "../components/transfers/TransferDetailsDrawer";
 import CurrencyText from "../components/CurrencyText";
+import { useAuth } from "../context/AuthContext";
+import { can } from "../helpers/permissions";
+import { PERMISSION_CODES } from "@qnh/permissions";
 import {
   approveTransfer,
   getTransferById,
@@ -48,6 +51,7 @@ function MetricCard({ icon: Icon, label, children }) {
 
 export default function TransferApprovalPage() {
   const queryClient = useQueryClient();
+  const { budgetAccess } = useAuth();
   const [selectedTransfer, setSelectedTransfer] = useState(null);
   const [approveItem, setApproveItem] = useState(null);
   const [rejectItem, setRejectItem] = useState(null);
@@ -58,21 +62,25 @@ export default function TransferApprovalPage() {
   const [rejectionNote, setRejectionNote] = useState("");
 
   const { data: financialYears = [] } = useFinancialYears();
+  const canApproveTransfers = can(
+    budgetAccess,
+    PERMISSION_CODES.APPROVE_CATEGORY_TRANSFERS,
+  );
 
-  useEffect(() => {
-    if (!financialYears.length || financialYearFilter) return;
-    const sortedYears = [...financialYears].sort(
+  const latestFinancialYearId = useMemo(() => {
+    if (!financialYears.length) return null;
+
+    return [...financialYears].sort(
       (a, b) => Number(b.year) - Number(a.year),
-    );
-    if (sortedYears[0]) {
-      setFinancialYearFilter(sortedYears[0].id);
-    }
-  }, [financialYears, financialYearFilter]);
+    )[0]?.id ?? null;
+  }, [financialYears]);
+  const effectiveFinancialYearFilter =
+    financialYearFilter ?? latestFinancialYearId;
 
   const { data: transfers = [], isLoading } = useQuery({
-    queryKey: ["transfers", statusFilter, financialYearFilter],
-    queryFn: () => getTransfers(statusFilter, financialYearFilter),
-    enabled: !!financialYearFilter,
+    queryKey: ["transfers", statusFilter, effectiveFinancialYearFilter],
+    queryFn: () => getTransfers(statusFilter, effectiveFinancialYearFilter),
+    enabled: !!effectiveFinancialYearFilter,
   });
 
   const financialYearOptions = [...financialYears]
@@ -257,7 +265,7 @@ export default function TransferApprovalPage() {
                 <SearchableMultiSelect
                   multiple={false}
                   disableClear
-                  value={financialYearFilter}
+                  value={effectiveFinancialYearFilter}
                   options={financialYearOptions}
                   onChange={(event) => {
                     setFinancialYearFilter(Number(event.target.value));
@@ -347,6 +355,7 @@ export default function TransferApprovalPage() {
         onClose={() => setSelectedTransfer(null)}
         onApprove={setApproveItem}
         onReject={setRejectItem}
+        canApprove={canApproveTransfers}
       />
 
       <ConfirmModal

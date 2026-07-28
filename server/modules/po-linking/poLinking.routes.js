@@ -25,6 +25,11 @@ import {
   searchPOItemsForMapping,
   setPOItemMappingStatus,
 } from "./poLinking.controller.js";
+import {
+  getPOItemMappingCategories,
+  getPOItemMappingCatalogItems,
+  getPOItemMappingCatalogSubItems,
+} from "../../controllers/poItemMappings.controller.js";
 
 export const poLinkingRoutes = express.Router();
 
@@ -113,8 +118,17 @@ poItemMappingsRoutes.use(requireBudgetPermission(PO_LINK_PERMISSIONS.MANAGE_MAPP
 
 poItemMappingsRoutes.get("/", getPOItemMappings);
 poItemMappingsRoutes.post("/", createManualPOItemMapping);
+poItemMappingsRoutes.get("/categories", getPOItemMappingCategories);
+poItemMappingsRoutes.get(
+  "/categories/:categoryId/catalog-items",
+  getPOItemMappingCatalogItems,
+);
+poItemMappingsRoutes.get(
+  "/catalog-items/:itemId/sub-items",
+  getPOItemMappingCatalogSubItems,
+);
 poItemMappingsRoutes.get("/budget-types", searchBudgetTypesForMapping);
-poItemMappingsRoutes.get("/catalog-sub-items", searchBudgetTypesForMapping);
+poItemMappingsRoutes.get("/catalog-sub-items", getPOItemMappingCatalogSubItems);
 poItemMappingsRoutes.get("/po-items", searchPOItemsForMapping);
 poItemMappingsRoutes.patch("/:id/status", setPOItemMappingStatus);
 

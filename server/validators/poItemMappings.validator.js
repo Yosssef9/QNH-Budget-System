@@ -36,6 +36,10 @@ export function validatePOItemMappingId(value) {
   return toPositiveInteger(value, "mapping id");
 }
 
+export function validatePositiveInt(value, fieldName) {
+  return toPositiveInteger(value, fieldName);
+}
+
 export function validatePOItemMappingFilters(query = {}) {
   const source = query.source
     ? String(query.source).trim().toUpperCase()

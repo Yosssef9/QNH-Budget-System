@@ -1,5 +1,8 @@
 import {
   createManualPOItemMappingService,
+  getPOItemMappingCategoriesService,
+  getPOItemMappingCatalogItemsService,
+  getPOItemMappingCatalogSubItemsService,
   getPOItemMappingsService,
   searchBudgetTypesForMappingService,
   searchPOItemsForMappingService,
@@ -13,6 +16,7 @@ import {
   validatePOItemMappingFilters,
   validatePOItemMappingId,
   validatePOItemMappingStatus,
+  validatePositiveInt,
 } from "../validators/poItemMappings.validator.js";
 
 export const getPOItemMappings = asyncHandler(async (req, res) => {
@@ -75,3 +79,40 @@ export const searchPOItemsForMapping = asyncHandler(async (req, res) => {
     }),
   );
 });
+
+export const getPOItemMappingCategories = asyncHandler(async (_req, res) => {
+  const data = await getPOItemMappingCategoriesService();
+
+  return res.json(
+    new ApiResponse({
+      message: "Budget categories fetched successfully",
+      data,
+    }),
+  );
+});
+
+export const getPOItemMappingCatalogItems = asyncHandler(async (req, res) => {
+  const categoryId = validatePositiveInt(req.params.categoryId, "categoryId");
+  const data = await getPOItemMappingCatalogItemsService(categoryId);
+
+  return res.json(
+    new ApiResponse({
+      message: "Catalog items fetched successfully",
+      data,
+    }),
+  );
+});
+
+export const getPOItemMappingCatalogSubItems = asyncHandler(
+  async (req, res) => {
+    const catalogItemId = validatePositiveInt(req.params.itemId, "itemId");
+    const data = await getPOItemMappingCatalogSubItemsService(catalogItemId);
+
+    return res.json(
+      new ApiResponse({
+        message: "Catalog sub-items fetched successfully",
+        data,
+      }),
+    );
+  },
+);

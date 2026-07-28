@@ -1,6 +1,9 @@
 import { ApiError } from "../utils/apiError.js";
 import {
   createManualPOItemMappingRepo,
+  getPOItemMappingCategoriesRepo,
+  getPOItemMappingCatalogItemsRepo,
+  getPOItemMappingCatalogSubItemsRepo,
   findPOItemMappingByIdRepo,
   findPOItemMappingByTypeAndCodeRepo,
   getPOItemMappingsRepo,
@@ -86,4 +89,24 @@ export async function searchBudgetTypesForMappingService(filters = {}) {
 
 export async function searchPOItemsForMappingService(filters = {}) {
   return searchPOItemsForMappingRepo(filters);
+}
+
+export async function getPOItemMappingCategoriesService() {
+  return getPOItemMappingCategoriesRepo();
+}
+
+export async function getPOItemMappingCatalogItemsService(categoryId) {
+  if (!categoryId) {
+    throw new ApiError(400, "categoryId is required", "VALIDATION_ERROR");
+  }
+
+  return getPOItemMappingCatalogItemsRepo(Number(categoryId));
+}
+
+export async function getPOItemMappingCatalogSubItemsService(catalogItemId) {
+  if (!catalogItemId) {
+    throw new ApiError(400, "catalogItemId is required", "VALIDATION_ERROR");
+  }
+
+  return getPOItemMappingCatalogSubItemsRepo(Number(catalogItemId));
 }

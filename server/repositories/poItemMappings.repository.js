@@ -234,6 +234,101 @@ export async function searchPOItemsForMappingRepo({ search } = {}) {
   return result.recordset;
 }
 
+export async function getPOItemMappingCategoriesRepo() {
+  const pool = await poolPromise;
+
+  const result = await pool.request().query(`
+    SELECT
+      id,
+      category_code,
+      name,
+      description,
+      sort_order,
+      is_active
+    FROM dbo.BS_budget_categories
+    WHERE is_active = 1
+    ORDER BY sort_order ASC, name ASC
+  `);
+
+  return result.recordset;
+}
+
+export async function getPOItemMappingCatalogItemsRepo(categoryId) {
+  const pool = await poolPromise;
+
+  const result = await pool
+    .request()
+    .input("categoryId", sql.Int, categoryId)
+    .query(`
+      SELECT
+        ci.id,
+        ci.budget_category_id,
+        c.name AS category_name,
+        c.category_code,
+        ci.item_code,
+        ci.name,
+        ci.description,
+        ci.expense_type,
+        ci.unit_of_measure_id,
+        u.name AS unit_name,
+        u.unit_code,
+        ci.sort_order,
+        ci.is_active,
+        general.id AS general_sub_item_id
+      FROM dbo.BS_budget_catalog_items AS ci
+      INNER JOIN dbo.BS_budget_categories AS c
+        ON c.id = ci.budget_category_id
+      INNER JOIN dbo.BS_units_of_measure AS u
+        ON u.id = ci.unit_of_measure_id
+      LEFT JOIN dbo.BS_budget_catalog_sub_items AS general
+        ON general.catalog_item_id = ci.id
+        AND general.is_default_general = 1
+        AND general.is_active = 1
+      WHERE ci.budget_category_id = @categoryId
+        AND ci.is_active = 1
+        AND c.is_active = 1
+      ORDER BY ci.sort_order ASC, ci.name ASC
+    `);
+
+  return result.recordset;
+}
+
+export async function getPOItemMappingCatalogSubItemsRepo(catalogItemId) {
+  const pool = await poolPromise;
+
+  const result = await pool
+    .request()
+    .input("catalogItemId", sql.Int, catalogItemId)
+    .query(`
+      SELECT
+        subItem.id,
+        subItem.catalog_item_id,
+        item.name AS catalog_item_name,
+        item.item_code AS catalog_item_code,
+        item.budget_category_id,
+        subItem.name,
+        subItem.sub_item_code,
+        subItem.default_specification,
+        subItem.default_specification AS description,
+        subItem.default_unit_of_measure_id AS unit_of_measure_id,
+        u.name AS unit_name,
+        u.unit_code,
+        subItem.is_default_general,
+        subItem.is_active
+      FROM dbo.BS_budget_catalog_sub_items AS subItem
+      INNER JOIN dbo.BS_budget_catalog_items AS item
+        ON item.id = subItem.catalog_item_id
+      INNER JOIN dbo.BS_units_of_measure AS u
+        ON u.id = subItem.default_unit_of_measure_id
+      WHERE subItem.catalog_item_id = @catalogItemId
+        AND subItem.is_active = 1
+        AND item.is_active = 1
+      ORDER BY subItem.is_default_general DESC, subItem.name ASC
+    `);
+
+  return result.recordset;
+}
+
 export async function learnPOItemMappingFromApprovedLinkRepo({
   poLinkId,
   userId,

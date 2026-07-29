@@ -12,9 +12,8 @@ import { BUDGET_ITEMS_PAGE_SIZE } from "../../../constants/budget.constants";
 import { toNumber } from "../../../utils/number";
 
 import BudgetMethodBadge from "./BudgetMethodBadge";
-import CategoryManagerReviewDetailsDrawer, {
-  getCategoryManagerReviewDisplay,
-} from "./drawers/CategoryManagerReviewDetailsDrawer";
+import CategoryManagerReviewDetailsDrawer from "./drawers/CategoryManagerReviewDetailsDrawer";
+import { getCategoryManagerReviewDisplay } from "./categoryManagerReviewDisplay";
 import BudgetItemRequestNoteDrawer from "./drawers/BudgetItemRequestNoteDrawer";
 
 function BudgetDistributionRow({
@@ -77,6 +76,9 @@ function BudgetDistributionRow({
 
   const deleteLockMessage =
     "Submitted category budgets are read-only.";
+
+  const isProjectValue =
+    row.isProject === true || row.is_project === true;
 
   const approvedQuantity =
     row.approvedQuantity === null ||
@@ -384,6 +386,31 @@ function BudgetDistributionRow({
 
         <td className="w-[150px] border border-slate-200 px-3 py-4 text-center">
           <div className="flex flex-col items-center gap-2">
+            <label
+              className={[
+                "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition",
+                isRowLocked
+                  ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
+                  : "cursor-pointer border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+              ].join(" ")}
+              title={
+                isRowLocked
+                  ? deleteLockMessage
+                  : "Mark this budget item as a project"
+              }
+            >
+              <input
+                type="checkbox"
+                checked={isProjectValue}
+                disabled={isRowLocked}
+                onChange={(event) =>
+                  updateRow(row.id, "isProject", event.target.checked)
+                }
+                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed"
+              />
+              <span className="whitespace-nowrap">Project</span>
+            </label>
+
             <button
               type="button"
               onClick={() => setNoteDrawerOpen(true)}

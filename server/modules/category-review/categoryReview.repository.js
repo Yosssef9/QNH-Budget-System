@@ -494,6 +494,7 @@ export async function listItemsForReviewBudgetRepo(
         COALESCE(item.unit_of_measure_id_snapshot, catalogItem.unit_of_measure_id) AS unit_of_measure_id,
         COALESCE(item.unit_name_snapshot, unit.name) AS unit_name,
         COALESCE(item.unit_code_snapshot, unit.unit_code) AS unit_code,
+        item.is_project,
         item.requested_quantity,
         item.hod_item_note,
         item.category_approved_quantity,

@@ -150,6 +150,7 @@ export default function BudgetEnteryPage() {
       id: row.isNew ? null : Number(row.id),
       category_id: Number(categoryBudget?.category_id),
       catalog_item_id: Number(row.item),
+      is_project: Boolean(row.isProject || row.is_project),
       requested_quantity: toNumber(row.quantity),
       distribution_method: getApiDistributionMethod(row.method),
       distribution: getApiDistributionRows(row),
@@ -244,6 +245,7 @@ export default function BudgetEnteryPage() {
       monthly: row.monthly,
       quarterly: row.quarterly,
       hodItemNote: row.hodItemNote || "",
+      isProject: Boolean(row.isProject || row.is_project),
     });
   }, []);
 

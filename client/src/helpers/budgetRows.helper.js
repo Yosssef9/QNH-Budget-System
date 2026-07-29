@@ -8,6 +8,7 @@ export function createRow(
   quarterly = [],
   isNew = true,
   hodItemNote = "",
+  isProject = false,
 ) {
   return {
     id,
@@ -18,6 +19,8 @@ export function createRow(
     monthly,
     quarterly,
     hodItemNote,
+    isProject,
+    is_project: isProject,
     isSaved: false,
     isNew,
   };
@@ -56,6 +59,7 @@ export function mapBudgetItemToRow(item) {
     quarterly,
     false,
     item.hod_item_note ?? item.hodItemNote ?? "",
+    item.is_project === true || item.is_project === 1,
   );
 
   return {
@@ -68,6 +72,8 @@ export function mapBudgetItemToRow(item) {
     expenseType: item.expense_type,
     reviewStatus: item.review_status,
     reviewNote: item.review_note,
+    is_project: row.isProject === true,
+    isProject: row.isProject === true,
     approvedQuantity:
       item.category_approved_quantity === null ||
       item.category_approved_quantity === undefined
@@ -86,6 +92,7 @@ export function mapBudgetItemToRow(item) {
       monthly: row.monthly,
       quarterly: row.quarterly,
       hodItemNote: row.hodItemNote || "",
+      isProject: row.isProject === true,
     }),
   };
 }

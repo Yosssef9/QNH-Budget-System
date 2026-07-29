@@ -505,6 +505,7 @@ const ReviewItemRow = memo(function ReviewItemRow({
     item.requested_quantity,
     draft.category_approved_quantity,
   );
+  const isProject = item.is_project === true || item.is_project === 1 || item.isProject === true;
   const DifferenceIcon = difference.icon;
   const approvedValue = draft.category_approved_quantity;
   const approvedNumber = Number(approvedValue);
@@ -555,6 +556,11 @@ const ReviewItemRow = memo(function ReviewItemRow({
             <span className="block truncate text-sm font-bold text-slate-950">
               {item.catalog_item_name}
             </span>
+            {isProject && (
+              <span className="mt-1 inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">
+                Project
+              </span>
+            )}
             <span className="mt-1 block truncate text-xs text-slate-500">
               {item.expense_type || "Expense"} ·{" "}
               {getDistributionLabel(item.distribution_method)} ·{" "}

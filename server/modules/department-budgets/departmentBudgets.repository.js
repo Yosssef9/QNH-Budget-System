@@ -133,6 +133,7 @@ export async function listCategoryDepartmentItemsOverviewRepo({
         COALESCE(item.expense_type_snapshot, catalog.expense_type) AS expense_type,
         item.requested_quantity,
         item.hod_item_note,
+        item.is_project,
         item.category_approved_quantity,
         item.review_status,
         item.review_note,
@@ -359,6 +360,7 @@ export async function listHistoryItemsForCategoryBudgetRepo(
         COALESCE(item.unit_of_measure_id_snapshot, catalogItem.unit_of_measure_id) AS unit_of_measure_id,
         COALESCE(item.unit_name_snapshot, unit.name) AS unit_name,
         COALESCE(item.unit_code_snapshot, unit.unit_code) AS unit_code,
+        item.is_project,
         dcb.budget_category_id,
         category.category_code,
         category.name AS category_name,
@@ -545,6 +547,7 @@ export async function listItemsForDepartmentBudgetRepo(
         COALESCE(item.unit_of_measure_id_snapshot, catalogItem.unit_of_measure_id) AS unit_of_measure_id,
         COALESCE(item.unit_name_snapshot, unit.name) AS unit_name,
         COALESCE(item.unit_code_snapshot, unit.unit_code) AS unit_code,
+        item.is_project,
         dcb.budget_category_id,
         category.category_code,
         category.name AS category_name,
@@ -643,6 +646,7 @@ export async function listItemsForCategoryBudgetRepo(
         item.unit_of_measure_id_snapshot AS unit_of_measure_id,
         item.unit_name_snapshot AS unit_name,
         item.unit_code_snapshot AS unit_code,
+        item.is_project,
         item.requested_quantity,
         item.hod_item_note,
         item.category_approved_quantity,
@@ -746,6 +750,7 @@ export async function upsertDepartmentCategoryBudgetItemRepo(
     .input("unitOfMeasureIdSnapshot", sql.Int, payload.unit_of_measure_id_snapshot)
     .input("unitNameSnapshot", sql.NVarChar(100), payload.unit_name_snapshot)
     .input("unitCodeSnapshot", sql.VarChar(30), payload.unit_code_snapshot)
+    .input("isProject", sql.Bit, Boolean(payload.is_project))
     .input("requestedQuantity", sql.Decimal(18, 4), payload.requested_quantity)
     .input("distributionMethod", sql.VarChar(40), payload.distribution_method)
     .input("hodItemNote", sql.NVarChar(3000), payload.hod_item_note ?? null)
@@ -765,6 +770,7 @@ export async function upsertDepartmentCategoryBudgetItemRepo(
         unit_of_measure_id_snapshot = @unitOfMeasureIdSnapshot,
         unit_name_snapshot = @unitNameSnapshot,
         unit_code_snapshot = @unitCodeSnapshot,
+        is_project = @isProject,
         requested_quantity = @requestedQuantity,
         distribution_method = @distributionMethod,
         hod_item_note = @hodItemNote,
@@ -786,6 +792,7 @@ export async function upsertDepartmentCategoryBudgetItemRepo(
         unit_of_measure_id_snapshot = @unitOfMeasureIdSnapshot,
         unit_name_snapshot = @unitNameSnapshot,
         unit_code_snapshot = @unitCodeSnapshot,
+        is_project = @isProject,
         requested_quantity = @requestedQuantity,
         distribution_method = @distributionMethod,
         hod_item_note = @hodItemNote,
@@ -810,6 +817,7 @@ export async function upsertDepartmentCategoryBudgetItemRepo(
         unit_of_measure_id_snapshot,
         unit_name_snapshot,
         unit_code_snapshot,
+        is_project,
         requested_quantity,
         distribution_method,
         hod_item_note,
@@ -828,6 +836,7 @@ export async function upsertDepartmentCategoryBudgetItemRepo(
         @unitOfMeasureIdSnapshot,
         @unitNameSnapshot,
         @unitCodeSnapshot,
+        @isProject,
         @requestedQuantity,
         @distributionMethod,
         @hodItemNote,

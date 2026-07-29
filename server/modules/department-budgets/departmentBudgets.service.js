@@ -525,6 +525,7 @@ export async function saveDepartmentCategoryItemsService({
           unit_of_measure_id_snapshot: catalogItem.unit_of_measure_id,
           unit_name_snapshot: catalogItem.unit_name,
           unit_code_snapshot: catalogItem.unit_code,
+          is_project: Boolean(item.is_project ?? item.isProject),
           requested_quantity: item.requested_quantity,
           distribution_method: item.distribution_method,
           hod_item_note: item.hod_item_note,

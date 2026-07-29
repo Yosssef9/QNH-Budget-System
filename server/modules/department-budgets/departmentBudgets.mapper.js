@@ -123,6 +123,8 @@ export function mapDepartmentBudgetDetail({
         quantity: toNumber(row.requested_quantity),
         hod_item_note: row.hod_item_note || null,
         hodItemNote: row.hod_item_note || null,
+        is_project: row.is_project === true || row.is_project === 1,
+        isProject: row.is_project === true || row.is_project === 1,
         category_approved_quantity:
           row.category_approved_quantity === null
             ? null
@@ -242,6 +244,8 @@ export function mapCategoryDepartmentItemOverview(row) {
     requested_quantity: toNumber(row.requested_quantity),
     hod_item_note: row.hod_item_note || null,
     hodItemNote: row.hod_item_note || null,
+    is_project: row.is_project === true || row.is_project === 1,
+    isProject: row.is_project === true || row.is_project === 1,
     category_approved_quantity: toNumber(row.category_approved_quantity),
     distribution_method: row.distribution_method,
     distribution: row.distribution_id ? [mapDistribution(row)] : [],

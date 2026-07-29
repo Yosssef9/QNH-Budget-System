@@ -207,6 +207,7 @@ describe("department budgets service", () => {
         department_category_budget_id: 100,
         catalog_item_id: 20,
         requested_quantity: 12,
+        is_project: false,
       }),
     );
     expect(replaceItemDistributionsRepo).toHaveBeenCalledWith(

@@ -76,6 +76,38 @@ function normalizeOptionalNote(value, fieldName, maxLength = 3000) {
   return note;
 }
 
+function normalizeOptionalBoolean(value, fieldName, defaultValue = false) {
+  if (value === null || value === undefined || value === "") {
+    return defaultValue;
+  }
+
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    if (value === 0) return false;
+    if (value === 1) return true;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+
+    if (["true", "1", "yes", "y", "on"].includes(normalized)) {
+      return true;
+    }
+
+    if (["false", "0", "no", "n", "off"].includes(normalized)) {
+      return false;
+    }
+  }
+
+  const error = new Error(`${fieldName} must be a boolean`);
+  error.statusCode = 400;
+  error.errorCode = "INVALID_BOOLEAN";
+  throw error;
+}
+
 function normalizeDistributionPeriod(row, index) {
   const periodType = String(row?.period_type || "").trim().toUpperCase();
 
@@ -153,6 +185,10 @@ export function validateSaveCategoryItemsPayload(body = {}) {
         catalog_item_id: toPositiveInteger(
           catalogItemId,
           `items[${index}].catalog_item_id`,
+        ),
+        is_project: normalizeOptionalBoolean(
+          item.is_project ?? item.isProject,
+          `items[${index}].is_project`,
         ),
         requested_quantity: toPositiveDecimal(
           item.requested_quantity ?? item.quantity,

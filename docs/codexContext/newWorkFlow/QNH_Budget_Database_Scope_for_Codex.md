@@ -920,6 +920,7 @@ Generic item requested by one department in one category budget.
 | `unit_of_measure_id_snapshot` | `INT` | Yes | Unit identifier frozen when the department item is saved |
 | `unit_name_snapshot` | `NVARCHAR(100)` | Yes | Unit name frozen when the department item is saved |
 | `unit_code_snapshot` | `VARCHAR(30)` | Yes | Unit code frozen when the department item is saved |
+| `is_project` | `BIT` | No | Project flag copied from the department item record; defaults to `0` |
 | `requested_quantity` | `DECIMAL(18, 4)` | No |  |
 | `hod_item_note` | `NVARCHAR(3000)` | Yes | HOD-entered item context for Category Manager review |
 | `category_approved_quantity` | `DECIMAL(18, 4)` | Yes |  |

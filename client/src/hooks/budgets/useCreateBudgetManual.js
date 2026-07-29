@@ -23,6 +23,7 @@ function getRowSnapshot(row) {
     quantity: row.quantity,
     monthly: row.monthly,
     quarterly: row.quarterly,
+    isProject: Boolean(row.isProject || row.is_project),
   });
 }
 
@@ -64,6 +65,8 @@ function lockRowsToCategory(rows = [], categoryId) {
   return rows.map((row) => ({
     ...row,
     category: Number(categoryId),
+    isProject: Boolean(row.isProject || row.is_project),
+    is_project: Boolean(row.isProject || row.is_project),
   }));
 }
 
@@ -385,6 +388,14 @@ export function useCreateBudgetManual() {
             ...row,
             [field]: normalizedValue,
           };
+
+          if (field === "isProject") {
+            next.is_project = Boolean(normalizedValue);
+          }
+
+          if (field === "is_project") {
+            next.isProject = Boolean(normalizedValue);
+          }
 
           const nextSnapshot = getRowSnapshot(next);
 

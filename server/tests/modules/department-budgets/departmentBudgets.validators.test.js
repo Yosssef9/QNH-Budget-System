@@ -22,6 +22,7 @@ describe("department budgets validators", () => {
             catalog_item_id: "10",
             requested_quantity: "12",
             distribution_method: "MONTHLY",
+            is_project: true,
             distribution: [
               { period_type: "MONTH", period_no: "1", quantity: "12" },
             ],
@@ -35,6 +36,7 @@ describe("department budgets validators", () => {
           catalog_item_id: 10,
           requested_quantity: 12,
           distribution_method: "MONTHLY",
+          is_project: true,
           distribution: [
             { period_type: "MONTH", period_no: 1, quantity: 12 },
           ],

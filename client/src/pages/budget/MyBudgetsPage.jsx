@@ -737,6 +737,11 @@ function CategoryDepartmentRequestsTable({ items }) {
                       <div className="font-bold text-slate-900">
                         {item.itemName}
                       </div>
+                      {(item.is_project === true || item.is_project === 1) && (
+                        <div className="mt-1 inline-flex rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-700">
+                          Project
+                        </div>
+                      )}
                       {metadata ? (
                         <div className="mt-1 text-xs font-semibold text-slate-500">
                           {metadata}

@@ -183,6 +183,9 @@ export function mapCategoryReviewDetail({ budget, itemRows = [] }) {
         unit_name: row.unit_name || null,
         unit_code: row.unit_code || null,
 
+        is_project: row.is_project === true || row.is_project === 1,
+        isProject: row.is_project === true || row.is_project === 1,
+
         requested_quantity: toNumber(row.requested_quantity),
         hod_item_note: row.hod_item_note || null,
         hodItemNote: row.hod_item_note || null,

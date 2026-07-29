@@ -23,10 +23,38 @@ export async function updatePOItemMappingStatus(id, payload) {
   return data.data;
 }
 
+export async function getPOItemMappingCategories() {
+  const { data } = await api.get("/admin/po-item-mappings/categories");
+
+  return data.data || [];
+}
+
+export async function getPOItemMappingCatalogItems(categoryId) {
+  if (!categoryId) return [];
+
+  const { data } = await api.get(
+    `/admin/po-item-mappings/categories/${categoryId}/catalog-items`,
+  );
+
+  return data.data || [];
+}
+
+export async function getPOItemMappingCatalogSubItems(catalogItemId) {
+  if (!catalogItemId) return [];
+
+  const { data } = await api.get(
+    `/admin/po-item-mappings/catalog-items/${catalogItemId}/sub-items`,
+  );
+
+  return data.data || [];
+}
+
 export async function searchPOItemMappingCatalogSubItems(params = {}) {
-  const { data } = await api.get("/admin/po-item-mappings/catalog-sub-items", {
-    params,
-  });
+  if (!params.catalogItemId) return [];
+
+  const { data } = await api.get(
+    `/admin/po-item-mappings/catalog-items/${params.catalogItemId}/sub-items`,
+  );
 
   return data.data || [];
 }

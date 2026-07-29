@@ -2,15 +2,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   createPOItemMapping,
+  getPOItemMappingCategories,
+  getPOItemMappingCatalogItems,
+  getPOItemMappingCatalogSubItems,
   getPOItemMappings,
   searchPOItemsForMapping,
   updatePOItemMappingStatus,
 } from "../../api/poItemMappings.api";
-import {
-  getSetupCategories,
-  getSetupSubItemsByCatalogItem,
-  getSetupTypesByCategory,
-} from "../../api/budgetSetup.api";
 
 export const PO_ITEM_MAPPINGS_QUERY_KEY = ["po-item-mappings"];
 
@@ -25,7 +23,7 @@ export function usePOItemMappings(params = {}) {
 export function usePOItemMappingCatalogSubItems(params = {}) {
   return useQuery({
     queryKey: [...PO_ITEM_MAPPINGS_QUERY_KEY, "catalog-sub-items", params],
-    queryFn: () => getSetupSubItemsByCatalogItem(params.catalogItemId),
+    queryFn: () => getPOItemMappingCatalogSubItems(params.catalogItemId),
     enabled: Boolean(params.catalogItemId),
     placeholderData: (previousData) => previousData,
   });
@@ -34,7 +32,7 @@ export function usePOItemMappingCatalogSubItems(params = {}) {
 export function usePOItemMappingCategories() {
   return useQuery({
     queryKey: [...PO_ITEM_MAPPINGS_QUERY_KEY, "categories"],
-    queryFn: getSetupCategories,
+    queryFn: getPOItemMappingCategories,
     placeholderData: (previousData) => previousData,
   });
 }
@@ -42,7 +40,7 @@ export function usePOItemMappingCategories() {
 export function usePOItemMappingCatalogItems(categoryId) {
   return useQuery({
     queryKey: [...PO_ITEM_MAPPINGS_QUERY_KEY, "catalog-items", categoryId],
-    queryFn: () => getSetupTypesByCategory(categoryId),
+    queryFn: () => getPOItemMappingCatalogItems(categoryId),
     enabled: Boolean(categoryId),
     placeholderData: (previousData) => previousData,
   });

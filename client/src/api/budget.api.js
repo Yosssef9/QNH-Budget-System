@@ -9,9 +9,18 @@ export async function getMyBudgets() {
   return response.data?.data || [];
 }
 
-export async function getCategoryBudgetOverview() {
-  const response = await api.get("/budgets/category-overview");
+export async function getCategoryBudgetYears() {
+  const response = await api.get("/budgets/category-years");
   return response.data?.data || [];
+}
+
+export async function getCategoryBudgetOverview(financialYearId) {
+  if (!financialYearId) return null;
+
+  const response = await api.get(
+    `/budgets/category-overview/${financialYearId}`,
+  );
+  return response.data?.data || null;
 }
 
 export async function getAllBudgets() {

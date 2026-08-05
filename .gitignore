@@ -1,1 +1,284 @@
 project-context.zip
+
+# ============================================================
+# QNH Budget System - Root .gitignore
+# ============================================================
+
+
+# ------------------------------------------------------------
+# Root-only local AI, editor, documentation, and utility files
+# ------------------------------------------------------------
+
+/.agents/
+/.codex/
+/.playwright-cli/
+/.vscode/
+
+/docs/
+/logs/
+
+/AGENTS.md
+
+/zip-project.ps1
+
+
+# ------------------------------------------------------------
+# Dependencies - root, client, server, shared, and nested folders
+# ------------------------------------------------------------
+
+node_modules/
+
+
+# ------------------------------------------------------------
+# Environment variables and secrets
+# ------------------------------------------------------------
+
+.env
+.env.*
+!.env.example
+!.env.sample
+
+*.env
+*.env.local
+*.env.development.local
+*.env.test.local
+*.env.production.local
+
+
+# ------------------------------------------------------------
+# Frontend build output and caches
+# ------------------------------------------------------------
+
+/client/dist/
+/client/build/
+/client/.vite/
+/client/.cache/
+/client/.parcel-cache/
+
+/dist/
+/build/
+/.vite/
+/.cache/
+/.parcel-cache/
+
+
+# ------------------------------------------------------------
+# Backend build output and runtime-generated folders
+# ------------------------------------------------------------
+
+/server/dist/
+/server/build/
+/server/logs/
+/server/uploads/
+/server/storage/
+/server/tmp/
+/server/temp/
+
+/uploads/
+/storage/
+/tmp/
+/temp/
+
+
+# ------------------------------------------------------------
+# Runtime logs
+# ------------------------------------------------------------
+
+*.log
+*.log.*
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+/client/logs/
+/server/logs/
+
+
+# ------------------------------------------------------------
+# Process manager files
+# ------------------------------------------------------------
+
+.pm2/
+pm2.log
+pm2-error.log
+pm2-out.log
+*.pid
+*.pid.lock
+pids/
+
+
+# ------------------------------------------------------------
+# Test output and coverage
+# ------------------------------------------------------------
+
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+blob-report/
+
+*.lcov
+
+
+# ------------------------------------------------------------
+# Playwright local files
+# ------------------------------------------------------------
+
+.playwright/
+.playwright-cli/
+playwright/.cache/
+
+
+# ------------------------------------------------------------
+# ESLint and tool caches
+# ------------------------------------------------------------
+
+.eslintcache
+.stylelintcache
+.prettier-cache
+.turbo/
+.nx/
+.swc/
+.rollup.cache/
+
+
+# ------------------------------------------------------------
+# TypeScript and JavaScript generated files
+# ------------------------------------------------------------
+
+*.tsbuildinfo
+
+
+# ------------------------------------------------------------
+# Local database files
+# ------------------------------------------------------------
+
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+
+# ------------------------------------------------------------
+# User-uploaded and generated attachment files
+# ------------------------------------------------------------
+
+/server/storage/category-package-attachments/
+/server/storage/uploads/
+/server/uploads/
+/uploads/
+
+
+# ------------------------------------------------------------
+# Locally generated project scans and context files
+# ------------------------------------------------------------
+
+/client/po-scan.txt
+/project-context.zip
+/*-context.zip
+/qnhportal-chatgpt-context*.zip
+/_chatgpt_zip_temp/
+/_chatgpt_zip_temp*/
+
+
+# ------------------------------------------------------------
+# Temporary and backup files
+# ------------------------------------------------------------
+
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+*.orig
+*.rej
+*.swp
+*.swo
+*~
+~$*
+
+
+# ------------------------------------------------------------
+# Compressed generated files
+# ------------------------------------------------------------
+
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+
+
+# ------------------------------------------------------------
+# Operating system files
+# ------------------------------------------------------------
+
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+
+# ------------------------------------------------------------
+# IDE settings
+# ------------------------------------------------------------
+
+.idea/
+*.iml
+
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.example.json
+
+
+# ------------------------------------------------------------
+# Visual Studio files
+# ------------------------------------------------------------
+
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+
+# ------------------------------------------------------------
+# Local certificate and key files
+# ------------------------------------------------------------
+
+*.pem
+*.key
+*.pfx
+*.p12
+*.crt
+*.cer
+
+
+# ------------------------------------------------------------
+# Local authentication and token files
+# ------------------------------------------------------------
+
+token.json
+tokens.json
+credentials.json
+secrets.json
+auth.json
+*.token
+
+
+# ------------------------------------------------------------
+# Miscellaneous local-only files
+# ------------------------------------------------------------
+
+.local/
+local/
+scratch/
+sandbox/

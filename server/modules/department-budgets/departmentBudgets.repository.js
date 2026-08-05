@@ -106,13 +106,111 @@ export async function listDepartmentBudgetsRepo({ departmentId }) {
   return result.recordset;
 }
 
-export async function listCategoryDepartmentItemsOverviewRepo({
-  budgetCategoryId,
-}) {
+export async function listCategoryBudgetYearsRepo({ budgetCategoryId }) {
   const pool = await poolPromise;
   const result = await pool
     .request()
     .input("budgetCategoryId", sql.Int, budgetCategoryId).query(`
+      SELECT
+        pkg.id AS category_budget_package_id,
+        pkg.financial_year_id,
+        fy.year AS financial_year,
+        fy.status AS financial_year_status,
+        pkg.budget_category_id,
+        category.name AS category_name,
+        category.category_code,
+        pkg.status AS package_status,
+        pkg.updated_at,
+        pkg.row_version,
+        COALESCE(departmentSummary.department_count, 0) AS department_count,
+        COALESCE(departmentSummary.item_count, 0) AS item_count,
+        COALESCE(departmentSummary.requested_quantity, 0) AS requested_quantity,
+        COALESCE(departmentSummary.approved_quantity, 0) AS approved_quantity,
+        COALESCE(packageSummary.package_model_count, 0) AS package_model_count,
+        COALESCE(packageSummary.package_quantity, 0) AS package_quantity,
+        COALESCE(packageSummary.package_value, 0) AS package_value
+      FROM dbo.BS_category_budget_packages AS pkg
+      INNER JOIN dbo.BS_financial_years AS fy
+        ON fy.id = pkg.financial_year_id
+      INNER JOIN dbo.BS_budget_categories AS category
+        ON category.id = pkg.budget_category_id
+      OUTER APPLY (
+        SELECT
+          COUNT(DISTINCT departmentBudget.department_id) AS department_count,
+          COUNT(DISTINCT CASE WHEN item.is_active = 1 THEN item.id END) AS item_count,
+          COALESCE(
+            SUM(CASE WHEN item.is_active = 1 THEN item.requested_quantity ELSE 0 END),
+            0
+          ) AS requested_quantity,
+          COALESCE(
+            SUM(CASE WHEN item.is_active = 1 THEN item.category_approved_quantity ELSE 0 END),
+            0
+          ) AS approved_quantity
+        FROM dbo.BS_department_category_budgets AS categoryBudget
+        INNER JOIN dbo.BS_department_budgets AS departmentBudget
+          ON departmentBudget.id = categoryBudget.department_budget_id
+        LEFT JOIN dbo.BS_department_category_budget_items AS item
+          ON item.department_category_budget_id = categoryBudget.id
+        WHERE departmentBudget.financial_year_id = pkg.financial_year_id
+          AND categoryBudget.budget_category_id = pkg.budget_category_id
+          AND categoryBudget.status <> 'DRAFT'
+      ) AS departmentSummary
+      OUTER APPLY (
+        SELECT
+          COUNT(DISTINCT subItem.id) AS package_model_count,
+          COALESCE(SUM(subItem.quantity), 0) AS package_quantity,
+          COALESCE(SUM(subItem.quantity * COALESCE(subItem.unit_price, 0)), 0)
+            AS package_value
+        FROM dbo.BS_category_budget_package_items AS packageItem
+        LEFT JOIN dbo.BS_category_budget_package_sub_items AS subItem
+          ON subItem.category_budget_package_item_id = packageItem.id
+         AND subItem.is_active = 1
+        WHERE packageItem.category_budget_package_id = pkg.id
+          AND packageItem.is_active = 1
+      ) AS packageSummary
+      WHERE pkg.budget_category_id = @budgetCategoryId
+      ORDER BY
+        CASE WHEN fy.status IN ('OPEN', 'PRE_CLOSING') THEN 0 ELSE 1 END,
+        fy.year DESC,
+        pkg.id DESC;
+    `);
+  return result.recordset;
+}
+
+export async function findCategoryBudgetYearRepo({
+  budgetCategoryId,
+  financialYearId,
+}) {
+  const pool = await poolPromise;
+  const result = await pool
+    .request()
+    .input("budgetCategoryId", sql.Int, budgetCategoryId)
+    .input("financialYearId", sql.Int, financialYearId).query(`
+      SELECT TOP 1
+        pkg.id AS category_budget_package_id,
+        pkg.financial_year_id,
+        pkg.budget_category_id,
+        pkg.status AS package_status,
+        fy.year AS financial_year,
+        fy.status AS financial_year_status
+      FROM dbo.BS_category_budget_packages AS pkg
+      INNER JOIN dbo.BS_financial_years AS fy
+        ON fy.id = pkg.financial_year_id
+      WHERE pkg.budget_category_id = @budgetCategoryId
+        AND pkg.financial_year_id = @financialYearId;
+    `);
+  return result.recordset[0] || null;
+}
+
+export async function listCategoryDepartmentItemsOverviewRepo({
+  budgetCategoryId,
+  financialYearId,
+}) {
+  const pool = await poolPromise;
+  const result = await pool
+    .request()
+    .input("budgetCategoryId", sql.Int, budgetCategoryId)
+    .input("financialYearId", sql.Int, financialYearId).query(`
       SELECT
         item.id AS department_budget_item_id,
         item.department_category_budget_id,
@@ -183,8 +281,8 @@ export async function listCategoryDepartmentItemsOverviewRepo({
         ORDER BY cr.submitted_at DESC, cr.id DESC
       ) AS adjustment
       WHERE dcb.budget_category_id = @budgetCategoryId
+        AND db.financial_year_id = @financialYearId
         AND item.is_active = 1
-        AND fy.status IN ('OPEN', 'PRE_CLOSING')
       ORDER BY
         fy.year DESC,
         dept.name,

@@ -39,6 +39,29 @@ export function mapDepartmentBudgetSummary(row) {
   };
 }
 
+export function mapCategoryBudgetYearSummary(row) {
+  return {
+    id: row.category_budget_package_id,
+    category_budget_package_id: row.category_budget_package_id,
+    financial_year_id: row.financial_year_id,
+    financial_year: row.financial_year,
+    financial_year_status: row.financial_year_status,
+    budget_category_id: row.budget_category_id,
+    category_name: row.category_name,
+    category_code: row.category_code,
+    package_status: row.package_status,
+    department_count: Number(row.department_count || 0),
+    item_count: Number(row.item_count || 0),
+    requested_quantity: toNumber(row.requested_quantity),
+    approved_quantity: toNumber(row.approved_quantity),
+    package_model_count: Number(row.package_model_count || 0),
+    package_quantity: toNumber(row.package_quantity),
+    package_value: toNumber(row.package_value),
+    updated_at: row.updated_at || null,
+    row_version: mapRowVersion(row.row_version),
+  };
+}
+
 export function mapDepartmentBudgetDetail({
   budget,
   categories = [],

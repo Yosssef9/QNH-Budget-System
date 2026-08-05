@@ -162,10 +162,14 @@ function transferSelect() {
   `;
 }
 
-export async function listTransferSubItemsRepo({ budgetCategoryId }) {
+export async function listTransferSubItemsRepo({
+  budgetCategoryId,
+  financialYearId = null,
+}) {
   const pool = await poolPromise;
   const result = await createRequest(pool)
     .input("budgetCategoryId", sql.Int, budgetCategoryId)
+    .input("financialYearId", sql.Int, financialYearId)
     .query(`
       WITH pendingOut AS (
         SELECT from_package_sub_item_id, SUM(source_quantity) AS pending_quantity
@@ -274,7 +278,15 @@ export async function listTransferSubItemsRepo({ budgetCategoryId }) {
       LEFT JOIN pendingPo
         ON pendingPo.category_budget_package_sub_item_id = subItem.id
       WHERE pkg.budget_category_id = @budgetCategoryId
-        AND fy.status = 'PRE_CLOSING'
+        AND (
+          (@financialYearId IS NULL AND fy.status = 'PRE_CLOSING')
+          OR
+          (
+            @financialYearId IS NOT NULL
+            AND fy.id = @financialYearId
+            AND fy.status IN ('OPEN', 'PRE_CLOSING', 'CLOSED')
+          )
+        )
         AND pkg.status = 'CFO_REVIEW_COMPLETED'
         AND subItem.is_active = 1
       ORDER BY catalog.name, subItem.name;

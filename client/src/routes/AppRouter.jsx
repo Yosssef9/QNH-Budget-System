@@ -115,6 +115,28 @@ const router = createBrowserRouter([
       },
 
       {
+        path: "budgets/my/category/:financialYearId",
+        async lazy() {
+          const module = await import(
+            "../pages/budget/CategoryBudgetViewPage"
+          );
+
+          return {
+            Component: () => (
+              <RequirePermission
+                permission={[
+                  PERMISSION_CODES.VIEW_CATEGORY_BUDGET_REQUESTS,
+                  PERMISSION_CODES.CREATE_CATEGORY_TRANSFERS,
+                ]}
+              >
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
+      },
+
+      {
         path: "budgets/all",
         async lazy() {
           const module = await import("../pages/budget/AllBudgetsPage");

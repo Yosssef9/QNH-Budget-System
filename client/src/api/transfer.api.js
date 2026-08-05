@@ -16,8 +16,10 @@ export async function rejectTransfer(id, note) {
   return data.data;
 }
 
-export async function getTransferItems() {
-  const { data } = await api.get("/transfers/items");
+export async function getTransferItems(financialYearId = null) {
+  const { data } = await api.get("/transfers/items", {
+    params: financialYearId ? { financialYearId } : {},
+  });
   return data.data || [];
 }
 

@@ -6,6 +6,7 @@ import {
   getCurrentDepartmentBudget,
   getApprovedBudgetHistory,
   getBudgetHistoryItems,
+  getCategoryBudgetYears,
   getCategoryBudgetOverview,
   getAllDepartmentBudgets,
   getDepartmentBudgetById,
@@ -22,7 +23,11 @@ router.use(resolveBudgetWorkspace);
 router.get("/current", getCurrentDepartmentBudget);
 router.get("/my", getMyDepartmentBudgets);
 router.get("/all", getAllDepartmentBudgets);
-router.get("/category-overview", getCategoryBudgetOverview);
+router.get("/category-years", getCategoryBudgetYears);
+router.get(
+  "/category-overview/:financialYearId",
+  getCategoryBudgetOverview,
+);
 router.get("/history/approved", getApprovedBudgetHistory);
 router.get("/history/:departmentCategoryBudgetId/items", getBudgetHistoryItems);
 router.put(

@@ -168,6 +168,10 @@ export function validateDepartmentCategoryBudgetId(value) {
   return toPositiveInteger(value, "departmentCategoryBudgetId");
 }
 
+export function validateFinancialYearId(value) {
+  return toPositiveInteger(value, "financialYearId");
+}
+
 export function validateSaveCategoryItemsPayload(body = {}) {
   const rawItems = Array.isArray(body.items) ? body.items : [];
 

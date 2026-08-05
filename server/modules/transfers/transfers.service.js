@@ -117,14 +117,20 @@ function buildTransferNotificationPayload(transfer, actorUserId, note = null) {
   };
 }
 
-export async function getTransferItemsService({ budgetAccess }) {
+export async function getTransferItemsService({
+  financialYearId = null,
+  budgetAccess,
+}) {
   assertPermission(
     budgetAccess,
     TRANSFER_PERMISSIONS.CREATE,
     "You do not have permission to create category transfers",
   );
   const categoryId = assertCategoryScope(budgetAccess);
-  const rows = await listTransferSubItemsRepo({ budgetCategoryId: categoryId });
+  const rows = await listTransferSubItemsRepo({
+    budgetCategoryId: categoryId,
+    financialYearId,
+  });
   return rows.map(mapTransferSubItem);
 }
 

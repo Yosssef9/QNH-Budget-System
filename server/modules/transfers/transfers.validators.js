@@ -45,6 +45,18 @@ export function validateListTransfersQuery(query = {}) {
   };
 }
 
+export function validateTransferItemsQuery(query = {}) {
+  return {
+    financialYearId:
+      query.financialYearId || query.financial_year_id
+        ? positiveId(
+            query.financialYearId ?? query.financial_year_id,
+            "Financial year id",
+          )
+        : null,
+  };
+}
+
 export function validateCreateTransferPayload(body = {}) {
   const mode = String(body.transfer_mode || body.transferMode || TRANSFER_MODE.AMOUNT);
   if (!Object.values(TRANSFER_MODE).includes(mode)) {

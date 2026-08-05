@@ -14,6 +14,7 @@ vi.mock("../../../modules/department-budgets/departmentBudgets.repository.js", (
   deactivateCategoryBudgetItemsNotInListRepo: vi.fn(),
   ensureGeneralPackageSubItemRepo: vi.fn(),
   ensurePackageItemRepo: vi.fn(),
+  findCategoryBudgetYearRepo: vi.fn(),
   findCategoryPackageRepo: vi.fn(),
   findCurrentDepartmentBudgetRepo: vi.fn(),
   findDepartmentBudgetByIdRepo: vi.fn(),
@@ -22,6 +23,8 @@ vi.mock("../../../modules/department-budgets/departmentBudgets.repository.js", (
   findLatestFinancialYearRepo: vi.fn(),
   findSubmissionWindowRepo: vi.fn(),
   listCategoryBudgetsForDepartmentBudgetRepo: vi.fn(),
+  listCategoryBudgetYearsRepo: vi.fn(),
+  listCategoryDepartmentItemsOverviewRepo: vi.fn(),
   listCopyableCategoryBudgetHistoryRepo: vi.fn(),
   listDepartmentBudgetsRepo: vi.fn(),
   listHistoryItemsForCategoryBudgetRepo: vi.fn(),
@@ -42,12 +45,15 @@ import {
   deactivateCategoryBudgetItemsNotInListRepo,
   ensureGeneralPackageSubItemRepo,
   ensurePackageItemRepo,
+  findCategoryBudgetYearRepo,
   findCategoryPackageRepo,
   findDepartmentBudgetByIdRepo,
   findDepartmentCategoryBudgetRepo,
   findGeneralCatalogSubItemRepo,
   findSubmissionWindowRepo,
   listCategoryBudgetsForDepartmentBudgetRepo,
+  listCategoryBudgetYearsRepo,
+  listCategoryDepartmentItemsOverviewRepo,
   listItemsForCategoryBudgetRepo,
   listItemsForDepartmentBudgetRepo,
   markCategoryBudgetSubmittedRepo,
@@ -58,6 +64,8 @@ import {
   validateActiveCatalogItemForCategoryRepo,
 } from "../../../modules/department-budgets/departmentBudgets.repository.js";
 import {
+  listCategoryBudgetOverviewService,
+  listCategoryBudgetYearsService,
   saveDepartmentCategoryItemsService,
   submitDepartmentCategoryBudgetService,
 } from "../../../modules/department-budgets/departmentBudgets.service.js";
@@ -72,6 +80,14 @@ const budgetAccess = {
     PERMISSION_CODES.MANAGE_DEPARTMENT_BUDGET_REQUESTS,
     PERMISSION_CODES.SUBMIT_DEPARTMENT_CATEGORY_BUDGETS,
   ],
+};
+
+const categoryBudgetAccess = {
+  userRoleId: 52,
+  workspaceType: "CATEGORY",
+  role: { code: "CATEGORY_BUDGET_MANAGER" },
+  budgetCategory: { id: 1, name: "IT" },
+  permissionCodes: [PERMISSION_CODES.VIEW_CATEGORY_BUDGET_REQUESTS],
 };
 
 const categoryBudget = {
@@ -134,6 +150,72 @@ describe("department budgets service", () => {
     validateActiveCatalogItemForCategoryRepo.mockResolvedValue(true);
     upsertDepartmentCategoryBudgetItemRepo.mockResolvedValue({ id: 200 });
     queueNotification.mockResolvedValue(undefined);
+  });
+
+  it("lists only the active workspace category budget years", async () => {
+    listCategoryBudgetYearsRepo.mockResolvedValue([
+      {
+        category_budget_package_id: 700,
+        financial_year_id: 9,
+        financial_year: 2027,
+        financial_year_status: "PRE_CLOSING",
+        budget_category_id: 1,
+        category_name: "IT",
+        category_code: "IT",
+        package_status: "CFO_REVIEW_COMPLETED",
+        department_count: 12,
+        item_count: 20,
+        requested_quantity: 100,
+        approved_quantity: 80,
+        package_model_count: 6,
+        package_quantity: 80,
+        package_value: 500000,
+      },
+    ]);
+
+    const result = await listCategoryBudgetYearsService({
+      budgetAccess: categoryBudgetAccess,
+    });
+
+    expect(listCategoryBudgetYearsRepo).toHaveBeenCalledWith({
+      budgetCategoryId: 1,
+    });
+    expect(result[0]).toMatchObject({
+      financial_year_id: 9,
+      package_status: "CFO_REVIEW_COMPLETED",
+      approved_quantity: 80,
+      package_value: 500000,
+    });
+  });
+
+  it("loads department requests for the selected category year", async () => {
+    findCategoryBudgetYearRepo.mockResolvedValue({
+      category_budget_package_id: 700,
+      financial_year_id: 9,
+      financial_year: 2027,
+      financial_year_status: "CLOSED",
+      package_status: "CFO_REVIEW_COMPLETED",
+    });
+    listCategoryDepartmentItemsOverviewRepo.mockResolvedValue([]);
+
+    const result = await listCategoryBudgetOverviewService({
+      financialYearId: 9,
+      budgetAccess: categoryBudgetAccess,
+    });
+
+    expect(findCategoryBudgetYearRepo).toHaveBeenCalledWith({
+      budgetCategoryId: 1,
+      financialYearId: 9,
+    });
+    expect(listCategoryDepartmentItemsOverviewRepo).toHaveBeenCalledWith({
+      budgetCategoryId: 1,
+      financialYearId: 9,
+    });
+    expect(result).toEqual({
+      financialYear: { id: 9, year: 2027, status: "CLOSED" },
+      package: { id: 700, status: "CFO_REVIEW_COMPLETED" },
+      items: [],
+    });
   });
 
   it("rejects duplicate catalog items in one category budget", async () => {

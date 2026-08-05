@@ -17,11 +17,16 @@ import {
   validateCreateTransferPayload,
   validateListTransfersQuery,
   validateRejectTransferPayload,
+  validateTransferItemsQuery,
   validateTransferId,
 } from "./transfers.validators.js";
 
 export const getTransferItems = asyncHandler(async (req, res) => {
-  const data = await getTransferItemsService({ budgetAccess: req.budgetAccess });
+  const { financialYearId } = validateTransferItemsQuery(req.query);
+  const data = await getTransferItemsService({
+    financialYearId,
+    budgetAccess: req.budgetAccess,
+  });
   res.json(new ApiResponse({ message: "Transfer items fetched", data }));
 });
 

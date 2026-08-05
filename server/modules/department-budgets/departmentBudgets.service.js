@@ -22,6 +22,7 @@ import {
   ensureGeneralPackageSubItemRepo,
   ensurePackageItemRepo,
   findCategoryPackageRepo,
+  findCategoryBudgetYearRepo,
   findCurrentDepartmentBudgetRepo,
   findDepartmentBudgetByIdRepo,
   findDepartmentCategoryBudgetRepo,
@@ -29,6 +30,7 @@ import {
   findLatestFinancialYearRepo,
   findSubmissionWindowRepo,
   listCategoryBudgetsForDepartmentBudgetRepo,
+  listCategoryBudgetYearsRepo,
   listCategoryDepartmentItemsOverviewRepo,
   listAllDepartmentBudgetsOverviewRepo,
   listDepartmentBudgetsRepo,
@@ -45,6 +47,7 @@ import {
 } from "./departmentBudgets.repository.js";
 import {
   mapAllDepartmentBudgetOverview,
+  mapCategoryBudgetYearSummary,
   mapDepartmentBudgetDetail,
   mapDepartmentBudgetSummary,
   mapCategoryDepartmentItemsOverview,
@@ -341,13 +344,48 @@ export async function listAllDepartmentBudgetsOverviewService({ budgetAccess }) 
   return rows.map(mapAllDepartmentBudgetOverview);
 }
 
-export async function listCategoryBudgetOverviewService({ budgetAccess }) {
+export async function listCategoryBudgetYearsService({ budgetAccess }) {
   const budgetCategoryId = assertCategoryOverviewAccess(budgetAccess);
-  const rows = await listCategoryDepartmentItemsOverviewRepo({
+  const rows = await listCategoryBudgetYearsRepo({ budgetCategoryId });
+
+  return rows.map(mapCategoryBudgetYearSummary);
+}
+
+export async function listCategoryBudgetOverviewService({
+  financialYearId,
+  budgetAccess,
+}) {
+  const budgetCategoryId = assertCategoryOverviewAccess(budgetAccess);
+  const selectedYear = await findCategoryBudgetYearRepo({
     budgetCategoryId,
+    financialYearId,
   });
 
-  return mapCategoryDepartmentItemsOverview(rows);
+  if (!selectedYear) {
+    throw new ApiError(
+      404,
+      "Category budget was not found for the selected financial year",
+      "CATEGORY_BUDGET_YEAR_NOT_FOUND",
+    );
+  }
+
+  const rows = await listCategoryDepartmentItemsOverviewRepo({
+    budgetCategoryId,
+    financialYearId,
+  });
+
+  return {
+    financialYear: {
+      id: selectedYear.financial_year_id,
+      year: selectedYear.financial_year,
+      status: selectedYear.financial_year_status,
+    },
+    package: {
+      id: selectedYear.category_budget_package_id,
+      status: selectedYear.package_status,
+    },
+    items: mapCategoryDepartmentItemsOverview(rows),
+  };
 }
 
 export async function getDepartmentBudgetByIdService({

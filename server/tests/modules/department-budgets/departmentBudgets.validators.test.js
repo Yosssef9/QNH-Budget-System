@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   validateDepartmentBudgetId,
   validateDepartmentCategoryBudgetId,
+  validateFinancialYearId,
   validateSaveCategoryItemsPayload,
 } from "../../../modules/department-budgets/departmentBudgets.validators.js";
 
@@ -9,8 +10,12 @@ describe("department budgets validators", () => {
   it("validates route ids", () => {
     expect(validateDepartmentBudgetId("12")).toBe(12);
     expect(validateDepartmentCategoryBudgetId("44")).toBe(44);
+    expect(validateFinancialYearId("9")).toBe(9);
     expect(() => validateDepartmentBudgetId("0")).toThrow(
       "departmentBudgetId must be a positive integer",
+    );
+    expect(() => validateFinancialYearId("0")).toThrow(
+      "financialYearId must be a positive integer",
     );
   });
 
@@ -37,6 +42,7 @@ describe("department budgets validators", () => {
           requested_quantity: 12,
           distribution_method: "MONTHLY",
           is_project: true,
+          hod_item_note: null,
           distribution: [
             { period_type: "MONTH", period_no: 1, quantity: 12 },
           ],

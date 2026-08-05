@@ -3,6 +3,7 @@ import { ApiResponse } from "../../utils/apiResponse.js";
 import { auditLog } from "../../utils/audit.js";
 import {
   getCurrentDepartmentBudgetService,
+  listCategoryBudgetYearsService,
   listCategoryBudgetOverviewService,
   getBudgetHistoryItemsService,
   getCopyableBudgetHistoryService,
@@ -15,6 +16,7 @@ import {
 import {
   validateDepartmentBudgetId,
   validateDepartmentCategoryBudgetId,
+  validateFinancialYearId,
   validateSaveCategoryItemsPayload,
 } from "./departmentBudgets.validators.js";
 
@@ -55,8 +57,22 @@ export const getAllDepartmentBudgets = asyncHandler(async (req, res) => {
   );
 });
 
+export const getCategoryBudgetYears = asyncHandler(async (req, res) => {
+  const data = await listCategoryBudgetYearsService({
+    budgetAccess: req.budgetAccess,
+  });
+
+  res.json(
+    new ApiResponse({
+      message: "Category budget years fetched successfully",
+      data,
+    }),
+  );
+});
+
 export const getCategoryBudgetOverview = asyncHandler(async (req, res) => {
   const data = await listCategoryBudgetOverviewService({
+    financialYearId: validateFinancialYearId(req.params.financialYearId),
     budgetAccess: req.budgetAccess,
   });
 

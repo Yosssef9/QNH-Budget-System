@@ -40,6 +40,14 @@ export async function getCategoryPackageItemDetail(packageItemId) {
   return response.data?.data;
 }
 
+export async function getPackageSubItemPriceHistory(packageSubItemId) {
+  if (!packageSubItemId) return [];
+  const response = await api.get(
+    `/category-packages/sub-items/${packageSubItemId}/price-history`,
+  );
+  return response.data?.data || [];
+}
+
 export async function createPackageSubItem({ packageItemId, payload }) {
   const response = await api.post(
     `/category-packages/items/${packageItemId}/sub-items`,
@@ -144,9 +152,9 @@ export async function updateDepartmentItemApprovedQuantity({
   return response.data?.data;
 }
 
-export async function submitCategoryPackageToCfo({ packageId, payload }) {
+export async function submitCategoryPackageToPurchasing({ packageId, payload }) {
   const response = await api.patch(
-    `/category-packages/${packageId}/submit-to-cfo`,
+    `/category-packages/${packageId}/submit-to-purchasing`,
     payload,
   );
   return response.data?.data;

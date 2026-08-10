@@ -93,7 +93,13 @@ export function validateCreatePackageSubItemPayload(body = {}) {
       body.catalog_sub_item_id ?? body.catalogSubItemId,
       "catalog_sub_item_id",
     ),
-    unit_price: validateNonNegativeDecimal(body.unit_price ?? body.unitPrice, "unit_price"),
+    category_manager_unit_price: validateNonNegativeDecimal(
+      body.category_manager_unit_price ??
+        body.categoryManagerUnitPrice ??
+        body.unit_price ??
+        body.unitPrice,
+      "category_manager_unit_price",
+    ),
     specification: validateOptionalText(body.specification, 2000, "specification"),
     note: validateOptionalText(body.note, 1000, "note"),
     row_version: body.row_version ? validateRowVersion(body.row_version) : null,
@@ -102,7 +108,13 @@ export function validateCreatePackageSubItemPayload(body = {}) {
 
 export function validateUpdatePackageSubItemPayload(body = {}) {
   return {
-    unit_price: validateNonNegativeDecimal(body.unit_price ?? body.unitPrice, "unit_price"),
+    category_manager_unit_price: validateNonNegativeDecimal(
+      body.category_manager_unit_price ??
+        body.categoryManagerUnitPrice ??
+        body.unit_price ??
+        body.unitPrice,
+      "category_manager_unit_price",
+    ),
     specification: validateOptionalText(body.specification, 2000, "specification"),
     note: validateOptionalText(body.note, 1000, "note"),
     row_version: validateRowVersion(body.row_version ?? body.rowVersion),

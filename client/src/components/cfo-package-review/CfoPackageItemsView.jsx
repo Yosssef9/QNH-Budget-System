@@ -261,6 +261,11 @@ function CfoSubItemDrawer({ subItem, departments = [], open, onClose }) {
                           <p className="truncate text-sm font-bold text-slate-900">
                             {attachment.original_file_name}
                           </p>
+                          {attachment.description ? (
+                            <p className="mt-1 whitespace-pre-wrap break-words rounded-lg border border-violet-100 bg-violet-50 px-2.5 py-2 text-xs font-medium leading-5 text-violet-900">
+                              {attachment.description}
+                            </p>
+                          ) : null}
                           <p className="mt-0.5 text-xs text-slate-500">
                             {attachment.document_type || "Document"} ·{" "}
                             {formatFileSize(attachment.file_size_bytes)} ·{" "}

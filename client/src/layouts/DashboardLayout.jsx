@@ -18,6 +18,7 @@ import {
   LogOut,
   ChevronDown,
   ClipboardCheck,
+  ShoppingCart,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useUnsavedChanges } from "../context/UnsavedChangesContext";
@@ -72,6 +73,10 @@ function getSidebarSections(budgetAccess) {
     budgetAccess,
     PERMISSION_CODES.APPROVE_CATEGORY_PO_LINKS,
   );
+  const canViewPurchasingPrices = can(
+    budgetAccess,
+    PERMISSION_CODES.VIEW_PURCHASING_PRICE_REVIEWS,
+  );
 
   return [
     {
@@ -124,6 +129,12 @@ function getSidebarSections(budgetAccess) {
           path: "/category-review",
           icon: ClipboardCheck,
           show: canViewCategoryRequests,
+        },
+        {
+          label: "Purchasing Price Review",
+          path: "/purchasing-price-review",
+          icon: ShoppingCart,
+          show: canViewPurchasingPrices,
         },
         {
           label: "CFO Review",
@@ -244,6 +255,10 @@ function canAccessPath(pathname, budgetAccess) {
     {
       path: "/category-review",
       permission: PERMISSION_CODES.VIEW_CATEGORY_BUDGET_REQUESTS,
+    },
+    {
+      path: "/purchasing-price-review",
+      permission: PERMISSION_CODES.VIEW_PURCHASING_PRICE_REVIEWS,
     },
     {
       path: "/cfo-review",

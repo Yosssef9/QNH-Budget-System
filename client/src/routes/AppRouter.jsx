@@ -252,6 +252,24 @@ const router = createBrowserRouter([
       },
 
       {
+        path: "purchasing-price-review",
+        async lazy() {
+          const module =
+            await import("../pages/purchasing-price-review/PurchasingPriceReviewPage");
+
+          return {
+            Component: () => (
+              <RequirePermission
+                permission={PERMISSION_CODES.VIEW_PURCHASING_PRICE_REVIEWS}
+              >
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
+      },
+
+      {
         path: "cfo-review",
         async lazy() {
           const module =

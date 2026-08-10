@@ -14,8 +14,14 @@ export const PERMISSION_CODES = Object.freeze({
   MANAGE_CATEGORY_BUDGET_SUB_ITEMS: "can_manage_category_budget_sub_items",
   MANAGE_CATEGORY_SUPPORTING_DOCUMENTS:
     "can_manage_category_supporting_documents",
-  SUBMIT_CATEGORY_BUDGET_PACKAGES_TO_CFO:
-    "can_submit_category_budget_packages_to_cfo",
+  SUBMIT_CATEGORY_BUDGET_PACKAGES_TO_PURCHASING:
+    "can_submit_category_budget_packages_to_purchasing",
+  VIEW_PURCHASING_PRICE_REVIEWS: "can_view_purchasing_price_reviews",
+  REVIEW_CATEGORY_PACKAGE_PRICES: "can_review_category_package_prices",
+  SUBMIT_PRICED_CATEGORY_PACKAGES_TO_CFO:
+    "can_submit_priced_category_packages_to_cfo",
+  MANAGE_PURCHASING_SUPPORTING_DOCUMENTS:
+    "can_manage_purchasing_supporting_documents",
   REVIEW_CATEGORY_BUDGET_CHANGE_REQUESTS:
     "can_review_category_budget_change_requests",
   VIEW_CFO_CATEGORY_BUDGET_PACKAGES: "can_view_cfo_category_budget_packages",

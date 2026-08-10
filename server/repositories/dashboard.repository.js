@@ -181,6 +181,32 @@ FROM dbo.BS_category_budget_packages AS pkg
 LEFT JOIN dbo.BS_category_budget_package_items AS packageItem
   ON packageItem.category_budget_package_id = pkg.id
 WHERE pkg.financial_year_id = @activeFinancialYearId;
+
+SELECT
+  (
+    SELECT COUNT(1)
+    FROM dbo.BS_budget_categories AS category
+    WHERE category.is_active = 1
+  ) AS total_category_packages,
+  COUNT(DISTINCT CASE
+    WHEN pkg.submitted_to_purchasing_at IS NOT NULL
+      THEN pkg.budget_category_id
+  END) AS submitted_category_packages,
+  COUNT(DISTINCT CASE
+    WHEN pkg.status = 'IN_PURCHASING_REVIEW'
+      THEN pkg.budget_category_id
+  END) AS waiting_for_purchasing_packages,
+  COALESCE(SUM(CASE
+    WHEN pkg.status = 'IN_PURCHASING_REVIEW'
+     AND priceReview.status = 'PENDING'
+      THEN 1
+    ELSE 0
+  END), 0) AS pending_price_reviews
+FROM dbo.BS_category_budget_packages AS pkg
+LEFT JOIN dbo.BS_category_budget_package_sub_item_price_reviews AS priceReview
+  ON priceReview.category_budget_package_id = pkg.id
+ AND priceReview.review_round = pkg.purchasing_review_round
+WHERE pkg.financial_year_id = @activeFinancialYearId;
   `);
 
   return {
@@ -198,6 +224,9 @@ WHERE pkg.financial_year_id = @activeFinancialYearId;
     },
     cfo: {
       packageReview: result.recordsets[10]?.[0] || {},
+    },
+    purchasing: {
+      packageReview: result.recordsets[11]?.[0] || {},
     },
   };
 }

@@ -8,10 +8,11 @@ import {
   getCategoryPackageItemDetailService,
   getCategoryPackageReadinessService,
   getCurrentCategoryPackageService,
+  getPackageSubItemPriceHistoryService,
   listPackageSubItemAttachmentsService,
   removePackageSubItemService,
   replaceDepartmentItemAllocationsService,
-  submitCategoryPackageToCfoService,
+  submitCategoryPackageToPurchasingService,
   updateDepartmentItemApprovedQuantityService,
   uploadPackageSubItemAttachmentService,
   updatePackageSubItemService,
@@ -110,6 +111,23 @@ export const getCategoryPackageItemDetail = asyncHandler(async (req, res) => {
   res.json(
     new ApiResponse({
       message: "Category package item fetched successfully",
+      data,
+    }),
+  );
+});
+
+export const getPackageSubItemPriceHistory = asyncHandler(async (req, res) => {
+  const packageSubItemId = validatePackageSubItemId(
+    req.params.packageSubItemId,
+  );
+  const data = await getPackageSubItemPriceHistoryService({
+    packageSubItemId,
+    budgetAccess: req.budgetAccess,
+  });
+
+  res.json(
+    new ApiResponse({
+      message: "Package sub-item price history fetched successfully",
       data,
     }),
   );
@@ -415,11 +433,11 @@ export const getCategoryPackageReadiness = asyncHandler(async (req, res) => {
   );
 });
 
-export const submitCategoryPackageToCfo = asyncHandler(async (req, res) => {
+export const submitCategoryPackageToPurchasing = asyncHandler(async (req, res) => {
   const packageId = validatePackageId(req.params.packageId);
   const payload = validateSubmitPackagePayload(req.body);
 
-  const data = await submitCategoryPackageToCfoService({
+  const data = await submitCategoryPackageToPurchasingService({
     packageId,
     payload,
     actorUserId: req.user.userId,
@@ -427,17 +445,17 @@ export const submitCategoryPackageToCfo = asyncHandler(async (req, res) => {
   });
 
   await auditLog(req, {
-    action: "SUBMIT_CATEGORY_PACKAGE_TO_CFO",
+    action: "SUBMIT_CATEGORY_PACKAGE_TO_PURCHASING",
     entityType: "CATEGORY_BUDGET_PACKAGE",
     entityId: String(packageId),
     entityName: "Category Budget Package",
-    description: "Submitted category package to CFO",
+    description: "Submitted category package to Purchasing price review",
     newValues: payload,
   });
 
   res.json(
     new ApiResponse({
-      message: "Category package submitted to CFO successfully",
+      message: "Category package submitted to Purchasing successfully",
       data,
     }),
   );

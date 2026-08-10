@@ -74,6 +74,14 @@ export function mapPackage(packageRow, packageItems = []) {
     category_code: packageRow.category_code,
     category_name: packageRow.category_name,
     status: packageRow.status,
+    submitted_to_purchasing_by: packageRow.submitted_to_purchasing_by ?? null,
+    submitted_to_purchasing_by_name:
+      packageRow.submitted_to_purchasing_by_name ?? null,
+    submitted_to_purchasing_user_role_id:
+      packageRow.submitted_to_purchasing_user_role_id ?? null,
+    submitted_to_purchasing_at:
+      packageRow.submitted_to_purchasing_at ?? null,
+    purchasing_review_round: Number(packageRow.purchasing_review_round || 0),
     row_version: packageRow.row_version,
     submitted_to_cfo_by: packageRow.submitted_to_cfo_by,
     submitted_to_cfo_by_name: packageRow.submitted_to_cfo_by_name,
@@ -127,6 +135,13 @@ export function mapPackageItem(row, subItems = []) {
             0,
           )
         : toNumber(row.estimated_total),
+    category_manager_estimated_total: subItems.reduce(
+      (sum, subItem) =>
+        sum +
+        toNumber(subItem.quantity) *
+          toNumber(subItem.category_manager_unit_price),
+      0,
+    ),
     reconciliation_status: getReconciliationStatus({
       approvedQuantity,
       allocatedQuantity,
@@ -139,6 +154,11 @@ export function mapPackageItem(row, subItems = []) {
 export function mapPackageSubItem(row, allocations = []) {
   const quantity = toNumber(row.quantity);
   const unitPrice = row.unit_price === null ? null : toNumber(row.unit_price);
+  const categoryManagerUnitPrice =
+    row.category_manager_unit_price === null ||
+    row.category_manager_unit_price === undefined
+      ? null
+      : toNumber(row.category_manager_unit_price);
 
   return {
     id: row.id,
@@ -152,13 +172,83 @@ export function mapPackageSubItem(row, allocations = []) {
     unit_of_measure_code: row.unit_of_measure_code,
     quantity,
     unit_price: unitPrice,
+    category_manager_unit_price: categoryManagerUnitPrice,
+    latest_accepted_review_round:
+      row.latest_accepted_review_round === null ||
+      row.latest_accepted_review_round === undefined
+        ? null
+        : Number(row.latest_accepted_review_round),
+    last_submitted_category_manager_unit_price:
+      row.last_submitted_category_manager_unit_price === null ||
+      row.last_submitted_category_manager_unit_price === undefined
+        ? null
+        : toNumber(row.last_submitted_category_manager_unit_price),
+    last_purchasing_unit_price:
+      row.last_purchasing_unit_price === null ||
+      row.last_purchasing_unit_price === undefined
+        ? null
+        : toNumber(row.last_purchasing_unit_price),
+    last_purchasing_reviewed_by: row.last_purchasing_reviewed_by ?? null,
+    last_purchasing_reviewed_by_name:
+      row.last_purchasing_reviewed_by_name ?? null,
+    last_purchasing_reviewed_at: row.last_purchasing_reviewed_at ?? null,
     line_total: unitPrice === null ? null : quantity * unitPrice,
+    category_manager_line_total:
+      categoryManagerUnitPrice === null
+        ? null
+        : quantity * categoryManagerUnitPrice,
     note: row.note,
     is_default_general: Boolean(row.is_default_general),
     attachment_count: Number(row.attachment_count || 0),
     row_version: row.row_version,
     allocations,
   };
+}
+
+export function mapPackageSubItemPriceHistory(rows = []) {
+  return rows.map((row, index) => {
+    const previousRound = rows[index + 1] || null;
+    return {
+      id: row.id,
+      review_round: Number(row.review_round),
+      model: {
+        catalog_sub_item_id: row.catalog_sub_item_id_snapshot,
+        code: row.sub_item_code,
+        name: row.catalog_sub_item_name,
+      },
+      quantity: {
+        before: previousRound ? toNumber(previousRound.quantity_snapshot) : null,
+        after: toNumber(row.quantity_snapshot),
+      },
+      category_manager_price: {
+        before:
+          row.previous_purchasing_unit_price === null
+            ? null
+            : toNumber(row.previous_purchasing_unit_price),
+        after: toNumber(row.category_manager_unit_price_snapshot),
+      },
+      purchasing_price: {
+        before: toNumber(row.category_manager_unit_price_snapshot),
+        after: toNumber(row.purchasing_unit_price),
+      },
+      unit_of_measure: {
+        id: row.unit_of_measure_id_snapshot,
+        code: row.unit_of_measure_code,
+        name: row.unit_of_measure_name,
+      },
+      specification: row.specification_snapshot,
+      status: row.status,
+      decision_source: row.decision_source,
+      reviewed_by: row.reviewed_by,
+      reviewed_by_name: row.reviewed_by_name,
+      reviewed_at: row.reviewed_at,
+      manager_submitted_by: row.manager_submitted_by,
+      manager_submitted_by_name: row.manager_submitted_by_name,
+      manager_submitted_at: row.manager_submitted_at,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    };
+  });
 }
 
 export function mapDepartmentDemand(row, allocations = []) {
@@ -262,7 +352,9 @@ export function mapPackageSubItemAttachment(row) {
     mime_type: row.mime_type,
     file_size_bytes: Number(row.file_size_bytes || 0),
     description: row.description,
+    attachment_source: row.attachment_source || "CATEGORY_MANAGER",
     uploaded_by: row.uploaded_by,
+    uploaded_user_role_id: row.uploaded_user_role_id ?? null,
     uploaded_by_name: row.uploaded_by_name,
     uploaded_at: row.uploaded_at,
     row_version: row.row_version,
@@ -320,6 +412,10 @@ export function mapDepartmentPackageView(rows = []) {
         package_sub_item_name: row.package_sub_item_name,
         allocated_quantity: toNumber(row.allocated_quantity),
         unit_price: row.unit_price === null ? null : toNumber(row.unit_price),
+        category_manager_unit_price:
+          row.category_manager_unit_price === null
+            ? null
+            : toNumber(row.category_manager_unit_price),
         unit_of_measure_name: row.unit_of_measure_name || null,
         unit_of_measure_code: row.unit_of_measure_code || null,
         row_version: row.allocation_row_version,

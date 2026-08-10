@@ -31,6 +31,11 @@ export async function findCurrentPackageForCategoryRepo(
         pkg.financial_year_id,
         pkg.budget_category_id,
         pkg.status,
+        pkg.submitted_to_purchasing_by,
+        purchasingUser.USER_NAME AS submitted_to_purchasing_by_name,
+        pkg.submitted_to_purchasing_user_role_id,
+        pkg.submitted_to_purchasing_at,
+        pkg.purchasing_review_round,
         pkg.submitted_to_cfo_by,
         submittedUser.USER_NAME AS submitted_to_cfo_by_name,
         pkg.submitted_to_cfo_at,
@@ -60,6 +65,8 @@ export async function findCurrentPackageForCategoryRepo(
        AND window.budget_category_id = pkg.budget_category_id
       LEFT JOIN dbo.users AS submittedUser
         ON submittedUser.USER_ID = pkg.submitted_to_cfo_by
+      LEFT JOIN dbo.users AS purchasingUser
+        ON purchasingUser.USER_ID = pkg.submitted_to_purchasing_by
       LEFT JOIN dbo.users AS returnedUser
         ON returnedUser.USER_ID = pkg.returned_by_cfo
       LEFT JOIN dbo.users AS cfoUser
@@ -266,6 +273,7 @@ export async function listDepartmentPackageViewRowsRepo(
         subItem.name AS package_sub_item_name,
         subItem.specification AS package_sub_item_specification,
         subItem.unit_price,
+        subItem.category_manager_unit_price,
         subItem.quantity AS package_sub_item_quantity,
         subItem.row_version AS package_sub_item_row_version,
 
@@ -382,6 +390,7 @@ export async function listPackageDistributionRowsRepo({
         subItem.id AS package_sub_item_id,
         subItem.name AS package_sub_item_name,
         subItem.unit_price,
+        subItem.category_manager_unit_price,
         subItem.quantity AS package_sub_item_quantity,
         unit.name AS unit_of_measure_name,
         unit.unit_code AS unit_of_measure_code
@@ -475,6 +484,13 @@ export async function listPackageItemDetailRowsRepo(
 
         subItem.quantity,
         subItem.unit_price,
+        subItem.category_manager_unit_price,
+        latestAcceptedReview.review_round AS latest_accepted_review_round,
+        latestAcceptedReview.category_manager_unit_price_snapshot AS last_submitted_category_manager_unit_price,
+        latestAcceptedReview.purchasing_unit_price AS last_purchasing_unit_price,
+        latestAcceptedReview.reviewed_by AS last_purchasing_reviewed_by,
+        latestAcceptedReview.reviewed_by_name AS last_purchasing_reviewed_by_name,
+        latestAcceptedReview.reviewed_at AS last_purchasing_reviewed_at,
         subItem.note,
         subItem.is_active,
         subItem.row_version,
@@ -496,6 +512,23 @@ export async function listPackageItemDetailRowsRepo(
         ON attachment.category_budget_package_sub_item_id = subItem.id
        AND attachment.is_active = 1
 
+      OUTER APPLY
+      (
+        SELECT TOP 1
+          review.review_round,
+          review.category_manager_unit_price_snapshot,
+          review.purchasing_unit_price,
+          review.reviewed_by,
+          reviewedUser.USER_NAME AS reviewed_by_name,
+          review.reviewed_at
+        FROM dbo.BS_category_budget_package_sub_item_price_reviews AS review
+        LEFT JOIN dbo.users AS reviewedUser
+          ON reviewedUser.USER_ID = review.reviewed_by
+        WHERE review.category_budget_package_sub_item_id = subItem.id
+          AND review.status = 'ACCEPTED'
+        ORDER BY review.review_round DESC, review.id DESC
+      ) AS latestAcceptedReview
+
       WHERE subItem.category_budget_package_item_id = @packageItemId
         AND subItem.is_active = 1
 
@@ -512,6 +545,13 @@ export async function listPackageItemDetailRowsRepo(
 
         subItem.quantity,
         subItem.unit_price,
+        subItem.category_manager_unit_price,
+        latestAcceptedReview.review_round,
+        latestAcceptedReview.category_manager_unit_price_snapshot,
+        latestAcceptedReview.purchasing_unit_price,
+        latestAcceptedReview.reviewed_by,
+        latestAcceptedReview.reviewed_by_name,
+        latestAcceptedReview.reviewed_at,
         subItem.note,
         subItem.is_active,
         subItem.row_version,
@@ -707,6 +747,7 @@ export async function findPackageContextBySubItemRepo(
         subItem.specification,
         subItem.quantity,
         subItem.unit_price,
+        subItem.category_manager_unit_price,
         subItem.note,
         subItem.row_version AS package_sub_item_row_version,
         packageItem.catalog_item_id,
@@ -772,7 +813,9 @@ export async function listPackageSubItemAttachmentsRepo(
         attachment.mime_type,
         attachment.file_size_bytes,
         attachment.description,
+        attachment.attachment_source,
         attachment.uploaded_by,
+        attachment.uploaded_user_role_id,
         uploadedUser.USER_NAME AS uploaded_by_name,
         attachment.uploaded_at,
         attachment.row_version
@@ -805,7 +848,9 @@ export async function findPackageAttachmentContextRepo(
         attachment.mime_type,
         attachment.file_size_bytes,
         attachment.description,
+        attachment.attachment_source,
         attachment.uploaded_by,
+        attachment.uploaded_user_role_id,
         uploadedUser.USER_NAME AS uploaded_by_name,
         attachment.uploaded_at,
         attachment.row_version,
@@ -847,6 +892,12 @@ export async function createPackageSubItemAttachmentRepo(transaction, payload) {
     .input("mimeType", sql.NVarChar(150), payload.mime_type ?? null)
     .input("fileSizeBytes", sql.BigInt, payload.file_size_bytes)
     .input("description", sql.NVarChar(500), payload.description ?? null)
+    .input(
+      "attachmentSource",
+      sql.VarChar(30),
+      payload.attachment_source ?? "CATEGORY_MANAGER",
+    )
+    .input("uploadedUserRoleId", sql.Int, payload.uploaded_user_role_id ?? null)
     .input("actorUserId", sql.Int, payload.actor_user_id).query(`
       DECLARE @Inserted TABLE (id BIGINT NOT NULL);
 
@@ -859,8 +910,10 @@ export async function createPackageSubItemAttachmentRepo(transaction, payload) {
         mime_type,
         file_size_bytes,
         description,
+        attachment_source,
         is_active,
-        uploaded_by
+        uploaded_by,
+        uploaded_user_role_id
       )
       OUTPUT INSERTED.id INTO @Inserted (id)
       VALUES
@@ -872,8 +925,10 @@ export async function createPackageSubItemAttachmentRepo(transaction, payload) {
         @mimeType,
         @fileSizeBytes,
         @description,
+        @attachmentSource,
         1,
-        @actorUserId
+        @actorUserId,
+        @uploadedUserRoleId
       );
 
       SELECT
@@ -885,7 +940,9 @@ export async function createPackageSubItemAttachmentRepo(transaction, payload) {
         attachment.mime_type,
         attachment.file_size_bytes,
         attachment.description,
+        attachment.attachment_source,
         attachment.uploaded_by,
+        attachment.uploaded_user_role_id,
         uploadedUser.USER_NAME AS uploaded_by_name,
         attachment.uploaded_at,
         attachment.row_version
@@ -908,6 +965,11 @@ export async function deactivatePackageSubItemAttachmentRepo(
     .input("attachmentId", sql.BigInt, payload.attachment_id)
     .input("rowVersion", sql.Binary(8), payload.row_version)
     .input("actorUserId", sql.Int, payload.actor_user_id)
+    .input(
+      "attachmentSource",
+      sql.VarChar(30),
+      payload.attachment_source ?? "CATEGORY_MANAGER",
+    )
     .input("reason", sql.NVarChar(500), payload.reason).query(`
       DECLARE @Updated TABLE (id BIGINT NOT NULL);
 
@@ -920,6 +982,7 @@ export async function deactivatePackageSubItemAttachmentRepo(
       OUTPUT INSERTED.id INTO @Updated (id)
       WHERE id = @attachmentId
         AND category_budget_package_sub_item_id = @packageSubItemId
+        AND attachment_source = @attachmentSource
         AND row_version = @rowVersion
         AND is_active = 1;
 
@@ -961,7 +1024,11 @@ export async function createPackageSubItemRepo(transaction, payload) {
     .input("name", sql.NVarChar(300), payload.name)
     .input("specification", sql.NVarChar(2000), payload.specification ?? null)
     .input("unitOfMeasureId", sql.Int, payload.unit_of_measure_id)
-    .input("unitPrice", sql.Decimal(18, 6), payload.unit_price ?? null)
+    .input(
+      "categoryManagerUnitPrice",
+      sql.Decimal(18, 6),
+      payload.category_manager_unit_price ?? null,
+    )
     .input("note", sql.NVarChar(1000), payload.note ?? null)
     .input("actorUserId", sql.Int, payload.actor_user_id).query(`
       DECLARE @Inserted TABLE (id BIGINT NOT NULL);
@@ -974,7 +1041,7 @@ export async function createPackageSubItemRepo(transaction, payload) {
         specification,
         unit_of_measure_id,
         quantity,
-        unit_price,
+        category_manager_unit_price,
         note,
         is_active,
         created_by
@@ -988,7 +1055,7 @@ export async function createPackageSubItemRepo(transaction, payload) {
         @specification,
         @unitOfMeasureId,
         0,
-        @unitPrice,
+        @categoryManagerUnitPrice,
         @note,
         1,
         @actorUserId
@@ -1004,7 +1071,11 @@ export async function updatePackageSubItemRepo(transaction, payload) {
   const result = await requestFor(transaction)
     .input("packageSubItemId", sql.BigInt, payload.package_sub_item_id)
     .input("rowVersion", sql.Binary(8), payload.row_version)
-    .input("unitPrice", sql.Decimal(18, 6), payload.unit_price ?? null)
+    .input(
+      "categoryManagerUnitPrice",
+      sql.Decimal(18, 6),
+      payload.category_manager_unit_price ?? null,
+    )
     .input("specification", sql.NVarChar(2000), payload.specification ?? null)
     .input("note", sql.NVarChar(1000), payload.note ?? null)
     .input("actorUserId", sql.Int, payload.actor_user_id).query(`
@@ -1012,7 +1083,7 @@ export async function updatePackageSubItemRepo(transaction, payload) {
 
       UPDATE dbo.BS_category_budget_package_sub_items
       SET
-        unit_price = @unitPrice,
+        category_manager_unit_price = @categoryManagerUnitPrice,
         specification = @specification,
         note = @note,
         updated_by = @actorUserId,
@@ -1399,6 +1470,7 @@ export async function listPackageSubItemsForDepartmentItemRepo(
 
         subItem.name AS package_sub_item_name,
         subItem.unit_price,
+        subItem.category_manager_unit_price,
 
         packageItem.catalog_item_id,
         pkg.id AS package_id,
@@ -1462,48 +1534,189 @@ export async function listCurrentAllocationsForDepartmentItemRepo(
   return result.recordset || [];
 }
 
-export async function markPackageSubmittedToCfoRepo(transaction, payload) {
+export async function markPackageSubmittedToPurchasingRepo(transaction, payload) {
   const result = await requestFor(transaction)
     .input("packageId", sql.BigInt, payload.package_id)
     .input("rowVersion", sql.Binary(8), payload.row_version)
+    .input("actorUserRoleId", sql.Int, payload.actor_user_role_id ?? null)
     .input("actorUserId", sql.Int, payload.actor_user_id).query(`
       DECLARE @Updated TABLE
       (
         id BIGINT NOT NULL,
-        old_status VARCHAR(40) NOT NULL
+        old_status VARCHAR(40) NOT NULL,
+        review_round INT NOT NULL
       );
 
       UPDATE dbo.BS_category_budget_packages
       SET
-        status = '${CATEGORY_PACKAGE_STATUS.IN_CFO_REVIEW}',
-        submitted_to_cfo_by = @actorUserId,
-        submitted_to_cfo_at = SYSUTCDATETIME(),
+        status = '${CATEGORY_PACKAGE_STATUS.IN_PURCHASING_REVIEW}',
+        submitted_to_purchasing_by = @actorUserId,
+        submitted_to_purchasing_user_role_id = @actorUserRoleId,
+        submitted_to_purchasing_at = SYSUTCDATETIME(),
+        purchasing_review_round = purchasing_review_round + 1,
         updated_by = @actorUserId,
         updated_at = SYSUTCDATETIME()
-      OUTPUT INSERTED.id, DELETED.status INTO @Updated (id, old_status)
+      OUTPUT INSERTED.id, DELETED.status, INSERTED.purchasing_review_round
+        INTO @Updated (id, old_status, review_round)
       WHERE id = @packageId
         AND row_version = @rowVersion
         AND status IN ('${CATEGORY_PACKAGE_STATUS.DRAFT}', '${CATEGORY_PACKAGE_STATUS.RETURNED_BY_CFO}');
 
-      UPDATE packageItem
-      SET
-        cfo_review_status =
-          CASE
-            WHEN updated.old_status = '${CATEGORY_PACKAGE_STATUS.RETURNED_BY_CFO}'
-             AND packageItem.cfo_review_status = '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.CFO_ACCEPTED}'
-            THEN '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.CFO_ACCEPTED}'
-            ELSE '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.PENDING_CFO_REVIEW}'
-          END,
-        updated_by = @actorUserId,
-        updated_at = SYSUTCDATETIME()
-      FROM dbo.BS_category_budget_package_items AS packageItem
-      INNER JOIN @Updated AS updated ON updated.id = packageItem.category_budget_package_id
-      WHERE packageItem.is_active = 1;
+      INSERT INTO dbo.BS_category_budget_package_sub_item_price_reviews
+      (
+        category_budget_package_id,
+        category_budget_package_sub_item_id,
+        review_round,
+        catalog_sub_item_id_snapshot,
+        quantity_snapshot,
+        specification_snapshot,
+        unit_of_measure_id_snapshot,
+        category_manager_unit_price_snapshot,
+        previous_purchasing_unit_price,
+        purchasing_unit_price,
+        status,
+        decision_source,
+        reviewed_by,
+        reviewed_user_role_id,
+        reviewed_at
+      )
+      SELECT
+        updated.id,
+        subItem.id,
+        updated.review_round,
+        subItem.catalog_sub_item_id,
+        COALESCE(subItem.quantity, 0),
+        subItem.specification,
+        subItem.unit_of_measure_id,
+        subItem.category_manager_unit_price,
+        previousReview.purchasing_unit_price,
+        CASE WHEN unchanged.is_unchanged = 1
+          THEN previousReview.purchasing_unit_price
+          ELSE subItem.category_manager_unit_price
+        END,
+        CASE WHEN unchanged.is_unchanged = 1 THEN 'ACCEPTED' ELSE 'PENDING' END,
+        CASE WHEN unchanged.is_unchanged = 1 THEN 'CARRIED_FORWARD' ELSE 'MANUAL' END,
+        CASE WHEN unchanged.is_unchanged = 1 THEN previousReview.reviewed_by ELSE NULL END,
+        CASE WHEN unchanged.is_unchanged = 1 THEN previousReview.reviewed_user_role_id ELSE NULL END,
+        CASE WHEN unchanged.is_unchanged = 1 THEN SYSUTCDATETIME() ELSE NULL END
+      FROM @Updated AS updated
+      INNER JOIN dbo.BS_category_budget_package_items AS packageItem
+        ON packageItem.category_budget_package_id = updated.id
+       AND packageItem.is_active = 1
+       AND
+       (
+         updated.old_status = '${CATEGORY_PACKAGE_STATUS.DRAFT}'
+         OR packageItem.cfo_review_status = '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.NEEDS_MODIFICATION}'
+       )
+      INNER JOIN dbo.BS_category_budget_package_sub_items AS subItem
+        ON subItem.category_budget_package_item_id = packageItem.id
+       AND subItem.is_active = 1
+      OUTER APPLY
+      (
+        SELECT TOP 1 review.*
+        FROM dbo.BS_category_budget_package_sub_item_price_reviews AS review
+        WHERE review.category_budget_package_sub_item_id = subItem.id
+          AND review.status = 'ACCEPTED'
+        ORDER BY review.review_round DESC, review.id DESC
+      ) AS previousReview
+      CROSS APPLY
+      (
+        SELECT CASE
+          WHEN previousReview.id IS NOT NULL
+           AND previousReview.catalog_sub_item_id_snapshot = subItem.catalog_sub_item_id
+           AND previousReview.unit_of_measure_id_snapshot = subItem.unit_of_measure_id
+           AND ISNULL(previousReview.specification_snapshot, N'') = ISNULL(subItem.specification, N'')
+           AND previousReview.category_manager_unit_price_snapshot = subItem.category_manager_unit_price
+          THEN 1 ELSE 0 END AS is_unchanged
+      ) AS unchanged;
 
-      SELECT id FROM @Updated;
+      SELECT id, old_status, review_round FROM @Updated;
+
+      SELECT review.category_budget_package_sub_item_id
+      FROM dbo.BS_category_budget_package_sub_item_price_reviews AS review
+      INNER JOIN @Updated AS updated
+        ON updated.id = review.category_budget_package_id
+       AND updated.review_round = review.review_round
+      WHERE review.decision_source = 'CARRIED_FORWARD';
     `);
 
-  return result.recordset[0] || null;
+  const packageRow = result.recordsets?.[0]?.[0] || null;
+  if (!packageRow) return null;
+  return {
+    ...packageRow,
+    carried_forward_sub_item_ids: (result.recordsets?.[1] || []).map(
+      (row) => row.category_budget_package_sub_item_id,
+    ),
+  };
+}
+
+export async function listPackageSubItemPriceHistoryRepo({
+  packageId,
+  packageSubItemId,
+}) {
+  const pool = await poolPromise;
+  const result = await createRequest(pool)
+    .input("packageId", sql.BigInt, packageId)
+    .input("packageSubItemId", sql.BigInt, packageSubItemId).query(`
+      SELECT
+        review.id,
+        review.review_round,
+        review.catalog_sub_item_id_snapshot,
+        catalogSubItem.sub_item_code,
+        catalogSubItem.name AS catalog_sub_item_name,
+        review.quantity_snapshot,
+        review.specification_snapshot,
+        review.unit_of_measure_id_snapshot,
+        unit.name AS unit_of_measure_name,
+        unit.unit_code AS unit_of_measure_code,
+        review.category_manager_unit_price_snapshot,
+        review.previous_purchasing_unit_price,
+        review.purchasing_unit_price,
+        review.status,
+        review.decision_source,
+        review.reviewed_by,
+        reviewedUser.USER_NAME AS reviewed_by_name,
+        review.reviewed_at,
+        managerSubmission.created_by AS manager_submitted_by,
+        managerSubmission.created_by_name AS manager_submitted_by_name,
+        managerSubmission.created_at AS manager_submitted_at,
+        review.created_at,
+        review.updated_at,
+        review.row_version
+      FROM dbo.BS_category_budget_package_sub_item_price_reviews AS review
+      INNER JOIN dbo.BS_budget_catalog_sub_items AS catalogSubItem
+        ON catalogSubItem.id = review.catalog_sub_item_id_snapshot
+      INNER JOIN dbo.BS_units_of_measure AS unit
+        ON unit.id = review.unit_of_measure_id_snapshot
+      LEFT JOIN dbo.users AS reviewedUser
+        ON reviewedUser.USER_ID = review.reviewed_by
+      OUTER APPLY
+      (
+        SELECT TOP 1
+          history.created_by,
+          managerUser.USER_NAME AS created_by_name,
+          history.created_at
+        FROM dbo.BS_budget_workflow_history AS history
+        LEFT JOIN dbo.users AS managerUser
+          ON managerUser.USER_ID = history.created_by
+        WHERE history.entity_type = 'CATEGORY_BUDGET_PACKAGE'
+          AND history.entity_id = review.category_budget_package_id
+          AND history.action = 'CATEGORY_PACKAGE_SUBMITTED_TO_PURCHASING'
+          AND TRY_CONVERT(
+            INT,
+            JSON_VALUE(history.new_values_json, '$.reviewRound')
+          ) = review.review_round
+        ORDER BY history.created_at DESC, history.id DESC
+      ) AS managerSubmission
+      WHERE review.category_budget_package_id = @packageId
+        AND review.category_budget_package_sub_item_id = @packageSubItemId
+      ORDER BY review.review_round DESC;
+    `);
+
+  return result.recordset.map((row) => ({
+    ...row,
+    row_version: bufferRowVersion(row.row_version),
+  }));
 }
 
 export async function createWorkflowHistoryRepo(transaction, payload) {

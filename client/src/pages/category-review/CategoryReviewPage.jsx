@@ -80,6 +80,10 @@ IN_CFO_REVIEW: {
   label: "In CFO Review",
   className: "border-indigo-200 bg-indigo-50 text-indigo-700",
 },
+IN_PURCHASING_REVIEW: {
+  label: "In Purchasing Review",
+  className: "border-violet-200 bg-violet-50 text-violet-700",
+},
 PENDING_CFO_REVIEW: {
   label: "Pending CFO Review",
   className: "border-indigo-200 bg-indigo-50 text-indigo-700",
@@ -863,7 +867,7 @@ const ReviewItemRow = memo(function ReviewItemRow({
                   </p>
                   {item.package_item_cfo_reviewed_by_name && (
                     <p className="mt-1 text-xs font-semibold text-amber-700">
-                      {item.package_item_cfo_reviewed_by_name} Â·{" "}
+                      {item.package_item_cfo_reviewed_by_name} |{" "}
                       {formatDateTime(item.package_item_cfo_reviewed_at)}
                     </p>
                   )}
@@ -1529,7 +1533,7 @@ const reopenWindowMutation = useMutation({
     </div>
 
     <div className="flex flex-wrap items-center gap-2 xl:max-w-md xl:justify-end">
-    
+
 
       <div className="inline-flex items-center overflow-hidden rounded-full border border-slate-200 bg-white shadow-sm">
   <span className="self-stretch border-r border-slate-200 bg-slate-100 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-slate-600">

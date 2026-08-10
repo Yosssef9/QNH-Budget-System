@@ -15,6 +15,7 @@ import {
   Eye,
   FileText,
   FilePlus2,
+  History,
   Layers3,
   Loader2,
   Lock,
@@ -41,6 +42,8 @@ import BudgetItemRequestNoteDrawer from "../budgets/shared/drawers/BudgetItemReq
 import CollapsiblePanelToggle from "../layout/CollapsiblePanelToggle";
 import PackageSubItemPriceIntelligenceDrawer from "../budgets/price-intelligence/PackageSubItemPriceIntelligenceDrawer";
 import PackageDistributionDrawer from "./PackageDistributionDrawer";
+import PackageSubItemPriceHistoryDrawer from "./PackageSubItemPriceHistoryDrawer";
+import { usePackageSubItemPriceHistory } from "../../hooks/category-packages/usePackageSubItemPriceHistory";
 import {
   downloadBlobAttachment,
   viewBlobAttachment,
@@ -57,7 +60,7 @@ import {
   getPackageSubItemAttachments,
   removePackageSubItem,
   replaceDepartmentItemAllocations,
-  submitCategoryPackageToCfo,
+  submitCategoryPackageToPurchasing,
   uploadPackageSubItemAttachment,
   updatePackageSubItem,
 } from "../../api/categoryPackages.api";
@@ -114,6 +117,9 @@ function isValidUnitPrice(value) {
 
   return Number.isFinite(numericValue) && numericValue > 0;
 }
+function getManagerUnitPrice(subItem) {
+  return subItem?.category_manager_unit_price ?? subItem?.unit_price ?? null;
+}
 function formatNumber(value) {
   return numberFormatter.format(toNumber(value));
 }
@@ -149,7 +155,10 @@ function getAllocationEstimatedTotal(allocations = []) {
   return allocations.reduce(
     (sum, allocation) =>
       sum +
-      toNumber(allocation.allocated_quantity) * toNumber(allocation.unit_price),
+      toNumber(allocation.allocated_quantity) *
+        toNumber(
+          allocation.category_manager_unit_price ?? allocation.unit_price,
+        ),
     0,
   );
 }
@@ -210,6 +219,12 @@ function getStatusMeta(status) {
       background: "bg-indigo-50",
       text: "text-indigo-700",
       dot: "bg-indigo-500",
+    },
+    IN_PURCHASING_REVIEW: {
+      border: "border-violet-200",
+      background: "bg-violet-50",
+      text: "text-violet-700",
+      dot: "bg-violet-500",
     },
     CFO_REVIEW_COMPLETED: {
       border: "border-emerald-200",
@@ -498,7 +513,14 @@ function ItemQueueCard({ item, selected, onClick }) {
         </div>
         <div className="rounded-xl bg-white/80 px-2.5 py-2">
           <span className="block font-black text-slate-900">
-            <CurrencyText compact value={item.estimated_total || 0} />
+            <CurrencyText
+              compact
+              value={
+                item.category_manager_estimated_total ??
+                item.estimated_total ??
+                0
+              }
+            />
           </span>
           <span className="text-slate-500">Value</span>
         </div>
@@ -729,7 +751,7 @@ function AddModelDrawer({
 
     onAddPackageModel({
       catalog_sub_item_id: Number(catalogSubItemId),
-      unit_price: Number(unitPrice),
+      category_manager_unit_price: Number(unitPrice),
       specification: specification.trim() || null,
       note: note.trim() || null,
     });
@@ -868,14 +890,14 @@ function AddModelDrawer({
 
               <div className="grid gap-4 md:grid-cols-2">
                 <Input
-                  label="Shared unit price"
+                  label="Category Manager proposed price"
                   required
                   type="number"
                   min="0"
                   step="0.01"
                   value={unitPrice}
                   onChange={(event) => setUnitPrice(event.target.value)}
-                  placeholder="Enter one hospital-wide price"
+                  placeholder="Enter the proposed hospital-wide price"
                 />
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-xs font-black uppercase tracking-wide text-slate-500">
@@ -1004,8 +1026,13 @@ function PackageAttachmentManager({ subItem, open, editable }) {
   const queryClient = useQueryClient();
   const [removeCandidate, setRemoveCandidate] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(null);
+  const [attachmentNote, setAttachmentNote] = useState("");
 
   const packageSubItemId = subItem?.id;
+  useEffect(() => {
+    if (open) setAttachmentNote("");
+  }, [open, packageSubItemId]);
+
   const attachmentsQuery = useQuery({
     queryKey: [
       "category-packages",
@@ -1032,10 +1059,11 @@ function PackageAttachmentManager({ subItem, open, editable }) {
   }
 
   const uploadMutation = useMutation({
-    mutationFn: ({ file }) =>
+    mutationFn: ({ file, description }) =>
       uploadPackageSubItemAttachment({
         packageSubItemId,
         file,
+        payload: { description: description || null },
         onUploadProgress: (event) => {
           if (!event.total) return;
           setUploadProgress(Math.round((event.loaded * 100) / event.total));
@@ -1044,6 +1072,7 @@ function PackageAttachmentManager({ subItem, open, editable }) {
     onSuccess: async () => {
       toast.success("Attachment uploaded");
       setUploadProgress(null);
+      setAttachmentNote("");
       await invalidateAttachments();
     },
     onError: (error) => {
@@ -1132,7 +1161,10 @@ function PackageAttachmentManager({ subItem, open, editable }) {
               disabled={uploadMutation.isPending}
               onChange={(event) => {
                 const files = Array.from(event.target.files || []);
-                files.forEach((file) => uploadMutation.mutate({ file }));
+                const description = attachmentNote.trim();
+                files.forEach((file) =>
+                  uploadMutation.mutate({ file, description }),
+                );
                 event.target.value = "";
               }}
             />
@@ -1144,6 +1176,21 @@ function PackageAttachmentManager({ subItem, open, editable }) {
           </span>
         )}
       </div>
+
+      {editable ? (
+        <div className="mt-4 rounded-xl border border-blue-100 bg-white p-3">
+          <Input
+            label="Attachment note"
+            value={attachmentNote}
+            maxLength={500}
+            onChange={(event) => setAttachmentNote(event.target.value)}
+            placeholder="Optional context explaining this evidence"
+          />
+          <p className="mt-1 text-xs font-medium text-slate-500">
+            This note applies to every file selected in the next upload.
+          </p>
+        </div>
+      ) : null}
 
       {uploadProgress !== null ? (
         <div className="mt-3">
@@ -1194,6 +1241,11 @@ function PackageAttachmentManager({ subItem, open, editable }) {
                   <p className="truncate text-sm font-black text-slate-950">
                     {attachment.original_file_name}
                   </p>
+                  {attachment.description ? (
+                    <p className="mt-1 whitespace-pre-wrap break-words rounded-lg border border-violet-100 bg-violet-50 px-2.5 py-2 text-xs font-medium leading-5 text-violet-900">
+                      {attachment.description}
+                    </p>
+                  ) : null}
                   <p className="mt-0.5 text-xs font-semibold text-slate-500">
                     {attachment.mime_type || "File"} ·{" "}
                     {formatFileSize(attachment.file_size_bytes)}
@@ -1202,6 +1254,18 @@ function PackageAttachmentManager({ subItem, open, editable }) {
                     Uploaded by {attachment.uploaded_by_name || "Unknown"} ·{" "}
                     {formatDateTime(attachment.uploaded_at)}
                   </p>
+                  <span
+                    className={classNames(
+                      "mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-black uppercase",
+                      attachment.attachment_source === "PURCHASING"
+                        ? "border-violet-200 bg-violet-50 text-violet-700"
+                        : "border-blue-200 bg-blue-50 text-blue-700",
+                    )}
+                  >
+                    {attachment.attachment_source === "PURCHASING"
+                      ? "Purchasing"
+                      : "Category Manager"}
+                  </span>
                 </div>
               </div>
               <div className="flex shrink-0 gap-2">
@@ -1231,7 +1295,8 @@ function PackageAttachmentManager({ subItem, open, editable }) {
                   <Download className="h-4 w-4" />
                   Download
                 </button>
-                {editable ? (
+                {editable &&
+                attachment.attachment_source !== "PURCHASING" ? (
                   <button
                     type="button"
                     onClick={() => setRemoveCandidate(attachment)}
@@ -1284,6 +1349,7 @@ function EditModelDrawer({
   onSubmit,
   loading,
   editable,
+  isReturnedCorrection,
 }) {
   const [unitPrice, setUnitPrice] = useState("");
   const [specification, setSpecification] = useState("");
@@ -1291,14 +1357,29 @@ function EditModelDrawer({
 
   useEffect(() => {
     if (!open) return;
+    const managerPrice = subItem?.category_manager_unit_price;
+    const previousSubmittedManagerPrice =
+      subItem?.last_submitted_category_manager_unit_price;
+    const lastPurchasingPrice = subItem?.last_purchasing_unit_price;
+    const hasSavedRevision =
+      previousSubmittedManagerPrice !== null &&
+      previousSubmittedManagerPrice !== undefined &&
+      managerPrice !== null &&
+      managerPrice !== undefined &&
+      Number(managerPrice) !== Number(previousSubmittedManagerPrice);
+    const initialPrice =
+      isReturnedCorrection && !hasSavedRevision && lastPurchasingPrice != null
+        ? lastPurchasingPrice
+        : getManagerUnitPrice(subItem);
+
     setUnitPrice(
-      subItem?.unit_price === null || subItem?.unit_price === undefined
+      initialPrice === null || initialPrice === undefined
         ? ""
-        : String(Number(subItem.unit_price)),
+        : String(Number(initialPrice)),
     );
     setSpecification(subItem?.specification || "");
     setNote(subItem?.note || "");
-  }, [open, subItem]);
+  }, [isReturnedCorrection, open, subItem]);
 
   function submit() {
     if (!subItem?.row_version) {
@@ -1315,7 +1396,7 @@ function EditModelDrawer({
 
     onSubmit({
       row_version: subItem.row_version,
-      unit_price: Number(unitPrice),
+      category_manager_unit_price: Number(unitPrice),
       specification: specification.trim() || null,
       note: note.trim() || null,
     });
@@ -1350,13 +1431,18 @@ function EditModelDrawer({
 
           <div className="grid gap-4 md:grid-cols-2">
             <Input
-              label="Shared unit price"
+              label={
+                isReturnedCorrection
+                  ? "Revised Category Manager price"
+                  : "Category Manager proposed price"
+              }
               required
               type="number"
               min="0"
               step="0.01"
               value={unitPrice}
               onChange={(event) => setUnitPrice(event.target.value)}
+              disabled={!editable}
             />
             <div className="rounded-2xl border border-slate-200 bg-white p-4">
               <p className="text-xs font-black uppercase tracking-wide text-slate-500">
@@ -1370,6 +1456,55 @@ function EditModelDrawer({
               </p>
             </div>
           </div>
+
+          {isReturnedCorrection &&
+          subItem?.latest_accepted_review_round != null ? (
+            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="font-black text-amber-950">
+                    Price baseline reviewed by CFO
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-amber-800">
+                    Your revised price starts from the last Purchasing price unless you already saved a correction.
+                  </p>
+                </div>
+                <span className="rounded-full border border-amber-200 bg-white px-3 py-1 text-xs font-black text-amber-800">
+                  Round {subItem.latest_accepted_review_round}
+                </span>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-amber-200 bg-white p-4">
+                  <p className="text-xs font-black uppercase text-slate-500">
+                    Previous manager proposal
+                  </p>
+                  <p className="mt-1 text-lg font-black text-slate-950">
+                    <CurrencyText
+                      value={
+                        subItem.last_submitted_category_manager_unit_price
+                      }
+                    />
+                  </p>
+                </div>
+                <div className="rounded-xl border border-violet-200 bg-violet-50 p-4">
+                  <p className="text-xs font-black uppercase text-violet-700">
+                    Purchasing price reviewed by CFO
+                  </p>
+                  <p className="mt-1 text-lg font-black text-slate-950">
+                    <CurrencyText value={subItem.last_purchasing_unit_price} />
+                  </p>
+                  {subItem.last_purchasing_reviewed_by_name ? (
+                    <p className="mt-1 text-xs font-semibold text-violet-700">
+                      {subItem.last_purchasing_reviewed_by_name}
+                      {subItem.last_purchasing_reviewed_at
+                        ? ` · ${formatDateTime(subItem.last_purchasing_reviewed_at)}`
+                        : ""}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </section>
+          ) : null}
 
           <Input
             label="Shared specification"
@@ -1485,7 +1620,7 @@ function AllocationDrawer({
     const unpricedAllocation = subItems.find(
       (subItem) =>
         toNumber(values[subItem.id]) > 0 &&
-        !isValidUnitPrice(subItem.unit_price),
+        !isValidUnitPrice(getManagerUnitPrice(subItem)),
     );
 
     if (unpricedAllocation) {
@@ -1580,7 +1715,9 @@ function AllocationDrawer({
               {subItems.map((subItem) => {
                 const allocationValue = values[subItem.id] ?? "";
 
-                const hasValidUnitPrice = isValidUnitPrice(subItem.unit_price);
+                const hasValidUnitPrice = isValidUnitPrice(
+                  getManagerUnitPrice(subItem),
+                );
 
                 return (
                   <article
@@ -1601,9 +1738,9 @@ function AllocationDrawer({
                         </div>
                         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-slate-500">
                           <span>
-                            Shared price:{" "}
+                            Manager proposed price:{" "}
                             {hasValidUnitPrice ? (
-                              <CurrencyText value={subItem.unit_price} />
+                              <CurrencyText value={getManagerUnitPrice(subItem)} />
                             ) : (
                               <span className="font-black text-amber-700">
                                 Price required
@@ -1642,7 +1779,7 @@ function AllocationDrawer({
 
                               <div>
                                 <p className="text-xs font-black text-amber-900">
-                                  Shared unit price required
+                                  Proposed unit price required
                                 </p>
 
                                 <p className="mt-1 text-xs leading-5 text-amber-800">
@@ -1776,6 +1913,7 @@ function SharedModelsPanel({
   onEdit,
   onRemove,
   onViewPriceContext,
+  onViewPriceHistory,
 }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -1868,13 +2006,13 @@ function SharedModelsPanel({
 
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                    Shared price
+                    Manager proposed price
                   </p>
                   <p className="mt-1 font-black text-slate-950">
-                    {subItem.unit_price === null ? (
+                    {getManagerUnitPrice(subItem) === null ? (
                       "Not set"
                     ) : (
-                      <CurrencyText value={subItem.unit_price} />
+                      <CurrencyText value={getManagerUnitPrice(subItem)} />
                     )}
                   </p>
                 </div>
@@ -1896,10 +2034,12 @@ function SharedModelsPanel({
                     Estimated value
                   </p>
                   <p className="mt-1 font-black text-slate-950">
-                    {subItem.line_total === null ? (
+                    {subItem.category_manager_line_total === null ? (
                       "-"
                     ) : (
-                      <CurrencyText value={subItem.line_total} />
+                      <CurrencyText
+                        value={subItem.category_manager_line_total}
+                      />
                     )}
                   </p>
                   <p className="mt-1 inline-flex items-center gap-1 text-[11px] text-slate-500">
@@ -1917,6 +2057,15 @@ function SharedModelsPanel({
                   >
                     <CircleDollarSign className="h-3.5 w-3.5" />
                     Price Context
+                  </button>
+                  <button
+                    type="button"
+                    title="View quantity and price history"
+                    onClick={() => onViewPriceHistory(subItem)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-100"
+                  >
+                    <History className="h-3.5 w-3.5" />
+                    History
                   </button>
                   <button
                     type="button"
@@ -2108,6 +2257,7 @@ function ItemPerspective({
   onEditModel,
   onRemoveModel,
   onViewPriceContext,
+  onViewPriceHistory,
   onViewDistribution,
   onAllocate,
   onViewHodNote,
@@ -2282,7 +2432,13 @@ function ItemPerspective({
                 <MetricCard
                   label="Estimated value"
                   value={
-                    <CurrencyText value={selectedItem.estimated_total || 0} />
+                    <CurrencyText
+                      value={
+                        selectedItem.category_manager_estimated_total ??
+                        selectedItem.estimated_total ??
+                        0
+                      }
+                    />
                   }
                   // icon={CircleDollarSign}
                 />
@@ -2304,6 +2460,7 @@ function ItemPerspective({
                   onEdit={onEditModel}
                   onRemove={onRemoveModel}
                   onViewPriceContext={onViewPriceContext}
+                  onViewPriceHistory={onViewPriceHistory}
                 />
                 <DepartmentDemandPanel
                   departments={departments}
@@ -2329,9 +2486,14 @@ function ModelSplit({ allocations, onViewPriceContext }) {
   const modelOptions = allocations.map((allocation) => ({
     id: allocation.package_sub_item_id,
     name: allocation.package_sub_item_name,
-    unit_price: allocation.unit_price,
+    unit_price:
+      allocation.category_manager_unit_price ?? allocation.unit_price,
     quantity: allocation.package_sub_item_quantity,
-    line_total: allocation.line_total,
+    line_total:
+      toNumber(allocation.allocated_quantity) *
+      toNumber(
+        allocation.category_manager_unit_price ?? allocation.unit_price,
+      ),
   }));
 
   return (
@@ -2717,6 +2879,7 @@ export default function CategoryPackageWorkbench() {
   const [submitOpen, setSubmitOpen] = useState(false);
   const [showAllBlockers, setShowAllBlockers] = useState(false);
   const [priceContext, setPriceContext] = useState(null);
+  const [priceHistorySubItem, setPriceHistorySubItem] = useState(null);
   const [distributionContext, setDistributionContext] = useState(null);
   const [hodNoteContext, setHodNoteContext] = useState(null);
 
@@ -2844,6 +3007,11 @@ const selectedItem =
     enabled: Boolean(distributionContext),
   });
 
+  const priceHistoryQuery = usePackageSubItemPriceHistory(
+    priceHistorySubItem?.id,
+    Boolean(priceHistorySubItem),
+  );
+
   const blockers = packageData?.readiness?.blockers || [];
   const ready = Boolean(packageData?.readiness?.ready);
   const packageEditable = ["DRAFT", "RETURNED_BY_CFO"].includes(
@@ -2933,15 +3101,15 @@ const selectedItem =
   });
 
   const submitMutation = useMutation({
-    mutationFn: submitCategoryPackageToCfo,
+    mutationFn: submitCategoryPackageToPurchasing,
     onSuccess: async () => {
-      toast.success("Category package submitted to CFO");
+      toast.success("Category package submitted to Purchasing");
       setSubmitOpen(false);
       await invalidatePackageWorkspace();
     },
     onError: (error) => {
       toast.error(
-        error?.response?.data?.message || "Failed to submit package to CFO",
+        error?.response?.data?.message || "Failed to submit package to Purchasing",
       );
     },
   });
@@ -3017,7 +3185,11 @@ const selectedItem =
   const allocatedTotal = toNumber(packageData.summary?.allocatedQuantity);
   const remainingTotal = approvedTotal - allocatedTotal;
   const estimatedPackageTotal = items.reduce(
-    (sum, item) => sum + toNumber(item.estimated_total),
+    (sum, item) =>
+      sum +
+      toNumber(
+        item.category_manager_estimated_total ?? item.estimated_total,
+      ),
     0,
   );
   const displayedBlockers = showAllBlockers ? blockers : blockers.slice(0, 4);
@@ -3089,7 +3261,7 @@ const selectedItem =
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               <Send className="h-4 w-4" />
-              Submit Package to CFO
+              Submit Package to Purchasing
             </button>
           </div>
         </div>
@@ -3229,6 +3401,7 @@ packageData.return_reason ? (
           onEditModel={setEditingSubItem}
           onRemoveModel={setRemoveCandidate}
           onViewPriceContext={openPriceContext}
+          onViewPriceHistory={setPriceHistorySubItem}
           onViewDistribution={(item) =>
             setDistributionContext({
               type: "PACKAGE_ITEM",
@@ -3280,6 +3453,10 @@ packageData.return_reason ? (
         subItem={editingSubItem}
         loading={updateSubItemMutation.isPending}
         editable={editingSubItemEditable}
+        isReturnedCorrection={
+          packageData?.status === "RETURNED_BY_CFO" &&
+          editingSubItemPackageItem?.cfo_review_status === "NEEDS_MODIFICATION"
+        }
         onSubmit={(payload) =>
           updateSubItemMutation.mutate({
             packageSubItemId: editingSubItem.id,
@@ -3355,9 +3532,9 @@ packageData.return_reason ? (
 
     <ConfirmModal
   open={submitOpen}
-  title="Submit Category Package to CFO?"
-  message={`You are about to submit the ${packageData.category_name} package for CFO review. Review the package summary carefully before confirming. Package models, prices, specifications, attachments, and department allocations will be locked while the package is under CFO review.`}
-  confirmText="Submit Package to CFO"
+  title="Submit Category Package to Purchasing?"
+  message={`You are about to submit the ${packageData.category_name} package for Purchasing price review. Models, proposed prices, specifications, attachments, and department allocations will be locked while Purchasing reviews the package.`}
+  confirmText="Submit to Purchasing"
   cancelText="Review Again"
   loading={submitMutation.isPending}
   onCancel={() => setSubmitOpen(false)}
@@ -3504,6 +3681,13 @@ packageData.return_reason ? (
           }))
         }
         onClose={() => setPriceContext(null)}
+      />
+
+      <PackageSubItemPriceHistoryDrawer
+        open={Boolean(priceHistorySubItem)}
+        onClose={() => setPriceHistorySubItem(null)}
+        subItem={priceHistorySubItem}
+        query={priceHistoryQuery}
       />
 
       {hodNoteContext && (

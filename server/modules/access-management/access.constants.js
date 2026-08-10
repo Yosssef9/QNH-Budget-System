@@ -2,6 +2,7 @@ export const ROLE_CODES = Object.freeze({
   DEPARTMENT_BUDGET_MANAGER: "DEPARTMENT_BUDGET_MANAGER",
   DEPARTMENT_USER: "DEPARTMENT_USER",
   CATEGORY_BUDGET_MANAGER: "CATEGORY_BUDGET_MANAGER",
+  PURCHASING_PRICE_REVIEWER: "PURCHASING_PRICE_REVIEWER",
   BUDGET_APPROVER: "BUDGET_APPROVER",
   PO_LINK_MANAGER: "PO_LINK_MANAGER",
   BUDGET_SYSTEM_ADMIN: "BUDGET_SYSTEM_ADMIN",
@@ -25,6 +26,12 @@ export const ROLE_SCOPE_RULES = Object.freeze({
     categoryRequired: true,
     departmentAllowed: false,
     categoryAllowed: true,
+  },
+  [ROLE_CODES.PURCHASING_PRICE_REVIEWER]: {
+    departmentRequired: false,
+    categoryRequired: false,
+    departmentAllowed: false,
+    categoryAllowed: false,
   },
   [ROLE_CODES.BUDGET_APPROVER]: {
     departmentRequired: false,

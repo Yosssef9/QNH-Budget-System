@@ -43,11 +43,12 @@ import {
   listPackageItemDetailRowsRepo,
   listPackageItemsRepo,
   listPackageSubItemAttachmentsRepo,
+  listPackageSubItemPriceHistoryRepo,
   listPackageSubItemsForDepartmentItemRepo,
   listCurrentAllocationsForDepartmentItemRepo,
-  markPackageSubmittedToCfoRepo,
+  markPackageSubmittedToPurchasingRepo,
   recalculatePackageSubItemQuantitiesRepo,
- 
+
   updateDepartmentApprovedQuantityForPackageRepo,
   updatePackageItemReconciliationRepo,
   updatePackageSubItemRepo,
@@ -59,6 +60,7 @@ import {
   mapPackageItem,
   mapPackageItemDetail,
   mapPackageSubItemAttachment,
+  mapPackageSubItemPriceHistory,
 } from "./categoryPackages.mapper.js";
 import path from "path";
 
@@ -539,7 +541,7 @@ function assertPackageSubmissionAllowed(context) {
   ) {
     throw new ApiError(
       400,
-      "This package cannot be submitted to CFO in its current status",
+      "This package cannot be submitted to Purchasing in its current status",
       "CATEGORY_PACKAGE_NOT_SUBMITTABLE",
     );
   }
@@ -658,12 +660,15 @@ function buildReadiness(packageData, itemDetailsById = new Map()) {
       }
 
       for (const subItem of itemDetail.subItems) {
-        if (subItem.unit_price === null || Number(subItem.unit_price) <= 0) {
+        if (
+          subItem.category_manager_unit_price === null ||
+          Number(subItem.category_manager_unit_price) < 1
+        ) {
           blockers.push({
             code: "PACKAGE_SUB_ITEM_PRICE_REQUIRED",
             packageItemId: item.id,
             packageSubItemId: subItem.id,
-            message: `${subItem.name} must have a valid shared unit price`,
+            message: `${subItem.name} must have a Category Manager price of at least 1`,
           });
         }
 
@@ -897,7 +902,7 @@ export async function createPackageSubItemService({
       specification:
         payload.specification ?? catalogSubItem.default_specification,
       unit_of_measure_id: catalogSubItem.default_unit_of_measure_id,
-      unit_price: payload.unit_price,
+      category_manager_unit_price: payload.category_manager_unit_price,
       note: payload.note,
       actor_user_id: actorUserId,
     });
@@ -954,7 +959,7 @@ export async function updatePackageSubItemService({
 
     const updated = await updatePackageSubItemRepo(transaction, {
       package_sub_item_id: packageSubItemId,
-      unit_price: payload.unit_price,
+      category_manager_unit_price: payload.category_manager_unit_price,
       specification: payload.specification,
       note: payload.note,
       row_version: payload.row_version,
@@ -975,13 +980,13 @@ export async function updatePackageSubItemService({
       entity_id: packageSubItemId,
       action: CATEGORY_PACKAGE_WORKFLOW_ACTIONS.PACKAGE_SUB_ITEM_UPDATED,
       old_values_json: JSON.stringify({
-        unit_price: context.unit_price,
+        category_manager_unit_price: context.category_manager_unit_price,
         specification: context.specification,
         note: context.note,
         quantity: context.quantity,
       }),
       new_values_json: JSON.stringify({
-        unit_price: payload.unit_price,
+        category_manager_unit_price: payload.category_manager_unit_price,
         specification: payload.specification,
         note: payload.note,
         quantity: context.quantity,
@@ -1069,7 +1074,9 @@ storageKey = await savePackageAttachmentFile({
         mime_type: file.mimetype,
         file_size_bytes: file.size,
         description: payload.description,
+        attachment_source: "CATEGORY_MANAGER",
         actor_user_id: actorUserId,
+        uploaded_user_role_id: getUserRoleId(budgetAccess),
       });
 
       await createWorkflowHistoryRepo(transaction, {
@@ -1162,11 +1169,20 @@ export async function deletePackageSubItemAttachmentService({
     assertCategoryScope(attachment, budgetCategoryId);
    assertPackageItemEditable(attachment);
 
+    if (attachment.attachment_source !== "CATEGORY_MANAGER") {
+      throw new ApiError(
+        403,
+        "Category Managers can only remove Category Manager attachments",
+        "CATEGORY_PACKAGE_ATTACHMENT_OWNER_DENIED",
+      );
+    }
+
     const removed = await deactivatePackageSubItemAttachmentRepo(transaction, {
       package_sub_item_id: packageSubItemId,
       attachment_id: attachmentId,
       row_version: payload.row_version,
       reason: payload.reason || "Removed by Category Manager",
+      attachment_source: "CATEGORY_MANAGER",
       actor_user_id: actorUserId,
     });
 
@@ -1411,20 +1427,20 @@ export async function replaceDepartmentItemAllocationsService({
         }
 
         const unitPrice = Number(
-          packageSubItem.unit_price,
+          packageSubItem.category_manager_unit_price,
         );
 
         const hasValidUnitPrice =
-          packageSubItem.unit_price !== null &&
-          packageSubItem.unit_price !== undefined &&
+          packageSubItem.category_manager_unit_price !== null &&
+          packageSubItem.category_manager_unit_price !== undefined &&
           Number.isFinite(unitPrice) &&
           unitPrice > 0;
 
         if (!hasValidUnitPrice) {
           throw new ApiError(
             400,
-            `${packageSubItem.package_sub_item_name || "The selected model"} requires a valid shared unit price before allocation`,
-            "PACKAGE_SUB_ITEM_UNIT_PRICE_REQUIRED",
+            `${packageSubItem.package_sub_item_name || "The selected model"} requires a valid Category Manager price before allocation`,
+            "PACKAGE_SUB_ITEM_CATEGORY_MANAGER_PRICE_REQUIRED",
             {
               packageSubItemId,
               packageSubItemName:
@@ -1618,7 +1634,7 @@ export async function getCategoryPackageReadinessService({ budgetAccess }) {
   return packageData.readiness;
 }
 
-export async function submitCategoryPackageToCfoService({
+export async function submitCategoryPackageToPurchasingService({
   packageId,
   payload,
   actorUserId,
@@ -1626,13 +1642,13 @@ export async function submitCategoryPackageToCfoService({
 }) {
   assertPermission(
     budgetAccess,
-    CATEGORY_PACKAGE_PERMISSIONS.SUBMIT_TO_CFO,
+    CATEGORY_PACKAGE_PERMISSIONS.SUBMIT_TO_PURCHASING,
     "CATEGORY_PACKAGE_SUBMIT_DENIED",
-    "You do not have permission to submit category packages to CFO",
+    "You do not have permission to submit category packages to Purchasing",
   );
   const budgetCategoryId = assertCategoryWorkspace(budgetAccess);
 
-  const submitted = await withTransaction(async (transaction) => {
+  await withTransaction(async (transaction) => {
     const packageRow = await findCurrentPackageForCategoryRepo(
       { budgetCategoryId },
       transaction,
@@ -1661,16 +1677,17 @@ export async function submitCategoryPackageToCfoService({
     if (!packageData.readiness.ready) {
       throw new ApiError(
         400,
-        "Category package is not ready for CFO submission",
+        "Category package is not ready for Purchasing submission",
         "CATEGORY_PACKAGE_NOT_READY",
         packageData.readiness,
       );
     }
 
-    const updated = await markPackageSubmittedToCfoRepo(transaction, {
+    const updated = await markPackageSubmittedToPurchasingRepo(transaction, {
       package_id: packageId,
       row_version: payload.row_version,
       actor_user_id: actorUserId,
+      actor_user_role_id: getUserRoleId(budgetAccess),
     });
 
     if (!updated) {
@@ -1685,14 +1702,33 @@ export async function submitCategoryPackageToCfoService({
       financial_year_id: packageRow.financial_year_id,
       entity_type: "CATEGORY_BUDGET_PACKAGE",
       entity_id: packageId,
-      action: CATEGORY_PACKAGE_WORKFLOW_ACTIONS.PACKAGE_SUBMITTED_TO_CFO,
+      action: CATEGORY_PACKAGE_WORKFLOW_ACTIONS.PACKAGE_SUBMITTED_TO_PURCHASING,
       old_status: packageRow.status,
-      new_status: CATEGORY_PACKAGE_STATUS.IN_CFO_REVIEW,
+      new_status: CATEGORY_PACKAGE_STATUS.IN_PURCHASING_REVIEW,
       note: payload.note,
+      new_values_json: JSON.stringify({
+        reviewRound: updated.review_round,
+      }),
       user_role_id: getUserRoleId(budgetAccess),
       acting_workspace: getActingWorkspace(budgetAccess),
       created_by: actorUserId,
     });
+
+    for (const packageSubItemId of updated.carried_forward_sub_item_ids || []) {
+      await createWorkflowHistoryRepo(transaction, {
+        financial_year_id: packageRow.financial_year_id,
+        entity_type: "CATEGORY_PACKAGE_SUB_ITEM",
+        entity_id: packageSubItemId,
+        action:
+          CATEGORY_PACKAGE_WORKFLOW_ACTIONS.PURCHASING_PRICE_CARRIED_FORWARD,
+        new_values_json: JSON.stringify({
+          reviewRound: updated.review_round,
+        }),
+        user_role_id: getUserRoleId(budgetAccess),
+        acting_workspace: getActingWorkspace(budgetAccess),
+        created_by: actorUserId,
+      });
+    }
 
     return {
       packageId,
@@ -1700,36 +1736,33 @@ export async function submitCategoryPackageToCfoService({
       categoryName: packageRow.category_name,
       financialYear: packageRow.financial_year,
       previousStatus: packageRow.status,
-      packageItemCount: packageData.items.length,
-      estimatedTotal: packageData.items.reduce(
-        (sum, item) => sum + Number(item.estimated_total || 0),
-        0,
-      ),
-      reconciliationStatus:
-        packageData.summary.blockerCount > 0 ? "NEEDS_RECONCILIATION" : "RECONCILED",
-      actorUserId,
+      reviewRound: updated.review_round,
     };
   });
 
- await queueNotification({
-  notificationType: NOTIFICATION_TYPES.CATEGORY_BUDGET_PACKAGE_SUBMITTED,
-  entityType: "CATEGORY_BUDGET_PACKAGE",
-  entityId: submitted.packageId,
-  payload: {
-    packageId: submitted.packageId,
-    categoryId: submitted.categoryId,
-    categoryName: submitted.categoryName,
-    financialYear: submitted.financialYear,
-    isResubmission: submitted.previousStatus === CATEGORY_PACKAGE_STATUS.RETURNED_BY_CFO,
-    packageItemCount: submitted.packageItemCount,
-    estimatedTotal: submitted.estimatedTotal,
-    reconciliationStatus: submitted.reconciliationStatus,
-    submittedBy: actorUserId,
-    actorUserId,
-  },
-});
-
   return getCurrentCategoryPackageService({ budgetAccess });
+}
+
+export async function getPackageSubItemPriceHistoryService({
+  packageSubItemId,
+  budgetAccess,
+}) {
+  assertPermission(
+    budgetAccess,
+    CATEGORY_PACKAGE_PERMISSIONS.VIEW,
+    "CATEGORY_PACKAGE_VIEW_DENIED",
+    "You do not have permission to view category package price history",
+  );
+  const budgetCategoryId = assertCategoryWorkspace(budgetAccess);
+  const context = await findPackageContextBySubItemRepo({ packageSubItemId });
+  assertCategoryScope(context, budgetCategoryId);
+
+  const rows = await listPackageSubItemPriceHistoryRepo({
+    packageId: context.package_id,
+    packageSubItemId,
+  });
+
+  return mapPackageSubItemPriceHistory(rows);
 }
 export async function updateDepartmentItemApprovedQuantityService({
   departmentItemId,

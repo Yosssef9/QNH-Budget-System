@@ -32,11 +32,13 @@ vi.mock(
     findPackageContextByItemRepo: vi.fn(),
     findPackageContextBySubItemRepo: vi.fn(),
     listPackageSubItemAttachmentsRepo: vi.fn(),
+    listPackageSubItemPriceHistoryRepo: vi.fn(),
     listAllocationsForPackageItemRepo: vi.fn(),
     listPackageItemDetailRowsRepo: vi.fn(),
     listPackageItemsRepo: vi.fn(),
     listPackageSubItemsForDepartmentItemRepo: vi.fn(),
-    markPackageSubmittedToCfoRepo: vi.fn(),
+    listCurrentAllocationsForDepartmentItemRepo: vi.fn(),
+    markPackageSubmittedToPurchasingRepo: vi.fn(),
     recalculatePackageSubItemQuantitiesRepo: vi.fn(),
     updatePackageItemReconciliationRepo: vi.fn(),
     updatePackageSubItemRepo: vi.fn(),
@@ -58,16 +60,19 @@ import {
   listAllocationsForPackageItemRepo,
   listPackageItemDetailRowsRepo,
   listPackageItemsRepo,
+  listPackageSubItemPriceHistoryRepo,
   listPackageSubItemsForDepartmentItemRepo,
-  markPackageSubmittedToCfoRepo,
+  listCurrentAllocationsForDepartmentItemRepo,
+  markPackageSubmittedToPurchasingRepo,
   recalculatePackageSubItemQuantitiesRepo,
   updatePackageItemReconciliationRepo,
   upsertAllocationRepo,
 } from "../../../modules/category-packages/categoryPackages.repository.js";
 import {
   deletePackageSubItemAttachmentService,
+  getPackageSubItemPriceHistoryService,
   replaceDepartmentItemAllocationsService,
-  submitCategoryPackageToCfoService,
+  submitCategoryPackageToPurchasingService,
   uploadPackageSubItemAttachmentService,
 } from "../../../modules/category-packages/categoryPackages.service.js";
 
@@ -80,7 +85,7 @@ const categoryAccess = {
     PERMISSION_CODES.MANAGE_CATEGORY_BUDGET_PACKAGES,
     PERMISSION_CODES.MANAGE_CATEGORY_BUDGET_SUB_ITEMS,
     PERMISSION_CODES.MANAGE_CATEGORY_SUPPORTING_DOCUMENTS,
-    PERMISSION_CODES.SUBMIT_CATEGORY_BUDGET_PACKAGES_TO_CFO,
+    PERMISSION_CODES.SUBMIT_CATEGORY_BUDGET_PACKAGES_TO_PURCHASING,
   ],
 };
 
@@ -112,15 +117,16 @@ describe("category package service", () => {
         package_sub_item_id: 10,
         package_item_id: 400,
         package_sub_item_name: "General",
-        unit_price: 1000,
+        category_manager_unit_price: 1000,
       },
       {
         package_sub_item_id: 11,
         package_item_id: 400,
         package_sub_item_name: "Dell Latitude 5450",
-        unit_price: 2000,
+        category_manager_unit_price: 2000,
       },
     ]);
+    listCurrentAllocationsForDepartmentItemRepo.mockResolvedValue([]);
     findPackageContextByItemRepo.mockResolvedValue(packageContext);
     findPackageContextBySubItemRepo.mockResolvedValue({
       ...packageContext,
@@ -174,7 +180,7 @@ describe("category package service", () => {
           id: 10,
           name: "Dell Latitude 5450",
           quantity: 15,
-          unit_price: 2000,
+          category_manager_unit_price: 2000,
         },
       ],
       departments: [
@@ -214,13 +220,13 @@ describe("category package service", () => {
 
     expect(upsertAllocationRepo).not.toHaveBeenCalled();
   });
-  it("rejects allocation to a model without a unit price", async () => {
+  it("rejects allocation to a model without a Category Manager price", async () => {
     listPackageSubItemsForDepartmentItemRepo.mockResolvedValue([
       {
         package_sub_item_id: 10,
         package_item_id: 400,
         package_sub_item_name: "General",
-        unit_price: null,
+        category_manager_unit_price: null,
       },
     ]);
 
@@ -241,7 +247,7 @@ describe("category package service", () => {
       }),
     ).rejects.toMatchObject({
       statusCode: 400,
-      errorCode: "PACKAGE_SUB_ITEM_UNIT_PRICE_REQUIRED",
+      errorCode: "PACKAGE_SUB_ITEM_CATEGORY_MANAGER_PRICE_REQUIRED",
     });
 
     expect(deleteAllocationsForDepartmentItemRepo).not.toHaveBeenCalled();
@@ -277,7 +283,7 @@ describe("category package service", () => {
     expect(updatePackageItemReconciliationRepo).toHaveBeenCalled();
   });
 
-  it("blocks CFO submission when a department item is not fully allocated", async () => {
+  it("blocks Purchasing submission when a department item is not fully allocated", async () => {
     findCurrentPackageForCategoryRepo.mockResolvedValue({
       id: 300,
       financial_year_id: 9,
@@ -295,7 +301,7 @@ describe("category package service", () => {
           id: 10,
           name: "Dell Latitude 5450",
           quantity: 12,
-          unit_price: 2000,
+          category_manager_unit_price: 2000,
         },
       ],
       departments: [
@@ -315,7 +321,7 @@ describe("category package service", () => {
     ]);
 
     await expect(
-      submitCategoryPackageToCfoService({
+      submitCategoryPackageToPurchasingService({
         packageId: 300,
         actorUserId: 7,
         budgetAccess: categoryAccess,
@@ -323,7 +329,7 @@ describe("category package service", () => {
       }),
     ).rejects.toMatchObject({ errorCode: "CATEGORY_PACKAGE_NOT_READY" });
 
-    expect(markPackageSubmittedToCfoRepo).not.toHaveBeenCalled();
+    expect(markPackageSubmittedToPurchasingRepo).not.toHaveBeenCalled();
   });
 
   it("uploads package sub-item attachment metadata after validating package scope", async () => {
@@ -415,5 +421,63 @@ describe("category package service", () => {
         action: "CATEGORY_PACKAGE_SUB_ITEM_ATTACHMENT_REMOVED",
       }),
     );
+  });
+
+  it("returns package model price history within the active category scope", async () => {
+    listPackageSubItemPriceHistoryRepo.mockResolvedValue([
+      {
+        id: 902,
+        review_round: 2,
+        catalog_sub_item_id_snapshot: 20,
+        catalog_sub_item_name: "Dell Latitude 5450",
+        quantity_snapshot: 5,
+        category_manager_unit_price_snapshot: 600,
+        previous_purchasing_unit_price: 1000,
+        purchasing_unit_price: 600,
+        status: "PENDING",
+        decision_source: "MANUAL",
+        reviewed_by: null,
+        reviewed_by_name: null,
+        reviewed_at: null,
+        manager_submitted_by: 7,
+        manager_submitted_by_name: "Category Manager",
+        manager_submitted_at: new Date("2026-08-10T09:00:00Z"),
+      },
+      {
+        id: 901,
+        review_round: 1,
+        catalog_sub_item_id_snapshot: 20,
+        catalog_sub_item_name: "Dell Latitude 5450",
+        quantity_snapshot: 5,
+        category_manager_unit_price_snapshot: 500,
+        previous_purchasing_unit_price: null,
+        purchasing_unit_price: 1000,
+        status: "ACCEPTED",
+        decision_source: "MANUAL",
+        reviewed_by: 8,
+        reviewed_by_name: "Purchasing Reviewer",
+        reviewed_at: new Date("2026-08-09T10:00:00Z"),
+        manager_submitted_by: 7,
+        manager_submitted_by_name: "Category Manager",
+        manager_submitted_at: new Date("2026-08-09T09:00:00Z"),
+      },
+    ]);
+
+    const result = await getPackageSubItemPriceHistoryService({
+      packageSubItemId: 10,
+      budgetAccess: categoryAccess,
+    });
+
+    expect(listPackageSubItemPriceHistoryRepo).toHaveBeenCalledWith({
+      packageId: 300,
+      packageSubItemId: 10,
+    });
+    expect(result[0]).toMatchObject({
+      review_round: 2,
+      manager_submitted_by_name: "Category Manager",
+      reviewed_by_name: null,
+      category_manager_price: { before: 1000, after: 600 },
+      purchasing_price: { before: 600, after: 600 },
+    });
   });
 });

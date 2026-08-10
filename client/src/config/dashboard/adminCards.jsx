@@ -6,6 +6,7 @@ import {
   Users,
   ArrowRightLeft,
   Link2,
+  ShoppingCart,
 } from "lucide-react";
 
 import CurrencyText from "../../components/CurrencyText";
@@ -15,7 +16,7 @@ import { PERMISSION_CODES } from "@qnh/permissions";
 
 import { createFinancialYearCard } from "./commonCards";
 
-function renderCfoPackageProgressBadge({ submittedCount, totalCount }) {
+function renderPackageProgressBadge({ submittedCount, totalCount }) {
   const hasSubmittedPackages = submittedCount > 0;
 
   return (
@@ -50,13 +51,27 @@ export function getAdminCards(budgetAccess, dashboardData) {
   const pendingCfoPackageItems = Number(
     cfoPackageReview.pending_cfo_package_items || 0,
   );
+  const purchasingPackageReview =
+    dashboardStats?.purchasing?.packageReview || {};
+  const totalPurchasingPackages = Number(
+    purchasingPackageReview.total_category_packages || 3,
+  );
+  const submittedToPurchasingPackages = Number(
+    purchasingPackageReview.submitted_category_packages || 0,
+  );
+  const waitingForPurchasingPackages = Number(
+    purchasingPackageReview.waiting_for_purchasing_packages || 0,
+  );
+  const pendingPriceReviews = Number(
+    purchasingPackageReview.pending_price_reviews || 0,
+  );
 
   return [
     createFinancialYearCard(dashboardData.activeYear),
 
     {
       title: "CFO Package Review",
-      value: renderCfoPackageProgressBadge({
+      value: renderPackageProgressBadge({
         submittedCount: submittedCategoryPackages,
         totalCount: totalCategoryPackages,
       }),
@@ -76,6 +91,25 @@ export function getAdminCards(budgetAccess, dashboardData) {
           PERMISSION_CODES.VIEW_CFO_CATEGORY_BUDGET_PACKAGES,
         ) ||
         can(budgetAccess, PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES),
+    },
+
+    {
+      title: "Purchasing Price Review",
+      value: renderPackageProgressBadge({
+        submittedCount: submittedToPurchasingPackages,
+        totalCount: totalPurchasingPackages,
+      }),
+      description:
+        waitingForPurchasingPackages > 0
+          ? `${waitingForPurchasingPackages} package(s) and ${pendingPriceReviews} model price(s) waiting for Purchasing review`
+          : "No category packages are waiting for Purchasing price review",
+      icon: ShoppingCart,
+      route: "/purchasing-price-review",
+      highlight: waitingForPurchasingPackages > 0 ? "pending" : null,
+      show: can(
+        budgetAccess,
+        PERMISSION_CODES.VIEW_PURCHASING_PRICE_REVIEWS,
+      ),
     },
 
     {

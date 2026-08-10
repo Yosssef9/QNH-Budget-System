@@ -22,6 +22,7 @@ import departmentBudgetsRoutes from "./modules/department-budgets/departmentBudg
 import categoryReviewRoutes from "./modules/category-review/categoryReview.routes.js";
 import categoryPackagesRoutes from "./modules/category-packages/categoryPackages.routes.js";
 import cfoPackageReviewRoutes from "./modules/cfo-package-review/cfoPackageReview.routes.js";
+import purchasingPriceReviewRoutes from "./modules/purchasing-price-review/purchasingPriceReview.routes.js";
 import adjustmentRequestRoutes from "./modules/adjustment-requests/adjustmentRequests.routes.js";
 import budgetApprovalRoutes from "./routes/budgetApproval.routes.js";
 import itemRequestRoutes from "./modules/item-requests/itemRequests.routes.js";
@@ -104,6 +105,7 @@ app.use("/api/budgets", departmentBudgetsRoutes);
 app.use("/api/category-review", categoryReviewRoutes);
 app.use("/api/category-packages", categoryPackagesRoutes);
 app.use("/api/cfo-package-review", cfoPackageReviewRoutes);
+app.use("/api/purchasing-price-review", purchasingPriceReviewRoutes);
 app.use("/api/adjustment-requests", adjustmentRequestRoutes);
 app.use("/api/budget-approval", budgetApprovalRoutes);
 app.use("/api/item-requests", itemRequestRoutes);

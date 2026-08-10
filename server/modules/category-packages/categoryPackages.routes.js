@@ -18,10 +18,11 @@ import {
   getCategoryPackageItemDetail,
   getCategoryPackageReadiness,
   getCurrentCategoryPackage,
+  getPackageSubItemPriceHistory,
   listPackageSubItemAttachments,
   removePackageSubItem,
   replaceDepartmentItemAllocations,
-  submitCategoryPackageToCfo,
+  submitCategoryPackageToPurchasing,
   updateDepartmentItemApprovedQuantity,
   uploadPackageSubItemAttachment,
   updatePackageSubItem,
@@ -75,6 +76,12 @@ router.patch(
 );
 
 router.get(
+  "/sub-items/:packageSubItemId/price-history",
+  requireBudgetPermission(CATEGORY_PACKAGE_PERMISSIONS.VIEW),
+  getPackageSubItemPriceHistory,
+);
+
+router.get(
   "/sub-items/:packageSubItemId/attachments",
   requireBudgetPermission(CATEGORY_PACKAGE_PERMISSIONS.VIEW),
   listPackageSubItemAttachments,
@@ -119,9 +126,9 @@ router.patch(
 );
 
 router.patch(
-  "/:packageId/submit-to-cfo",
-  requireBudgetPermission(CATEGORY_PACKAGE_PERMISSIONS.SUBMIT_TO_CFO),
-  submitCategoryPackageToCfo,
+  "/:packageId/submit-to-purchasing",
+  requireBudgetPermission(CATEGORY_PACKAGE_PERMISSIONS.SUBMIT_TO_PURCHASING),
+  submitCategoryPackageToPurchasing,
 );
 
 export default router;

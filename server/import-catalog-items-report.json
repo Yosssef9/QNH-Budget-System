@@ -1,0 +1,3707 @@
+{
+  "total": 528,
+  "created": 528,
+  "skipped": 0,
+  "failed": 0,
+  "dryRun": false,
+  "createdItems": [
+    {
+      "excelRow": 2,
+      "item": "Chair",
+      "category": "GENERAL",
+      "catalogItemId": 1,
+      "itemCode": "CHAIR"
+    },
+    {
+      "excelRow": 3,
+      "item": "Desktop Computer",
+      "category": "IT",
+      "catalogItemId": 2,
+      "itemCode": "DESKTOP_COMPUTER"
+    },
+    {
+      "excelRow": 4,
+      "item": "Cabinet",
+      "category": "GENERAL",
+      "catalogItemId": 3,
+      "itemCode": "CABINET"
+    },
+    {
+      "excelRow": 5,
+      "item": "Scanner",
+      "category": "IT",
+      "catalogItemId": 4,
+      "itemCode": "SCANNER"
+    },
+    {
+      "excelRow": 6,
+      "item": "Sofa",
+      "category": "GENERAL",
+      "catalogItemId": 5,
+      "itemCode": "SOFA"
+    },
+    {
+      "excelRow": 7,
+      "item": "Instrument Cart",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 6,
+      "itemCode": "INSTRUMENT_CART"
+    },
+    {
+      "excelRow": 8,
+      "item": "Room Pressure Monitor",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 7,
+      "itemCode": "ROOM_PRESSURE_MONITOR"
+    },
+    {
+      "excelRow": 9,
+      "item": "Desk",
+      "category": "GENERAL",
+      "catalogItemId": 8,
+      "itemCode": "DESK"
+    },
+    {
+      "excelRow": 10,
+      "item": "Fryer",
+      "category": "GENERAL",
+      "catalogItemId": 9,
+      "itemCode": "FRYER"
+    },
+    {
+      "excelRow": 11,
+      "item": "Rice Cooker",
+      "category": "GENERAL",
+      "catalogItemId": 10,
+      "itemCode": "RICE_COOKER"
+    },
+    {
+      "excelRow": 12,
+      "item": "Locker",
+      "category": "GENERAL",
+      "catalogItemId": 11,
+      "itemCode": "LOCKER"
+    },
+    {
+      "excelRow": 13,
+      "item": "Table",
+      "category": "GENERAL",
+      "catalogItemId": 12,
+      "itemCode": "TABLE"
+    },
+    {
+      "excelRow": 14,
+      "item": "Dishwasher",
+      "category": "GENERAL",
+      "catalogItemId": 13,
+      "itemCode": "DISHWASHER"
+    },
+    {
+      "excelRow": 15,
+      "item": "Defibrillator",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 14,
+      "itemCode": "DEFIBRILLATOR"
+    },
+    {
+      "excelRow": 16,
+      "item": "Shelf/Rack",
+      "category": "GENERAL",
+      "catalogItemId": 15,
+      "itemCode": "SHELF_RACK"
+    },
+    {
+      "excelRow": 17,
+      "item": "Telephone",
+      "category": "GENERAL",
+      "catalogItemId": 16,
+      "itemCode": "TELEPHONE"
+    },
+    {
+      "excelRow": 18,
+      "item": "Ventilator",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 17,
+      "itemCode": "VENTILATOR"
+    },
+    {
+      "excelRow": 19,
+      "item": "Hanger",
+      "category": "GENERAL",
+      "catalogItemId": 18,
+      "itemCode": "HANGER"
+    },
+    {
+      "excelRow": 20,
+      "item": "Office Furniture Set",
+      "category": "GENERAL",
+      "catalogItemId": 19,
+      "itemCode": "OFFICE_FURNITURE_SET"
+    },
+    {
+      "excelRow": 21,
+      "item": "Meeting Furniture Set",
+      "category": "GENERAL",
+      "catalogItemId": 20,
+      "itemCode": "MEETING_FURNITURE_SET"
+    },
+    {
+      "excelRow": 22,
+      "item": "Video Recorder",
+      "category": "IT",
+      "catalogItemId": 21,
+      "itemCode": "VIDEO_RECORDER"
+    },
+    {
+      "excelRow": 23,
+      "item": "Ambulance",
+      "category": "GENERAL",
+      "catalogItemId": 22,
+      "itemCode": "AMBULANCE"
+    },
+    {
+      "excelRow": 24,
+      "item": "MATV System",
+      "category": "GENERAL",
+      "catalogItemId": 23,
+      "itemCode": "MATV_SYSTEM"
+    },
+    {
+      "excelRow": 25,
+      "item": "Curtain",
+      "category": "GENERAL",
+      "catalogItemId": 24,
+      "itemCode": "CURTAIN"
+    },
+    {
+      "excelRow": 26,
+      "item": "Workshop",
+      "category": "GENERAL",
+      "catalogItemId": 25,
+      "itemCode": "WORKSHOP"
+    },
+    {
+      "excelRow": 27,
+      "item": "Temperature Recorder",
+      "category": "IT",
+      "catalogItemId": 26,
+      "itemCode": "TEMPERATURE_RECORDER"
+    },
+    {
+      "excelRow": 28,
+      "item": "Office Software",
+      "category": "IT",
+      "catalogItemId": 27,
+      "itemCode": "OFFICE_SOFTWARE"
+    },
+    {
+      "excelRow": 29,
+      "item": "Laptop",
+      "category": "IT",
+      "catalogItemId": 28,
+      "itemCode": "LAPTOP"
+    },
+    {
+      "excelRow": 30,
+      "item": "Tools",
+      "category": "GENERAL",
+      "catalogItemId": 29,
+      "itemCode": "TOOLS"
+    },
+    {
+      "excelRow": 31,
+      "item": "Sanitary Facility",
+      "category": "GENERAL",
+      "catalogItemId": 30,
+      "itemCode": "SANITARY_FACILITY"
+    },
+    {
+      "excelRow": 32,
+      "item": "Blood Pressure Monitor",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 31,
+      "itemCode": "BLOOD_PRESSURE_MONITOR"
+    },
+    {
+      "excelRow": 33,
+      "item": "Surgical Power Handpiece",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 32,
+      "itemCode": "SURGICAL_POWER_HANDPIECE"
+    },
+    {
+      "excelRow": 34,
+      "item": "Compressor",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 33,
+      "itemCode": "COMPRESSOR"
+    },
+    {
+      "excelRow": 35,
+      "item": "Scale",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 34,
+      "itemCode": "SCALE"
+    },
+    {
+      "excelRow": 36,
+      "item": "Server",
+      "category": "IT",
+      "catalogItemId": 35,
+      "itemCode": "SERVER"
+    },
+    {
+      "excelRow": 37,
+      "item": "Display",
+      "category": "IT",
+      "catalogItemId": 36,
+      "itemCode": "DISPLAY"
+    },
+    {
+      "excelRow": 38,
+      "item": "Crash Cart",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 37,
+      "itemCode": "CRASH_CART"
+    },
+    {
+      "excelRow": 39,
+      "item": "Examination Light",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 38,
+      "itemCode": "EXAMINATION_LIGHT"
+    },
+    {
+      "excelRow": 40,
+      "item": "Amplifier",
+      "category": "GENERAL",
+      "catalogItemId": 39,
+      "itemCode": "AMPLIFIER"
+    },
+    {
+      "excelRow": 41,
+      "item": "Printer",
+      "category": "IT",
+      "catalogItemId": 40,
+      "itemCode": "PRINTER"
+    },
+    {
+      "excelRow": 42,
+      "item": "Pump",
+      "category": "GENERAL",
+      "catalogItemId": 41,
+      "itemCode": "PUMP"
+    },
+    {
+      "excelRow": 43,
+      "item": "X-Ray View Box",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 42,
+      "itemCode": "X_RAY_VIEW_BOX"
+    },
+    {
+      "excelRow": 44,
+      "item": "Nurse Call System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 43,
+      "itemCode": "NURSE_CALL_SYSTEM"
+    },
+    {
+      "excelRow": 45,
+      "item": "Suction Regulator",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 44,
+      "itemCode": "SUCTION_REGULATOR"
+    },
+    {
+      "excelRow": 46,
+      "item": "Refrigerator",
+      "category": "GENERAL",
+      "catalogItemId": 45,
+      "itemCode": "REFRIGERATOR"
+    },
+    {
+      "excelRow": 47,
+      "item": "Access Control System",
+      "category": "IT",
+      "catalogItemId": 46,
+      "itemCode": "ACCESS_CONTROL_SYSTEM"
+    },
+    {
+      "excelRow": 48,
+      "item": "Computer Monitor",
+      "category": "IT",
+      "catalogItemId": 47,
+      "itemCode": "COMPUTER_MONITOR"
+    },
+    {
+      "excelRow": 49,
+      "item": "Syringe Pump",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 48,
+      "itemCode": "SYRINGE_PUMP"
+    },
+    {
+      "excelRow": 50,
+      "item": "Intercom System",
+      "category": "GENERAL",
+      "catalogItemId": 49,
+      "itemCode": "INTERCOM_SYSTEM"
+    },
+    {
+      "excelRow": 51,
+      "item": "Portable Analyzer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 50,
+      "itemCode": "PORTABLE_ANALYZER"
+    },
+    {
+      "excelRow": 52,
+      "item": "Clinical Chemistry Analyzer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 51,
+      "itemCode": "CLINICAL_CHEMISTRY_ANALYZER"
+    },
+    {
+      "excelRow": 53,
+      "item": "Sterilization Indicator",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 52,
+      "itemCode": "STERILIZATION_INDICATOR"
+    },
+    {
+      "excelRow": 54,
+      "item": "UPS",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 53,
+      "itemCode": "UPS"
+    },
+    {
+      "excelRow": 55,
+      "item": "Telescope",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 54,
+      "itemCode": "TELESCOPE"
+    },
+    {
+      "excelRow": 56,
+      "item": "CPM Machine",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 55,
+      "itemCode": "CPM_MACHINE"
+    },
+    {
+      "excelRow": 57,
+      "item": "Central Monitoring Station",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 56,
+      "itemCode": "CENTRAL_MONITORING_STATION"
+    },
+    {
+      "excelRow": 58,
+      "item": "Medical Equipment",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 57,
+      "itemCode": "MEDICAL_EQUIPMENT"
+    },
+    {
+      "excelRow": 59,
+      "item": "Sealing Machine",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 58,
+      "itemCode": "SEALING_MACHINE"
+    },
+    {
+      "excelRow": 60,
+      "item": "Medical Monitor",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 59,
+      "itemCode": "MEDICAL_MONITOR"
+    },
+    {
+      "excelRow": 61,
+      "item": "Infant Scale",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 60,
+      "itemCode": "INFANT_SCALE"
+    },
+    {
+      "excelRow": 62,
+      "item": "Medical Oxygen Cylinder",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 61,
+      "itemCode": "MEDICAL_OXYGEN_CYLINDER"
+    },
+    {
+      "excelRow": 63,
+      "item": "Trolley/Cart",
+      "category": "GENERAL",
+      "catalogItemId": 62,
+      "itemCode": "TROLLEY_CART"
+    },
+    {
+      "excelRow": 64,
+      "item": "X-Ray System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 63,
+      "itemCode": "X_RAY_SYSTEM"
+    },
+    {
+      "excelRow": 65,
+      "item": "Dental Handpiece",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 64,
+      "itemCode": "DENTAL_HANDPIECE"
+    },
+    {
+      "excelRow": 66,
+      "item": "Dental X-Ray Sensor",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 65,
+      "itemCode": "DENTAL_X_RAY_SENSOR"
+    },
+    {
+      "excelRow": 67,
+      "item": "Endodontic Motor",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 66,
+      "itemCode": "ENDODONTIC_MOTOR"
+    },
+    {
+      "excelRow": 68,
+      "item": "Dental Curing Light",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 67,
+      "itemCode": "DENTAL_CURING_LIGHT"
+    },
+    {
+      "excelRow": 69,
+      "item": "Dental Suction Unit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 68,
+      "itemCode": "DENTAL_SUCTION_UNIT"
+    },
+    {
+      "excelRow": 70,
+      "item": "Dental X-Ray Positioning Kit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 69,
+      "itemCode": "DENTAL_X_RAY_POSITIONING_KIT"
+    },
+    {
+      "excelRow": 71,
+      "item": "Gastroscope",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 70,
+      "itemCode": "GASTROSCOPE"
+    },
+    {
+      "excelRow": 72,
+      "item": "Patient Monitor",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 71,
+      "itemCode": "PATIENT_MONITOR"
+    },
+    {
+      "excelRow": 73,
+      "item": "Eyepiece",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 72,
+      "itemCode": "EYEPIECE"
+    },
+    {
+      "excelRow": 74,
+      "item": "Observation Tube",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 73,
+      "itemCode": "OBSERVATION_TUBE"
+    },
+    {
+      "excelRow": 75,
+      "item": "Computer Accessory",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 74,
+      "itemCode": "COMPUTER_ACCESSORY"
+    },
+    {
+      "excelRow": 76,
+      "item": "Camera",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 75,
+      "itemCode": "CAMERA"
+    },
+    {
+      "excelRow": 77,
+      "item": "Dryer",
+      "category": "GENERAL",
+      "catalogItemId": 76,
+      "itemCode": "DRYER"
+    },
+    {
+      "excelRow": 78,
+      "item": "Surgical Scrub Sink",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 77,
+      "itemCode": "SURGICAL_SCRUB_SINK"
+    },
+    {
+      "excelRow": 79,
+      "item": "IV Pole",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 78,
+      "itemCode": "IV_POLE"
+    },
+    {
+      "excelRow": 80,
+      "item": "Overbed Table",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 79,
+      "itemCode": "OVERBED_TABLE"
+    },
+    {
+      "excelRow": 81,
+      "item": "Stool",
+      "category": "GENERAL",
+      "catalogItemId": 80,
+      "itemCode": "STOOL"
+    },
+    {
+      "excelRow": 82,
+      "item": "Bedhead Unit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 81,
+      "itemCode": "BEDHEAD_UNIT"
+    },
+    {
+      "excelRow": 83,
+      "item": "Television Mount",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 82,
+      "itemCode": "TELEVISION_MOUNT"
+    },
+    {
+      "excelRow": 84,
+      "item": "ENT Treatment Unit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 83,
+      "itemCode": "ENT_TREATMENT_UNIT"
+    },
+    {
+      "excelRow": 85,
+      "item": "Microscope",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 84,
+      "itemCode": "MICROSCOPE"
+    },
+    {
+      "excelRow": 86,
+      "item": "Endoscopic Camera",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 85,
+      "itemCode": "ENDOSCOPIC_CAMERA"
+    },
+    {
+      "excelRow": 87,
+      "item": "Thermometer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 86,
+      "itemCode": "THERMOMETER"
+    },
+    {
+      "excelRow": 88,
+      "item": "Speculum",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 87,
+      "itemCode": "SPECULUM"
+    },
+    {
+      "excelRow": 89,
+      "item": "Forceps",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 88,
+      "itemCode": "FORCEPS"
+    },
+    {
+      "excelRow": 90,
+      "item": "Needle Holder",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 89,
+      "itemCode": "NEEDLE_HOLDER"
+    },
+    {
+      "excelRow": 91,
+      "item": "Biometric Attendance Device",
+      "category": "GENERAL",
+      "catalogItemId": 90,
+      "itemCode": "BIOMETRIC_ATTENDANCE_DEVICE"
+    },
+    {
+      "excelRow": 92,
+      "item": "Washer",
+      "category": "GENERAL",
+      "catalogItemId": 91,
+      "itemCode": "WASHER"
+    },
+    {
+      "excelRow": 93,
+      "item": "DVT Compression System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 92,
+      "itemCode": "DVT_COMPRESSION_SYSTEM"
+    },
+    {
+      "excelRow": 94,
+      "item": "Laser System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 93,
+      "itemCode": "LASER_SYSTEM"
+    },
+    {
+      "excelRow": 95,
+      "item": "Treadmill",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 94,
+      "itemCode": "TREADMILL"
+    },
+    {
+      "excelRow": 96,
+      "item": "Cryotherapy Device",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 95,
+      "itemCode": "CRYOTHERAPY_DEVICE"
+    },
+    {
+      "excelRow": 97,
+      "item": "Slit Lamp",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 96,
+      "itemCode": "SLIT_LAMP"
+    },
+    {
+      "excelRow": 98,
+      "item": "Ophthalmology Accessory",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 97,
+      "itemCode": "OPHTHALMOLOGY_ACCESSORY"
+    },
+    {
+      "excelRow": 99,
+      "item": "Tonometer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 98,
+      "itemCode": "TONOMETER"
+    },
+    {
+      "excelRow": 100,
+      "item": "Equipment Support",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 99,
+      "itemCode": "EQUIPMENT_SUPPORT"
+    },
+    {
+      "excelRow": 101,
+      "item": "Lensmeter",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 100,
+      "itemCode": "LENSMETER"
+    },
+    {
+      "excelRow": 102,
+      "item": "Spirometer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 101,
+      "itemCode": "SPIROMETER"
+    },
+    {
+      "excelRow": 103,
+      "item": "Air Conditioner",
+      "category": "GENERAL",
+      "catalogItemId": 102,
+      "itemCode": "AIR_CONDITIONER"
+    },
+    {
+      "excelRow": 104,
+      "item": "Clamp",
+      "category": "GENERAL",
+      "catalogItemId": 103,
+      "itemCode": "CLAMP"
+    },
+    {
+      "excelRow": 105,
+      "item": "Adapter",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 104,
+      "itemCode": "ADAPTER"
+    },
+    {
+      "excelRow": 106,
+      "item": "Irrigation/Aspiration Tip",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 105,
+      "itemCode": "IRRIGATION_ASPIRATION_TIP"
+    },
+    {
+      "excelRow": 107,
+      "item": "Instrument Tray",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 106,
+      "itemCode": "INSTRUMENT_TRAY"
+    },
+    {
+      "excelRow": 108,
+      "item": "Ophthalmic Instrument",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 107,
+      "itemCode": "OPHTHALMIC_INSTRUMENT"
+    },
+    {
+      "excelRow": 109,
+      "item": "Control Panel",
+      "category": "GENERAL",
+      "catalogItemId": 108,
+      "itemCode": "CONTROL_PANEL"
+    },
+    {
+      "excelRow": 110,
+      "item": "Distribution Panel",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 109,
+      "itemCode": "DISTRIBUTION_PANEL"
+    },
+    {
+      "excelRow": 111,
+      "item": "Oxygen Delivery Unit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 110,
+      "itemCode": "OXYGEN_DELIVERY_UNIT"
+    },
+    {
+      "excelRow": 112,
+      "item": "Bed",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 111,
+      "itemCode": "BED"
+    },
+    {
+      "excelRow": 113,
+      "item": "Drawer",
+      "category": "GENERAL",
+      "catalogItemId": 112,
+      "itemCode": "DRAWER"
+    },
+    {
+      "excelRow": 114,
+      "item": "CPR Equipment",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 113,
+      "itemCode": "CPR_EQUIPMENT"
+    },
+    {
+      "excelRow": 115,
+      "item": "Pharmacy Refrigerator",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 114,
+      "itemCode": "PHARMACY_REFRIGERATOR"
+    },
+    {
+      "excelRow": 116,
+      "item": "BOSEMANN NO.067 255mm 2PCS",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 115,
+      "itemCode": "BOSEMANN_NO_067_255MM_2PCS"
+    },
+    {
+      "excelRow": 117,
+      "item": "Capsulotomy Instrument",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 116,
+      "itemCode": "CAPSULOTOMY_INSTRUMENT"
+    },
+    {
+      "excelRow": 118,
+      "item": "Surgical Saw",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 117,
+      "itemCode": "SURGICAL_SAW"
+    },
+    {
+      "excelRow": 119,
+      "item": "Chiller",
+      "category": "GENERAL",
+      "catalogItemId": 118,
+      "itemCode": "CHILLER"
+    },
+    {
+      "excelRow": 120,
+      "item": "Ultrasonic Cleaner",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 119,
+      "itemCode": "ULTRASONIC_CLEANER"
+    },
+    {
+      "excelRow": 121,
+      "item": "Workstation",
+      "category": "GENERAL",
+      "catalogItemId": 120,
+      "itemCode": "WORKSTATION"
+    },
+    {
+      "excelRow": 122,
+      "item": "Corneal Cross-Linking System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 121,
+      "itemCode": "CORNEAL_CROSS_LINKING_SYSTEM"
+    },
+    {
+      "excelRow": 123,
+      "item": "Ophthalmoscope",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 122,
+      "itemCode": "OPHTHALMOSCOPE"
+    },
+    {
+      "excelRow": 124,
+      "item": "Retinoscope",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 123,
+      "itemCode": "RETINOSCOPE"
+    },
+    {
+      "excelRow": 125,
+      "item": "Perimeter",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 124,
+      "itemCode": "PERIMETER"
+    },
+    {
+      "excelRow": 126,
+      "item": "Box",
+      "category": "GENERAL",
+      "catalogItemId": 125,
+      "itemCode": "BOX"
+    },
+    {
+      "excelRow": 127,
+      "item": "Gas Flow Analyzer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 126,
+      "itemCode": "GAS_FLOW_ANALYZER"
+    },
+    {
+      "excelRow": 128,
+      "item": "Wound Aspirator",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 127,
+      "itemCode": "WOUND_ASPIRATOR"
+    },
+    {
+      "excelRow": 129,
+      "item": "Surgical Instruments",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 128,
+      "itemCode": "SURGICAL_INSTRUMENTS"
+    },
+    {
+      "excelRow": 130,
+      "item": "Power Supply",
+      "category": "GENERAL",
+      "catalogItemId": 129,
+      "itemCode": "POWER_SUPPLY"
+    },
+    {
+      "excelRow": 131,
+      "item": "Package Unit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 130,
+      "itemCode": "PACKAGE_UNIT"
+    },
+    {
+      "excelRow": 132,
+      "item": "Controller",
+      "category": "GENERAL",
+      "catalogItemId": 131,
+      "itemCode": "CONTROLLER"
+    },
+    {
+      "excelRow": 133,
+      "item": "Heated Humidifier",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 132,
+      "itemCode": "HEATED_HUMIDIFIER"
+    },
+    {
+      "excelRow": 134,
+      "item": "Jaundice Meter",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 133,
+      "itemCode": "JAUNDICE_METER"
+    },
+    {
+      "excelRow": 135,
+      "item": "Rongeur",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 134,
+      "itemCode": "RONGEUR"
+    },
+    {
+      "excelRow": 136,
+      "item": "Television",
+      "category": "IT",
+      "catalogItemId": 135,
+      "itemCode": "TELEVISION"
+    },
+    {
+      "excelRow": 137,
+      "item": "Blood Bank Refrigerator",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 136,
+      "itemCode": "BLOOD_BANK_REFRIGERATOR"
+    },
+    {
+      "excelRow": 138,
+      "item": "Wheelchair",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 137,
+      "itemCode": "WHEELCHAIR"
+    },
+    {
+      "excelRow": 139,
+      "item": "Barrier",
+      "category": "GENERAL",
+      "catalogItemId": 138,
+      "itemCode": "BARRIER"
+    },
+    {
+      "excelRow": 140,
+      "item": "Tank",
+      "category": "GENERAL",
+      "catalogItemId": 139,
+      "itemCode": "TANK"
+    },
+    {
+      "excelRow": 141,
+      "item": "LPG Tank",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 140,
+      "itemCode": "LPG_TANK"
+    },
+    {
+      "excelRow": 142,
+      "item": "Examination Table",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 141,
+      "itemCode": "EXAMINATION_TABLE"
+    },
+    {
+      "excelRow": 143,
+      "item": "Infant Radiant Warmer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 142,
+      "itemCode": "INFANT_RADIANT_WARMER"
+    },
+    {
+      "excelRow": 144,
+      "item": "Humidifier",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 143,
+      "itemCode": "HUMIDIFIER"
+    },
+    {
+      "excelRow": 145,
+      "item": "Air Mattress Pump",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 144,
+      "itemCode": "AIR_MATTRESS_PUMP"
+    },
+    {
+      "excelRow": 146,
+      "item": "Cryotherapy Compression Unit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 145,
+      "itemCode": "CRYOTHERAPY_COMPRESSION_UNIT"
+    },
+    {
+      "excelRow": 147,
+      "item": "Network Storage",
+      "category": "IT",
+      "catalogItemId": 146,
+      "itemCode": "NETWORK_STORAGE"
+    },
+    {
+      "excelRow": 148,
+      "item": "Bench",
+      "category": "GENERAL",
+      "catalogItemId": 147,
+      "itemCode": "BENCH"
+    },
+    {
+      "excelRow": 149,
+      "item": "Electrical Switch",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 148,
+      "itemCode": "ELECTRICAL_SWITCH"
+    },
+    {
+      "excelRow": 150,
+      "item": "Safe",
+      "category": "GENERAL",
+      "catalogItemId": 149,
+      "itemCode": "SAFE"
+    },
+    {
+      "excelRow": 151,
+      "item": "Cardiac Output Monitor",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 150,
+      "itemCode": "CARDIAC_OUTPUT_MONITOR"
+    },
+    {
+      "excelRow": 152,
+      "item": "Blood Gas Analyzer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 151,
+      "itemCode": "BLOOD_GAS_ANALYZER"
+    },
+    {
+      "excelRow": 153,
+      "item": "MRI Coil",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 152,
+      "itemCode": "MRI_COIL"
+    },
+    {
+      "excelRow": 154,
+      "item": "Grinder",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 153,
+      "itemCode": "GRINDER"
+    },
+    {
+      "excelRow": 155,
+      "item": "Injector",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 154,
+      "itemCode": "INJECTOR"
+    },
+    {
+      "excelRow": 156,
+      "item": "Coagulation Analyzer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 155,
+      "itemCode": "COAGULATION_ANALYZER"
+    },
+    {
+      "excelRow": 157,
+      "item": "Infusion Pump",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 156,
+      "itemCode": "INFUSION_PUMP"
+    },
+    {
+      "excelRow": 158,
+      "item": "Electrosurgical Unit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 157,
+      "itemCode": "ELECTROSURGICAL_UNIT"
+    },
+    {
+      "excelRow": 159,
+      "item": "Stretcher",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 158,
+      "itemCode": "STRETCHER"
+    },
+    {
+      "excelRow": 160,
+      "item": "Touch Panel",
+      "category": "GENERAL",
+      "catalogItemId": 159,
+      "itemCode": "TOUCH_PANEL"
+    },
+    {
+      "excelRow": 161,
+      "item": "Console",
+      "category": "GENERAL",
+      "catalogItemId": 160,
+      "itemCode": "CONSOLE"
+    },
+    {
+      "excelRow": 162,
+      "item": "Firewall",
+      "category": "IT",
+      "catalogItemId": 161,
+      "itemCode": "FIREWALL"
+    },
+    {
+      "excelRow": 163,
+      "item": "Operating System",
+      "category": "IT",
+      "catalogItemId": 162,
+      "itemCode": "OPERATING_SYSTEM"
+    },
+    {
+      "excelRow": 164,
+      "item": "Drill",
+      "category": "GENERAL",
+      "catalogItemId": 163,
+      "itemCode": "DRILL"
+    },
+    {
+      "excelRow": 165,
+      "item": "Air Purifier",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 164,
+      "itemCode": "AIR_PURIFIER"
+    },
+    {
+      "excelRow": 166,
+      "item": "Medical Air Cylinder",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 165,
+      "itemCode": "MEDICAL_AIR_CYLINDER"
+    },
+    {
+      "excelRow": 167,
+      "item": "Ultrasound System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 166,
+      "itemCode": "ULTRASOUND_SYSTEM"
+    },
+    {
+      "excelRow": 168,
+      "item": "Endoscope",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 167,
+      "itemCode": "ENDOSCOPE"
+    },
+    {
+      "excelRow": 169,
+      "item": "Kitchen Equipment",
+      "category": "GENERAL",
+      "catalogItemId": 168,
+      "itemCode": "KITCHEN_EQUIPMENT"
+    },
+    {
+      "excelRow": 170,
+      "item": "Heater",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 169,
+      "itemCode": "HEATER"
+    },
+    {
+      "excelRow": 171,
+      "item": "Oven",
+      "category": "GENERAL",
+      "catalogItemId": 170,
+      "itemCode": "OVEN"
+    },
+    {
+      "excelRow": 172,
+      "item": "Fax Machine",
+      "category": "GENERAL",
+      "catalogItemId": 171,
+      "itemCode": "FAX_MACHINE"
+    },
+    {
+      "excelRow": 173,
+      "item": "Office Equipment",
+      "category": "GENERAL",
+      "catalogItemId": 172,
+      "itemCode": "OFFICE_EQUIPMENT"
+    },
+    {
+      "excelRow": 174,
+      "item": "MOSAIC DBL CRTN",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 173,
+      "itemCode": "MOSAIC_DBL_CRTN"
+    },
+    {
+      "excelRow": 175,
+      "item": "Lift/Elevator",
+      "category": "GENERAL",
+      "catalogItemId": 174,
+      "itemCode": "LIFT_ELEVATOR"
+    },
+    {
+      "excelRow": 176,
+      "item": "Walker",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 175,
+      "itemCode": "WALKER"
+    },
+    {
+      "excelRow": 177,
+      "item": "Autorefractor",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 176,
+      "itemCode": "AUTOREFRACTOR"
+    },
+    {
+      "excelRow": 178,
+      "item": "Caravan",
+      "category": "GENERAL",
+      "catalogItemId": 177,
+      "itemCode": "CARAVAN"
+    },
+    {
+      "excelRow": 179,
+      "item": "Glass Installation",
+      "category": "GENERAL",
+      "catalogItemId": 178,
+      "itemCode": "GLASS_INSTALLATION"
+    },
+    {
+      "excelRow": 180,
+      "item": "Mobile Phone",
+      "category": "GENERAL",
+      "catalogItemId": 179,
+      "itemCode": "MOBILE_PHONE"
+    },
+    {
+      "excelRow": 181,
+      "item": "Mortuary Refrigerator",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 180,
+      "itemCode": "MORTUARY_REFRIGERATOR"
+    },
+    {
+      "excelRow": 182,
+      "item": "Circuit Breaker",
+      "category": "GENERAL",
+      "catalogItemId": 181,
+      "itemCode": "CIRCUIT_BREAKER"
+    },
+    {
+      "excelRow": 183,
+      "item": "Stand",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 182,
+      "itemCode": "STAND"
+    },
+    {
+      "excelRow": 184,
+      "item": "Phacoemulsification System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 183,
+      "itemCode": "PHACOEMULSIFICATION_SYSTEM"
+    },
+    {
+      "excelRow": 185,
+      "item": "Detergent Transfer Unit",
+      "category": "GENERAL",
+      "catalogItemId": 184,
+      "itemCode": "DETERGENT_TRANSFER_UNIT"
+    },
+    {
+      "excelRow": 186,
+      "item": "Photocopier",
+      "category": "GENERAL",
+      "catalogItemId": 185,
+      "itemCode": "PHOTOCOPIER"
+    },
+    {
+      "excelRow": 187,
+      "item": "Suction/Irrigation Unit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 186,
+      "itemCode": "SUCTION_IRRIGATION_UNIT"
+    },
+    {
+      "excelRow": 188,
+      "item": "Blood Glucose Monitor",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 187,
+      "itemCode": "BLOOD_GLUCOSE_MONITOR"
+    },
+    {
+      "excelRow": 189,
+      "item": "Pressure Infusion Cuff",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 188,
+      "itemCode": "PRESSURE_INFUSION_CUFF"
+    },
+    {
+      "excelRow": 190,
+      "item": "Urology Equipment",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 189,
+      "itemCode": "UROLOGY_EQUIPMENT"
+    },
+    {
+      "excelRow": 191,
+      "item": "ENT Surgical Instruments",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 190,
+      "itemCode": "ENT_SURGICAL_INSTRUMENTS"
+    },
+    {
+      "excelRow": 192,
+      "item": "Scissors",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 191,
+      "itemCode": "SCISSORS"
+    },
+    {
+      "excelRow": 193,
+      "item": "Tongue Forceps",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 192,
+      "itemCode": "TONGUE_FORCEPS"
+    },
+    {
+      "excelRow": 194,
+      "item": "Hemodialysis Unit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 193,
+      "itemCode": "HEMODIALYSIS_UNIT"
+    },
+    {
+      "excelRow": 195,
+      "item": "Anesthesia Machine",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 194,
+      "itemCode": "ANESTHESIA_MACHINE"
+    },
+    {
+      "excelRow": 196,
+      "item": "Exercise Equipment",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 195,
+      "itemCode": "EXERCISE_EQUIPMENT"
+    },
+    {
+      "excelRow": 197,
+      "item": "Projector",
+      "category": "IT",
+      "catalogItemId": 196,
+      "itemCode": "PROJECTOR"
+    },
+    {
+      "excelRow": 198,
+      "item": "Shoe Cover Dispenser",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 197,
+      "itemCode": "SHOE_COVER_DISPENSER"
+    },
+    {
+      "excelRow": 199,
+      "item": "Audiometer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 198,
+      "itemCode": "AUDIOMETER"
+    },
+    {
+      "excelRow": 200,
+      "item": "Anatomical Skeleton",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 199,
+      "itemCode": "ANATOMICAL_SKELETON"
+    },
+    {
+      "excelRow": 201,
+      "item": "Cath Lab X-Ray System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 200,
+      "itemCode": "CATH_LAB_X_RAY_SYSTEM"
+    },
+    {
+      "excelRow": 202,
+      "item": "Surgical Hook",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 201,
+      "itemCode": "SURGICAL_HOOK"
+    },
+    {
+      "excelRow": 203,
+      "item": "Sterilization Container",
+      "category": "GENERAL",
+      "catalogItemId": 202,
+      "itemCode": "STERILIZATION_CONTAINER"
+    },
+    {
+      "excelRow": 204,
+      "item": "Plasma Sterilizer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 203,
+      "itemCode": "PLASMA_STERILIZER"
+    },
+    {
+      "excelRow": 205,
+      "item": "Suction Unit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 204,
+      "itemCode": "SUCTION_UNIT"
+    },
+    {
+      "excelRow": 206,
+      "item": "Retinoscopy Paddle Set",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 205,
+      "itemCode": "RETINOSCOPY_PADDLE_SET"
+    },
+    {
+      "excelRow": 207,
+      "item": "Prism Set",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 206,
+      "itemCode": "PRISM_SET"
+    },
+    {
+      "excelRow": 208,
+      "item": "Vision Test",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 207,
+      "itemCode": "VISION_TEST"
+    },
+    {
+      "excelRow": 209,
+      "item": "Ophthalmic Ruler",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 208,
+      "itemCode": "OPHTHALMIC_RULER"
+    },
+    {
+      "excelRow": 210,
+      "item": "Vision Test Book",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 209,
+      "itemCode": "VISION_TEST_BOOK"
+    },
+    {
+      "excelRow": 211,
+      "item": "Eye Patch",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 210,
+      "itemCode": "EYE_PATCH"
+    },
+    {
+      "excelRow": 212,
+      "item": "Modem",
+      "category": "IT",
+      "catalogItemId": 211,
+      "itemCode": "MODEM"
+    },
+    {
+      "excelRow": 213,
+      "item": "Building",
+      "category": "GENERAL",
+      "catalogItemId": 212,
+      "itemCode": "BUILDING"
+    },
+    {
+      "excelRow": 214,
+      "item": "Washer/Disinfector",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 213,
+      "itemCode": "WASHER_DISINFECTOR"
+    },
+    {
+      "excelRow": 215,
+      "item": "Incubator",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 214,
+      "itemCode": "INCUBATOR"
+    },
+    {
+      "excelRow": 216,
+      "item": "Laboratory Analyzer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 215,
+      "itemCode": "LABORATORY_ANALYZER"
+    },
+    {
+      "excelRow": 217,
+      "item": "Suction Pump",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 216,
+      "itemCode": "SUCTION_PUMP"
+    },
+    {
+      "excelRow": 218,
+      "item": "Rehabilitation Weights",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 217,
+      "itemCode": "REHABILITATION_WEIGHTS"
+    },
+    {
+      "excelRow": 219,
+      "item": "Blood Collection Device",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 218,
+      "itemCode": "BLOOD_COLLECTION_DEVICE"
+    },
+    {
+      "excelRow": 220,
+      "item": "Massage Equipment",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 219,
+      "itemCode": "MASSAGE_EQUIPMENT"
+    },
+    {
+      "excelRow": 221,
+      "item": "Ultrasound Scanner",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 220,
+      "itemCode": "ULTRASOUND_SCANNER"
+    },
+    {
+      "excelRow": 222,
+      "item": "Centrifuge",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 221,
+      "itemCode": "CENTRIFUGE"
+    },
+    {
+      "excelRow": 223,
+      "item": "Autoclave",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 222,
+      "itemCode": "AUTOCLAVE"
+    },
+    {
+      "excelRow": 224,
+      "item": "Software",
+      "category": "IT",
+      "catalogItemId": 223,
+      "itemCode": "SOFTWARE"
+    },
+    {
+      "excelRow": 225,
+      "item": "Hemostatic Clip",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 224,
+      "itemCode": "HEMOSTATIC_CLIP"
+    },
+    {
+      "excelRow": 226,
+      "item": "Probe",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 225,
+      "itemCode": "PROBE"
+    },
+    {
+      "excelRow": 227,
+      "item": "Surgical Instrument Set",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 226,
+      "itemCode": "SURGICAL_INSTRUMENT_SET"
+    },
+    {
+      "excelRow": 228,
+      "item": "Heliprobe Analyzer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 227,
+      "itemCode": "HELIPROBE_ANALYZER"
+    },
+    {
+      "excelRow": 229,
+      "item": "Skin Graft Mesher",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 228,
+      "itemCode": "SKIN_GRAFT_MESHER"
+    },
+    {
+      "excelRow": 230,
+      "item": "Warmer",
+      "category": "GENERAL",
+      "catalogItemId": 229,
+      "itemCode": "WARMER"
+    },
+    {
+      "excelRow": 231,
+      "item": "ECG Machine",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 230,
+      "itemCode": "ECG_MACHINE"
+    },
+    {
+      "excelRow": 232,
+      "item": "Video Recording System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 231,
+      "itemCode": "VIDEO_RECORDING_SYSTEM"
+    },
+    {
+      "excelRow": 233,
+      "item": "Surgical Light",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 232,
+      "itemCode": "SURGICAL_LIGHT"
+    },
+    {
+      "excelRow": 234,
+      "item": "Electrolyte Analyzer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 233,
+      "itemCode": "ELECTROLYTE_ANALYZER"
+    },
+    {
+      "excelRow": 235,
+      "item": "Labeling Machine",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 234,
+      "itemCode": "LABELING_MACHINE"
+    },
+    {
+      "excelRow": 236,
+      "item": "Anterior Segment Adapter",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 235,
+      "itemCode": "ANTERIOR_SEGMENT_ADAPTER"
+    },
+    {
+      "excelRow": 237,
+      "item": "External Fixation Unit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 236,
+      "itemCode": "EXTERNAL_FIXATION_UNIT"
+    },
+    {
+      "excelRow": 238,
+      "item": "Isolation Transformer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 237,
+      "itemCode": "ISOLATION_TRANSFORMER"
+    },
+    {
+      "excelRow": 239,
+      "item": "Equipment Rack",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 238,
+      "itemCode": "EQUIPMENT_RACK"
+    },
+    {
+      "excelRow": 240,
+      "item": "Retinal Scanner",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 239,
+      "itemCode": "RETINAL_SCANNER"
+    },
+    {
+      "excelRow": 241,
+      "item": "Safety Goggles",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 240,
+      "itemCode": "SAFETY_GOGGLES"
+    },
+    {
+      "excelRow": 242,
+      "item": "Electrical Filter",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 241,
+      "itemCode": "ELECTRICAL_FILTER"
+    },
+    {
+      "excelRow": 243,
+      "item": "Radiographic Table",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 242,
+      "itemCode": "RADIOGRAPHIC_TABLE"
+    },
+    {
+      "excelRow": 244,
+      "item": "Ophthalmic Lens",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 243,
+      "itemCode": "OPHTHALMIC_LENS"
+    },
+    {
+      "excelRow": 245,
+      "item": "Vibrator",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 244,
+      "itemCode": "VIBRATOR"
+    },
+    {
+      "excelRow": 246,
+      "item": "Medical Gas Supply System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 245,
+      "itemCode": "MEDICAL_GAS_SUPPLY_SYSTEM"
+    },
+    {
+      "excelRow": 247,
+      "item": "Skull Pin",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 246,
+      "itemCode": "SKULL_PIN"
+    },
+    {
+      "excelRow": 248,
+      "item": "Eye Wash Station",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 247,
+      "itemCode": "EYE_WASH_STATION"
+    },
+    {
+      "excelRow": 249,
+      "item": "Wireless Video System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 248,
+      "itemCode": "WIRELESS_VIDEO_SYSTEM"
+    },
+    {
+      "excelRow": 250,
+      "item": "Uretero-Renoscope",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 249,
+      "itemCode": "URETERO_RENOSCOPE"
+    },
+    {
+      "excelRow": 251,
+      "item": "Car",
+      "category": "GENERAL",
+      "catalogItemId": 250,
+      "itemCode": "CAR"
+    },
+    {
+      "excelRow": 252,
+      "item": "Pulse Monitor",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 251,
+      "itemCode": "PULSE_MONITOR"
+    },
+    {
+      "excelRow": 253,
+      "item": "Physiotherapy Ultrasound Unit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 252,
+      "itemCode": "PHYSIOTHERAPY_ULTRASOUND_UNIT"
+    },
+    {
+      "excelRow": 254,
+      "item": "Exercise Bike",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 253,
+      "itemCode": "EXERCISE_BIKE"
+    },
+    {
+      "excelRow": 255,
+      "item": "Transformer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 254,
+      "itemCode": "TRANSFORMER"
+    },
+    {
+      "excelRow": 256,
+      "item": "Clock/Timer",
+      "category": "GENERAL",
+      "catalogItemId": 255,
+      "itemCode": "CLOCK_TIMER"
+    },
+    {
+      "excelRow": 257,
+      "item": "Air Filter",
+      "category": "GENERAL",
+      "catalogItemId": 256,
+      "itemCode": "AIR_FILTER"
+    },
+    {
+      "excelRow": 258,
+      "item": "Filter",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 257,
+      "itemCode": "FILTER"
+    },
+    {
+      "excelRow": 259,
+      "item": "Multifunction Printer",
+      "category": "IT",
+      "catalogItemId": 258,
+      "itemCode": "MULTIFUNCTION_PRINTER"
+    },
+    {
+      "excelRow": 260,
+      "item": "Crib",
+      "category": "GENERAL",
+      "catalogItemId": 259,
+      "itemCode": "CRIB"
+    },
+    {
+      "excelRow": 261,
+      "item": "Paper Shredder",
+      "category": "GENERAL",
+      "catalogItemId": 260,
+      "itemCode": "PAPER_SHREDDER"
+    },
+    {
+      "excelRow": 262,
+      "item": "Iron",
+      "category": "GENERAL",
+      "catalogItemId": 261,
+      "itemCode": "IRON"
+    },
+    {
+      "excelRow": 263,
+      "item": "Sterilization Reel Cutter",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 262,
+      "itemCode": "STERILIZATION_REEL_CUTTER"
+    },
+    {
+      "excelRow": 264,
+      "item": "Door",
+      "category": "GENERAL",
+      "catalogItemId": 263,
+      "itemCode": "DOOR"
+    },
+    {
+      "excelRow": 265,
+      "item": "Network Router",
+      "category": "IT",
+      "catalogItemId": 264,
+      "itemCode": "NETWORK_ROUTER"
+    },
+    {
+      "excelRow": 266,
+      "item": "Tablet",
+      "category": "IT",
+      "catalogItemId": 265,
+      "itemCode": "TABLET"
+    },
+    {
+      "excelRow": 267,
+      "item": "Mobile Stretcher",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 266,
+      "itemCode": "MOBILE_STRETCHER"
+    },
+    {
+      "excelRow": 268,
+      "item": "Mammography System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 267,
+      "itemCode": "MAMMOGRAPHY_SYSTEM"
+    },
+    {
+      "excelRow": 269,
+      "item": "Magnifying Lamp",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 268,
+      "itemCode": "MAGNIFYING_LAMP"
+    },
+    {
+      "excelRow": 270,
+      "item": "Desiccator",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 269,
+      "itemCode": "DESICCATOR"
+    },
+    {
+      "excelRow": 271,
+      "item": "Counter",
+      "category": "GENERAL",
+      "catalogItemId": 270,
+      "itemCode": "COUNTER"
+    },
+    {
+      "excelRow": 272,
+      "item": "Dental Scaler",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 271,
+      "itemCode": "DENTAL_SCALER"
+    },
+    {
+      "excelRow": 273,
+      "item": "Battery Charger",
+      "category": "GENERAL",
+      "catalogItemId": 272,
+      "itemCode": "BATTERY_CHARGER"
+    },
+    {
+      "excelRow": 274,
+      "item": "Paraffin Bath",
+      "category": "GENERAL",
+      "catalogItemId": 273,
+      "itemCode": "PARAFFIN_BATH"
+    },
+    {
+      "excelRow": 275,
+      "item": "Diesel Tank",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 274,
+      "itemCode": "DIESEL_TANK"
+    },
+    {
+      "excelRow": 276,
+      "item": "Generator",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 275,
+      "itemCode": "GENERATOR"
+    },
+    {
+      "excelRow": 277,
+      "item": "Blood Grouping Analyzer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 276,
+      "itemCode": "BLOOD_GROUPING_ANALYZER"
+    },
+    {
+      "excelRow": 278,
+      "item": "MRI Power Supply",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 277,
+      "itemCode": "MRI_POWER_SUPPLY"
+    },
+    {
+      "excelRow": 279,
+      "item": "MRI Magnet Monitor",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 278,
+      "itemCode": "MRI_MAGNET_MONITOR"
+    },
+    {
+      "excelRow": 280,
+      "item": "Radio Communication System",
+      "category": "GENERAL",
+      "catalogItemId": 279,
+      "itemCode": "RADIO_COMMUNICATION_SYSTEM"
+    },
+    {
+      "excelRow": 281,
+      "item": "Echocardiograph",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 280,
+      "itemCode": "ECHOCARDIOGRAPH"
+    },
+    {
+      "excelRow": 282,
+      "item": "Physical Therapy Table",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 281,
+      "itemCode": "PHYSICAL_THERAPY_TABLE"
+    },
+    {
+      "excelRow": 283,
+      "item": "Physiotherapy Ultrasound/Stimulator",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 282,
+      "itemCode": "PHYSIOTHERAPY_ULTRASOUND_STIMULATOR"
+    },
+    {
+      "excelRow": 284,
+      "item": "Laboratory Balance",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 283,
+      "itemCode": "LABORATORY_BALANCE"
+    },
+    {
+      "excelRow": 285,
+      "item": "Hearing Aid",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 284,
+      "itemCode": "HEARING_AID"
+    },
+    {
+      "excelRow": 286,
+      "item": "Pill Counter",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 285,
+      "itemCode": "PILL_COUNTER"
+    },
+    {
+      "excelRow": 287,
+      "item": "X-Ray Film Cassette",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 286,
+      "itemCode": "X_RAY_FILM_CASSETTE"
+    },
+    {
+      "excelRow": 288,
+      "item": "Coffee Maker",
+      "category": "GENERAL",
+      "catalogItemId": 287,
+      "itemCode": "COFFEE_MAKER"
+    },
+    {
+      "excelRow": 289,
+      "item": "Microphone",
+      "category": "GENERAL",
+      "catalogItemId": 288,
+      "itemCode": "MICROPHONE"
+    },
+    {
+      "excelRow": 290,
+      "item": "Surgical Camera",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 289,
+      "itemCode": "SURGICAL_CAMERA"
+    },
+    {
+      "excelRow": 291,
+      "item": "Media Player/Recorder",
+      "category": "IT",
+      "catalogItemId": 290,
+      "itemCode": "MEDIA_PLAYER_RECORDER"
+    },
+    {
+      "excelRow": 292,
+      "item": "Hand Drill",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 291,
+      "itemCode": "HAND_DRILL"
+    },
+    {
+      "excelRow": 293,
+      "item": "Accessory",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 292,
+      "itemCode": "ACCESSORY"
+    },
+    {
+      "excelRow": 294,
+      "item": "Light Source",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 293,
+      "itemCode": "LIGHT_SOURCE"
+    },
+    {
+      "excelRow": 295,
+      "item": "Video Processor",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 294,
+      "itemCode": "VIDEO_PROCESSOR"
+    },
+    {
+      "excelRow": 296,
+      "item": "Announcement Board",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 295,
+      "itemCode": "ANNOUNCEMENT_BOARD"
+    },
+    {
+      "excelRow": 297,
+      "item": "All-in-One Computer",
+      "category": "IT",
+      "catalogItemId": 296,
+      "itemCode": "ALL_IN_ONE_COMPUTER"
+    },
+    {
+      "excelRow": 298,
+      "item": "Optical Disc Drive",
+      "category": "IT",
+      "catalogItemId": 297,
+      "itemCode": "OPTICAL_DISC_DRIVE"
+    },
+    {
+      "excelRow": 299,
+      "item": "Sink",
+      "category": "GENERAL",
+      "catalogItemId": 298,
+      "itemCode": "SINK"
+    },
+    {
+      "excelRow": 300,
+      "item": "Laminator",
+      "category": "GENERAL",
+      "catalogItemId": 299,
+      "itemCode": "LAMINATOR"
+    },
+    {
+      "excelRow": 301,
+      "item": "Sterilizer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 300,
+      "itemCode": "STERILIZER"
+    },
+    {
+      "excelRow": 302,
+      "item": "AED",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 301,
+      "itemCode": "AED"
+    },
+    {
+      "excelRow": 303,
+      "item": "Laboratory Rotator",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 302,
+      "itemCode": "LABORATORY_ROTATOR"
+    },
+    {
+      "excelRow": 304,
+      "item": "Tachometer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 303,
+      "itemCode": "TACHOMETER"
+    },
+    {
+      "excelRow": 305,
+      "item": "Morgue Washer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 304,
+      "itemCode": "MORGUE_WASHER"
+    },
+    {
+      "excelRow": 306,
+      "item": "CT Scanner",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 305,
+      "itemCode": "CT_SCANNER"
+    },
+    {
+      "excelRow": 307,
+      "item": "Blood Culture Analyzer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 306,
+      "itemCode": "BLOOD_CULTURE_ANALYZER"
+    },
+    {
+      "excelRow": 308,
+      "item": "Mammography Transporter",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 307,
+      "itemCode": "MAMMOGRAPHY_TRANSPORTER"
+    },
+    {
+      "excelRow": 309,
+      "item": "Data Panel",
+      "category": "GENERAL",
+      "catalogItemId": 308,
+      "itemCode": "DATA_PANEL"
+    },
+    {
+      "excelRow": 310,
+      "item": "Automatic Transfer Switch",
+      "category": "GENERAL",
+      "catalogItemId": 309,
+      "itemCode": "AUTOMATIC_TRANSFER_SWITCH"
+    },
+    {
+      "excelRow": 311,
+      "item": "Surgical Blade",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 310,
+      "itemCode": "SURGICAL_BLADE"
+    },
+    {
+      "excelRow": 312,
+      "item": "Sweat Analysis System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 311,
+      "itemCode": "SWEAT_ANALYSIS_SYSTEM"
+    },
+    {
+      "excelRow": 313,
+      "item": "Boiler",
+      "category": "GENERAL",
+      "catalogItemId": 312,
+      "itemCode": "BOILER"
+    },
+    {
+      "excelRow": 314,
+      "item": "Anesthesia Screen",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 313,
+      "itemCode": "ANESTHESIA_SCREEN"
+    },
+    {
+      "excelRow": 315,
+      "item": "Cylinder",
+      "category": "GENERAL",
+      "catalogItemId": 314,
+      "itemCode": "CYLINDER"
+    },
+    {
+      "excelRow": 316,
+      "item": "Bus",
+      "category": "GENERAL",
+      "catalogItemId": 315,
+      "itemCode": "BUS"
+    },
+    {
+      "excelRow": 317,
+      "item": "Neuromuscular Stimulator",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 316,
+      "itemCode": "NEUROMUSCULAR_STIMULATOR"
+    },
+    {
+      "excelRow": 318,
+      "item": "Arthroscopic Shaver",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 317,
+      "itemCode": "ARTHROSCOPIC_SHAVER"
+    },
+    {
+      "excelRow": 319,
+      "item": "Fluid Delivery System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 318,
+      "itemCode": "FLUID_DELIVERY_SYSTEM"
+    },
+    {
+      "excelRow": 320,
+      "item": "Dental Curing Unit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 319,
+      "itemCode": "DENTAL_CURING_UNIT"
+    },
+    {
+      "excelRow": 321,
+      "item": "Surgical Aspirator",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 320,
+      "itemCode": "SURGICAL_ASPIRATOR"
+    },
+    {
+      "excelRow": 322,
+      "item": "Lithotripter",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 321,
+      "itemCode": "LITHOTRIPTER"
+    },
+    {
+      "excelRow": 323,
+      "item": "Insufflator",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 322,
+      "itemCode": "INSUFFLATOR"
+    },
+    {
+      "excelRow": 324,
+      "item": "Video Camera",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 323,
+      "itemCode": "VIDEO_CAMERA"
+    },
+    {
+      "excelRow": 325,
+      "item": "Anesthesia Vaporizer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 324,
+      "itemCode": "ANESTHESIA_VAPORIZER"
+    },
+    {
+      "excelRow": 326,
+      "item": "Operating Table",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 325,
+      "itemCode": "OPERATING_TABLE"
+    },
+    {
+      "excelRow": 327,
+      "item": "Water Bath",
+      "category": "GENERAL",
+      "catalogItemId": 326,
+      "itemCode": "WATER_BATH"
+    },
+    {
+      "excelRow": 328,
+      "item": "Liposuction Aspirator",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 327,
+      "itemCode": "LIPOSUCTION_ASPIRATOR"
+    },
+    {
+      "excelRow": 329,
+      "item": "Digital Radiography System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 328,
+      "itemCode": "DIGITAL_RADIOGRAPHY_SYSTEM"
+    },
+    {
+      "excelRow": 330,
+      "item": "Radiant Warmer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 329,
+      "itemCode": "RADIANT_WARMER"
+    },
+    {
+      "excelRow": 331,
+      "item": "Plasma Thawing Bath",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 330,
+      "itemCode": "PLASMA_THAWING_BATH"
+    },
+    {
+      "excelRow": 332,
+      "item": "Surgical Boom",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 331,
+      "itemCode": "SURGICAL_BOOM"
+    },
+    {
+      "excelRow": 333,
+      "item": "Medical Gas Pipeline System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 332,
+      "itemCode": "MEDICAL_GAS_PIPELINE_SYSTEM"
+    },
+    {
+      "excelRow": 334,
+      "item": "Pressure Pad Pump",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 333,
+      "itemCode": "PRESSURE_PAD_PUMP"
+    },
+    {
+      "excelRow": 335,
+      "item": "Body Composition Analyzer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 334,
+      "itemCode": "BODY_COMPOSITION_ANALYZER"
+    },
+    {
+      "excelRow": 336,
+      "item": "Spectrum Analyzer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 335,
+      "itemCode": "SPECTRUM_ANALYZER"
+    },
+    {
+      "excelRow": 337,
+      "item": "Podium",
+      "category": "GENERAL",
+      "catalogItemId": 336,
+      "itemCode": "PODIUM"
+    },
+    {
+      "excelRow": 338,
+      "item": "Freezer",
+      "category": "GENERAL",
+      "catalogItemId": 337,
+      "itemCode": "FREEZER"
+    },
+    {
+      "excelRow": 339,
+      "item": "Pallet Jack",
+      "category": "GENERAL",
+      "catalogItemId": 338,
+      "itemCode": "PALLET_JACK"
+    },
+    {
+      "excelRow": 340,
+      "item": "Hemorrhoid Ligator",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 339,
+      "itemCode": "HEMORRHOID_LIGATOR"
+    },
+    {
+      "excelRow": 341,
+      "item": "Lid Plate",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 340,
+      "itemCode": "LID_PLATE"
+    },
+    {
+      "excelRow": 342,
+      "item": "Computed Radiography System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 341,
+      "itemCode": "COMPUTED_RADIOGRAPHY_SYSTEM"
+    },
+    {
+      "excelRow": 343,
+      "item": "Laboratory Shaker",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 342,
+      "itemCode": "LABORATORY_SHAKER"
+    },
+    {
+      "excelRow": 344,
+      "item": "Corneal Topography System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 343,
+      "itemCode": "CORNEAL_TOPOGRAPHY_SYSTEM"
+    },
+    {
+      "excelRow": 345,
+      "item": "Stitch Cutter",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 344,
+      "itemCode": "STITCH_CUTTER"
+    },
+    {
+      "excelRow": 346,
+      "item": "Retractor",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 345,
+      "itemCode": "RETRACTOR"
+    },
+    {
+      "excelRow": 347,
+      "item": "Curette",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 346,
+      "itemCode": "CURETTE"
+    },
+    {
+      "excelRow": 348,
+      "item": "Caliper",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 347,
+      "itemCode": "CALIPER"
+    },
+    {
+      "excelRow": 349,
+      "item": "Gouge",
+      "category": "GENERAL",
+      "catalogItemId": 348,
+      "itemCode": "GOUGE"
+    },
+    {
+      "excelRow": 350,
+      "item": "Chisel",
+      "category": "GENERAL",
+      "catalogItemId": 349,
+      "itemCode": "CHISEL"
+    },
+    {
+      "excelRow": 351,
+      "item": "Indicator",
+      "category": "GENERAL",
+      "catalogItemId": 350,
+      "itemCode": "INDICATOR"
+    },
+    {
+      "excelRow": 352,
+      "item": "Scalpel Handle",
+      "category": "GENERAL",
+      "catalogItemId": 351,
+      "itemCode": "SCALPEL_HANDLE"
+    },
+    {
+      "excelRow": 353,
+      "item": "Surgical Knife",
+      "category": "GENERAL",
+      "catalogItemId": 352,
+      "itemCode": "SURGICAL_KNIFE"
+    },
+    {
+      "excelRow": 354,
+      "item": "Suction/Cannula",
+      "category": "GENERAL",
+      "catalogItemId": 353,
+      "itemCode": "SUCTION_CANNULA"
+    },
+    {
+      "excelRow": 355,
+      "item": "Mouth Gag",
+      "category": "GENERAL",
+      "catalogItemId": 354,
+      "itemCode": "MOUTH_GAG"
+    },
+    {
+      "excelRow": 356,
+      "item": "Microdermabrasion System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 355,
+      "itemCode": "MICRODERMABRASION_SYSTEM"
+    },
+    {
+      "excelRow": 357,
+      "item": "Bipod",
+      "category": "GENERAL",
+      "catalogItemId": 356,
+      "itemCode": "BIPOD"
+    },
+    {
+      "excelRow": 358,
+      "item": "Laryngeal Mirror",
+      "category": "GENERAL",
+      "catalogItemId": 357,
+      "itemCode": "LARYNGEAL_MIRROR"
+    },
+    {
+      "excelRow": 359,
+      "item": "Endoscope Leak Tester",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 358,
+      "itemCode": "ENDOSCOPE_LEAK_TESTER"
+    },
+    {
+      "excelRow": 360,
+      "item": "X-Ray Film Changer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 359,
+      "itemCode": "X_RAY_FILM_CHANGER"
+    },
+    {
+      "excelRow": 361,
+      "item": "Flow Meter",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 360,
+      "itemCode": "FLOW_METER"
+    },
+    {
+      "excelRow": 362,
+      "item": "Skull Clamp Base",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 361,
+      "itemCode": "SKULL_CLAMP_BASE"
+    },
+    {
+      "excelRow": 363,
+      "item": "Sound Controller",
+      "category": "IT",
+      "catalogItemId": 362,
+      "itemCode": "SOUND_CONTROLLER"
+    },
+    {
+      "excelRow": 364,
+      "item": "Knot Tyer",
+      "category": "GENERAL",
+      "catalogItemId": 363,
+      "itemCode": "KNOT_TYER"
+    },
+    {
+      "excelRow": 365,
+      "item": "Dissector",
+      "category": "GENERAL",
+      "catalogItemId": 364,
+      "itemCode": "DISSECTOR"
+    },
+    {
+      "excelRow": 366,
+      "item": "Snare",
+      "category": "GENERAL",
+      "catalogItemId": 365,
+      "itemCode": "SNARE"
+    },
+    {
+      "excelRow": 367,
+      "item": "Cartilage Crusher",
+      "category": "GENERAL",
+      "catalogItemId": 366,
+      "itemCode": "CARTILAGE_CRUSHER"
+    },
+    {
+      "excelRow": 368,
+      "item": "Towel Clip",
+      "category": "GENERAL",
+      "catalogItemId": 367,
+      "itemCode": "TOWEL_CLIP"
+    },
+    {
+      "excelRow": 369,
+      "item": "Mallet",
+      "category": "GENERAL",
+      "catalogItemId": 368,
+      "itemCode": "MALLET"
+    },
+    {
+      "excelRow": 370,
+      "item": "Calibrator",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 369,
+      "itemCode": "CALIBRATOR"
+    },
+    {
+      "excelRow": 371,
+      "item": "Radiology Equipment",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 370,
+      "itemCode": "RADIOLOGY_EQUIPMENT"
+    },
+    {
+      "excelRow": 372,
+      "item": "Grill",
+      "category": "GENERAL",
+      "catalogItemId": 371,
+      "itemCode": "GRILL"
+    },
+    {
+      "excelRow": 373,
+      "item": "Instrument Maintenance System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 372,
+      "itemCode": "INSTRUMENT_MAINTENANCE_SYSTEM"
+    },
+    {
+      "excelRow": 374,
+      "item": "ENT Power System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 373,
+      "itemCode": "ENT_POWER_SYSTEM"
+    },
+    {
+      "excelRow": 375,
+      "item": "Lamp",
+      "category": "GENERAL",
+      "catalogItemId": 374,
+      "itemCode": "LAMP"
+    },
+    {
+      "excelRow": 376,
+      "item": "Chopper",
+      "category": "GENERAL",
+      "catalogItemId": 375,
+      "itemCode": "CHOPPER"
+    },
+    {
+      "excelRow": 377,
+      "item": "Nebulizer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 376,
+      "itemCode": "NEBULIZER"
+    },
+    {
+      "excelRow": 378,
+      "item": "Ice Maker",
+      "category": "GENERAL",
+      "catalogItemId": 377,
+      "itemCode": "ICE_MAKER"
+    },
+    {
+      "excelRow": 379,
+      "item": "Meat Slicer",
+      "category": "GENERAL",
+      "catalogItemId": 378,
+      "itemCode": "MEAT_SLICER"
+    },
+    {
+      "excelRow": 380,
+      "item": "Regulator",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 379,
+      "itemCode": "REGULATOR"
+    },
+    {
+      "excelRow": 381,
+      "item": "Tourniquet System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 380,
+      "itemCode": "TOURNIQUET_SYSTEM"
+    },
+    {
+      "excelRow": 382,
+      "item": "EEG System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 381,
+      "itemCode": "EEG_SYSTEM"
+    },
+    {
+      "excelRow": 383,
+      "item": "Simulator",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 382,
+      "itemCode": "SIMULATOR"
+    },
+    {
+      "excelRow": 384,
+      "item": "Operating Microscope",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 383,
+      "itemCode": "OPERATING_MICROSCOPE"
+    },
+    {
+      "excelRow": 385,
+      "item": "Audiometric Booth",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 384,
+      "itemCode": "AUDIOMETRIC_BOOTH"
+    },
+    {
+      "excelRow": 386,
+      "item": "Ambulance Stretcher",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 385,
+      "itemCode": "AMBULANCE_STRETCHER"
+    },
+    {
+      "excelRow": 387,
+      "item": "Van",
+      "category": "GENERAL",
+      "catalogItemId": 386,
+      "itemCode": "VAN"
+    },
+    {
+      "excelRow": 388,
+      "item": "Minibus",
+      "category": "GENERAL",
+      "catalogItemId": 387,
+      "itemCode": "MINIBUS"
+    },
+    {
+      "excelRow": 389,
+      "item": "Storage System",
+      "category": "GENERAL",
+      "catalogItemId": 388,
+      "itemCode": "STORAGE_SYSTEM"
+    },
+    {
+      "excelRow": 390,
+      "item": "Mixer/Blender",
+      "category": "GENERAL",
+      "catalogItemId": 389,
+      "itemCode": "MIXER_BLENDER"
+    },
+    {
+      "excelRow": 391,
+      "item": "Distiller",
+      "category": "GENERAL",
+      "catalogItemId": 390,
+      "itemCode": "DISTILLER"
+    },
+    {
+      "excelRow": 392,
+      "item": "Hot Plate",
+      "category": "GENERAL",
+      "catalogItemId": 391,
+      "itemCode": "HOT_PLATE"
+    },
+    {
+      "excelRow": 393,
+      "item": "Micromotor",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 392,
+      "itemCode": "MICROMOTOR"
+    },
+    {
+      "excelRow": 394,
+      "item": "Electrophoresis System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 393,
+      "itemCode": "ELECTROPHORESIS_SYSTEM"
+    },
+    {
+      "excelRow": 395,
+      "item": "Dental Equipment",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 394,
+      "itemCode": "DENTAL_EQUIPMENT"
+    },
+    {
+      "excelRow": 396,
+      "item": "Warming Lamp",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 395,
+      "itemCode": "WARMING_LAMP"
+    },
+    {
+      "excelRow": 397,
+      "item": "Cash Counter",
+      "category": "GENERAL",
+      "catalogItemId": 396,
+      "itemCode": "CASH_COUNTER"
+    },
+    {
+      "excelRow": 398,
+      "item": "pH Meter",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 397,
+      "itemCode": "PH_METER"
+    },
+    {
+      "excelRow": 399,
+      "item": "Bilirubin Meter",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 398,
+      "itemCode": "BILIRUBIN_METER"
+    },
+    {
+      "excelRow": 400,
+      "item": "Image Intensifier",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 399,
+      "itemCode": "IMAGE_INTENSIFIER"
+    },
+    {
+      "excelRow": 401,
+      "item": "Counterweight",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 400,
+      "itemCode": "COUNTERWEIGHT"
+    },
+    {
+      "excelRow": 402,
+      "item": "Middle Ear Analyzer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 401,
+      "itemCode": "MIDDLE_EAR_ANALYZER"
+    },
+    {
+      "excelRow": 403,
+      "item": "Instrument Table",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 402,
+      "itemCode": "INSTRUMENT_TABLE"
+    },
+    {
+      "excelRow": 404,
+      "item": "CTG Machine",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 403,
+      "itemCode": "CTG_MACHINE"
+    },
+    {
+      "excelRow": 405,
+      "item": "Digital Signage",
+      "category": "GENERAL",
+      "catalogItemId": 404,
+      "itemCode": "DIGITAL_SIGNAGE"
+    },
+    {
+      "excelRow": 406,
+      "item": "Pulse Oximeter",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 405,
+      "itemCode": "PULSE_OXIMETER"
+    },
+    {
+      "excelRow": 407,
+      "item": "Patient Transfer Board",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 406,
+      "itemCode": "PATIENT_TRANSFER_BOARD"
+    },
+    {
+      "excelRow": 408,
+      "item": "Battery Tester",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 407,
+      "itemCode": "BATTERY_TESTER"
+    },
+    {
+      "excelRow": 409,
+      "item": "Laryngoscope",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 408,
+      "itemCode": "LARYNGOSCOPE"
+    },
+    {
+      "excelRow": 410,
+      "item": "Cath Lab System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 409,
+      "itemCode": "CATH_LAB_SYSTEM"
+    },
+    {
+      "excelRow": 411,
+      "item": "PAPR Unit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 410,
+      "itemCode": "PAPR_UNIT"
+    },
+    {
+      "excelRow": 412,
+      "item": "Vending Machine",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 411,
+      "itemCode": "VENDING_MACHINE"
+    },
+    {
+      "excelRow": 413,
+      "item": "Cystoscope",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 412,
+      "itemCode": "CYSTOSCOPE"
+    },
+    {
+      "excelRow": 414,
+      "item": "Peeling Machine",
+      "category": "GENERAL",
+      "catalogItemId": 413,
+      "itemCode": "PEELING_MACHINE"
+    },
+    {
+      "excelRow": 415,
+      "item": "Computed Radiography Accessory",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 414,
+      "itemCode": "COMPUTED_RADIOGRAPHY_ACCESSORY"
+    },
+    {
+      "excelRow": 416,
+      "item": "Rectal Speculum",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 415,
+      "itemCode": "RECTAL_SPECULUM"
+    },
+    {
+      "excelRow": 417,
+      "item": "Display Model",
+      "category": "GENERAL",
+      "catalogItemId": 416,
+      "itemCode": "DISPLAY_MODEL"
+    },
+    {
+      "excelRow": 418,
+      "item": "Therapy Unit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 417,
+      "itemCode": "THERAPY_UNIT"
+    },
+    {
+      "excelRow": 419,
+      "item": "Hamper",
+      "category": "GENERAL",
+      "catalogItemId": 418,
+      "itemCode": "HAMPER"
+    },
+    {
+      "excelRow": 420,
+      "item": "Vein Finder",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 419,
+      "itemCode": "VEIN_FINDER"
+    },
+    {
+      "excelRow": 421,
+      "item": "MRI System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 420,
+      "itemCode": "MRI_SYSTEM"
+    },
+    {
+      "excelRow": 422,
+      "item": "Coil",
+      "category": "GENERAL",
+      "catalogItemId": 421,
+      "itemCode": "COIL"
+    },
+    {
+      "excelRow": 423,
+      "item": "Hematology Analyzer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 422,
+      "itemCode": "HEMATOLOGY_ANALYZER"
+    },
+    {
+      "excelRow": 424,
+      "item": "Electrical Box",
+      "category": "GENERAL",
+      "catalogItemId": 423,
+      "itemCode": "ELECTRICAL_BOX"
+    },
+    {
+      "excelRow": 425,
+      "item": "Colonoscope",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 424,
+      "itemCode": "COLONOSCOPE"
+    },
+    {
+      "excelRow": 426,
+      "item": "Depressor",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 425,
+      "itemCode": "DEPRESSOR"
+    },
+    {
+      "excelRow": 427,
+      "item": "Truck",
+      "category": "GENERAL",
+      "catalogItemId": 426,
+      "itemCode": "TRUCK"
+    },
+    {
+      "excelRow": 428,
+      "item": "Surgical Loop",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 427,
+      "itemCode": "SURGICAL_LOOP"
+    },
+    {
+      "excelRow": 429,
+      "item": "Electrode",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 428,
+      "itemCode": "ELECTRODE"
+    },
+    {
+      "excelRow": 430,
+      "item": "Land",
+      "category": "GENERAL",
+      "catalogItemId": 429,
+      "itemCode": "LAND"
+    },
+    {
+      "excelRow": 431,
+      "item": "Gate",
+      "category": "GENERAL",
+      "catalogItemId": 430,
+      "itemCode": "GATE"
+    },
+    {
+      "excelRow": 432,
+      "item": "Relay",
+      "category": "GENERAL",
+      "catalogItemId": 431,
+      "itemCode": "RELAY"
+    },
+    {
+      "excelRow": 433,
+      "item": "Rack Accessory",
+      "category": "GENERAL",
+      "catalogItemId": 432,
+      "itemCode": "RACK_ACCESSORY"
+    },
+    {
+      "excelRow": 434,
+      "item": "Speaker",
+      "category": "GENERAL",
+      "catalogItemId": 433,
+      "itemCode": "SPEAKER"
+    },
+    {
+      "excelRow": 435,
+      "item": "Protection Tube",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 434,
+      "itemCode": "PROTECTION_TUBE"
+    },
+    {
+      "excelRow": 436,
+      "item": "Wireless Access Point",
+      "category": "IT",
+      "catalogItemId": 435,
+      "itemCode": "WIRELESS_ACCESS_POINT"
+    },
+    {
+      "excelRow": 437,
+      "item": "Pliers",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 436,
+      "itemCode": "PLIERS"
+    },
+    {
+      "excelRow": 438,
+      "item": "Sinuscope",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 437,
+      "itemCode": "SINUSCOPE"
+    },
+    {
+      "excelRow": 439,
+      "item": "Voice Alarm System",
+      "category": "GENERAL",
+      "catalogItemId": 438,
+      "itemCode": "VOICE_ALARM_SYSTEM"
+    },
+    {
+      "excelRow": 440,
+      "item": "Fire Suppression System",
+      "category": "GENERAL",
+      "catalogItemId": 439,
+      "itemCode": "FIRE_SUPPRESSION_SYSTEM"
+    },
+    {
+      "excelRow": 441,
+      "item": "Uterine Sound",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 440,
+      "itemCode": "UTERINE_SOUND"
+    },
+    {
+      "excelRow": 442,
+      "item": "Ticket Dispenser",
+      "category": "IT",
+      "catalogItemId": 441,
+      "itemCode": "TICKET_DISPENSER"
+    },
+    {
+      "excelRow": 443,
+      "item": "Call Pad",
+      "category": "IT",
+      "catalogItemId": 442,
+      "itemCode": "CALL_PAD"
+    },
+    {
+      "excelRow": 444,
+      "item": "Media Box",
+      "category": "IT",
+      "catalogItemId": 443,
+      "itemCode": "MEDIA_BOX"
+    },
+    {
+      "excelRow": 445,
+      "item": "Wire Cutter",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 444,
+      "itemCode": "WIRE_CUTTER"
+    },
+    {
+      "excelRow": 446,
+      "item": "Network Switch",
+      "category": "GENERAL",
+      "catalogItemId": 445,
+      "itemCode": "NETWORK_SWITCH"
+    },
+    {
+      "excelRow": 447,
+      "item": "Examination Couch",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 446,
+      "itemCode": "EXAMINATION_COUCH"
+    },
+    {
+      "excelRow": 448,
+      "item": "Battery",
+      "category": "GENERAL",
+      "catalogItemId": 447,
+      "itemCode": "BATTERY"
+    },
+    {
+      "excelRow": 449,
+      "item": "Medical Vacuum Pump",
+      "category": "GENERAL",
+      "catalogItemId": 448,
+      "itemCode": "MEDICAL_VACUUM_PUMP"
+    },
+    {
+      "excelRow": 450,
+      "item": "C-Arm",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 449,
+      "itemCode": "C_ARM"
+    },
+    {
+      "excelRow": 451,
+      "item": "Orthodontic Instrument",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 450,
+      "itemCode": "ORTHODONTIC_INSTRUMENT"
+    },
+    {
+      "excelRow": 452,
+      "item": "Power Cable",
+      "category": "GENERAL",
+      "catalogItemId": 451,
+      "itemCode": "POWER_CABLE"
+    },
+    {
+      "excelRow": 453,
+      "item": "Fan",
+      "category": "GENERAL",
+      "catalogItemId": 452,
+      "itemCode": "FAN"
+    },
+    {
+      "excelRow": 454,
+      "item": "Arthroscope",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 453,
+      "itemCode": "ARTHROSCOPE"
+    },
+    {
+      "excelRow": 455,
+      "item": "Wire Basket",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 454,
+      "itemCode": "WIRE_BASKET"
+    },
+    {
+      "excelRow": 456,
+      "item": "Endoscopy Imaging System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 455,
+      "itemCode": "ENDOSCOPY_IMAGING_SYSTEM"
+    },
+    {
+      "excelRow": 457,
+      "item": "Tube",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 456,
+      "itemCode": "TUBE"
+    },
+    {
+      "excelRow": 458,
+      "item": "CT Injector",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 457,
+      "itemCode": "CT_INJECTOR"
+    },
+    {
+      "excelRow": 459,
+      "item": "CT Installation",
+      "category": "GENERAL",
+      "catalogItemId": 458,
+      "itemCode": "CT_INSTALLATION"
+    },
+    {
+      "excelRow": 460,
+      "item": "Surgical Cone",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 459,
+      "itemCode": "SURGICAL_CONE"
+    },
+    {
+      "excelRow": 461,
+      "item": "Electrotherapy Unit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 460,
+      "itemCode": "ELECTROTHERAPY_UNIT"
+    },
+    {
+      "excelRow": 462,
+      "item": "Vacuum Unit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 461,
+      "itemCode": "VACUUM_UNIT"
+    },
+    {
+      "excelRow": 463,
+      "item": "Cryotherapy Unit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 462,
+      "itemCode": "CRYOTHERAPY_UNIT"
+    },
+    {
+      "excelRow": 464,
+      "item": "Dynamometer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 463,
+      "itemCode": "DYNAMOMETER"
+    },
+    {
+      "excelRow": 465,
+      "item": "Endodontic Handpiece",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 464,
+      "itemCode": "ENDODONTIC_HANDPIECE"
+    },
+    {
+      "excelRow": 466,
+      "item": "Dural Graft",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 465,
+      "itemCode": "DURAL_GRAFT"
+    },
+    {
+      "excelRow": 467,
+      "item": "Spatula",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 466,
+      "itemCode": "SPATULA"
+    },
+    {
+      "excelRow": 468,
+      "item": "Traction Unit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 467,
+      "itemCode": "TRACTION_UNIT"
+    },
+    {
+      "excelRow": 469,
+      "item": "Lever",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 468,
+      "itemCode": "LEVER"
+    },
+    {
+      "excelRow": 470,
+      "item": "Urine Analyzer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 469,
+      "itemCode": "URINE_ANALYZER"
+    },
+    {
+      "excelRow": 471,
+      "item": "Leg Press",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 470,
+      "itemCode": "LEG_PRESS"
+    },
+    {
+      "excelRow": 472,
+      "item": "Abduction/Adduction Machine",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 471,
+      "itemCode": "ABDUCTION_ADDUCTION_MACHINE"
+    },
+    {
+      "excelRow": 473,
+      "item": "Sheath",
+      "category": "GENERAL",
+      "catalogItemId": 472,
+      "itemCode": "SHEATH"
+    },
+    {
+      "excelRow": 474,
+      "item": "RFID System",
+      "category": "IT",
+      "catalogItemId": 473,
+      "itemCode": "RFID_SYSTEM"
+    },
+    {
+      "excelRow": 475,
+      "item": "Urodynamic System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 474,
+      "itemCode": "URODYNAMIC_SYSTEM"
+    },
+    {
+      "excelRow": 476,
+      "item": "Water Purification System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 475,
+      "itemCode": "WATER_PURIFICATION_SYSTEM"
+    },
+    {
+      "excelRow": 477,
+      "item": "WHEAT NEATING",
+      "category": "GENERAL",
+      "catalogItemId": 476,
+      "itemCode": "WHEAT_NEATING"
+    },
+    {
+      "excelRow": 478,
+      "item": "Antivirus Software",
+      "category": "IT",
+      "catalogItemId": 477,
+      "itemCode": "ANTIVIRUS_SOFTWARE"
+    },
+    {
+      "excelRow": 479,
+      "item": "Email Software",
+      "category": "IT",
+      "catalogItemId": 478,
+      "itemCode": "EMAIL_SOFTWARE"
+    },
+    {
+      "excelRow": 480,
+      "item": "Baby Monitoring System",
+      "category": "IT",
+      "catalogItemId": 479,
+      "itemCode": "BABY_MONITORING_SYSTEM"
+    },
+    {
+      "excelRow": 481,
+      "item": "Network Controller",
+      "category": "IT",
+      "catalogItemId": 480,
+      "itemCode": "NETWORK_CONTROLLER"
+    },
+    {
+      "excelRow": 482,
+      "item": "Service",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 481,
+      "itemCode": "SERVICE"
+    },
+    {
+      "excelRow": 483,
+      "item": "Network Cabinet",
+      "category": "IT",
+      "catalogItemId": 482,
+      "itemCode": "NETWORK_CABINET"
+    },
+    {
+      "excelRow": 484,
+      "item": "Trial Frame",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 483,
+      "itemCode": "TRIAL_FRAME"
+    },
+    {
+      "excelRow": 485,
+      "item": "Dental Unit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 484,
+      "itemCode": "DENTAL_UNIT"
+    },
+    {
+      "excelRow": 486,
+      "item": "Steel Tubing",
+      "category": "GENERAL",
+      "catalogItemId": 485,
+      "itemCode": "STEEL_TUBING"
+    },
+    {
+      "excelRow": 487,
+      "item": "Network Gateway",
+      "category": "IT",
+      "catalogItemId": 486,
+      "itemCode": "NETWORK_GATEWAY"
+    },
+    {
+      "excelRow": 488,
+      "item": "Sensor",
+      "category": "IT",
+      "catalogItemId": 487,
+      "itemCode": "SENSOR"
+    },
+    {
+      "excelRow": 489,
+      "item": "Network Cabling",
+      "category": "IT",
+      "catalogItemId": 488,
+      "itemCode": "NETWORK_CABLING"
+    },
+    {
+      "excelRow": 490,
+      "item": "Load Balancer",
+      "category": "IT",
+      "catalogItemId": 489,
+      "itemCode": "LOAD_BALANCER"
+    },
+    {
+      "excelRow": 491,
+      "item": "Forklift",
+      "category": "GENERAL",
+      "catalogItemId": 490,
+      "itemCode": "FORKLIFT"
+    },
+    {
+      "excelRow": 492,
+      "item": "Aesthetic Treatment System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 491,
+      "itemCode": "AESTHETIC_TREATMENT_SYSTEM"
+    },
+    {
+      "excelRow": 493,
+      "item": "Operating Table Accessory",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 492,
+      "itemCode": "OPERATING_TABLE_ACCESSORY"
+    },
+    {
+      "excelRow": 494,
+      "item": "Advertising Board",
+      "category": "GENERAL",
+      "catalogItemId": 493,
+      "itemCode": "ADVERTISING_BOARD"
+    },
+    {
+      "excelRow": 495,
+      "item": "Signage",
+      "category": "GENERAL",
+      "catalogItemId": 494,
+      "itemCode": "SIGNAGE"
+    },
+    {
+      "excelRow": 496,
+      "item": "Vital Signs Monitor",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 495,
+      "itemCode": "VITAL_SIGNS_MONITOR"
+    },
+    {
+      "excelRow": 497,
+      "item": "Monitor Holder",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 496,
+      "itemCode": "MONITOR_HOLDER"
+    },
+    {
+      "excelRow": 498,
+      "item": "X-Ray Tube Controller",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 497,
+      "itemCode": "X_RAY_TUBE_CONTROLLER"
+    },
+    {
+      "excelRow": 499,
+      "item": "Blood Scale",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 498,
+      "itemCode": "BLOOD_SCALE"
+    },
+    {
+      "excelRow": 500,
+      "item": "Floor Scrubber",
+      "category": "GENERAL",
+      "catalogItemId": 499,
+      "itemCode": "FLOOR_SCRUBBER"
+    },
+    {
+      "excelRow": 501,
+      "item": "Flushing Pump",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 500,
+      "itemCode": "FLUSHING_PUMP"
+    },
+    {
+      "excelRow": 502,
+      "item": "Blood Transport Box",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 501,
+      "itemCode": "BLOOD_TRANSPORT_BOX"
+    },
+    {
+      "excelRow": 503,
+      "item": "Phototherapy Unit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 502,
+      "itemCode": "PHOTOTHERAPY_UNIT"
+    },
+    {
+      "excelRow": 504,
+      "item": "Meat Grinder",
+      "category": "GENERAL",
+      "catalogItemId": 503,
+      "itemCode": "MEAT_GRINDER"
+    },
+    {
+      "excelRow": 505,
+      "item": "Platelet Aggregation Analyzer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 504,
+      "itemCode": "PLATELET_AGGREGATION_ANALYZER"
+    },
+    {
+      "excelRow": 506,
+      "item": "Hot Pack Heater",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 505,
+      "itemCode": "HOT_PACK_HEATER"
+    },
+    {
+      "excelRow": 507,
+      "item": "Uroflowmeter",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 506,
+      "itemCode": "UROFLOWMETER"
+    },
+    {
+      "excelRow": 508,
+      "item": "Spectrometer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 507,
+      "itemCode": "SPECTROMETER"
+    },
+    {
+      "excelRow": 509,
+      "item": "Blood Pressure Simulator",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 508,
+      "itemCode": "BLOOD_PRESSURE_SIMULATOR"
+    },
+    {
+      "excelRow": 510,
+      "item": "Laundry Equipment",
+      "category": "GENERAL",
+      "catalogItemId": 509,
+      "itemCode": "LAUNDRY_EQUIPMENT"
+    },
+    {
+      "excelRow": 511,
+      "item": "Laparoscopic Tower",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 510,
+      "itemCode": "LAPAROSCOPIC_TOWER"
+    },
+    {
+      "excelRow": 512,
+      "item": "Liquid Oxygen Tank",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 511,
+      "itemCode": "LIQUID_OXYGEN_TANK"
+    },
+    {
+      "excelRow": 513,
+      "item": "Vascular Instrument",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 512,
+      "itemCode": "VASCULAR_INSTRUMENT"
+    },
+    {
+      "excelRow": 514,
+      "item": "Imaging Detector",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 513,
+      "itemCode": "IMAGING_DETECTOR"
+    },
+    {
+      "excelRow": 515,
+      "item": "Dental Coupling",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 514,
+      "itemCode": "DENTAL_COUPLING"
+    },
+    {
+      "excelRow": 516,
+      "item": "Spectrophotometer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 515,
+      "itemCode": "SPECTROPHOTOMETER"
+    },
+    {
+      "excelRow": 517,
+      "item": "Physiotherapy Unit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 516,
+      "itemCode": "PHYSIOTHERAPY_UNIT"
+    },
+    {
+      "excelRow": 518,
+      "item": "Medical Air Dryer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 517,
+      "itemCode": "MEDICAL_AIR_DRYER"
+    },
+    {
+      "excelRow": 519,
+      "item": "Support",
+      "category": "GENERAL",
+      "catalogItemId": 518,
+      "itemCode": "SUPPORT"
+    },
+    {
+      "excelRow": 520,
+      "item": "Injector Monitor",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 519,
+      "itemCode": "INJECTOR_MONITOR"
+    },
+    {
+      "excelRow": 521,
+      "item": "Facial Steamer",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 520,
+      "itemCode": "FACIAL_STEAMER"
+    },
+    {
+      "excelRow": 522,
+      "item": "Pressure System",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 521,
+      "itemCode": "PRESSURE_SYSTEM"
+    },
+    {
+      "excelRow": 523,
+      "item": "Chair Scale",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 522,
+      "itemCode": "CHAIR_SCALE"
+    },
+    {
+      "excelRow": 524,
+      "item": "Cutter",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 523,
+      "itemCode": "CUTTER"
+    },
+    {
+      "excelRow": 525,
+      "item": "Dispenser",
+      "category": "GENERAL",
+      "catalogItemId": 524,
+      "itemCode": "DISPENSER"
+    },
+    {
+      "excelRow": 526,
+      "item": "Oxygen Flowmeter",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 525,
+      "itemCode": "OXYGEN_FLOWMETER"
+    },
+    {
+      "excelRow": 527,
+      "item": "Negative Pressure Wound Therapy Unit",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 526,
+      "itemCode": "NEGATIVE_PRESSURE_WOUND_THERAPY_UNIT"
+    },
+    {
+      "excelRow": 528,
+      "item": "Intraosseous Driver",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 527,
+      "itemCode": "INTRAOSSEOUS_DRIVER"
+    },
+    {
+      "excelRow": 529,
+      "item": "Phoropter",
+      "category": "BIOMEDICAL",
+      "catalogItemId": 528,
+      "itemCode": "PHOROPTER"
+    }
+  ],
+  "skippedItems": [],
+  "failedItems": []
+}

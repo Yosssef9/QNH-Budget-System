@@ -494,23 +494,14 @@ export async function createSubItemService({
   actorUserId = null,
   budgetAccess,
 }) {
-  if (
-    !payload.is_default_general &&
-    payload.sub_item_code !== null &&
-    payload.sub_item_code !== undefined &&
-    String(payload.sub_item_code).trim()
-  ) {
-    throw new ApiError(
-      400,
-      "Reusable model codes are generated automatically",
-      "SUB_ITEM_CODE_GENERATED",
-    );
-  }
+ 
+ const resolvedPayload = {
+  ...payload,
 
-  const resolvedPayload = {
-    ...payload,
-    sub_item_code: payload.is_default_general ? GENERAL_SUB_ITEM.code : null,
-  };
+  sub_item_code: payload.is_default_general
+    ? GENERAL_SUB_ITEM.code
+    : payload.sub_item_code || null,
+};
 
   /*
    * Load the parent generic catalog item.

@@ -124,30 +124,33 @@ export function validateUpdateCatalogItem(body = {}) {
 export function validateCreateSubItem(body = {}) {
   const isDefaultGeneral = Boolean(body.is_default_general);
 
-  if (
-    !isDefaultGeneral &&
-    body.sub_item_code !== undefined &&
-    String(body.sub_item_code).trim()
-  ) {
-    throw new ApiError(
-      400,
-      "Reusable model codes are generated automatically",
-      "SUB_ITEM_CODE_GENERATED",
-    );
-  }
-
   return {
-    sub_item_code: isDefaultGeneral ? GENERAL_SUB_ITEM.code : null,
-    name: normalizeText(body.name, "Sub-item name", 300),
+    sub_item_code: isDefaultGeneral
+      ? GENERAL_SUB_ITEM.code
+      : optionalText(
+          body.sub_item_code,
+          "Sub-item code",
+          100,
+        ),
+
+    name: normalizeText(
+      body.name,
+      "Sub-item name",
+      300,
+    ),
+
     default_specification: optionalText(
       body.default_specification,
       "Default specification",
       2000,
     ),
+
     default_unit_of_measure_id: validatePositiveInt(
-      body.default_unit_of_measure_id ?? body.unit_of_measure_id,
+      body.default_unit_of_measure_id ??
+        body.unit_of_measure_id,
       "default_unit_of_measure_id",
     ),
+
     is_default_general: isDefaultGeneral,
   };
 }

@@ -100,10 +100,14 @@ export function mapBudgetItemToRow(item) {
 export function mapBudgetHistoryItemToDraftRow(item) {
   const row = mapBudgetItemToRow(item);
   const sourceId = item.id ?? item.item_id ?? row.id;
+  const temporaryId =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
   return {
     ...row,
-    id: `copy-${sourceId}-${crypto.randomUUID()}`,
+    id: `copy-${sourceId}-${temporaryId}`,
     reviewStatus: "DRAFT",
     reviewNote: null,
     approvedQuantity: null,

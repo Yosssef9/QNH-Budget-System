@@ -341,7 +341,8 @@ export default function BudgetViewPage() {
           items={filteredItems}
           readOnly
           showFinancialColumns={false}
-          showApprovedAmountColumn
+          showRequestedQuantity
+          showApprovedQuantityColumn
           onViewDistribution={setSelectedDistributionItem}
         />
 

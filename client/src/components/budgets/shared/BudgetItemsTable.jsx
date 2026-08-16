@@ -79,6 +79,8 @@ function BudgetItemsTable({
   onViewDistribution,
   showFinancialColumns = true,
   showApprovedAmountColumn = false,
+  showRequestedQuantity = false,
+  showApprovedQuantityColumn = false,
 }) {
   const sortableItems = useMemo(
     () =>
@@ -139,6 +141,7 @@ function BudgetItemsTable({
           )}
 
           {showApprovedAmountColumn && <col className="w-[180px]" />}
+          {showApprovedQuantityColumn && <col className="w-[180px]" />}
 
           {showPriceIntelligence && (
             <>
@@ -214,8 +217,8 @@ function BudgetItemsTable({
             />
 
             <SortableHeader
-              label="Quantity"
-              column="quantity"
+              label={showRequestedQuantity ? "Requested Quantity" : "Quantity"}
+              column={showRequestedQuantity ? "requested_quantity" : "quantity"}
               sortColumn={sortColumn}
               sortDirection={sortDirection}
               onSort={handleSort}
@@ -248,6 +251,17 @@ function BudgetItemsTable({
               <SortableHeader
                 label="Approved Amount"
                 column="approved_amount"
+                sortColumn={sortColumn}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+                className="w-[180px]"
+              />
+            )}
+
+            {showApprovedQuantityColumn && (
+              <SortableHeader
+                label="Approved Quantity"
+                column="category_approved_quantity"
                 sortColumn={sortColumn}
                 sortDirection={sortDirection}
                 onSort={handleSort}
@@ -377,7 +391,11 @@ function BudgetItemsTable({
               </td>
 
               <td className="border border-slate-200 px-3 py-4 text-center font-bold">
-                {formatNumber(item.quantity)}
+                {formatNumber(
+                  showRequestedQuantity
+                    ? item.requested_quantity
+                    : item.quantity,
+                )}
               </td>
 
               {showFinancialColumns && (
@@ -395,6 +413,14 @@ function BudgetItemsTable({
               {showApprovedAmountColumn && (
                 <td className="border border-slate-200 px-3 py-4 text-center font-bold text-blue-600">
                   <CurrencyText compact value={item.approved_amount} />
+                </td>
+              )}
+
+              {showApprovedQuantityColumn && (
+                <td className="border border-slate-200 px-3 py-4 text-center font-bold text-blue-600">
+                  {item.category_approved_quantity == null
+                    ? "-"
+                    : formatNumber(item.category_approved_quantity)}
                 </td>
               )}
 
@@ -477,6 +503,7 @@ function BudgetItemsTable({
                   6 +
                   (showFinancialColumns ? 2 : 0) +
                   (showApprovedAmountColumn ? 1 : 0) +
+                  (showApprovedQuantityColumn ? 1 : 0) +
                   (showPriceIntelligence ? 4 : 0) +
                   (showNotes ? 1 : 0)
                 }

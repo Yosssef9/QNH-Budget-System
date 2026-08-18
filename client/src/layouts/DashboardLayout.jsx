@@ -113,17 +113,17 @@ function getSidebarSections(budgetAccess) {
           icon: BarChart3,
           show: canViewBudgetReports,
         },
-        {
-          label: "Projects",
-          path: "/projects",
-          icon: BriefcaseBusiness,
-          show:
-            canViewDepartmentBudgets ||
-            canManageDepartmentBudgets ||
-            canSubmitDepartmentBudgets ||
-            canViewCfoPackages ||
-            canApprovePackages,
-        },
+        // {
+        //   label: "Projects",
+        //   path: "/projects",
+        //   icon: BriefcaseBusiness,
+        //   show:
+        //     canViewDepartmentBudgets ||
+        //     canManageDepartmentBudgets ||
+        //     canSubmitDepartmentBudgets ||
+        //     canViewCfoPackages ||
+        //     canApprovePackages,
+        // },
         {
           label: "Category Review",
           path: "/category-review",

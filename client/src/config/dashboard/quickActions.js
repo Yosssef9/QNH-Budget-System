@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Tags,
   ClipboardCheck,
+  Building2,
 } from "lucide-react";
 
 export function getQuickActions(budgetAccess) {
@@ -132,6 +133,13 @@ export function getQuickActions(budgetAccess) {
       path: "/admin/budget-setup",
       icon: Tags,
       show: can(budgetAccess, PERMISSION_CODES.MANAGE_BUDGET_CATALOG),
+    },
+    {
+      title: "Departments",
+      description: "Manage hospital departments and activation status.",
+      path: "/admin/departments",
+      icon: Building2,
+      show: can(budgetAccess, PERMISSION_CODES.MANAGE_DEPARTMENTS),
     },
     {
       title: "PO Item Mappings",

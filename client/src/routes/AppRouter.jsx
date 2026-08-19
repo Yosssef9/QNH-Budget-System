@@ -303,6 +303,21 @@ const router = createBrowserRouter([
       },
 
       {
+        path: "admin/departments",
+        async lazy() {
+          const module = await import("../pages/DepartmentsPage");
+
+          return {
+            Component: () => (
+              <RequirePermission permission={PERMISSION_CODES.MANAGE_DEPARTMENTS}>
+                <module.default />
+              </RequirePermission>
+            ),
+          };
+        },
+      },
+
+      {
         path: "admin/po-item-mappings",
         async lazy() {
           const module = await import("../pages/POItemMappingsPage");

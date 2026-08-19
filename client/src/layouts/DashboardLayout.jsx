@@ -19,6 +19,7 @@ import {
   ChevronDown,
   ClipboardCheck,
   ShoppingCart,
+  Building2,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useUnsavedChanges } from "../context/UnsavedChangesContext";
@@ -186,6 +187,12 @@ function getSidebarSections(budgetAccess) {
           show: can(budgetAccess, PERMISSION_CODES.MANAGE_BUDGET_CATALOG),
         },
         {
+          label: "Departments",
+          path: "/admin/departments",
+          icon: Building2,
+          show: can(budgetAccess, PERMISSION_CODES.MANAGE_DEPARTMENTS),
+        },
+        {
           label: "PO Item Mappings",
           path: "/admin/po-item-mappings",
           icon: Link2,
@@ -267,6 +274,10 @@ function canAccessPath(pathname, budgetAccess) {
     {
       path: "/admin/budget-setup",
       permission: PERMISSION_CODES.MANAGE_BUDGET_CATALOG,
+    },
+    {
+      path: "/admin/departments",
+      permission: PERMISSION_CODES.MANAGE_DEPARTMENTS,
     },
     {
       path: "/admin/po-item-mappings",

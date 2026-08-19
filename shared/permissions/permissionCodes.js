@@ -39,6 +39,7 @@ export const PERMISSION_CODES = Object.freeze({
   MANAGE_PO_ITEM_MAPPINGS: "can_manage_po_item_mappings",
   MANAGE_BUDGET_ACCESS: "can_manage_budget_access",
   MANAGE_BUDGET_CATALOG: "can_manage_budget_catalog",
+  MANAGE_DEPARTMENTS: "can_manage_departments",
   VIEW_BUDGET_REPORTS: "can_view_budget_reports",
   VIEW_AUDIT_LOGS: "can_view_audit_logs",
   VIEW_SYSTEM_HEALTH: "can_view_system_health",

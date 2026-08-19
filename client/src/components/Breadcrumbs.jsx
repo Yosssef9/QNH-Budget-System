@@ -21,6 +21,7 @@ const routeLabels = {
 
   "/admin/users": "User Access",
   "/admin/budget-setup": "Budget Configuration",
+  "/admin/departments": "Departments",
   "/financial-years": "Financial Years",
 };
 

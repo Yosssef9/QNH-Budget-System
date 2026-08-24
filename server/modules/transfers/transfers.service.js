@@ -310,10 +310,6 @@ export async function approveTransferService({ transferId, actorUserId, budgetAc
     if (transfer.status !== TRANSFER_STATUS.PENDING_APPROVAL) {
       throw new ApiError(400, "Only pending transfers can be approved", "TRANSFER_STATUS_INVALID");
     }
-    if (Number(transfer.requested_by) === Number(actorUserId)) {
-      throw new ApiError(400, "Requester cannot approve their own transfer", "TRANSFER_SELF_APPROVAL_BLOCKED");
-    }
-
     const affected = await approveTransferRepo(transaction, {
       transfer_id: transferId,
       actor_user_id: actorUserId,

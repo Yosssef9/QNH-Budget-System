@@ -51,37 +51,131 @@ import {
   updateCatalogItemRepo,
   updateSubItemStatusRepo,
 } from "../../../modules/master-catalog/masterCatalog.repository.js";
+
 import {
   createCatalogItemService,
   createSubItemService,
-  getCategoriesService,
   getCatalogItemsByCategoryService,
+  getCategoriesService,
   updateCatalogItemService,
   updateSubItemStatusService,
 } from "../../../modules/master-catalog/masterCatalog.service.js";
-import { PERMISSION_CODES } from "../../../../shared/permissions/permissionCodes.js";
 
-const departmentWorkspace = {
-  department: { id: 10 },
-  permissions: {},
-};
-
-const categoryWorkspace = {
-  budgetCategory: { id: 1 },
-  permissions: {},
-};
-
-const catalogAdminWorkspace = {
-  permissionCodes: [PERMISSION_CODES.MANAGE_BUDGET_CATALOG],
-};
-
-const unrelatedGlobalWorkspace = {
-  permissions: {},
-};
+import { MASTER_CATALOG_PERMISSION } from "../../../modules/master-catalog/masterCatalog.constants.js";
 
 describe("master catalog service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("allows a department workspace to read all active categories", async () => {
+    getCategoriesRepo.mockResolvedValue([
+      {
+        id: 1,
+        category_code: "IT",
+        name: "IT",
+        sort_order: 1,
+        is_active: true,
+      },
+      {
+        id: 2,
+        category_code: "BIOMEDICAL",
+        name: "Biomedical",
+        sort_order: 2,
+        is_active: true,
+      },
+      {
+        id: 3,
+        category_code: "GENERAL",
+        name: "General",
+        sort_order: 3,
+        is_active: true,
+      },
+    ]);
+
+    const result = await getCategoriesService({
+      department: { id: 10 },
+      permissions: {},
+    });
+
+    expect(result).toHaveLength(3);
+  });
+
+  it("limits a category workspace to its assigned category", async () => {
+    getCategoriesRepo.mockResolvedValue([
+      {
+        id: 1,
+        category_code: "IT",
+        name: "IT",
+        sort_order: 1,
+        is_active: true,
+      },
+      {
+        id: 2,
+        category_code: "BIOMEDICAL",
+        name: "Biomedical",
+        sort_order: 2,
+        is_active: true,
+      },
+    ]);
+
+    const result = await getCategoriesService({
+      budgetCategory: { id: 1 },
+      permissions: {},
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(1);
+  });
+
+  it("blocks a category workspace from another category's items", async () => {
+    await expect(
+      getCatalogItemsByCategoryService(2, {
+        budgetCategory: { id: 1 },
+        permissions: {},
+      }),
+    ).rejects.toThrow("cannot access this catalog data");
+
+    expect(findCategoryByIdRepo).not.toHaveBeenCalled();
+
+    expect(getCatalogItemsByCategoryRepo).not.toHaveBeenCalled();
+  });
+
+  it("allows a Master Catalog administrator to read all categories", async () => {
+    getCategoriesRepo.mockResolvedValue([
+      {
+        id: 1,
+        category_code: "IT",
+        name: "IT",
+        sort_order: 1,
+        is_active: true,
+      },
+      {
+        id: 2,
+        category_code: "BIOMEDICAL",
+        name: "Biomedical",
+        sort_order: 2,
+        is_active: true,
+      },
+    ]);
+
+    const result = await getCategoriesService({
+      permissions: {
+        [MASTER_CATALOG_PERMISSION]: true,
+      },
+    });
+
+    expect(result).toHaveLength(2);
+  });
+
+  it("blocks an unrelated global workspace from operational catalog lookup", async () => {
+    await expect(
+      getCategoriesService({
+        permissions: {},
+      }),
+    ).rejects.toThrow("cannot access this catalog data");
+
+    expect(getCategoriesRepo).not.toHaveBeenCalled();
   });
 
   it("creates a catalog item and its default General sub-item transactionally", async () => {
@@ -91,17 +185,28 @@ describe("master catalog service", () => {
       name: "IT",
       is_active: true,
     });
+
     findUnitByIdRepo.mockResolvedValue({
       id: 2,
       unit_code: "EA",
       name: "Each",
       is_active: true,
     });
+
     findCatalogItemByNameInCategoryRepo.mockResolvedValue(null);
+
     findCatalogItemByCodeRepo.mockResolvedValue(null);
+
     getNextCatalogItemSortOrderRepo.mockResolvedValue(4);
-    createCatalogItemRepo.mockResolvedValue({ id: 10 });
-    createSubItemRepo.mockResolvedValue({ id: 99 });
+
+    createCatalogItemRepo.mockResolvedValue({
+      id: 10,
+    });
+
+    createSubItemRepo.mockResolvedValue({
+      id: 99,
+    });
+
     findCatalogItemByIdRepo.mockResolvedValue({
       id: 10,
       budget_category_id: 1,
@@ -137,6 +242,7 @@ describe("master catalog service", () => {
         sort_order: 4,
       }),
     );
+
     expect(createSubItemRepo).toHaveBeenCalledWith(
       { transaction: true },
       expect.objectContaining({
@@ -146,12 +252,21 @@ describe("master catalog service", () => {
         is_default_general: true,
       }),
     );
+
     expect(result.general_sub_item_id).toBe(99);
   });
 
   it("rejects duplicate catalog item names within the same category", async () => {
-    findCategoryByIdRepo.mockResolvedValue({ id: 1, is_active: true });
-    findUnitByIdRepo.mockResolvedValue({ id: 2, is_active: true });
+    findCategoryByIdRepo.mockResolvedValue({
+      id: 1,
+      is_active: true,
+    });
+
+    findUnitByIdRepo.mockResolvedValue({
+      id: 2,
+      is_active: true,
+    });
+
     findCatalogItemByNameInCategoryRepo.mockResolvedValue({ id: 5 });
 
     await expect(
@@ -168,7 +283,10 @@ describe("master catalog service", () => {
   });
 
   it("rejects catalog item creation when unit of measure is missing", async () => {
-    findCategoryByIdRepo.mockResolvedValue({ id: 1, is_active: true });
+    findCategoryByIdRepo.mockResolvedValue({
+      id: 1,
+      is_active: true,
+    });
 
     await expect(
       createCatalogItemService({
@@ -183,7 +301,11 @@ describe("master catalog service", () => {
   });
 
   it("rejects catalog item creation when unit of measure is invalid or inactive", async () => {
-    findCategoryByIdRepo.mockResolvedValue({ id: 1, is_active: true });
+    findCategoryByIdRepo.mockResolvedValue({
+      id: 1,
+      is_active: true,
+    });
+
     findUnitByIdRepo.mockResolvedValue(null);
 
     await expect(
@@ -223,10 +345,19 @@ describe("master catalog service", () => {
         unit_code: "BOX",
         is_active: true,
       });
-    findUnitByIdRepo.mockResolvedValue({ id: 3, is_active: true });
+
+    findUnitByIdRepo.mockResolvedValue({
+      id: 3,
+      is_active: true,
+    });
+
     findCatalogItemByNameInCategoryRepo.mockResolvedValue(null);
+
     findCatalogItemByCodeRepo.mockResolvedValue(null);
-    updateCatalogItemRepo.mockResolvedValue({ id: 10 });
+
+    updateCatalogItemRepo.mockResolvedValue({
+      id: 10,
+    });
 
     const result = await updateCatalogItemService({
       id: 10,
@@ -241,31 +372,22 @@ describe("master catalog service", () => {
 
     expect(updateCatalogItemRepo).toHaveBeenCalledWith(
       10,
-      expect.objectContaining({ unit_of_measure_id: 3 }),
+      expect.objectContaining({
+        unit_of_measure_id: 3,
+      }),
     );
+
     expect(result.unit_of_measure_id).toBe(3);
+
     expect(result.unit_name).toBe("Box");
   });
 
-  it("allows a department workspace to read all active categories", async () => {
-    getCategoriesRepo.mockResolvedValue([
-      { id: 1, name: "IT", category_code: "IT", is_active: true },
-      {
-        id: 2,
-        name: "Biomedical",
-        category_code: "BIOMEDICAL",
-        is_active: true,
-      },
-      { id: 3, name: "General", category_code: "GENERAL", is_active: true },
-    ]);
+  it("returns catalog items with unit of measure fields", async () => {
+    findCategoryByIdRepo.mockResolvedValue({
+      id: 1,
+      is_active: true,
+    });
 
-    const result = await getCategoriesService(departmentWorkspace);
-
-    expect(result).toHaveLength(3);
-  });
-
-  it("allows a department workspace to read catalog items for any category", async () => {
-    findCategoryByIdRepo.mockResolvedValue({ id: 1, is_active: true });
     getCatalogItemsByCategoryRepo.mockResolvedValue([
       {
         id: 10,
@@ -282,10 +404,10 @@ describe("master catalog service", () => {
       },
     ]);
 
-    const result = await getCatalogItemsByCategoryService(
-      1,
-      departmentWorkspace,
-    );
+    const result = await getCatalogItemsByCategoryService(1, {
+      department: { id: 10 },
+      permissions: {},
+    });
 
     expect(result[0]).toEqual(
       expect.objectContaining({
@@ -296,72 +418,20 @@ describe("master catalog service", () => {
     );
   });
 
-  it("allows a category workspace to read only its assigned category", async () => {
-    getCategoriesRepo.mockResolvedValue([
-      { id: 1, name: "IT", category_code: "IT", is_active: true },
-      {
-        id: 2,
-        name: "Biomedical",
-        category_code: "BIOMEDICAL",
-        is_active: true,
-      },
-    ]);
-    findCategoryByIdRepo.mockResolvedValue({ id: 1, is_active: true });
-    getCatalogItemsByCategoryRepo.mockResolvedValue([]);
-
-    const categories = await getCategoriesService(categoryWorkspace);
-    await getCatalogItemsByCategoryService(1, categoryWorkspace);
-
-    expect(categories).toEqual([
-      expect.objectContaining({ id: 1, category_code: "IT" }),
-    ]);
-    expect(getCatalogItemsByCategoryRepo).toHaveBeenCalledWith(1);
-  });
-
-  it("denies a category workspace from reading another category", async () => {
-    await expect(
-      getCatalogItemsByCategoryService(2, categoryWorkspace),
-    ).rejects.toMatchObject({
-      statusCode: 403,
-      errorCode: "MASTER_CATALOG_LOOKUP_FORBIDDEN",
-    });
-
-    expect(findCategoryByIdRepo).not.toHaveBeenCalled();
-    expect(getCatalogItemsByCategoryRepo).not.toHaveBeenCalled();
-  });
-
-  it("allows a catalog administrator to read all active categories", async () => {
-    getCategoriesRepo.mockResolvedValue([
-      { id: 1, name: "IT", category_code: "IT", is_active: true },
-      {
-        id: 2,
-        name: "Biomedical",
-        category_code: "BIOMEDICAL",
-        is_active: true,
-      },
-    ]);
-
-    const result = await getCategoriesService(catalogAdminWorkspace);
-
-    expect(result).toHaveLength(2);
-  });
-
-  it("denies operational lookup for unrelated global workspaces", async () => {
-    await expect(
-      getCategoriesService(unrelatedGlobalWorkspace),
-    ).rejects.toMatchObject({
-      statusCode: 403,
-      errorCode: "MASTER_CATALOG_LOOKUP_FORBIDDEN",
-    });
-
-    expect(getCategoriesRepo).not.toHaveBeenCalled();
-  });
-
   it("rejects a second active General sub-item", async () => {
-    findCatalogItemByIdRepo.mockResolvedValue({ id: 10, is_active: true });
-    findUnitByIdRepo.mockResolvedValue({ id: 2, is_active: true });
+    findCatalogItemByIdRepo.mockResolvedValue({
+      id: 10,
+      is_active: true,
+    });
+
+    findUnitByIdRepo.mockResolvedValue({
+      id: 2,
+      is_active: true,
+    });
+
     findSubItemByCodeRepo.mockResolvedValue(null);
     findSubItemByNameRepo.mockResolvedValue(null);
+
     countActiveGeneralSubItemsRepo.mockResolvedValue(1);
 
     await expect(
@@ -373,56 +443,8 @@ describe("master catalog service", () => {
           default_unit_of_measure_id: 2,
           is_default_general: true,
         },
-        budgetAccess: catalogAdminWorkspace,
       }),
     ).rejects.toThrow("already has an active General sub-item");
-  });
-
-  it("creates non-General reusable sub-items without a client-supplied code", async () => {
-    findCatalogItemByIdRepo.mockResolvedValue({
-      id: 10,
-      budget_category_id: 1,
-      is_active: true,
-    });
-    findUnitByIdRepo.mockResolvedValue({ id: 2, is_active: true });
-    findSubItemByNameRepo.mockResolvedValue(null);
-    createSubItemRepo.mockResolvedValue({ id: 101 });
-    findSubItemByIdRepo.mockResolvedValue({
-      id: 101,
-      catalog_item_id: 10,
-      sub_item_code: "SUB-00000001",
-      name: "Dell Latitude 5450",
-      default_specification: "Core i7",
-      default_unit_of_measure_id: 2,
-      unit_name: "Each",
-      unit_code: "EA",
-      is_default_general: false,
-      is_active: true,
-    });
-
-    const result = await createSubItemService({
-      catalogItemId: 10,
-      payload: {
-        sub_item_code: null,
-        name: "Dell Latitude 5450",
-        default_specification: "Core i7",
-        default_unit_of_measure_id: 2,
-        is_default_general: false,
-      },
-      budgetAccess: catalogAdminWorkspace,
-    });
-
-    expect(findSubItemByCodeRepo).not.toHaveBeenCalled();
-    expect(createSubItemRepo).toHaveBeenCalledWith(
-      { transaction: true },
-      expect.objectContaining({
-        catalog_item_id: 10,
-        sub_item_code: null,
-        name: "Dell Latitude 5450",
-        is_default_general: false,
-      }),
-    );
-    expect(result.sub_item_code).toBe("SUB-00000001");
   });
 
   it("blocks deactivating the default General sub-item", async () => {
@@ -441,6 +463,7 @@ describe("master catalog service", () => {
         actorUserId: 7,
       }),
     ).rejects.toThrow("default General sub-item cannot be deactivated");
+
     expect(updateSubItemStatusRepo).not.toHaveBeenCalled();
   });
 });

@@ -1,4967 +1,4259 @@
 {
   "total": 708,
-  "created": 708,
-  "skipped": 0,
+  "created": 0,
+  "skipped": 708,
   "failed": 0,
-  "dryRun": false,
-  "createdItems": [
+  "dryRun": true,
+  "createdItems": [],
+  "skippedItems": [
     {
       "excelRow": 2,
       "item": "Access Control Panel",
       "category": "IT",
-      "catalogItemId": 1,
-      "itemCode": "ACCESS_CONTROL_PANEL"
+      "reason": "Already exists"
     },
     {
       "excelRow": 3,
       "item": "Access Control System",
       "category": "IT",
-      "catalogItemId": 2,
-      "itemCode": "ACCESS_CONTROL_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 4,
       "item": "All-in-One Computer",
       "category": "IT",
-      "catalogItemId": 3,
-      "itemCode": "ALL_IN_ONE_COMPUTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 5,
       "item": "Antivirus Software",
       "category": "IT",
-      "catalogItemId": 4,
-      "itemCode": "ANTIVIRUS_SOFTWARE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 6,
       "item": "Audio Cassette Deck",
       "category": "IT",
-      "catalogItemId": 5,
-      "itemCode": "AUDIO_CASSETTE_DECK"
+      "reason": "Already exists"
     },
     {
       "excelRow": 7,
       "item": "Baby Monitoring System",
       "category": "IT",
-      "catalogItemId": 6,
-      "itemCode": "BABY_MONITORING_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 8,
       "item": "Barcode Scanner",
       "category": "IT",
-      "catalogItemId": 7,
-      "itemCode": "BARCODE_SCANNER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 9,
       "item": "Billing System Screen Development",
       "category": "IT",
-      "catalogItemId": 8,
-      "itemCode": "BILLING_SYSTEM_SCREEN_DEVELOPMENT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 10,
       "item": "Call Pad",
       "category": "IT",
-      "catalogItemId": 9,
-      "itemCode": "CALL_PAD"
+      "reason": "Already exists"
     },
     {
       "excelRow": 11,
       "item": "CCTV Camera",
       "category": "IT",
-      "catalogItemId": 10,
-      "itemCode": "CCTV_CAMERA"
+      "reason": "Already exists"
     },
     {
       "excelRow": 12,
       "item": "CD/DVD/Blu-ray Player",
       "category": "IT",
-      "catalogItemId": 11,
-      "itemCode": "CD_DVD_BLU_RAY_PLAYER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 13,
       "item": "Communication System Software Upgrade Service",
       "category": "IT",
-      "catalogItemId": 12,
-      "itemCode": "COMMUNICATION_SYSTEM_SOFTWARE_UPGRADE_SERVICE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 14,
       "item": "Computer Monitor",
       "category": "IT",
-      "catalogItemId": 13,
-      "itemCode": "COMPUTER_MONITOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 15,
       "item": "Computer Workstation",
       "category": "IT",
-      "catalogItemId": 14,
-      "itemCode": "COMPUTER_WORKSTATION"
+      "reason": "Already exists"
     },
     {
       "excelRow": 16,
       "item": "Desktop Computer",
       "category": "IT",
-      "catalogItemId": 15,
-      "itemCode": "DESKTOP_COMPUTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 17,
       "item": "Digital Information Display",
       "category": "IT",
-      "catalogItemId": 16,
-      "itemCode": "DIGITAL_INFORMATION_DISPLAY"
+      "reason": "Already exists"
     },
     {
       "excelRow": 18,
       "item": "Digital Video Recorder",
       "category": "IT",
-      "catalogItemId": 17,
-      "itemCode": "DIGITAL_VIDEO_RECORDER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 19,
       "item": "Display Screen",
       "category": "IT",
-      "catalogItemId": 18,
-      "itemCode": "DISPLAY_SCREEN"
+      "reason": "Already exists"
     },
     {
       "excelRow": 20,
       "item": "Document Scanner",
       "category": "IT",
-      "catalogItemId": 19,
-      "itemCode": "DOCUMENT_SCANNER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 21,
       "item": "Email Software",
       "category": "IT",
-      "catalogItemId": 20,
-      "itemCode": "EMAIL_SOFTWARE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 22,
       "item": "ERP Report Development Service",
       "category": "IT",
-      "catalogItemId": 21,
-      "itemCode": "ERP_REPORT_DEVELOPMENT_SERVICE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 23,
       "item": "Fire Fighting System Software Upgrade Service",
       "category": "IT",
-      "catalogItemId": 22,
-      "itemCode": "FIRE_FIGHTING_SYSTEM_SOFTWARE_UPGRADE_SERVICE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 24,
       "item": "Hard Disk Drive",
       "category": "IT",
-      "catalogItemId": 23,
-      "itemCode": "HARD_DISK_DRIVE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 25,
       "item": "ID Card Printer",
       "category": "IT",
-      "catalogItemId": 24,
-      "itemCode": "ID_CARD_PRINTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 26,
       "item": "Intranet Development Service",
       "category": "IT",
-      "catalogItemId": 25,
-      "itemCode": "INTRANET_DEVELOPMENT_SERVICE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 27,
       "item": "Label Printer",
       "category": "IT",
-      "catalogItemId": 26,
-      "itemCode": "LABEL_PRINTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 28,
       "item": "Laptop",
       "category": "IT",
-      "catalogItemId": 27,
-      "itemCode": "LAPTOP"
+      "reason": "Already exists"
     },
     {
       "excelRow": 29,
       "item": "Load Balancer",
       "category": "IT",
-      "catalogItemId": 28,
-      "itemCode": "LOAD_BALANCER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 30,
       "item": "Media Box",
       "category": "IT",
-      "catalogItemId": 29,
-      "itemCode": "MEDIA_BOX"
+      "reason": "Already exists"
     },
     {
       "excelRow": 31,
       "item": "Microphone",
       "category": "IT",
-      "catalogItemId": 30,
-      "itemCode": "MICROPHONE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 32,
       "item": "Modem",
       "category": "IT",
-      "catalogItemId": 31,
-      "itemCode": "MODEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 33,
       "item": "Multifunction Printer",
       "category": "IT",
-      "catalogItemId": 32,
-      "itemCode": "MULTIFUNCTION_PRINTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 34,
       "item": "Network Cabinet",
       "category": "IT",
-      "catalogItemId": 33,
-      "itemCode": "NETWORK_CABINET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 35,
       "item": "Network Cabling",
       "category": "IT",
-      "catalogItemId": 34,
-      "itemCode": "NETWORK_CABLING"
+      "reason": "Already exists"
     },
     {
       "excelRow": 36,
       "item": "Network Controller",
       "category": "IT",
-      "catalogItemId": 35,
-      "itemCode": "NETWORK_CONTROLLER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 37,
       "item": "Network Firewall",
       "category": "IT",
-      "catalogItemId": 36,
-      "itemCode": "NETWORK_FIREWALL"
+      "reason": "Already exists"
     },
     {
       "excelRow": 38,
       "item": "Network Gateway",
       "category": "IT",
-      "catalogItemId": 37,
-      "itemCode": "NETWORK_GATEWAY"
+      "reason": "Already exists"
     },
     {
       "excelRow": 39,
       "item": "Network Router",
       "category": "IT",
-      "catalogItemId": 38,
-      "itemCode": "NETWORK_ROUTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 40,
       "item": "Network Storage",
       "category": "IT",
-      "catalogItemId": 39,
-      "itemCode": "NETWORK_STORAGE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 41,
       "item": "Network Switch",
       "category": "IT",
-      "catalogItemId": 40,
-      "itemCode": "NETWORK_SWITCH"
+      "reason": "Already exists"
     },
     {
       "excelRow": 42,
       "item": "Network Video Recorder",
       "category": "IT",
-      "catalogItemId": 41,
-      "itemCode": "NETWORK_VIDEO_RECORDER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 43,
       "item": "Office Software",
       "category": "IT",
-      "catalogItemId": 42,
-      "itemCode": "OFFICE_SOFTWARE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 44,
       "item": "Operating System",
       "category": "IT",
-      "catalogItemId": 43,
-      "itemCode": "OPERATING_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 45,
       "item": "Optical Disc Drive",
       "category": "IT",
-      "catalogItemId": 44,
-      "itemCode": "OPTICAL_DISC_DRIVE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 46,
       "item": "Optical Disc Publisher",
       "category": "IT",
-      "catalogItemId": 45,
-      "itemCode": "OPTICAL_DISC_PUBLISHER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 47,
       "item": "Patient Wristband Printer",
       "category": "IT",
-      "catalogItemId": 46,
-      "itemCode": "PATIENT_WRISTBAND_PRINTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 48,
       "item": "PBX Server",
       "category": "IT",
-      "catalogItemId": 47,
-      "itemCode": "PBX_SERVER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 49,
       "item": "POS Display",
       "category": "IT",
-      "catalogItemId": 48,
-      "itemCode": "POS_DISPLAY"
+      "reason": "Already exists"
     },
     {
       "excelRow": 50,
       "item": "Printer",
       "category": "IT",
-      "catalogItemId": 49,
-      "itemCode": "PRINTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 51,
       "item": "Projector",
       "category": "IT",
-      "catalogItemId": 50,
-      "itemCode": "PROJECTOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 52,
       "item": "RFID System",
       "category": "IT",
-      "catalogItemId": 51,
-      "itemCode": "RFID_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 53,
       "item": "Sensor",
       "category": "IT",
-      "catalogItemId": 52,
-      "itemCode": "SENSOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 54,
       "item": "Server",
       "category": "IT",
-      "catalogItemId": 53,
-      "itemCode": "SERVER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 55,
       "item": "Server Cabinet",
       "category": "IT",
-      "catalogItemId": 54,
-      "itemCode": "SERVER_CABINET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 56,
       "item": "Server Operating System",
       "category": "IT",
-      "catalogItemId": 55,
-      "itemCode": "SERVER_OPERATING_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 57,
       "item": "Software",
       "category": "IT",
-      "catalogItemId": 56,
-      "itemCode": "SOFTWARE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 58,
       "item": "Sound Controller",
       "category": "IT",
-      "catalogItemId": 57,
-      "itemCode": "SOUND_CONTROLLER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 59,
       "item": "Systems Integration Service",
       "category": "IT",
-      "catalogItemId": 58,
-      "itemCode": "SYSTEMS_INTEGRATION_SERVICE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 60,
       "item": "Tablet",
       "category": "IT",
-      "catalogItemId": 59,
-      "itemCode": "TABLET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 61,
       "item": "Television",
       "category": "IT",
-      "catalogItemId": 60,
-      "itemCode": "TELEVISION"
+      "reason": "Already exists"
     },
     {
       "excelRow": 62,
       "item": "Temperature Recorder",
       "category": "IT",
-      "catalogItemId": 61,
-      "itemCode": "TEMPERATURE_RECORDER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 63,
       "item": "Ticket Dispenser",
       "category": "IT",
-      "catalogItemId": 62,
-      "itemCode": "TICKET_DISPENSER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 64,
       "item": "UPS System",
       "category": "IT",
-      "catalogItemId": 63,
-      "itemCode": "UPS_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 65,
       "item": "Webcam",
       "category": "IT",
-      "catalogItemId": 64,
-      "itemCode": "WEBCAM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 66,
       "item": "Website Development Service",
       "category": "IT",
-      "catalogItemId": 65,
-      "itemCode": "WEBSITE_DEVELOPMENT_SERVICE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 67,
       "item": "Wireless Access Point",
       "category": "IT",
-      "catalogItemId": 66,
-      "itemCode": "WIRELESS_ACCESS_POINT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 68,
       "item": "Wireless Network Adapter/Kit",
       "category": "IT",
-      "catalogItemId": 67,
-      "itemCode": "WIRELESS_NETWORK_ADAPTER_KIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 69,
       "item": "Abduction/Adduction Machine",
       "category": "BIOMEDICAL",
-      "catalogItemId": 68,
-      "itemCode": "ABDUCTION_ADDUCTION_MACHINE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 70,
       "item": "AED",
       "category": "BIOMEDICAL",
-      "catalogItemId": 69,
-      "itemCode": "AED"
+      "reason": "Already exists"
     },
     {
       "excelRow": 71,
       "item": "Aesthetic Treatment System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 70,
-      "itemCode": "AESTHETIC_TREATMENT_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 72,
       "item": "Air Mattress Pump",
       "category": "BIOMEDICAL",
-      "catalogItemId": 71,
-      "itemCode": "AIR_MATTRESS_PUMP"
+      "reason": "Already exists"
     },
     {
       "excelRow": 73,
       "item": "Ambulance Stretcher",
       "category": "BIOMEDICAL",
-      "catalogItemId": 72,
-      "itemCode": "AMBULANCE_STRETCHER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 74,
       "item": "Anatomical Skeleton",
       "category": "BIOMEDICAL",
-      "catalogItemId": 73,
-      "itemCode": "ANATOMICAL_SKELETON"
+      "reason": "Already exists"
     },
     {
       "excelRow": 75,
       "item": "Anesthesia Machine",
       "category": "BIOMEDICAL",
-      "catalogItemId": 74,
-      "itemCode": "ANESTHESIA_MACHINE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 76,
       "item": "Anesthesia Screen",
       "category": "BIOMEDICAL",
-      "catalogItemId": 75,
-      "itemCode": "ANESTHESIA_SCREEN"
+      "reason": "Already exists"
     },
     {
       "excelRow": 77,
       "item": "Anesthesia Vaporizer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 76,
-      "itemCode": "ANESTHESIA_VAPORIZER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 78,
       "item": "Anterior Segment Adapter",
       "category": "BIOMEDICAL",
-      "catalogItemId": 77,
-      "itemCode": "ANTERIOR_SEGMENT_ADAPTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 79,
       "item": "Arthroscope",
       "category": "BIOMEDICAL",
-      "catalogItemId": 78,
-      "itemCode": "ARTHROSCOPE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 80,
       "item": "Arthroscopic Shaver",
       "category": "BIOMEDICAL",
-      "catalogItemId": 79,
-      "itemCode": "ARTHROSCOPIC_SHAVER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 81,
       "item": "Arthroscopic Shaver Blade",
       "category": "BIOMEDICAL",
-      "catalogItemId": 80,
-      "itemCode": "ARTHROSCOPIC_SHAVER_BLADE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 82,
       "item": "Audiometer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 81,
-      "itemCode": "AUDIOMETER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 83,
       "item": "Audiometric Booth",
       "category": "BIOMEDICAL",
-      "catalogItemId": 82,
-      "itemCode": "AUDIOMETRIC_BOOTH"
+      "reason": "Already exists"
     },
     {
       "excelRow": 84,
       "item": "Autoclave",
       "category": "BIOMEDICAL",
-      "catalogItemId": 83,
-      "itemCode": "AUTOCLAVE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 85,
       "item": "Autorefractor",
       "category": "BIOMEDICAL",
-      "catalogItemId": 84,
-      "itemCode": "AUTOREFRACTOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 86,
       "item": "Bath Chair",
       "category": "BIOMEDICAL",
-      "catalogItemId": 85,
-      "itemCode": "BATH_CHAIR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 87,
       "item": "Battery Tester",
       "category": "BIOMEDICAL",
-      "catalogItemId": 86,
-      "itemCode": "BATTERY_TESTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 88,
       "item": "Bed Cradle",
       "category": "BIOMEDICAL",
-      "catalogItemId": 87,
-      "itemCode": "BED_CRADLE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 89,
       "item": "Bedhead Unit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 88,
-      "itemCode": "BEDHEAD_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 90,
       "item": "Bilirubin Meter",
       "category": "BIOMEDICAL",
-      "catalogItemId": 89,
-      "itemCode": "BILIRUBIN_METER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 91,
       "item": "Biotrix Scanner",
       "category": "BIOMEDICAL",
-      "catalogItemId": 90,
-      "itemCode": "BIOTRIX_SCANNER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 92,
       "item": "Blade Ejector",
       "category": "BIOMEDICAL",
-      "catalogItemId": 91,
-      "itemCode": "BLADE_EJECTOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 93,
       "item": "Blood Bank Refrigerator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 92,
-      "itemCode": "BLOOD_BANK_REFRIGERATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 94,
       "item": "Blood Collection Device",
       "category": "BIOMEDICAL",
-      "catalogItemId": 93,
-      "itemCode": "BLOOD_COLLECTION_DEVICE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 95,
       "item": "Blood Culture Analyzer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 94,
-      "itemCode": "BLOOD_CULTURE_ANALYZER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 96,
       "item": "Blood Drawing Chair",
       "category": "BIOMEDICAL",
-      "catalogItemId": 95,
-      "itemCode": "BLOOD_DRAWING_CHAIR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 97,
       "item": "Blood Gas Analyzer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 96,
-      "itemCode": "BLOOD_GAS_ANALYZER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 98,
       "item": "Blood Glucose Monitor",
       "category": "BIOMEDICAL",
-      "catalogItemId": 97,
-      "itemCode": "BLOOD_GLUCOSE_MONITOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 99,
       "item": "Blood Grouping Analyzer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 98,
-      "itemCode": "BLOOD_GROUPING_ANALYZER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 100,
       "item": "Blood Pressure Monitor",
       "category": "BIOMEDICAL",
-      "catalogItemId": 99,
-      "itemCode": "BLOOD_PRESSURE_MONITOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 101,
       "item": "Blood Pressure Simulator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 100,
-      "itemCode": "BLOOD_PRESSURE_SIMULATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 102,
       "item": "Blood Scale",
       "category": "BIOMEDICAL",
-      "catalogItemId": 101,
-      "itemCode": "BLOOD_SCALE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 103,
       "item": "Blood Transport Box",
       "category": "BIOMEDICAL",
-      "catalogItemId": 102,
-      "itemCode": "BLOOD_TRANSPORT_BOX"
+      "reason": "Already exists"
     },
     {
       "excelRow": 104,
       "item": "Body Composition Analyzer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 103,
-      "itemCode": "BODY_COMPOSITION_ANALYZER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 105,
       "item": "BOSEMANN NO.067 255mm 2PCS",
       "category": "BIOMEDICAL",
-      "catalogItemId": 104,
-      "itemCode": "BOSEMANN_NO_067_255MM_2PCS"
+      "reason": "Already exists"
     },
     {
       "excelRow": 106,
       "item": "Brain Spatula",
       "category": "BIOMEDICAL",
-      "catalogItemId": 105,
-      "itemCode": "BRAIN_SPATULA"
+      "reason": "Already exists"
     },
     {
       "excelRow": 107,
       "item": "Breast Pump",
       "category": "BIOMEDICAL",
-      "catalogItemId": 106,
-      "itemCode": "BREAST_PUMP"
+      "reason": "Already exists"
     },
     {
       "excelRow": 108,
       "item": "C-Arm",
       "category": "BIOMEDICAL",
-      "catalogItemId": 107,
-      "itemCode": "C_ARM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 109,
       "item": "Calibrator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 108,
-      "itemCode": "CALIBRATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 110,
       "item": "Caliper",
       "category": "BIOMEDICAL",
-      "catalogItemId": 109,
-      "itemCode": "CALIPER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 111,
       "item": "Capsulotomy Instrument",
       "category": "BIOMEDICAL",
-      "catalogItemId": 110,
-      "itemCode": "CAPSULOTOMY_INSTRUMENT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 112,
       "item": "Cardiac Catheterization Monitoring System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 111,
-      "itemCode": "CARDIAC_CATHETERIZATION_MONITORING_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 113,
       "item": "Cardiac Output Monitor",
       "category": "BIOMEDICAL",
-      "catalogItemId": 112,
-      "itemCode": "CARDIAC_OUTPUT_MONITOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 114,
       "item": "Cath Lab System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 113,
-      "itemCode": "CATH_LAB_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 115,
       "item": "Cath Lab X-Ray System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 114,
-      "itemCode": "CATH_LAB_X_RAY_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 116,
       "item": "Central Monitoring Station",
       "category": "BIOMEDICAL",
-      "catalogItemId": 115,
-      "itemCode": "CENTRAL_MONITORING_STATION"
+      "reason": "Already exists"
     },
     {
       "excelRow": 117,
       "item": "Centrifuge",
       "category": "BIOMEDICAL",
-      "catalogItemId": 116,
-      "itemCode": "CENTRIFUGE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 118,
       "item": "Cesarean Section Instrument Set",
       "category": "BIOMEDICAL",
-      "catalogItemId": 117,
-      "itemCode": "CESAREAN_SECTION_INSTRUMENT_SET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 119,
       "item": "Chair Scale",
       "category": "BIOMEDICAL",
-      "catalogItemId": 118,
-      "itemCode": "CHAIR_SCALE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 120,
       "item": "Circumcision Bed",
       "category": "BIOMEDICAL",
-      "catalogItemId": 119,
-      "itemCode": "CIRCUMCISION_BED"
+      "reason": "Already exists"
     },
     {
       "excelRow": 121,
       "item": "Cleft Lip/Palate Surgical Accessories",
       "category": "BIOMEDICAL",
-      "catalogItemId": 120,
-      "itemCode": "CLEFT_LIP_PALATE_SURGICAL_ACCESSORIES"
+      "reason": "Already exists"
     },
     {
       "excelRow": 122,
       "item": "Clinical Chemistry Analyzer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 121,
-      "itemCode": "CLINICAL_CHEMISTRY_ANALYZER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 123,
       "item": "Coagulation Analyzer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 122,
-      "itemCode": "COAGULATION_ANALYZER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 124,
       "item": "Colonoscope",
       "category": "BIOMEDICAL",
-      "catalogItemId": 123,
-      "itemCode": "COLONOSCOPE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 125,
       "item": "Commode Wheelchair",
       "category": "BIOMEDICAL",
-      "catalogItemId": 124,
-      "itemCode": "COMMODE_WHEELCHAIR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 126,
       "item": "Computed Radiography Accessory",
       "category": "BIOMEDICAL",
-      "catalogItemId": 125,
-      "itemCode": "COMPUTED_RADIOGRAPHY_ACCESSORY"
+      "reason": "Already exists"
     },
     {
       "excelRow": 127,
       "item": "Computed Radiography System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 126,
-      "itemCode": "COMPUTED_RADIOGRAPHY_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 128,
       "item": "Corneal Cross-Linking System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 127,
-      "itemCode": "CORNEAL_CROSS_LINKING_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 129,
       "item": "Corneal Topography System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 128,
-      "itemCode": "CORNEAL_TOPOGRAPHY_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 130,
       "item": "Counterweight",
       "category": "BIOMEDICAL",
-      "catalogItemId": 129,
-      "itemCode": "COUNTERWEIGHT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 131,
       "item": "CPM Machine",
       "category": "BIOMEDICAL",
-      "catalogItemId": 130,
-      "itemCode": "CPM_MACHINE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 132,
       "item": "CPR Equipment",
       "category": "BIOMEDICAL",
-      "catalogItemId": 131,
-      "itemCode": "CPR_EQUIPMENT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 133,
       "item": "Crash Cart",
       "category": "BIOMEDICAL",
-      "catalogItemId": 132,
-      "itemCode": "CRASH_CART"
+      "reason": "Already exists"
     },
     {
       "excelRow": 134,
       "item": "Cryotherapy Compression Unit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 133,
-      "itemCode": "CRYOTHERAPY_COMPRESSION_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 135,
       "item": "Cryotherapy Device",
       "category": "BIOMEDICAL",
-      "catalogItemId": 134,
-      "itemCode": "CRYOTHERAPY_DEVICE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 136,
       "item": "Cryotherapy Unit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 135,
-      "itemCode": "CRYOTHERAPY_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 137,
       "item": "CT Injector",
       "category": "BIOMEDICAL",
-      "catalogItemId": 136,
-      "itemCode": "CT_INJECTOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 138,
       "item": "CT Scanner",
       "category": "BIOMEDICAL",
-      "catalogItemId": 137,
-      "itemCode": "CT_SCANNER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 139,
       "item": "CTG Machine",
       "category": "BIOMEDICAL",
-      "catalogItemId": 138,
-      "itemCode": "CTG_MACHINE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 140,
       "item": "Cutter",
       "category": "BIOMEDICAL",
-      "catalogItemId": 139,
-      "itemCode": "CUTTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 141,
       "item": "Cystoscope",
       "category": "BIOMEDICAL",
-      "catalogItemId": 140,
-      "itemCode": "CYSTOSCOPE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 142,
       "item": "Cystoscope Sheath",
       "category": "BIOMEDICAL",
-      "catalogItemId": 141,
-      "itemCode": "CYSTOSCOPE_SHEATH"
+      "reason": "Already exists"
     },
     {
       "excelRow": 143,
       "item": "Defibrillator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 142,
-      "itemCode": "DEFIBRILLATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 144,
       "item": "Delivery Bed",
       "category": "BIOMEDICAL",
-      "catalogItemId": 143,
-      "itemCode": "DELIVERY_BED"
+      "reason": "Already exists"
     },
     {
       "excelRow": 145,
       "item": "Dental Coupling",
       "category": "BIOMEDICAL",
-      "catalogItemId": 144,
-      "itemCode": "DENTAL_COUPLING"
+      "reason": "Already exists"
     },
     {
       "excelRow": 146,
       "item": "Dental Curing Light",
       "category": "BIOMEDICAL",
-      "catalogItemId": 145,
-      "itemCode": "DENTAL_CURING_LIGHT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 147,
       "item": "Dental Curing Unit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 146,
-      "itemCode": "DENTAL_CURING_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 148,
       "item": "Dental Equipment",
       "category": "BIOMEDICAL",
-      "catalogItemId": 147,
-      "itemCode": "DENTAL_EQUIPMENT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 149,
       "item": "Dental Handpiece",
       "category": "BIOMEDICAL",
-      "catalogItemId": 148,
-      "itemCode": "DENTAL_HANDPIECE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 150,
       "item": "Dental Intraoral X-Ray System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 149,
-      "itemCode": "DENTAL_INTRAORAL_X_RAY_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 151,
       "item": "Dental Scaler",
       "category": "BIOMEDICAL",
-      "catalogItemId": 150,
-      "itemCode": "DENTAL_SCALER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 152,
       "item": "Dental Suction Unit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 151,
-      "itemCode": "DENTAL_SUCTION_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 153,
       "item": "Dental Tool Set",
       "category": "BIOMEDICAL",
-      "catalogItemId": 152,
-      "itemCode": "DENTAL_TOOL_SET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 154,
       "item": "Dental Unit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 153,
-      "itemCode": "DENTAL_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 155,
       "item": "Dental X-Ray Positioning Kit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 154,
-      "itemCode": "DENTAL_X_RAY_POSITIONING_KIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 156,
       "item": "Dental X-Ray Sensor",
       "category": "BIOMEDICAL",
-      "catalogItemId": 155,
-      "itemCode": "DENTAL_X_RAY_SENSOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 157,
       "item": "Depressor",
       "category": "BIOMEDICAL",
-      "catalogItemId": 156,
-      "itemCode": "DEPRESSOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 158,
       "item": "Desiccator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 157,
-      "itemCode": "DESICCATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 159,
       "item": "Digital Radiography System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 158,
-      "itemCode": "DIGITAL_RADIOGRAPHY_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 160,
       "item": "Digital X-Ray System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 159,
-      "itemCode": "DIGITAL_X_RAY_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 161,
       "item": "Dumbbell Stand",
       "category": "BIOMEDICAL",
-      "catalogItemId": 160,
-      "itemCode": "DUMBBELL_STAND"
+      "reason": "Already exists"
     },
     {
       "excelRow": 162,
       "item": "Dural Graft",
       "category": "BIOMEDICAL",
-      "catalogItemId": 161,
-      "itemCode": "DURAL_GRAFT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 163,
       "item": "DVT Compression System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 162,
-      "itemCode": "DVT_COMPRESSION_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 164,
       "item": "Dynamometer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 163,
-      "itemCode": "DYNAMOMETER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 165,
       "item": "ECG Machine",
       "category": "BIOMEDICAL",
-      "catalogItemId": 164,
-      "itemCode": "ECG_MACHINE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 166,
       "item": "ECG Stand",
       "category": "BIOMEDICAL",
-      "catalogItemId": 165,
-      "itemCode": "ECG_STAND"
+      "reason": "Already exists"
     },
     {
       "excelRow": 167,
       "item": "Echocardiograph",
       "category": "BIOMEDICAL",
-      "catalogItemId": 166,
-      "itemCode": "ECHOCARDIOGRAPH"
+      "reason": "Already exists"
     },
     {
       "excelRow": 168,
       "item": "EEG System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 167,
-      "itemCode": "EEG_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 169,
       "item": "Electrical Filter",
       "category": "BIOMEDICAL",
-      "catalogItemId": 168,
-      "itemCode": "ELECTRICAL_FILTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 170,
       "item": "Electrode",
       "category": "BIOMEDICAL",
-      "catalogItemId": 169,
-      "itemCode": "ELECTRODE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 171,
       "item": "Electrolyte Analyzer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 170,
-      "itemCode": "ELECTROLYTE_ANALYZER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 172,
       "item": "Electrophoresis System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 171,
-      "itemCode": "ELECTROPHORESIS_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 173,
       "item": "Electrosurgical Unit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 172,
-      "itemCode": "ELECTROSURGICAL_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 174,
       "item": "Electrotherapy Equipment Trolley",
       "category": "BIOMEDICAL",
-      "catalogItemId": 173,
-      "itemCode": "ELECTROTHERAPY_EQUIPMENT_TROLLEY"
+      "reason": "Already exists"
     },
     {
       "excelRow": 175,
       "item": "Electrotherapy Unit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 174,
-      "itemCode": "ELECTROTHERAPY_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 176,
       "item": "Endodontic Handpiece",
       "category": "BIOMEDICAL",
-      "catalogItemId": 175,
-      "itemCode": "ENDODONTIC_HANDPIECE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 177,
       "item": "Endodontic Motor",
       "category": "BIOMEDICAL",
-      "catalogItemId": 176,
-      "itemCode": "ENDODONTIC_MOTOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 178,
       "item": "Endoscope",
       "category": "BIOMEDICAL",
-      "catalogItemId": 177,
-      "itemCode": "ENDOSCOPE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 179,
       "item": "Endoscope Leak Tester",
       "category": "BIOMEDICAL",
-      "catalogItemId": 178,
-      "itemCode": "ENDOSCOPE_LEAK_TESTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 180,
       "item": "Endoscope Washer/Disinfector",
       "category": "BIOMEDICAL",
-      "catalogItemId": 179,
-      "itemCode": "ENDOSCOPE_WASHER_DISINFECTOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 181,
       "item": "Endoscopic Camera",
       "category": "BIOMEDICAL",
-      "catalogItemId": 180,
-      "itemCode": "ENDOSCOPIC_CAMERA"
+      "reason": "Already exists"
     },
     {
       "excelRow": 182,
       "item": "Endoscopic Sheath",
       "category": "BIOMEDICAL",
-      "catalogItemId": 181,
-      "itemCode": "ENDOSCOPIC_SHEATH"
+      "reason": "Already exists"
     },
     {
       "excelRow": 183,
       "item": "Endoscopic Telescope",
       "category": "BIOMEDICAL",
-      "catalogItemId": 182,
-      "itemCode": "ENDOSCOPIC_TELESCOPE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 184,
       "item": "Endoscopy Camera Adapter",
       "category": "BIOMEDICAL",
-      "catalogItemId": 183,
-      "itemCode": "ENDOSCOPY_CAMERA_ADAPTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 185,
       "item": "Endoscopy Camera Head",
       "category": "BIOMEDICAL",
-      "catalogItemId": 184,
-      "itemCode": "ENDOSCOPY_CAMERA_HEAD"
+      "reason": "Already exists"
     },
     {
       "excelRow": 186,
       "item": "Endoscopy Camera System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 185,
-      "itemCode": "ENDOSCOPY_CAMERA_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 187,
       "item": "Endoscopy Imaging System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 186,
-      "itemCode": "ENDOSCOPY_IMAGING_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 188,
       "item": "Endoscopy Video Monitor",
       "category": "BIOMEDICAL",
-      "catalogItemId": 187,
-      "itemCode": "ENDOSCOPY_VIDEO_MONITOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 189,
       "item": "ENT Power System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 188,
-      "itemCode": "ENT_POWER_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 190,
       "item": "ENT Surgical Instruments",
       "category": "BIOMEDICAL",
-      "catalogItemId": 189,
-      "itemCode": "ENT_SURGICAL_INSTRUMENTS"
+      "reason": "Already exists"
     },
     {
       "excelRow": 191,
       "item": "ENT Treatment Unit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 190,
-      "itemCode": "ENT_TREATMENT_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 192,
       "item": "Equipment Rack",
       "category": "BIOMEDICAL",
-      "catalogItemId": 191,
-      "itemCode": "EQUIPMENT_RACK"
+      "reason": "Already exists"
     },
     {
       "excelRow": 193,
       "item": "Medical Equipment Support Arm",
       "category": "BIOMEDICAL",
-      "catalogItemId": 192,
-      "itemCode": "MEDICAL_EQUIPMENT_SUPPORT_ARM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 194,
       "item": "Examination Couch",
       "category": "BIOMEDICAL",
-      "catalogItemId": 193,
-      "itemCode": "EXAMINATION_COUCH"
+      "reason": "Already exists"
     },
     {
       "excelRow": 195,
       "item": "Examination Light",
       "category": "BIOMEDICAL",
-      "catalogItemId": 194,
-      "itemCode": "EXAMINATION_LIGHT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 196,
       "item": "Examination Table",
       "category": "BIOMEDICAL",
-      "catalogItemId": 195,
-      "itemCode": "EXAMINATION_TABLE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 197,
       "item": "Examination/Treatment Chair",
       "category": "BIOMEDICAL",
-      "catalogItemId": 196,
-      "itemCode": "EXAMINATION_TREATMENT_CHAIR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 198,
       "item": "Exercise Bike",
       "category": "BIOMEDICAL",
-      "catalogItemId": 197,
-      "itemCode": "EXERCISE_BIKE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 199,
       "item": "Exercise Equipment",
       "category": "BIOMEDICAL",
-      "catalogItemId": 198,
-      "itemCode": "EXERCISE_EQUIPMENT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 200,
       "item": "External Fixation Unit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 199,
-      "itemCode": "EXTERNAL_FIXATION_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 201,
       "item": "Eye Patch",
       "category": "BIOMEDICAL",
-      "catalogItemId": 200,
-      "itemCode": "EYE_PATCH"
+      "reason": "Already exists"
     },
     {
       "excelRow": 202,
       "item": "Eye Wash Station",
       "category": "BIOMEDICAL",
-      "catalogItemId": 201,
-      "itemCode": "EYE_WASH_STATION"
+      "reason": "Already exists"
     },
     {
       "excelRow": 203,
       "item": "Eyepiece",
       "category": "BIOMEDICAL",
-      "catalogItemId": 202,
-      "itemCode": "EYEPIECE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 204,
       "item": "Facial Steamer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 203,
-      "itemCode": "FACIAL_STEAMER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 205,
       "item": "Flow Meter",
       "category": "BIOMEDICAL",
-      "catalogItemId": 204,
-      "itemCode": "FLOW_METER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 206,
       "item": "Fluid Delivery System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 205,
-      "itemCode": "FLUID_DELIVERY_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 207,
       "item": "Fractional Laser System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 206,
-      "itemCode": "FRACTIONAL_LASER_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 208,
       "item": "Gas Flow Analyzer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 207,
-      "itemCode": "GAS_FLOW_ANALYZER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 209,
       "item": "Gastroscope",
       "category": "BIOMEDICAL",
-      "catalogItemId": 208,
-      "itemCode": "GASTROSCOPE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 210,
       "item": "General Surgical Instrument Set",
       "category": "BIOMEDICAL",
-      "catalogItemId": 209,
-      "itemCode": "GENERAL_SURGICAL_INSTRUMENT_SET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 211,
       "item": "General X-Ray System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 210,
-      "itemCode": "GENERAL_X_RAY_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 212,
       "item": "Grinder",
       "category": "BIOMEDICAL",
-      "catalogItemId": 211,
-      "itemCode": "GRINDER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 213,
       "item": "Gynecology Surgical Instrument Set",
       "category": "BIOMEDICAL",
-      "catalogItemId": 212,
-      "itemCode": "GYNECOLOGY_SURGICAL_INSTRUMENT_SET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 214,
       "item": "Hair Removal Laser System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 213,
-      "itemCode": "HAIR_REMOVAL_LASER_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 215,
       "item": "Hand Drill",
       "category": "BIOMEDICAL",
-      "catalogItemId": 214,
-      "itemCode": "HAND_DRILL"
+      "reason": "Already exists"
     },
     {
       "excelRow": 216,
       "item": "Hearing Aid",
       "category": "BIOMEDICAL",
-      "catalogItemId": 215,
-      "itemCode": "HEARING_AID"
+      "reason": "Already exists"
     },
     {
       "excelRow": 217,
       "item": "Heated Humidifier",
       "category": "BIOMEDICAL",
-      "catalogItemId": 216,
-      "itemCode": "HEATED_HUMIDIFIER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 218,
       "item": "Heliprobe Analyzer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 217,
-      "itemCode": "HELIPROBE_ANALYZER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 219,
       "item": "Hematology Analyzer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 218,
-      "itemCode": "HEMATOLOGY_ANALYZER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 220,
       "item": "Hemodialysis Unit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 219,
-      "itemCode": "HEMODIALYSIS_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 221,
       "item": "Hemorrhoid Ligator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 220,
-      "itemCode": "HEMORRHOID_LIGATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 222,
       "item": "Hemostatic Clip",
       "category": "BIOMEDICAL",
-      "catalogItemId": 221,
-      "itemCode": "HEMOSTATIC_CLIP"
+      "reason": "Already exists"
     },
     {
       "excelRow": 223,
       "item": "Holmium Laser System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 222,
-      "itemCode": "HOLMIUM_LASER_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 224,
       "item": "Hospital Bed",
       "category": "BIOMEDICAL",
-      "catalogItemId": 223,
-      "itemCode": "HOSPITAL_BED"
+      "reason": "Already exists"
     },
     {
       "excelRow": 225,
       "item": "Hot Pack Heater",
       "category": "BIOMEDICAL",
-      "catalogItemId": 224,
-      "itemCode": "HOT_PACK_HEATER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 226,
       "item": "Humidifier",
       "category": "BIOMEDICAL",
-      "catalogItemId": 225,
-      "itemCode": "HUMIDIFIER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 227,
       "item": "Hydrophobic Membrane Filter",
       "category": "BIOMEDICAL",
-      "catalogItemId": 226,
-      "itemCode": "HYDROPHOBIC_MEMBRANE_FILTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 228,
       "item": "Image Intensifier",
       "category": "BIOMEDICAL",
-      "catalogItemId": 227,
-      "itemCode": "IMAGE_INTENSIFIER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 229,
       "item": "Imaging Detector",
       "category": "BIOMEDICAL",
-      "catalogItemId": 228,
-      "itemCode": "IMAGING_DETECTOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 230,
       "item": "Incubator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 229,
-      "itemCode": "INCUBATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 231,
       "item": "Infant Radiant Warmer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 230,
-      "itemCode": "INFANT_RADIANT_WARMER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 232,
       "item": "Infant Scale",
       "category": "BIOMEDICAL",
-      "catalogItemId": 231,
-      "itemCode": "INFANT_SCALE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 233,
       "item": "Infrared Therapy Lamp",
       "category": "BIOMEDICAL",
-      "catalogItemId": 232,
-      "itemCode": "INFRARED_THERAPY_LAMP"
+      "reason": "Already exists"
     },
     {
       "excelRow": 234,
       "item": "Infusion Pump",
       "category": "BIOMEDICAL",
-      "catalogItemId": 233,
-      "itemCode": "INFUSION_PUMP"
+      "reason": "Already exists"
     },
     {
       "excelRow": 235,
       "item": "Injector",
       "category": "BIOMEDICAL",
-      "catalogItemId": 234,
-      "itemCode": "INJECTOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 236,
       "item": "Injector Monitor",
       "category": "BIOMEDICAL",
-      "catalogItemId": 235,
-      "itemCode": "INJECTOR_MONITOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 237,
       "item": "Instrument Cart",
       "category": "BIOMEDICAL",
-      "catalogItemId": 236,
-      "itemCode": "INSTRUMENT_CART"
+      "reason": "Already exists"
     },
     {
       "excelRow": 238,
       "item": "Instrument Maintenance System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 237,
-      "itemCode": "INSTRUMENT_MAINTENANCE_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 239,
       "item": "Instrument Table",
       "category": "BIOMEDICAL",
-      "catalogItemId": 238,
-      "itemCode": "INSTRUMENT_TABLE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 240,
       "item": "Insufflator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 239,
-      "itemCode": "INSUFFLATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 241,
       "item": "Intraosseous Driver",
       "category": "BIOMEDICAL",
-      "catalogItemId": 240,
-      "itemCode": "INTRAOSSEOUS_DRIVER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 242,
       "item": "Irrigation/Aspiration Tip",
       "category": "BIOMEDICAL",
-      "catalogItemId": 241,
-      "itemCode": "IRRIGATION_ASPIRATION_TIP"
+      "reason": "Already exists"
     },
     {
       "excelRow": 243,
       "item": "Isolation Transformer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 242,
-      "itemCode": "ISOLATION_TRANSFORMER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 244,
       "item": "IV Pole",
       "category": "BIOMEDICAL",
-      "catalogItemId": 243,
-      "itemCode": "IV_POLE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 245,
       "item": "Jaundice Meter",
       "category": "BIOMEDICAL",
-      "catalogItemId": 244,
-      "itemCode": "JAUNDICE_METER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 246,
       "item": "Labeling Machine",
       "category": "BIOMEDICAL",
-      "catalogItemId": 245,
-      "itemCode": "LABELING_MACHINE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 247,
       "item": "Laboratory Analyzer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 246,
-      "itemCode": "LABORATORY_ANALYZER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 248,
       "item": "Laboratory Balance",
       "category": "BIOMEDICAL",
-      "catalogItemId": 247,
-      "itemCode": "LABORATORY_BALANCE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 249,
       "item": "Laboratory Chair",
       "category": "BIOMEDICAL",
-      "catalogItemId": 248,
-      "itemCode": "LABORATORY_CHAIR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 250,
       "item": "Laboratory Freezer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 249,
-      "itemCode": "LABORATORY_FREEZER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 251,
       "item": "Laboratory Hot Plate",
       "category": "BIOMEDICAL",
-      "catalogItemId": 250,
-      "itemCode": "LABORATORY_HOT_PLATE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 252,
       "item": "Laboratory Rotator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 251,
-      "itemCode": "LABORATORY_ROTATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 253,
       "item": "Laboratory Shaker",
       "category": "BIOMEDICAL",
-      "catalogItemId": 252,
-      "itemCode": "LABORATORY_SHAKER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 254,
       "item": "Laparoscopic Tower",
       "category": "BIOMEDICAL",
-      "catalogItemId": 253,
-      "itemCode": "LAPAROSCOPIC_TOWER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 255,
       "item": "Laryngeal Mirror",
       "category": "BIOMEDICAL",
-      "catalogItemId": 254,
-      "itemCode": "LARYNGEAL_MIRROR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 256,
       "item": "Laryngoscope",
       "category": "BIOMEDICAL",
-      "catalogItemId": 255,
-      "itemCode": "LARYNGOSCOPE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 257,
       "item": "Laryngoscope Cart",
       "category": "BIOMEDICAL",
-      "catalogItemId": 256,
-      "itemCode": "LARYNGOSCOPE_CART"
+      "reason": "Already exists"
     },
     {
       "excelRow": 258,
       "item": "Laser Equipment Trolley",
       "category": "BIOMEDICAL",
-      "catalogItemId": 257,
-      "itemCode": "LASER_EQUIPMENT_TROLLEY"
+      "reason": "Already exists"
     },
     {
       "excelRow": 259,
       "item": "Laser Safety Goggles",
       "category": "BIOMEDICAL",
-      "catalogItemId": 258,
-      "itemCode": "LASER_SAFETY_GOGGLES"
+      "reason": "Already exists"
     },
     {
       "excelRow": 260,
       "item": "Leg Press",
       "category": "BIOMEDICAL",
-      "catalogItemId": 259,
-      "itemCode": "LEG_PRESS"
+      "reason": "Already exists"
     },
     {
       "excelRow": 261,
       "item": "Lensmeter",
       "category": "BIOMEDICAL",
-      "catalogItemId": 260,
-      "itemCode": "LENSMETER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 262,
       "item": "Lever",
       "category": "BIOMEDICAL",
-      "catalogItemId": 261,
-      "itemCode": "LEVER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 263,
       "item": "Lid Plate",
       "category": "BIOMEDICAL",
-      "catalogItemId": 262,
-      "itemCode": "LID_PLATE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 264,
       "item": "Light Source",
       "category": "BIOMEDICAL",
-      "catalogItemId": 263,
-      "itemCode": "LIGHT_SOURCE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 265,
       "item": "Liposuction Aspirator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 264,
-      "itemCode": "LIPOSUCTION_ASPIRATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 266,
       "item": "Liquid Oxygen Tank",
       "category": "BIOMEDICAL",
-      "catalogItemId": 265,
-      "itemCode": "LIQUID_OXYGEN_TANK"
+      "reason": "Already exists"
     },
     {
       "excelRow": 267,
       "item": "Lithotripter",
       "category": "BIOMEDICAL",
-      "catalogItemId": 266,
-      "itemCode": "LITHOTRIPTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 268,
       "item": "Magnifying Lamp",
       "category": "BIOMEDICAL",
-      "catalogItemId": 267,
-      "itemCode": "MAGNIFYING_LAMP"
+      "reason": "Already exists"
     },
     {
       "excelRow": 269,
       "item": "Mammography System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 268,
-      "itemCode": "MAMMOGRAPHY_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 270,
       "item": "Mammography Transporter",
       "category": "BIOMEDICAL",
-      "catalogItemId": 269,
-      "itemCode": "MAMMOGRAPHY_TRANSPORTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 271,
       "item": "Massage Equipment",
       "category": "BIOMEDICAL",
-      "catalogItemId": 270,
-      "itemCode": "MASSAGE_EQUIPMENT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 272,
       "item": "Medical Air Compressor",
       "category": "BIOMEDICAL",
-      "catalogItemId": 271,
-      "itemCode": "MEDICAL_AIR_COMPRESSOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 273,
       "item": "Medical Air Cylinder",
       "category": "BIOMEDICAL",
-      "catalogItemId": 272,
-      "itemCode": "MEDICAL_AIR_CYLINDER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 274,
       "item": "Medical Air Dryer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 273,
-      "itemCode": "MEDICAL_AIR_DRYER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 275,
       "item": "Medical Display Monitor",
       "category": "BIOMEDICAL",
-      "catalogItemId": 274,
-      "itemCode": "MEDICAL_DISPLAY_MONITOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 276,
       "item": "Medical Equipment",
       "category": "BIOMEDICAL",
-      "catalogItemId": 275,
-      "itemCode": "MEDICAL_EQUIPMENT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 277,
       "item": "Medical Equipment Cart",
       "category": "BIOMEDICAL",
-      "catalogItemId": 276,
-      "itemCode": "MEDICAL_EQUIPMENT_CART"
+      "reason": "Already exists"
     },
     {
       "excelRow": 278,
       "item": "Medical Equipment Controller",
       "category": "BIOMEDICAL",
-      "catalogItemId": 277,
-      "itemCode": "MEDICAL_EQUIPMENT_CONTROLLER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 279,
       "item": "Medical Equipment Handset",
       "category": "BIOMEDICAL",
-      "catalogItemId": 278,
-      "itemCode": "MEDICAL_EQUIPMENT_HANDSET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 280,
       "item": "Medical Gas Pipeline System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 279,
-      "itemCode": "MEDICAL_GAS_PIPELINE_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 281,
       "item": "Medical Gas Supply System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 280,
-      "itemCode": "MEDICAL_GAS_SUPPLY_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 282,
       "item": "Medical Grade Display Monitor",
       "category": "BIOMEDICAL",
-      "catalogItemId": 281,
-      "itemCode": "MEDICAL_GRADE_DISPLAY_MONITOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 283,
       "item": "Medical Graphic Printer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 282,
-      "itemCode": "MEDICAL_GRAPHIC_PRINTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 284,
       "item": "Medical Laser System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 283,
-      "itemCode": "MEDICAL_LASER_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 285,
       "item": "Medical Oxygen Cylinder",
       "category": "BIOMEDICAL",
-      "catalogItemId": 284,
-      "itemCode": "MEDICAL_OXYGEN_CYLINDER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 286,
       "item": "Medical Pump",
       "category": "BIOMEDICAL",
-      "catalogItemId": 285,
-      "itemCode": "MEDICAL_PUMP"
+      "reason": "Already exists"
     },
     {
       "excelRow": 287,
       "item": "Medical Vacuum Pump",
       "category": "BIOMEDICAL",
-      "catalogItemId": 286,
-      "itemCode": "MEDICAL_VACUUM_PUMP"
+      "reason": "Already exists"
     },
     {
       "excelRow": 288,
       "item": "Medical Warmer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 287,
-      "itemCode": "MEDICAL_WARMER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 289,
       "item": "Medication Cart",
       "category": "BIOMEDICAL",
-      "catalogItemId": 288,
-      "itemCode": "MEDICATION_CART"
+      "reason": "Already exists"
     },
     {
       "excelRow": 290,
       "item": "Microdermabrasion System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 289,
-      "itemCode": "MICRODERMABRASION_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 291,
       "item": "Micromotor",
       "category": "BIOMEDICAL",
-      "catalogItemId": 290,
-      "itemCode": "MICROMOTOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 292,
       "item": "Microscope",
       "category": "BIOMEDICAL",
-      "catalogItemId": 291,
-      "itemCode": "MICROSCOPE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 293,
       "item": "Middle Ear Analyzer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 292,
-      "itemCode": "MIDDLE_EAR_ANALYZER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 294,
       "item": "Mobile Stretcher",
       "category": "BIOMEDICAL",
-      "catalogItemId": 293,
-      "itemCode": "MOBILE_STRETCHER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 295,
       "item": "Mobile X-Ray System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 294,
-      "itemCode": "MOBILE_X_RAY_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 296,
       "item": "Monitor Holder",
       "category": "BIOMEDICAL",
-      "catalogItemId": 295,
-      "itemCode": "MONITOR_HOLDER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 297,
       "item": "Morgue Washer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 296,
-      "itemCode": "MORGUE_WASHER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 298,
       "item": "Mortuary Refrigerator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 297,
-      "itemCode": "MORTUARY_REFRIGERATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 299,
       "item": "MOSAIC DBL CRTN",
       "category": "BIOMEDICAL",
-      "catalogItemId": 298,
-      "itemCode": "MOSAIC_DBL_CRTN"
+      "reason": "Already exists"
     },
     {
       "excelRow": 300,
       "item": "MRI Coil",
       "category": "BIOMEDICAL",
-      "catalogItemId": 299,
-      "itemCode": "MRI_COIL"
+      "reason": "Already exists"
     },
     {
       "excelRow": 301,
       "item": "MRI Magnet Monitor",
       "category": "BIOMEDICAL",
-      "catalogItemId": 300,
-      "itemCode": "MRI_MAGNET_MONITOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 302,
       "item": "MRI Power Supply",
       "category": "BIOMEDICAL",
-      "catalogItemId": 301,
-      "itemCode": "MRI_POWER_SUPPLY"
+      "reason": "Already exists"
     },
     {
       "excelRow": 303,
       "item": "MRI System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 302,
-      "itemCode": "MRI_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 304,
       "item": "MRI-Compatible Patient Monitor",
       "category": "BIOMEDICAL",
-      "catalogItemId": 303,
-      "itemCode": "MRI_COMPATIBLE_PATIENT_MONITOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 305,
       "item": "Nebulizer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 304,
-      "itemCode": "NEBULIZER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 306,
       "item": "Negative Pressure Wound Therapy Unit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 305,
-      "itemCode": "NEGATIVE_PRESSURE_WOUND_THERAPY_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 307,
       "item": "Neuromuscular Stimulator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 306,
-      "itemCode": "NEUROMUSCULAR_STIMULATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 308,
       "item": "Neurosurgical Drill System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 307,
-      "itemCode": "NEUROSURGICAL_DRILL_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 309,
       "item": "Neurosurgical Instrument Set",
       "category": "BIOMEDICAL",
-      "catalogItemId": 308,
-      "itemCode": "NEUROSURGICAL_INSTRUMENT_SET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 310,
       "item": "Nurse Call System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 309,
-      "itemCode": "NURSE_CALL_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 311,
       "item": "Nursing Trolley",
       "category": "BIOMEDICAL",
-      "catalogItemId": 310,
-      "itemCode": "NURSING_TROLLEY"
+      "reason": "Already exists"
     },
     {
       "excelRow": 312,
       "item": "Observation Tube",
       "category": "BIOMEDICAL",
-      "catalogItemId": 311,
-      "itemCode": "OBSERVATION_TUBE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 313,
       "item": "Operating Microscope",
       "category": "BIOMEDICAL",
-      "catalogItemId": 312,
-      "itemCode": "OPERATING_MICROSCOPE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 314,
       "item": "Operating Table",
       "category": "BIOMEDICAL",
-      "catalogItemId": 313,
-      "itemCode": "OPERATING_TABLE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 315,
       "item": "Operating Table Accessory",
       "category": "BIOMEDICAL",
-      "catalogItemId": 314,
-      "itemCode": "OPERATING_TABLE_ACCESSORY"
+      "reason": "Already exists"
     },
     {
       "excelRow": 316,
       "item": "Ophthalmic Instrument",
       "category": "BIOMEDICAL",
-      "catalogItemId": 315,
-      "itemCode": "OPHTHALMIC_INSTRUMENT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 317,
       "item": "Ophthalmic Instrument Table",
       "category": "BIOMEDICAL",
-      "catalogItemId": 316,
-      "itemCode": "OPHTHALMIC_INSTRUMENT_TABLE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 318,
       "item": "Ophthalmic Lens",
       "category": "BIOMEDICAL",
-      "catalogItemId": 317,
-      "itemCode": "OPHTHALMIC_LENS"
+      "reason": "Already exists"
     },
     {
       "excelRow": 319,
       "item": "Ophthalmic Ruler",
       "category": "BIOMEDICAL",
-      "catalogItemId": 318,
-      "itemCode": "OPHTHALMIC_RULER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 320,
       "item": "Ophthalmology Accessory",
       "category": "BIOMEDICAL",
-      "catalogItemId": 319,
-      "itemCode": "OPHTHALMOLOGY_ACCESSORY"
+      "reason": "Already exists"
     },
     {
       "excelRow": 321,
       "item": "Ophthalmoscope",
       "category": "BIOMEDICAL",
-      "catalogItemId": 320,
-      "itemCode": "OPHTHALMOSCOPE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 322,
       "item": "Orthodontic Instrument",
       "category": "BIOMEDICAL",
-      "catalogItemId": 321,
-      "itemCode": "ORTHODONTIC_INSTRUMENT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 323,
       "item": "Orthodontic Pliers",
       "category": "BIOMEDICAL",
-      "catalogItemId": 322,
-      "itemCode": "ORTHODONTIC_PLIERS"
+      "reason": "Already exists"
     },
     {
       "excelRow": 324,
       "item": "Orthopedic Surgical Instrument Set",
       "category": "BIOMEDICAL",
-      "catalogItemId": 323,
-      "itemCode": "ORTHOPEDIC_SURGICAL_INSTRUMENT_SET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 325,
       "item": "Overbed Table",
       "category": "BIOMEDICAL",
-      "catalogItemId": 324,
-      "itemCode": "OVERBED_TABLE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 326,
       "item": "Oxygen Delivery Unit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 325,
-      "itemCode": "OXYGEN_DELIVERY_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 327,
       "item": "Oxygen Flowmeter",
       "category": "BIOMEDICAL",
-      "catalogItemId": 326,
-      "itemCode": "OXYGEN_FLOWMETER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 328,
       "item": "PAPR Unit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 327,
-      "itemCode": "PAPR_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 329,
       "item": "Patient Blanket Warmer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 328,
-      "itemCode": "PATIENT_BLANKET_WARMER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 330,
       "item": "Patient Chair",
       "category": "BIOMEDICAL",
-      "catalogItemId": 329,
-      "itemCode": "PATIENT_CHAIR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 331,
       "item": "Patient Monitor",
       "category": "BIOMEDICAL",
-      "catalogItemId": 330,
-      "itemCode": "PATIENT_MONITOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 332,
       "item": "Patient Monitor Stand",
       "category": "BIOMEDICAL",
-      "catalogItemId": 331,
-      "itemCode": "PATIENT_MONITOR_STAND"
+      "reason": "Already exists"
     },
     {
       "excelRow": 333,
       "item": "Patient Monitor Stand Drawer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 332,
-      "itemCode": "PATIENT_MONITOR_STAND_DRAWER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 334,
       "item": "Patient Television System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 333,
-      "itemCode": "PATIENT_TELEVISION_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 335,
       "item": "Patient Transfer Board",
       "category": "BIOMEDICAL",
-      "catalogItemId": 334,
-      "itemCode": "PATIENT_TRANSFER_BOARD"
+      "reason": "Already exists"
     },
     {
       "excelRow": 336,
       "item": "Patient Transfer Lift",
       "category": "BIOMEDICAL",
-      "catalogItemId": 335,
-      "itemCode": "PATIENT_TRANSFER_LIFT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 337,
       "item": "Pediatric Bed",
       "category": "BIOMEDICAL",
-      "catalogItemId": 336,
-      "itemCode": "PEDIATRIC_BED"
+      "reason": "Already exists"
     },
     {
       "excelRow": 338,
       "item": "Perimeter",
       "category": "BIOMEDICAL",
-      "catalogItemId": 337,
-      "itemCode": "PERIMETER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 339,
       "item": "pH Meter",
       "category": "BIOMEDICAL",
-      "catalogItemId": 338,
-      "itemCode": "PH_METER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 340,
       "item": "Phaco Chopper",
       "category": "BIOMEDICAL",
-      "catalogItemId": 339,
-      "itemCode": "PHACO_CHOPPER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 341,
       "item": "Phacoemulsification System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 340,
-      "itemCode": "PHACOEMULSIFICATION_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 342,
       "item": "Pharmacy Refrigerator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 341,
-      "itemCode": "PHARMACY_REFRIGERATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 343,
       "item": "Phoropter",
       "category": "BIOMEDICAL",
-      "catalogItemId": 342,
-      "itemCode": "PHOROPTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 344,
       "item": "Phototherapy Unit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 343,
-      "itemCode": "PHOTOTHERAPY_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 345,
       "item": "Physical Therapy Table",
       "category": "BIOMEDICAL",
-      "catalogItemId": 344,
-      "itemCode": "PHYSICAL_THERAPY_TABLE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 346,
       "item": "Physical Therapy Tool Set",
       "category": "BIOMEDICAL",
-      "catalogItemId": 345,
-      "itemCode": "PHYSICAL_THERAPY_TOOL_SET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 347,
       "item": "Physiotherapy Barrel Bar",
       "category": "BIOMEDICAL",
-      "catalogItemId": 346,
-      "itemCode": "PHYSIOTHERAPY_BARREL_BAR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 348,
       "item": "Physiotherapy Ultrasound Unit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 347,
-      "itemCode": "PHYSIOTHERAPY_ULTRASOUND_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 349,
       "item": "Physiotherapy Ultrasound/Stimulator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 348,
-      "itemCode": "PHYSIOTHERAPY_ULTRASOUND_STIMULATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 350,
       "item": "Physiotherapy Unit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 349,
-      "itemCode": "PHYSIOTHERAPY_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 351,
       "item": "Pill Counter",
       "category": "BIOMEDICAL",
-      "catalogItemId": 350,
-      "itemCode": "PILL_COUNTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 352,
       "item": "Plasma Sterilizer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 351,
-      "itemCode": "PLASMA_STERILIZER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 353,
       "item": "Plasma Thawing Bath",
       "category": "BIOMEDICAL",
-      "catalogItemId": 352,
-      "itemCode": "PLASMA_THAWING_BATH"
+      "reason": "Already exists"
     },
     {
       "excelRow": 354,
       "item": "Plastic Surgery Instrument Set",
       "category": "BIOMEDICAL",
-      "catalogItemId": 353,
-      "itemCode": "PLASTIC_SURGERY_INSTRUMENT_SET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 355,
       "item": "Platelet Aggregation Analyzer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 354,
-      "itemCode": "PLATELET_AGGREGATION_ANALYZER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 356,
       "item": "Portable Analyzer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 355,
-      "itemCode": "PORTABLE_ANALYZER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 357,
       "item": "Pressure Infusion Cuff",
       "category": "BIOMEDICAL",
-      "catalogItemId": 356,
-      "itemCode": "PRESSURE_INFUSION_CUFF"
+      "reason": "Already exists"
     },
     {
       "excelRow": 358,
       "item": "Pressure Pad Pump",
       "category": "BIOMEDICAL",
-      "catalogItemId": 357,
-      "itemCode": "PRESSURE_PAD_PUMP"
+      "reason": "Already exists"
     },
     {
       "excelRow": 359,
       "item": "Pressure System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 358,
-      "itemCode": "PRESSURE_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 360,
       "item": "Prism Set",
       "category": "BIOMEDICAL",
-      "catalogItemId": 359,
-      "itemCode": "PRISM_SET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 361,
       "item": "Probe",
       "category": "BIOMEDICAL",
-      "catalogItemId": 360,
-      "itemCode": "PROBE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 362,
       "item": "Protection Tube",
       "category": "BIOMEDICAL",
-      "catalogItemId": 361,
-      "itemCode": "PROTECTION_TUBE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 363,
       "item": "Pulse Monitor",
       "category": "BIOMEDICAL",
-      "catalogItemId": 362,
-      "itemCode": "PULSE_MONITOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 364,
       "item": "Pulse Oximeter",
       "category": "BIOMEDICAL",
-      "catalogItemId": 363,
-      "itemCode": "PULSE_OXIMETER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 365,
       "item": "Quadriceps Exercise Chair",
       "category": "BIOMEDICAL",
-      "catalogItemId": 364,
-      "itemCode": "QUADRICEPS_EXERCISE_CHAIR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 366,
       "item": "Radiant Warmer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 365,
-      "itemCode": "RADIANT_WARMER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 367,
       "item": "Radiation Shield Barrier",
       "category": "BIOMEDICAL",
-      "catalogItemId": 366,
-      "itemCode": "RADIATION_SHIELD_BARRIER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 368,
       "item": "Radiofrequency Generator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 367,
-      "itemCode": "RADIOFREQUENCY_GENERATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 369,
       "item": "Radiographic Table",
       "category": "BIOMEDICAL",
-      "catalogItemId": 368,
-      "itemCode": "RADIOGRAPHIC_TABLE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 370,
       "item": "Radiography/Fluoroscopy System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 369,
-      "itemCode": "RADIOGRAPHY_FLUOROSCOPY_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 371,
       "item": "Radiology Equipment",
       "category": "BIOMEDICAL",
-      "catalogItemId": 370,
-      "itemCode": "RADIOLOGY_EQUIPMENT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 372,
       "item": "Rectal Speculum",
       "category": "BIOMEDICAL",
-      "catalogItemId": 371,
-      "itemCode": "RECTAL_SPECULUM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 373,
       "item": "Regulator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 372,
-      "itemCode": "REGULATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 374,
       "item": "Rehabilitation Weights",
       "category": "BIOMEDICAL",
-      "catalogItemId": 373,
-      "itemCode": "REHABILITATION_WEIGHTS"
+      "reason": "Already exists"
     },
     {
       "excelRow": 375,
       "item": "Retinal Scanner",
       "category": "BIOMEDICAL",
-      "catalogItemId": 374,
-      "itemCode": "RETINAL_SCANNER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 376,
       "item": "Retinoscope",
       "category": "BIOMEDICAL",
-      "catalogItemId": 375,
-      "itemCode": "RETINOSCOPE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 377,
       "item": "Retinoscopy Paddle Set",
       "category": "BIOMEDICAL",
-      "catalogItemId": 376,
-      "itemCode": "RETINOSCOPY_PADDLE_SET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 378,
       "item": "Retractor Blade",
       "category": "BIOMEDICAL",
-      "catalogItemId": 377,
-      "itemCode": "RETRACTOR_BLADE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 379,
       "item": "Room Pressure Monitor",
       "category": "BIOMEDICAL",
-      "catalogItemId": 378,
-      "itemCode": "ROOM_PRESSURE_MONITOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 380,
       "item": "Safety Goggles",
       "category": "BIOMEDICAL",
-      "catalogItemId": 379,
-      "itemCode": "SAFETY_GOGGLES"
+      "reason": "Already exists"
     },
     {
       "excelRow": 381,
       "item": "Scale",
       "category": "BIOMEDICAL",
-      "catalogItemId": 380,
-      "itemCode": "SCALE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 382,
       "item": "Scalpel Handle",
       "category": "BIOMEDICAL",
-      "catalogItemId": 381,
-      "itemCode": "SCALPEL_HANDLE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 383,
       "item": "Sealing Machine",
       "category": "BIOMEDICAL",
-      "catalogItemId": 382,
-      "itemCode": "SEALING_MACHINE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 384,
       "item": "Service",
       "category": "BIOMEDICAL",
-      "catalogItemId": 383,
-      "itemCode": "SERVICE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 385,
       "item": "Shockwave Therapy Cart",
       "category": "BIOMEDICAL",
-      "catalogItemId": 384,
-      "itemCode": "SHOCKWAVE_THERAPY_CART"
+      "reason": "Already exists"
     },
     {
       "excelRow": 386,
       "item": "Shoe Cover Dispenser",
       "category": "BIOMEDICAL",
-      "catalogItemId": 385,
-      "itemCode": "SHOE_COVER_DISPENSER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 387,
       "item": "Simulator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 386,
-      "itemCode": "SIMULATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 388,
       "item": "Sinuscope",
       "category": "BIOMEDICAL",
-      "catalogItemId": 387,
-      "itemCode": "SINUSCOPE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 389,
       "item": "Skin Graft Mesher",
       "category": "BIOMEDICAL",
-      "catalogItemId": 388,
-      "itemCode": "SKIN_GRAFT_MESHER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 390,
       "item": "Skull Clamp Base",
       "category": "BIOMEDICAL",
-      "catalogItemId": 389,
-      "itemCode": "SKULL_CLAMP_BASE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 391,
       "item": "Skull Pin",
       "category": "BIOMEDICAL",
-      "catalogItemId": 390,
-      "itemCode": "SKULL_PIN"
+      "reason": "Already exists"
     },
     {
       "excelRow": 392,
       "item": "Slit Lamp",
       "category": "BIOMEDICAL",
-      "catalogItemId": 391,
-      "itemCode": "SLIT_LAMP"
+      "reason": "Already exists"
     },
     {
       "excelRow": 393,
       "item": "Snare",
       "category": "BIOMEDICAL",
-      "catalogItemId": 392,
-      "itemCode": "SNARE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 394,
       "item": "Spectrometer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 393,
-      "itemCode": "SPECTROMETER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 395,
       "item": "Spectrophotometer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 394,
-      "itemCode": "SPECTROPHOTOMETER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 396,
       "item": "Spectrum Analyzer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 395,
-      "itemCode": "SPECTRUM_ANALYZER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 397,
       "item": "Speculum Blade",
       "category": "BIOMEDICAL",
-      "catalogItemId": 396,
-      "itemCode": "SPECULUM_BLADE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 398,
       "item": "Spirometer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 397,
-      "itemCode": "SPIROMETER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 399,
       "item": "Stainless Steel Tube",
       "category": "BIOMEDICAL",
-      "catalogItemId": 398,
-      "itemCode": "STAINLESS_STEEL_TUBE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 400,
       "item": "Stair-Climbing Wheelchair",
       "category": "BIOMEDICAL",
-      "catalogItemId": 399,
-      "itemCode": "STAIR_CLIMBING_WHEELCHAIR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 401,
       "item": "Sterilization Container",
       "category": "BIOMEDICAL",
-      "catalogItemId": 400,
-      "itemCode": "STERILIZATION_CONTAINER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 402,
       "item": "Sterilization Container Indicator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 401,
-      "itemCode": "STERILIZATION_CONTAINER_INDICATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 403,
       "item": "Sterilization Container Tray",
       "category": "BIOMEDICAL",
-      "catalogItemId": 402,
-      "itemCode": "STERILIZATION_CONTAINER_TRAY"
+      "reason": "Already exists"
     },
     {
       "excelRow": 404,
       "item": "Sterilization Indicator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 403,
-      "itemCode": "STERILIZATION_INDICATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 405,
       "item": "Sterilization Instrument Tray",
       "category": "BIOMEDICAL",
-      "catalogItemId": 404,
-      "itemCode": "STERILIZATION_INSTRUMENT_TRAY"
+      "reason": "Already exists"
     },
     {
       "excelRow": 406,
       "item": "Sterilization Reel Cutter",
       "category": "BIOMEDICAL",
-      "catalogItemId": 405,
-      "itemCode": "STERILIZATION_REEL_CUTTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 407,
       "item": "Sterilizer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 406,
-      "itemCode": "STERILIZER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 408,
       "item": "Stitch Cutter",
       "category": "BIOMEDICAL",
-      "catalogItemId": 407,
-      "itemCode": "STITCH_CUTTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 409,
       "item": "Stretcher",
       "category": "BIOMEDICAL",
-      "catalogItemId": 408,
-      "itemCode": "STRETCHER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 410,
       "item": "Suction Pump",
       "category": "BIOMEDICAL",
-      "catalogItemId": 409,
-      "itemCode": "SUCTION_PUMP"
+      "reason": "Already exists"
     },
     {
       "excelRow": 411,
       "item": "Suction Regulator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 410,
-      "itemCode": "SUCTION_REGULATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 412,
       "item": "Suction Tube/Cannula",
       "category": "BIOMEDICAL",
-      "catalogItemId": 411,
-      "itemCode": "SUCTION_TUBE_CANNULA"
+      "reason": "Already exists"
     },
     {
       "excelRow": 413,
       "item": "Suction Unit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 412,
-      "itemCode": "SUCTION_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 414,
       "item": "Suction/Irrigation Unit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 413,
-      "itemCode": "SUCTION_IRRIGATION_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 415,
       "item": "Surgical Aspirator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 414,
-      "itemCode": "SURGICAL_ASPIRATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 416,
       "item": "Surgical Boom",
       "category": "BIOMEDICAL",
-      "catalogItemId": 415,
-      "itemCode": "SURGICAL_BOOM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 417,
       "item": "Surgical Camera",
       "category": "BIOMEDICAL",
-      "catalogItemId": 416,
-      "itemCode": "SURGICAL_CAMERA"
+      "reason": "Already exists"
     },
     {
       "excelRow": 418,
       "item": "Surgical Clamp",
       "category": "BIOMEDICAL",
-      "catalogItemId": 417,
-      "itemCode": "SURGICAL_CLAMP"
+      "reason": "Already exists"
     },
     {
       "excelRow": 419,
       "item": "Surgical Cone",
       "category": "BIOMEDICAL",
-      "catalogItemId": 418,
-      "itemCode": "SURGICAL_CONE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 420,
       "item": "Surgical Curette",
       "category": "BIOMEDICAL",
-      "catalogItemId": 419,
-      "itemCode": "SURGICAL_CURETTE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 421,
       "item": "Surgical Dissector",
       "category": "BIOMEDICAL",
-      "catalogItemId": 420,
-      "itemCode": "SURGICAL_DISSECTOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 422,
       "item": "Surgical Elevator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 421,
-      "itemCode": "SURGICAL_ELEVATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 423,
       "item": "Surgical Equipment Adapter",
       "category": "BIOMEDICAL",
-      "catalogItemId": 422,
-      "itemCode": "SURGICAL_EQUIPMENT_ADAPTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 424,
       "item": "Surgical Forceps",
       "category": "BIOMEDICAL",
-      "catalogItemId": 423,
-      "itemCode": "SURGICAL_FORCEPS"
+      "reason": "Already exists"
     },
     {
       "excelRow": 425,
       "item": "Surgical Gouge",
       "category": "BIOMEDICAL",
-      "catalogItemId": 424,
-      "itemCode": "SURGICAL_GOUGE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 426,
       "item": "Surgical Hook",
       "category": "BIOMEDICAL",
-      "catalogItemId": 425,
-      "itemCode": "SURGICAL_HOOK"
+      "reason": "Already exists"
     },
     {
       "excelRow": 427,
       "item": "Surgical Instrument Set",
       "category": "BIOMEDICAL",
-      "catalogItemId": 426,
-      "itemCode": "SURGICAL_INSTRUMENT_SET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 428,
       "item": "Surgical Knife",
       "category": "BIOMEDICAL",
-      "catalogItemId": 427,
-      "itemCode": "SURGICAL_KNIFE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 429,
       "item": "Surgical Light",
       "category": "BIOMEDICAL",
-      "catalogItemId": 428,
-      "itemCode": "SURGICAL_LIGHT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 430,
       "item": "Surgical Loop",
       "category": "BIOMEDICAL",
-      "catalogItemId": 429,
-      "itemCode": "SURGICAL_LOOP"
+      "reason": "Already exists"
     },
     {
       "excelRow": 431,
       "item": "Surgical Mouth Gag",
       "category": "BIOMEDICAL",
-      "catalogItemId": 430,
-      "itemCode": "SURGICAL_MOUTH_GAG"
+      "reason": "Already exists"
     },
     {
       "excelRow": 432,
       "item": "Surgical Needle Holder",
       "category": "BIOMEDICAL",
-      "catalogItemId": 431,
-      "itemCode": "SURGICAL_NEEDLE_HOLDER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 433,
       "item": "Surgical Power Drill/Saw System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 432,
-      "itemCode": "SURGICAL_POWER_DRILL_SAW_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 434,
       "item": "Surgical Power Handpiece",
       "category": "BIOMEDICAL",
-      "catalogItemId": 433,
-      "itemCode": "SURGICAL_POWER_HANDPIECE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 435,
       "item": "Surgical Retractor",
       "category": "BIOMEDICAL",
-      "catalogItemId": 434,
-      "itemCode": "SURGICAL_RETRACTOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 436,
       "item": "Surgical Rongeur",
       "category": "BIOMEDICAL",
-      "catalogItemId": 435,
-      "itemCode": "SURGICAL_RONGEUR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 437,
       "item": "Surgical Saw",
       "category": "BIOMEDICAL",
-      "catalogItemId": 436,
-      "itemCode": "SURGICAL_SAW"
+      "reason": "Already exists"
     },
     {
       "excelRow": 438,
       "item": "Surgical Scissors",
       "category": "BIOMEDICAL",
-      "catalogItemId": 437,
-      "itemCode": "SURGICAL_SCISSORS"
+      "reason": "Already exists"
     },
     {
       "excelRow": 439,
       "item": "Surgical Scrub Sink",
       "category": "BIOMEDICAL",
-      "catalogItemId": 438,
-      "itemCode": "SURGICAL_SCRUB_SINK"
+      "reason": "Already exists"
     },
     {
       "excelRow": 440,
       "item": "Surgical Speculum",
       "category": "BIOMEDICAL",
-      "catalogItemId": 439,
-      "itemCode": "SURGICAL_SPECULUM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 441,
       "item": "Surgical Viewing Monitor",
       "category": "BIOMEDICAL",
-      "catalogItemId": 440,
-      "itemCode": "SURGICAL_VIEWING_MONITOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 442,
       "item": "Sweat Analysis System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 441,
-      "itemCode": "SWEAT_ANALYSIS_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 443,
       "item": "Syringe Pump",
       "category": "BIOMEDICAL",
-      "catalogItemId": 442,
-      "itemCode": "SYRINGE_PUMP"
+      "reason": "Already exists"
     },
     {
       "excelRow": 444,
       "item": "Tachometer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 443,
-      "itemCode": "TACHOMETER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 445,
       "item": "Television Mount",
       "category": "BIOMEDICAL",
-      "catalogItemId": 444,
-      "itemCode": "TELEVISION_MOUNT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 446,
       "item": "Therapeutic Laser System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 445,
-      "itemCode": "THERAPEUTIC_LASER_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 447,
       "item": "Therapy Pack Heater",
       "category": "BIOMEDICAL",
-      "catalogItemId": 446,
-      "itemCode": "THERAPY_PACK_HEATER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 448,
       "item": "Therapy Unit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 447,
-      "itemCode": "THERAPY_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 449,
       "item": "Thermometer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 448,
-      "itemCode": "THERMOMETER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 450,
       "item": "Tongue Blade",
       "category": "BIOMEDICAL",
-      "catalogItemId": 449,
-      "itemCode": "TONGUE_BLADE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 451,
       "item": "Tongue Forceps",
       "category": "BIOMEDICAL",
-      "catalogItemId": 450,
-      "itemCode": "TONGUE_FORCEPS"
+      "reason": "Already exists"
     },
     {
       "excelRow": 452,
       "item": "Tonometer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 451,
-      "itemCode": "TONOMETER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 453,
       "item": "Tourniquet System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 452,
-      "itemCode": "TOURNIQUET_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 454,
       "item": "Towel Clip",
       "category": "BIOMEDICAL",
-      "catalogItemId": 453,
-      "itemCode": "TOWEL_CLIP"
+      "reason": "Already exists"
     },
     {
       "excelRow": 455,
       "item": "Traction Bed",
       "category": "BIOMEDICAL",
-      "catalogItemId": 454,
-      "itemCode": "TRACTION_BED"
+      "reason": "Already exists"
     },
     {
       "excelRow": 456,
       "item": "Traction Unit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 455,
-      "itemCode": "TRACTION_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 457,
       "item": "Treadmill",
       "category": "BIOMEDICAL",
-      "catalogItemId": 456,
-      "itemCode": "TREADMILL"
+      "reason": "Already exists"
     },
     {
       "excelRow": 458,
       "item": "Treatment Bed",
       "category": "BIOMEDICAL",
-      "catalogItemId": 457,
-      "itemCode": "TREATMENT_BED"
+      "reason": "Already exists"
     },
     {
       "excelRow": 459,
       "item": "Trial Frame",
       "category": "BIOMEDICAL",
-      "catalogItemId": 458,
-      "itemCode": "TRIAL_FRAME"
+      "reason": "Already exists"
     },
     {
       "excelRow": 460,
       "item": "Ultrasonic Cleaner",
       "category": "BIOMEDICAL",
-      "catalogItemId": 459,
-      "itemCode": "ULTRASONIC_CLEANER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 461,
       "item": "Ultrasound Scanner",
       "category": "BIOMEDICAL",
-      "catalogItemId": 460,
-      "itemCode": "ULTRASOUND_SCANNER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 462,
       "item": "Ultrasound System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 461,
-      "itemCode": "ULTRASOUND_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 463,
       "item": "Uretero-Renoscope",
       "category": "BIOMEDICAL",
-      "catalogItemId": 462,
-      "itemCode": "URETERO_RENOSCOPE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 464,
       "item": "Urine Analyzer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 463,
-      "itemCode": "URINE_ANALYZER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 465,
       "item": "Urodynamic System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 464,
-      "itemCode": "URODYNAMIC_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 466,
       "item": "Uroflowmeter",
       "category": "BIOMEDICAL",
-      "catalogItemId": 465,
-      "itemCode": "UROFLOWMETER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 467,
       "item": "Urology Equipment",
       "category": "BIOMEDICAL",
-      "catalogItemId": 466,
-      "itemCode": "UROLOGY_EQUIPMENT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 468,
       "item": "Uterine Cannula",
       "category": "BIOMEDICAL",
-      "catalogItemId": 467,
-      "itemCode": "UTERINE_CANNULA"
+      "reason": "Already exists"
     },
     {
       "excelRow": 469,
       "item": "Uterine Sound",
       "category": "BIOMEDICAL",
-      "catalogItemId": 468,
-      "itemCode": "UTERINE_SOUND"
+      "reason": "Already exists"
     },
     {
       "excelRow": 470,
       "item": "Vacuum Unit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 469,
-      "itemCode": "VACUUM_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 471,
       "item": "Vascular Instrument",
       "category": "BIOMEDICAL",
-      "catalogItemId": 470,
-      "itemCode": "VASCULAR_INSTRUMENT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 472,
       "item": "Vein Finder",
       "category": "BIOMEDICAL",
-      "catalogItemId": 471,
-      "itemCode": "VEIN_FINDER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 473,
       "item": "Vein Stripper Set",
       "category": "BIOMEDICAL",
-      "catalogItemId": 472,
-      "itemCode": "VEIN_STRIPPER_SET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 474,
       "item": "Vending Machine",
       "category": "BIOMEDICAL",
-      "catalogItemId": 473,
-      "itemCode": "VENDING_MACHINE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 475,
       "item": "Ventilator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 474,
-      "itemCode": "VENTILATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 476,
       "item": "Vibrator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 475,
-      "itemCode": "VIBRATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 477,
       "item": "Video Camera",
       "category": "BIOMEDICAL",
-      "catalogItemId": 476,
-      "itemCode": "VIDEO_CAMERA"
+      "reason": "Already exists"
     },
     {
       "excelRow": 478,
       "item": "Video Processor",
       "category": "BIOMEDICAL",
-      "catalogItemId": 477,
-      "itemCode": "VIDEO_PROCESSOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 479,
       "item": "Video Recording System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 478,
-      "itemCode": "VIDEO_RECORDING_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 480,
       "item": "Vision Chart Projector",
       "category": "BIOMEDICAL",
-      "catalogItemId": 479,
-      "itemCode": "VISION_CHART_PROJECTOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 481,
       "item": "Vision Test",
       "category": "BIOMEDICAL",
-      "catalogItemId": 480,
-      "itemCode": "VISION_TEST"
+      "reason": "Already exists"
     },
     {
       "excelRow": 482,
       "item": "Vision Test Book",
       "category": "BIOMEDICAL",
-      "catalogItemId": 481,
-      "itemCode": "VISION_TEST_BOOK"
+      "reason": "Already exists"
     },
     {
       "excelRow": 483,
       "item": "Vital Signs Monitor",
       "category": "BIOMEDICAL",
-      "catalogItemId": 482,
-      "itemCode": "VITAL_SIGNS_MONITOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 484,
       "item": "Walker",
       "category": "BIOMEDICAL",
-      "catalogItemId": 483,
-      "itemCode": "WALKER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 485,
       "item": "Warming Lamp",
       "category": "BIOMEDICAL",
-      "catalogItemId": 484,
-      "itemCode": "WARMING_LAMP"
+      "reason": "Already exists"
     },
     {
       "excelRow": 486,
       "item": "Washer/Disinfector",
       "category": "BIOMEDICAL",
-      "catalogItemId": 485,
-      "itemCode": "WASHER_DISINFECTOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 487,
       "item": "Washer/Sterilizer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 486,
-      "itemCode": "WASHER_STERILIZER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 488,
       "item": "Water Purification System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 487,
-      "itemCode": "WATER_PURIFICATION_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 489,
       "item": "Weight Plate Stand",
       "category": "BIOMEDICAL",
-      "catalogItemId": 488,
-      "itemCode": "WEIGHT_PLATE_STAND"
+      "reason": "Already exists"
     },
     {
       "excelRow": 490,
       "item": "Wheelchair",
       "category": "BIOMEDICAL",
-      "catalogItemId": 489,
-      "itemCode": "WHEELCHAIR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 491,
       "item": "Wire Basket",
       "category": "BIOMEDICAL",
-      "catalogItemId": 490,
-      "itemCode": "WIRE_BASKET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 492,
       "item": "Wire Cutter",
       "category": "BIOMEDICAL",
-      "catalogItemId": 491,
-      "itemCode": "WIRE_CUTTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 493,
       "item": "Wireless Video System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 492,
-      "itemCode": "WIRELESS_VIDEO_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 494,
       "item": "Wound Aspirator",
       "category": "BIOMEDICAL",
-      "catalogItemId": 493,
-      "itemCode": "WOUND_ASPIRATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 495,
       "item": "X-Ray Detector Retrofit Kit",
       "category": "BIOMEDICAL",
-      "catalogItemId": 494,
-      "itemCode": "X_RAY_DETECTOR_RETROFIT_KIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 496,
       "item": "X-Ray Film Cassette",
       "category": "BIOMEDICAL",
-      "catalogItemId": 495,
-      "itemCode": "X_RAY_FILM_CASSETTE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 497,
       "item": "X-Ray Film Changer",
       "category": "BIOMEDICAL",
-      "catalogItemId": 496,
-      "itemCode": "X_RAY_FILM_CHANGER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 498,
       "item": "X-Ray Tube Controller",
       "category": "BIOMEDICAL",
-      "catalogItemId": 497,
-      "itemCode": "X_RAY_TUBE_CONTROLLER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 499,
       "item": "X-Ray View Box",
       "category": "BIOMEDICAL",
-      "catalogItemId": 498,
-      "itemCode": "X_RAY_VIEW_BOX"
+      "reason": "Already exists"
     },
     {
       "excelRow": 500,
       "item": "YAG Laser System",
       "category": "BIOMEDICAL",
-      "catalogItemId": 499,
-      "itemCode": "YAG_LASER_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 501,
       "item": "Advertising Board",
       "category": "GENERAL",
-      "catalogItemId": 500,
-      "itemCode": "ADVERTISING_BOARD"
+      "reason": "Already exists"
     },
     {
       "excelRow": 502,
       "item": "Air Conditioner",
       "category": "GENERAL",
-      "catalogItemId": 501,
-      "itemCode": "AIR_CONDITIONER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 503,
       "item": "Air Conditioner Support Bracket",
       "category": "GENERAL",
-      "catalogItemId": 502,
-      "itemCode": "AIR_CONDITIONER_SUPPORT_BRACKET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 504,
       "item": "Air Filter",
       "category": "GENERAL",
-      "catalogItemId": 503,
-      "itemCode": "AIR_FILTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 505,
       "item": "Air Purifier",
       "category": "GENERAL",
-      "catalogItemId": 504,
-      "itemCode": "AIR_PURIFIER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 506,
       "item": "Air Receiver Tank",
       "category": "GENERAL",
-      "catalogItemId": 505,
-      "itemCode": "AIR_RECEIVER_TANK"
+      "reason": "Already exists"
     },
     {
       "excelRow": 507,
       "item": "Ambulance",
       "category": "GENERAL",
-      "catalogItemId": 506,
-      "itemCode": "AMBULANCE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 508,
       "item": "Amplifier",
       "category": "GENERAL",
-      "catalogItemId": 507,
-      "itemCode": "AMPLIFIER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 509,
       "item": "Announcement Board",
       "category": "GENERAL",
-      "catalogItemId": 508,
-      "itemCode": "ANNOUNCEMENT_BOARD"
+      "reason": "Already exists"
     },
     {
       "excelRow": 510,
       "item": "Attendant Bed",
       "category": "GENERAL",
-      "catalogItemId": 509,
-      "itemCode": "ATTENDANT_BED"
+      "reason": "Already exists"
     },
     {
       "excelRow": 511,
       "item": "Attendant Chair",
       "category": "GENERAL",
-      "catalogItemId": 510,
-      "itemCode": "ATTENDANT_CHAIR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 512,
       "item": "Attendant Console",
       "category": "GENERAL",
-      "catalogItemId": 511,
-      "itemCode": "ATTENDANT_CONSOLE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 513,
       "item": "Automatic Transfer Switch",
       "category": "GENERAL",
-      "catalogItemId": 512,
-      "itemCode": "AUTOMATIC_TRANSFER_SWITCH"
+      "reason": "Already exists"
     },
     {
       "excelRow": 514,
       "item": "Azan Timer",
       "category": "GENERAL",
-      "catalogItemId": 513,
-      "itemCode": "AZAN_TIMER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 515,
       "item": "Bar Counter",
       "category": "GENERAL",
-      "catalogItemId": 514,
-      "itemCode": "BAR_COUNTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 516,
       "item": "Barrier",
       "category": "GENERAL",
-      "catalogItemId": 515,
-      "itemCode": "BARRIER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 517,
       "item": "Barrier Laundry Washer",
       "category": "GENERAL",
-      "catalogItemId": 516,
-      "itemCode": "BARRIER_LAUNDRY_WASHER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 518,
       "item": "Battery",
       "category": "GENERAL",
-      "catalogItemId": 517,
-      "itemCode": "BATTERY"
+      "reason": "Already exists"
     },
     {
       "excelRow": 519,
       "item": "Battery Cabinet",
       "category": "GENERAL",
-      "catalogItemId": 518,
-      "itemCode": "BATTERY_CABINET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 520,
       "item": "Battery Charger",
       "category": "GENERAL",
-      "catalogItemId": 519,
-      "itemCode": "BATTERY_CHARGER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 521,
       "item": "Bedside Cabinet",
       "category": "GENERAL",
-      "catalogItemId": 520,
-      "itemCode": "BEDSIDE_CABINET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 522,
       "item": "Bench",
       "category": "GENERAL",
-      "catalogItemId": 521,
-      "itemCode": "BENCH"
+      "reason": "Already exists"
     },
     {
       "excelRow": 523,
       "item": "Biometric Attendance Device",
       "category": "GENERAL",
-      "catalogItemId": 522,
-      "itemCode": "BIOMETRIC_ATTENDANCE_DEVICE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 524,
       "item": "Bipod",
       "category": "GENERAL",
-      "catalogItemId": 523,
-      "itemCode": "BIPOD"
+      "reason": "Already exists"
     },
     {
       "excelRow": 525,
       "item": "Boiler",
       "category": "GENERAL",
-      "catalogItemId": 524,
-      "itemCode": "BOILER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 526,
       "item": "Bottle Warmer",
       "category": "GENERAL",
-      "catalogItemId": 525,
-      "itemCode": "BOTTLE_WARMER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 527,
       "item": "Building",
       "category": "GENERAL",
-      "catalogItemId": 526,
-      "itemCode": "BUILDING"
+      "reason": "Already exists"
     },
     {
       "excelRow": 528,
       "item": "Building Elevator",
       "category": "GENERAL",
-      "catalogItemId": 527,
-      "itemCode": "BUILDING_ELEVATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 529,
       "item": "Bus",
       "category": "GENERAL",
-      "catalogItemId": 528,
-      "itemCode": "BUS"
+      "reason": "Already exists"
     },
     {
       "excelRow": 530,
       "item": "Cabinet",
       "category": "GENERAL",
-      "catalogItemId": 529,
-      "itemCode": "CABINET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 531,
       "item": "Car",
       "category": "GENERAL",
-      "catalogItemId": 530,
-      "itemCode": "CAR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 532,
       "item": "Caravan",
       "category": "GENERAL",
-      "catalogItemId": 531,
-      "itemCode": "CARAVAN"
+      "reason": "Already exists"
     },
     {
       "excelRow": 533,
       "item": "Cartilage Crusher",
       "category": "GENERAL",
-      "catalogItemId": 532,
-      "itemCode": "CARTILAGE_CRUSHER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 534,
       "item": "Cash Counter",
       "category": "GENERAL",
-      "catalogItemId": 533,
-      "itemCode": "CASH_COUNTER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 535,
       "item": "Chair Cushion",
       "category": "GENERAL",
-      "catalogItemId": 534,
-      "itemCode": "CHAIR_CUSHION"
+      "reason": "Already exists"
     },
     {
       "excelRow": 536,
       "item": "Chiller",
       "category": "GENERAL",
-      "catalogItemId": 535,
-      "itemCode": "CHILLER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 537,
       "item": "Chiller Compressor",
       "category": "GENERAL",
-      "catalogItemId": 536,
-      "itemCode": "CHILLER_COMPRESSOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 538,
       "item": "Chisel",
       "category": "GENERAL",
-      "catalogItemId": 537,
-      "itemCode": "CHISEL"
+      "reason": "Already exists"
     },
     {
       "excelRow": 539,
       "item": "Circuit Breaker",
       "category": "GENERAL",
-      "catalogItemId": 538,
-      "itemCode": "CIRCUIT_BREAKER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 540,
       "item": "Classroom Chair",
       "category": "GENERAL",
-      "catalogItemId": 539,
-      "itemCode": "CLASSROOM_CHAIR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 541,
       "item": "Clock",
       "category": "GENERAL",
-      "catalogItemId": 540,
-      "itemCode": "CLOCK"
+      "reason": "Already exists"
     },
     {
       "excelRow": 542,
       "item": "Clothes Dryer",
       "category": "GENERAL",
-      "catalogItemId": 541,
-      "itemCode": "CLOTHES_DRYER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 543,
       "item": "Clothes Stand",
       "category": "GENERAL",
-      "catalogItemId": 542,
-      "itemCode": "CLOTHES_STAND"
+      "reason": "Already exists"
     },
     {
       "excelRow": 544,
       "item": "Coffee Maker",
       "category": "GENERAL",
-      "catalogItemId": 543,
-      "itemCode": "COFFEE_MAKER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 545,
       "item": "Coffee Table",
       "category": "GENERAL",
-      "catalogItemId": 544,
-      "itemCode": "COFFEE_TABLE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 546,
       "item": "Coil",
       "category": "GENERAL",
-      "catalogItemId": 545,
-      "itemCode": "COIL"
+      "reason": "Already exists"
     },
     {
       "excelRow": 547,
       "item": "Computer Table",
       "category": "GENERAL",
-      "catalogItemId": 546,
-      "itemCode": "COMPUTER_TABLE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 548,
       "item": "Conference Table",
       "category": "GENERAL",
-      "catalogItemId": 547,
-      "itemCode": "CONFERENCE_TABLE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 549,
       "item": "Control Board/Controller",
       "category": "GENERAL",
-      "catalogItemId": 548,
-      "itemCode": "CONTROL_BOARD_CONTROLLER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 550,
       "item": "Conveyor Tray",
       "category": "GENERAL",
-      "catalogItemId": 549,
-      "itemCode": "CONVEYOR_TRAY"
+      "reason": "Already exists"
     },
     {
       "excelRow": 551,
       "item": "Crib",
       "category": "GENERAL",
-      "catalogItemId": 550,
-      "itemCode": "CRIB"
+      "reason": "Already exists"
     },
     {
       "excelRow": 552,
       "item": "CT Installation",
       "category": "GENERAL",
-      "catalogItemId": 551,
-      "itemCode": "CT_INSTALLATION"
+      "reason": "Already exists"
     },
     {
       "excelRow": 553,
       "item": "Curtain",
       "category": "GENERAL",
-      "catalogItemId": 552,
-      "itemCode": "CURTAIN"
+      "reason": "Already exists"
     },
     {
       "excelRow": 554,
       "item": "Data Panel",
       "category": "GENERAL",
-      "catalogItemId": 553,
-      "itemCode": "DATA_PANEL"
+      "reason": "Already exists"
     },
     {
       "excelRow": 555,
       "item": "Detergent Transfer Unit",
       "category": "GENERAL",
-      "catalogItemId": 554,
-      "itemCode": "DETERGENT_TRANSFER_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 556,
       "item": "Diesel Tank",
       "category": "GENERAL",
-      "catalogItemId": 555,
-      "itemCode": "DIESEL_TANK"
+      "reason": "Already exists"
     },
     {
       "excelRow": 557,
       "item": "Digital Signage",
       "category": "GENERAL",
-      "catalogItemId": 556,
-      "itemCode": "DIGITAL_SIGNAGE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 558,
       "item": "Dining Chair",
       "category": "GENERAL",
-      "catalogItemId": 557,
-      "itemCode": "DINING_CHAIR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 559,
       "item": "Dining Table",
       "category": "GENERAL",
-      "catalogItemId": 558,
-      "itemCode": "DINING_TABLE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 560,
       "item": "Dishwasher",
       "category": "GENERAL",
-      "catalogItemId": 559,
-      "itemCode": "DISHWASHER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 561,
       "item": "Dispenser",
       "category": "GENERAL",
-      "catalogItemId": 560,
-      "itemCode": "DISPENSER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 562,
       "item": "Display Model",
       "category": "GENERAL",
-      "catalogItemId": 561,
-      "itemCode": "DISPLAY_MODEL"
+      "reason": "Already exists"
     },
     {
       "excelRow": 563,
       "item": "Distiller",
       "category": "GENERAL",
-      "catalogItemId": 562,
-      "itemCode": "DISTILLER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 564,
       "item": "Door",
       "category": "GENERAL",
-      "catalogItemId": 563,
-      "itemCode": "DOOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 565,
       "item": "Dressing Table",
       "category": "GENERAL",
-      "catalogItemId": 564,
-      "itemCode": "DRESSING_TABLE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 566,
       "item": "Drill Press",
       "category": "GENERAL",
-      "catalogItemId": 565,
-      "itemCode": "DRILL_PRESS"
+      "reason": "Already exists"
     },
     {
       "excelRow": 567,
       "item": "Drying Cabinet",
       "category": "GENERAL",
-      "catalogItemId": 566,
-      "itemCode": "DRYING_CABINET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 568,
       "item": "Electric Heater",
       "category": "GENERAL",
-      "catalogItemId": 567,
-      "itemCode": "ELECTRIC_HEATER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 569,
       "item": "Electric Iron",
       "category": "GENERAL",
-      "catalogItemId": 568,
-      "itemCode": "ELECTRIC_IRON"
+      "reason": "Already exists"
     },
     {
       "excelRow": 570,
       "item": "Electrical Box",
       "category": "GENERAL",
-      "catalogItemId": 569,
-      "itemCode": "ELECTRICAL_BOX"
+      "reason": "Already exists"
     },
     {
       "excelRow": 571,
       "item": "Electrical Control Panel",
       "category": "GENERAL",
-      "catalogItemId": 570,
-      "itemCode": "ELECTRICAL_CONTROL_PANEL"
+      "reason": "Already exists"
     },
     {
       "excelRow": 572,
       "item": "Electrical Distribution Panel",
       "category": "GENERAL",
-      "catalogItemId": 571,
-      "itemCode": "ELECTRICAL_DISTRIBUTION_PANEL"
+      "reason": "Already exists"
     },
     {
       "excelRow": 573,
       "item": "Electrical Generator",
       "category": "GENERAL",
-      "catalogItemId": 572,
-      "itemCode": "ELECTRICAL_GENERATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 574,
       "item": "Electrical Junction Box",
       "category": "GENERAL",
-      "catalogItemId": 573,
-      "itemCode": "ELECTRICAL_JUNCTION_BOX"
+      "reason": "Already exists"
     },
     {
       "excelRow": 575,
       "item": "Electrical Switch",
       "category": "GENERAL",
-      "catalogItemId": 574,
-      "itemCode": "ELECTRICAL_SWITCH"
+      "reason": "Already exists"
     },
     {
       "excelRow": 576,
       "item": "Equipment Stand",
       "category": "GENERAL",
-      "catalogItemId": 575,
-      "itemCode": "EQUIPMENT_STAND"
+      "reason": "Already exists"
     },
     {
       "excelRow": 577,
       "item": "Equipment Support",
       "category": "GENERAL",
-      "catalogItemId": 576,
-      "itemCode": "EQUIPMENT_SUPPORT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 578,
       "item": "Examination Box",
       "category": "GENERAL",
-      "catalogItemId": 577,
-      "itemCode": "EXAMINATION_BOX"
+      "reason": "Already exists"
     },
     {
       "excelRow": 579,
       "item": "Fan",
       "category": "GENERAL",
-      "catalogItemId": 578,
-      "itemCode": "FAN"
+      "reason": "Already exists"
     },
     {
       "excelRow": 580,
       "item": "Fax Machine",
       "category": "GENERAL",
-      "catalogItemId": 579,
-      "itemCode": "FAX_MACHINE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 581,
       "item": "Feed Water Tank",
       "category": "GENERAL",
-      "catalogItemId": 580,
-      "itemCode": "FEED_WATER_TANK"
+      "reason": "Already exists"
     },
     {
       "excelRow": 582,
       "item": "Filing Cabinet",
       "category": "GENERAL",
-      "catalogItemId": 581,
-      "itemCode": "FILING_CABINET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 583,
       "item": "Fire Alarm Control Panel",
       "category": "GENERAL",
-      "catalogItemId": 582,
-      "itemCode": "FIRE_ALARM_CONTROL_PANEL"
+      "reason": "Already exists"
     },
     {
       "excelRow": 584,
       "item": "Fire Suppression Control Panel",
       "category": "GENERAL",
-      "catalogItemId": 583,
-      "itemCode": "FIRE_SUPPRESSION_CONTROL_PANEL"
+      "reason": "Already exists"
     },
     {
       "excelRow": 585,
       "item": "Fire Suppression System",
       "category": "GENERAL",
-      "catalogItemId": 584,
-      "itemCode": "FIRE_SUPPRESSION_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 586,
       "item": "Flammable Safety Cabinet",
       "category": "GENERAL",
-      "catalogItemId": 585,
-      "itemCode": "FLAMMABLE_SAFETY_CABINET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 587,
       "item": "Floor Scrubber",
       "category": "GENERAL",
-      "catalogItemId": 586,
-      "itemCode": "FLOOR_SCRUBBER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 588,
       "item": "Flushing Pump",
       "category": "GENERAL",
-      "catalogItemId": 587,
-      "itemCode": "FLUSHING_PUMP"
+      "reason": "Already exists"
     },
     {
       "excelRow": 589,
       "item": "Food Chopper",
       "category": "GENERAL",
-      "catalogItemId": 588,
-      "itemCode": "FOOD_CHOPPER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 590,
       "item": "Food Service Trolley",
       "category": "GENERAL",
-      "catalogItemId": 589,
-      "itemCode": "FOOD_SERVICE_TROLLEY"
+      "reason": "Already exists"
     },
     {
       "excelRow": 591,
       "item": "Food Warmer",
       "category": "GENERAL",
-      "catalogItemId": 590,
-      "itemCode": "FOOD_WARMER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 592,
       "item": "Foosball Table",
       "category": "GENERAL",
-      "catalogItemId": 591,
-      "itemCode": "FOOSBALL_TABLE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 593,
       "item": "Forklift",
       "category": "GENERAL",
-      "catalogItemId": 592,
-      "itemCode": "FORKLIFT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 594,
       "item": "Freezer",
       "category": "GENERAL",
-      "catalogItemId": 593,
-      "itemCode": "FREEZER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 595,
       "item": "Front Panel Board",
       "category": "GENERAL",
-      "catalogItemId": 594,
-      "itemCode": "FRONT_PANEL_BOARD"
+      "reason": "Already exists"
     },
     {
       "excelRow": 596,
       "item": "Frozen Food Cabinet",
       "category": "GENERAL",
-      "catalogItemId": 595,
-      "itemCode": "FROZEN_FOOD_CABINET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 597,
       "item": "Fryer",
       "category": "GENERAL",
-      "catalogItemId": 596,
-      "itemCode": "FRYER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 598,
       "item": "Gate",
       "category": "GENERAL",
-      "catalogItemId": 597,
-      "itemCode": "GATE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 599,
       "item": "General Trolley/Cart",
       "category": "GENERAL",
-      "catalogItemId": 598,
-      "itemCode": "GENERAL_TROLLEY_CART"
+      "reason": "Already exists"
     },
     {
       "excelRow": 600,
       "item": "Generator Synchronization Controller",
       "category": "GENERAL",
-      "catalogItemId": 599,
-      "itemCode": "GENERATOR_SYNCHRONIZATION_CONTROLLER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 601,
       "item": "Glass Installation",
       "category": "GENERAL",
-      "catalogItemId": 600,
-      "itemCode": "GLASS_INSTALLATION"
+      "reason": "Already exists"
     },
     {
       "excelRow": 602,
       "item": "Grill",
       "category": "GENERAL",
-      "catalogItemId": 601,
-      "itemCode": "GRILL"
+      "reason": "Already exists"
     },
     {
       "excelRow": 603,
       "item": "Hamper",
       "category": "GENERAL",
-      "catalogItemId": 602,
-      "itemCode": "HAMPER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 604,
       "item": "Hanger",
       "category": "GENERAL",
-      "catalogItemId": 603,
-      "itemCode": "HANGER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 605,
       "item": "High-Pressure Air Cylinder",
       "category": "GENERAL",
-      "catalogItemId": 604,
-      "itemCode": "HIGH_PRESSURE_AIR_CYLINDER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 606,
       "item": "Hot Plate Griller",
       "category": "GENERAL",
-      "catalogItemId": 605,
-      "itemCode": "HOT_PLATE_GRILLER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 607,
       "item": "HVAC Compressor",
       "category": "GENERAL",
-      "catalogItemId": 606,
-      "itemCode": "HVAC_COMPRESSOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 608,
       "item": "HVAC Package Unit",
       "category": "GENERAL",
-      "catalogItemId": 607,
-      "itemCode": "HVAC_PACKAGE_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 609,
       "item": "Ice Maker",
       "category": "GENERAL",
-      "catalogItemId": 608,
-      "itemCode": "ICE_MAKER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 610,
       "item": "Instrument Cabinet",
       "category": "GENERAL",
-      "catalogItemId": 609,
-      "itemCode": "INSTRUMENT_CABINET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 611,
       "item": "Intercom System",
       "category": "GENERAL",
-      "catalogItemId": 610,
-      "itemCode": "INTERCOM_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 612,
       "item": "Iron Stand",
       "category": "GENERAL",
-      "catalogItemId": 611,
-      "itemCode": "IRON_STAND"
+      "reason": "Already exists"
     },
     {
       "excelRow": 613,
       "item": "Key Box",
       "category": "GENERAL",
-      "catalogItemId": 612,
-      "itemCode": "KEY_BOX"
+      "reason": "Already exists"
     },
     {
       "excelRow": 614,
       "item": "Kitchen Cabinet",
       "category": "GENERAL",
-      "catalogItemId": 613,
-      "itemCode": "KITCHEN_CABINET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 615,
       "item": "Kitchen Equipment",
       "category": "GENERAL",
-      "catalogItemId": 614,
-      "itemCode": "KITCHEN_EQUIPMENT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 616,
       "item": "Kitchen Table",
       "category": "GENERAL",
-      "catalogItemId": 615,
-      "itemCode": "KITCHEN_TABLE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 617,
       "item": "Knot Tyer",
       "category": "GENERAL",
-      "catalogItemId": 616,
-      "itemCode": "KNOT_TYER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 618,
       "item": "Laminator",
       "category": "GENERAL",
-      "catalogItemId": 617,
-      "itemCode": "LAMINATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 619,
       "item": "Lamp",
       "category": "GENERAL",
-      "catalogItemId": 618,
-      "itemCode": "LAMP"
+      "reason": "Already exists"
     },
     {
       "excelRow": 620,
       "item": "Land",
       "category": "GENERAL",
-      "catalogItemId": 619,
-      "itemCode": "LAND"
+      "reason": "Already exists"
     },
     {
       "excelRow": 621,
       "item": "Laundry Equipment",
       "category": "GENERAL",
-      "catalogItemId": 620,
-      "itemCode": "LAUNDRY_EQUIPMENT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 622,
       "item": "Laundry Steam Iron",
       "category": "GENERAL",
-      "catalogItemId": 621,
-      "itemCode": "LAUNDRY_STEAM_IRON"
+      "reason": "Already exists"
     },
     {
       "excelRow": 623,
       "item": "Laundry Washing Machine",
       "category": "GENERAL",
-      "catalogItemId": 622,
-      "itemCode": "LAUNDRY_WASHING_MACHINE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 624,
       "item": "Linen Cabinet",
       "category": "GENERAL",
-      "catalogItemId": 623,
-      "itemCode": "LINEN_CABINET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 625,
       "item": "Linen/Laundry Trolley",
       "category": "GENERAL",
-      "catalogItemId": 624,
-      "itemCode": "LINEN_LAUNDRY_TROLLEY"
+      "reason": "Already exists"
     },
     {
       "excelRow": 626,
       "item": "Locker",
       "category": "GENERAL",
-      "catalogItemId": 625,
-      "itemCode": "LOCKER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 627,
       "item": "LPG Tank",
       "category": "GENERAL",
-      "catalogItemId": 626,
-      "itemCode": "LPG_TANK"
+      "reason": "Already exists"
     },
     {
       "excelRow": 628,
       "item": "Luggage Cart",
       "category": "GENERAL",
-      "catalogItemId": 627,
-      "itemCode": "LUGGAGE_CART"
+      "reason": "Already exists"
     },
     {
       "excelRow": 629,
       "item": "Maintenance Tools",
       "category": "GENERAL",
-      "catalogItemId": 628,
-      "itemCode": "MAINTENANCE_TOOLS"
+      "reason": "Already exists"
     },
     {
       "excelRow": 630,
       "item": "Mallet",
       "category": "GENERAL",
-      "catalogItemId": 629,
-      "itemCode": "MALLET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 631,
       "item": "MATV System",
       "category": "GENERAL",
-      "catalogItemId": 630,
-      "itemCode": "MATV_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 632,
       "item": "Meat Grinder",
       "category": "GENERAL",
-      "catalogItemId": 631,
-      "itemCode": "MEAT_GRINDER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 633,
       "item": "Meat Slicer",
       "category": "GENERAL",
-      "catalogItemId": 632,
-      "itemCode": "MEAT_SLICER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 634,
       "item": "Medical Waste Trolley",
       "category": "GENERAL",
-      "catalogItemId": 633,
-      "itemCode": "MEDICAL_WASTE_TROLLEY"
+      "reason": "Already exists"
     },
     {
       "excelRow": 635,
       "item": "Medicine Cabinet",
       "category": "GENERAL",
-      "catalogItemId": 634,
-      "itemCode": "MEDICINE_CABINET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 636,
       "item": "Meeting Furniture Set",
       "category": "GENERAL",
-      "catalogItemId": 635,
-      "itemCode": "MEETING_FURNITURE_SET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 637,
       "item": "Meeting Table",
       "category": "GENERAL",
-      "catalogItemId": 636,
-      "itemCode": "MEETING_TABLE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 638,
       "item": "Microbiology Cabinet",
       "category": "GENERAL",
-      "catalogItemId": 637,
-      "itemCode": "MICROBIOLOGY_CABINET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 639,
       "item": "Milk Warmer",
       "category": "GENERAL",
-      "catalogItemId": 638,
-      "itemCode": "MILK_WARMER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 640,
       "item": "Minibus",
       "category": "GENERAL",
-      "catalogItemId": 639,
-      "itemCode": "MINIBUS"
+      "reason": "Already exists"
     },
     {
       "excelRow": 641,
       "item": "Mixer/Blender",
       "category": "GENERAL",
-      "catalogItemId": 640,
-      "itemCode": "MIXER_BLENDER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 642,
       "item": "Mobile Phone",
       "category": "GENERAL",
-      "catalogItemId": 641,
-      "itemCode": "MOBILE_PHONE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 643,
       "item": "Office Chair",
       "category": "GENERAL",
-      "catalogItemId": 642,
-      "itemCode": "OFFICE_CHAIR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 644,
       "item": "Office Desk",
       "category": "GENERAL",
-      "catalogItemId": 643,
-      "itemCode": "OFFICE_DESK"
+      "reason": "Already exists"
     },
     {
       "excelRow": 645,
       "item": "Office Equipment",
       "category": "GENERAL",
-      "catalogItemId": 644,
-      "itemCode": "OFFICE_EQUIPMENT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 646,
       "item": "Office Furniture Set",
       "category": "GENERAL",
-      "catalogItemId": 645,
-      "itemCode": "OFFICE_FURNITURE_SET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 647,
       "item": "Office Workstation",
       "category": "GENERAL",
-      "catalogItemId": 646,
-      "itemCode": "OFFICE_WORKSTATION"
+      "reason": "Already exists"
     },
     {
       "excelRow": 648,
       "item": "Oven",
       "category": "GENERAL",
-      "catalogItemId": 647,
-      "itemCode": "OVEN"
+      "reason": "Already exists"
     },
     {
       "excelRow": 649,
       "item": "Pallet Jack",
       "category": "GENERAL",
-      "catalogItemId": 648,
-      "itemCode": "PALLET_JACK"
+      "reason": "Already exists"
     },
     {
       "excelRow": 650,
       "item": "Panel Clock",
       "category": "GENERAL",
-      "catalogItemId": 649,
-      "itemCode": "PANEL_CLOCK"
+      "reason": "Already exists"
     },
     {
       "excelRow": 651,
       "item": "Paper Shredder",
       "category": "GENERAL",
-      "catalogItemId": 650,
-      "itemCode": "PAPER_SHREDDER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 652,
       "item": "Paraffin Bath",
       "category": "GENERAL",
-      "catalogItemId": 651,
-      "itemCode": "PARAFFIN_BATH"
+      "reason": "Already exists"
     },
     {
       "excelRow": 653,
       "item": "Patient Handset",
       "category": "GENERAL",
-      "catalogItemId": 652,
-      "itemCode": "PATIENT_HANDSET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 654,
       "item": "Peeling Machine",
       "category": "GENERAL",
-      "catalogItemId": 653,
-      "itemCode": "PEELING_MACHINE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 655,
       "item": "Photocopier",
       "category": "GENERAL",
-      "catalogItemId": 654,
-      "itemCode": "PHOTOCOPIER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 656,
       "item": "Platform Trolley",
       "category": "GENERAL",
-      "catalogItemId": 655,
-      "itemCode": "PLATFORM_TROLLEY"
+      "reason": "Already exists"
     },
     {
       "excelRow": 657,
       "item": "Podium",
       "category": "GENERAL",
-      "catalogItemId": 656,
-      "itemCode": "PODIUM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 658,
       "item": "Power Cable",
       "category": "GENERAL",
-      "catalogItemId": 657,
-      "itemCode": "POWER_CABLE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 659,
       "item": "Power Distribution Unit",
       "category": "GENERAL",
-      "catalogItemId": 658,
-      "itemCode": "POWER_DISTRIBUTION_UNIT"
+      "reason": "Already exists"
     },
     {
       "excelRow": 660,
       "item": "Power Drill",
       "category": "GENERAL",
-      "catalogItemId": 659,
-      "itemCode": "POWER_DRILL"
+      "reason": "Already exists"
     },
     {
       "excelRow": 661,
       "item": "Power Module",
       "category": "GENERAL",
-      "catalogItemId": 660,
-      "itemCode": "POWER_MODULE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 662,
       "item": "Pressure Pump",
       "category": "GENERAL",
-      "catalogItemId": 661,
-      "itemCode": "PRESSURE_PUMP"
+      "reason": "Already exists"
     },
     {
       "excelRow": 663,
       "item": "Pressure Tank",
       "category": "GENERAL",
-      "catalogItemId": 662,
-      "itemCode": "PRESSURE_TANK"
+      "reason": "Already exists"
     },
     {
       "excelRow": 664,
       "item": "Rack Accessory",
       "category": "GENERAL",
-      "catalogItemId": 663,
-      "itemCode": "RACK_ACCESSORY"
+      "reason": "Already exists"
     },
     {
       "excelRow": 665,
       "item": "Radio Communication System",
       "category": "GENERAL",
-      "catalogItemId": 664,
-      "itemCode": "RADIO_COMMUNICATION_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 666,
       "item": "Reception Desk",
       "category": "GENERAL",
-      "catalogItemId": 665,
-      "itemCode": "RECEPTION_DESK"
+      "reason": "Already exists"
     },
     {
       "excelRow": 667,
       "item": "Refrigerator",
       "category": "GENERAL",
-      "catalogItemId": 666,
-      "itemCode": "REFRIGERATOR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 668,
       "item": "Relay",
       "category": "GENERAL",
-      "catalogItemId": 667,
-      "itemCode": "RELAY"
+      "reason": "Already exists"
     },
     {
       "excelRow": 669,
       "item": "Rice Cooker",
       "category": "GENERAL",
-      "catalogItemId": 668,
-      "itemCode": "RICE_COOKER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 670,
       "item": "Rolling Chair",
       "category": "GENERAL",
-      "catalogItemId": 669,
-      "itemCode": "ROLLING_CHAIR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 671,
       "item": "Safe",
       "category": "GENERAL",
-      "catalogItemId": 670,
-      "itemCode": "SAFE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 672,
       "item": "Safety Switch",
       "category": "GENERAL",
-      "catalogItemId": 671,
-      "itemCode": "SAFETY_SWITCH"
+      "reason": "Already exists"
     },
     {
       "excelRow": 673,
       "item": "Sand Filter Tank",
       "category": "GENERAL",
-      "catalogItemId": 672,
-      "itemCode": "SAND_FILTER_TANK"
+      "reason": "Already exists"
     },
     {
       "excelRow": 674,
       "item": "Sanitary Facility",
       "category": "GENERAL",
-      "catalogItemId": 673,
-      "itemCode": "SANITARY_FACILITY"
+      "reason": "Already exists"
     },
     {
       "excelRow": 675,
       "item": "Scrubber Dryer",
       "category": "GENERAL",
-      "catalogItemId": 674,
-      "itemCode": "SCRUBBER_DRYER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 676,
       "item": "Sewage Pump",
       "category": "GENERAL",
-      "catalogItemId": 675,
-      "itemCode": "SEWAGE_PUMP"
+      "reason": "Already exists"
     },
     {
       "excelRow": 677,
       "item": "Sewing Machine Table",
       "category": "GENERAL",
-      "catalogItemId": 676,
-      "itemCode": "SEWING_MACHINE_TABLE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 678,
       "item": "Shelf Trolley",
       "category": "GENERAL",
-      "catalogItemId": 677,
-      "itemCode": "SHELF_TROLLEY"
+      "reason": "Already exists"
     },
     {
       "excelRow": 679,
       "item": "Shelf/Rack",
       "category": "GENERAL",
-      "catalogItemId": 678,
-      "itemCode": "SHELF_RACK"
+      "reason": "Already exists"
     },
     {
       "excelRow": 680,
       "item": "Signage",
       "category": "GENERAL",
-      "catalogItemId": 679,
-      "itemCode": "SIGNAGE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 681,
       "item": "Sink",
       "category": "GENERAL",
-      "catalogItemId": 680,
-      "itemCode": "SINK"
+      "reason": "Already exists"
     },
     {
       "excelRow": 682,
       "item": "Sink Cabinet",
       "category": "GENERAL",
-      "catalogItemId": 681,
-      "itemCode": "SINK_CABINET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 683,
       "item": "Sofa",
       "category": "GENERAL",
-      "catalogItemId": 682,
-      "itemCode": "SOFA"
+      "reason": "Already exists"
     },
     {
       "excelRow": 684,
       "item": "Speaker",
       "category": "GENERAL",
-      "catalogItemId": 683,
-      "itemCode": "SPEAKER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 685,
       "item": "Steel Tubing",
       "category": "GENERAL",
-      "catalogItemId": 684,
-      "itemCode": "STEEL_TUBING"
+      "reason": "Already exists"
     },
     {
       "excelRow": 686,
       "item": "Stool",
       "category": "GENERAL",
-      "catalogItemId": 685,
-      "itemCode": "STOOL"
+      "reason": "Already exists"
     },
     {
       "excelRow": 687,
       "item": "Storage Box",
       "category": "GENERAL",
-      "catalogItemId": 686,
-      "itemCode": "STORAGE_BOX"
+      "reason": "Already exists"
     },
     {
       "excelRow": 688,
       "item": "Storage Cabinet",
       "category": "GENERAL",
-      "catalogItemId": 687,
-      "itemCode": "STORAGE_CABINET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 689,
       "item": "Storage Drawer",
       "category": "GENERAL",
-      "catalogItemId": 688,
-      "itemCode": "STORAGE_DRAWER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 690,
       "item": "Storage System",
       "category": "GENERAL",
-      "catalogItemId": 689,
-      "itemCode": "STORAGE_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 691,
       "item": "Switchgear Assembly",
       "category": "GENERAL",
-      "catalogItemId": 690,
-      "itemCode": "SWITCHGEAR_ASSEMBLY"
+      "reason": "Already exists"
     },
     {
       "excelRow": 692,
       "item": "Table",
       "category": "GENERAL",
-      "catalogItemId": 691,
-      "itemCode": "TABLE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 693,
       "item": "Table Tennis Table",
       "category": "GENERAL",
-      "catalogItemId": 692,
-      "itemCode": "TABLE_TENNIS_TABLE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 694,
       "item": "Telephone",
       "category": "GENERAL",
-      "catalogItemId": 693,
-      "itemCode": "TELEPHONE"
+      "reason": "Already exists"
     },
     {
       "excelRow": 695,
       "item": "Telephone Cabinet",
       "category": "GENERAL",
-      "catalogItemId": 694,
-      "itemCode": "TELEPHONE_CABINET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 696,
       "item": "Touch Panel",
       "category": "GENERAL",
-      "catalogItemId": 695,
-      "itemCode": "TOUCH_PANEL"
+      "reason": "Already exists"
     },
     {
       "excelRow": 697,
       "item": "Transformer",
       "category": "GENERAL",
-      "catalogItemId": 696,
-      "itemCode": "TRANSFORMER"
+      "reason": "Already exists"
     },
     {
       "excelRow": 698,
       "item": "Truck",
       "category": "GENERAL",
-      "catalogItemId": 697,
-      "itemCode": "TRUCK"
+      "reason": "Already exists"
     },
     {
       "excelRow": 699,
       "item": "Vacuum Tank",
       "category": "GENERAL",
-      "catalogItemId": 698,
-      "itemCode": "VACUUM_TANK"
+      "reason": "Already exists"
     },
     {
       "excelRow": 700,
       "item": "Van",
       "category": "GENERAL",
-      "catalogItemId": 699,
-      "itemCode": "VAN"
+      "reason": "Already exists"
     },
     {
       "excelRow": 701,
       "item": "Visitor Chair",
       "category": "GENERAL",
-      "catalogItemId": 700,
-      "itemCode": "VISITOR_CHAIR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 702,
       "item": "Voice Alarm System",
       "category": "GENERAL",
-      "catalogItemId": 701,
-      "itemCode": "VOICE_ALARM_SYSTEM"
+      "reason": "Already exists"
     },
     {
       "excelRow": 703,
       "item": "Waiting Chair",
       "category": "GENERAL",
-      "catalogItemId": 702,
-      "itemCode": "WAITING_CHAIR"
+      "reason": "Already exists"
     },
     {
       "excelRow": 704,
       "item": "Wall Cabinet",
       "category": "GENERAL",
-      "catalogItemId": 703,
-      "itemCode": "WALL_CABINET"
+      "reason": "Already exists"
     },
     {
       "excelRow": 705,
       "item": "Water Bath",
       "category": "GENERAL",
-      "catalogItemId": 704,
-      "itemCode": "WATER_BATH"
+      "reason": "Already exists"
     },
     {
       "excelRow": 706,
       "item": "Water Pump",
       "category": "GENERAL",
-      "catalogItemId": 705,
-      "itemCode": "WATER_PUMP"
+      "reason": "Already exists"
     },
     {
       "excelRow": 707,
       "item": "Water Tank",
       "category": "GENERAL",
-      "catalogItemId": 706,
-      "itemCode": "WATER_TANK"
+      "reason": "Already exists"
     },
     {
       "excelRow": 708,
       "item": "WHEAT NEATING",
       "category": "GENERAL",
-      "catalogItemId": 707,
-      "itemCode": "WHEAT_NEATING"
+      "reason": "Already exists"
     },
     {
       "excelRow": 709,
       "item": "Workshop",
       "category": "GENERAL",
-      "catalogItemId": 708,
-      "itemCode": "WORKSHOP"
+      "reason": "Already exists"
     }
   ],
-  "skippedItems": [],
   "failedItems": []
 }

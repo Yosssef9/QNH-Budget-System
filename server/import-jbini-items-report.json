@@ -1,0 +1,598 @@
+{
+  "total": 84,
+  "wouldCreate": 0,
+  "created": 81,
+  "skipped": 3,
+  "failed": 0,
+  "dryRun": false,
+  "createdItems": [
+    {
+      "excelRow": 2,
+      "item": "HV System Upgrade",
+      "category": "GENERAL",
+      "catalogItemId": 709,
+      "itemCode": "HV_SYSTEM_UPGRADE"
+    },
+    {
+      "excelRow": 3,
+      "item": "BMS Upgrade",
+      "category": "GENERAL",
+      "catalogItemId": 710,
+      "itemCode": "BMS_UPGRADE"
+    },
+    {
+      "excelRow": 4,
+      "item": "New Chiller",
+      "category": "GENERAL",
+      "catalogItemId": 711,
+      "itemCode": "NEW_CHILLER"
+    },
+    {
+      "excelRow": 5,
+      "item": "Convert Existing Physiotherapy to OPD Clinics",
+      "category": "GENERAL",
+      "catalogItemId": 712,
+      "itemCode": "CONVERT_EXISTING_PHYSIOTHERAPY_TO_OPD_CLINICS"
+    },
+    {
+      "excelRow": 6,
+      "item": "Water System Upgrade",
+      "category": "GENERAL",
+      "catalogItemId": 713,
+      "itemCode": "WATER_SYSTEM_UPGRADE"
+    },
+    {
+      "excelRow": 7,
+      "item": "CMMS Program for Maintenance / Biomedical",
+      "category": "IT",
+      "catalogItemId": 714,
+      "itemCode": "CMMS_PROGRAM_FOR_MAINTENANCE_BIOMEDICAL"
+    },
+    {
+      "excelRow": 8,
+      "item": "Plumbing System Upgrade",
+      "category": "GENERAL",
+      "catalogItemId": 715,
+      "itemCode": "PLUMBING_SYSTEM_UPGRADE"
+    },
+    {
+      "excelRow": 9,
+      "item": "CCTV System Upgrade",
+      "category": "GENERAL",
+      "catalogItemId": 716,
+      "itemCode": "CCTV_SYSTEM_UPGRADE"
+    },
+    {
+      "excelRow": 10,
+      "item": "New Fire Alarm Zone (One Loop)",
+      "category": "GENERAL",
+      "catalogItemId": 717,
+      "itemCode": "NEW_FIRE_ALARM_ZONE_ONE_LOOP"
+    },
+    {
+      "excelRow": 11,
+      "item": "Nurse Call System Upgrade",
+      "category": "GENERAL",
+      "catalogItemId": 718,
+      "itemCode": "NURSE_CALL_SYSTEM_UPGRADE"
+    },
+    {
+      "excelRow": 12,
+      "item": "RO Plant Membrane",
+      "category": "GENERAL",
+      "catalogItemId": 719,
+      "itemCode": "RO_PLANT_MEMBRANE"
+    },
+    {
+      "excelRow": 13,
+      "item": "Asphalt Road Renovation",
+      "category": "GENERAL",
+      "catalogItemId": 720,
+      "itemCode": "ASPHALT_ROAD_RENOVATION"
+    },
+    {
+      "excelRow": 14,
+      "item": "Irrigation Water Filtration System / Tank",
+      "category": "GENERAL",
+      "catalogItemId": 721,
+      "itemCode": "IRRIGATION_WATER_FILTRATION_SYSTEM_TANK"
+    },
+    {
+      "excelRow": 16,
+      "item": "Safety Cabinets - CBAHI",
+      "category": "GENERAL",
+      "catalogItemId": 722,
+      "itemCode": "SAFETY_CABINETS_CBAHI"
+    },
+    {
+      "excelRow": 17,
+      "item": "Access Control System (3 Panels)",
+      "category": "GENERAL",
+      "catalogItemId": 723,
+      "itemCode": "ACCESS_CONTROL_SYSTEM_3_PANELS"
+    },
+    {
+      "excelRow": 18,
+      "item": "Standby High Pressure Pump for RO Plant",
+      "category": "GENERAL",
+      "catalogItemId": 724,
+      "itemCode": "STANDBY_HIGH_PRESSURE_PUMP_FOR_RO_PLANT"
+    },
+    {
+      "excelRow": 19,
+      "item": "Mortuary Compressors",
+      "category": "GENERAL",
+      "catalogItemId": 725,
+      "itemCode": "MORTUARY_COMPRESSORS"
+    },
+    {
+      "excelRow": 20,
+      "item": "Parking Car Shade",
+      "category": "GENERAL",
+      "catalogItemId": 726,
+      "itemCode": "PARKING_CAR_SHADE"
+    },
+    {
+      "excelRow": 21,
+      "item": "BMS / Fire Alarm Integration Field Server",
+      "category": "GENERAL",
+      "catalogItemId": 727,
+      "itemCode": "BMS_FIRE_ALARM_INTEGRATION_FIELD_SERVER"
+    },
+    {
+      "excelRow": 22,
+      "item": "LOX Tank (Meter, Pipes, Accessories)",
+      "category": "GENERAL",
+      "catalogItemId": 728,
+      "itemCode": "LOX_TANK_METER_PIPES_ACCESSORIES"
+    },
+    {
+      "excelRow": 23,
+      "item": "Isolation Room Exhaust Fan Motors",
+      "category": "GENERAL",
+      "catalogItemId": 729,
+      "itemCode": "ISOLATION_ROOM_EXHAUST_FAN_MOTORS"
+    },
+    {
+      "excelRow": 24,
+      "item": "Submersible Pump for Sludge & Laundry",
+      "category": "GENERAL",
+      "catalogItemId": 730,
+      "itemCode": "SUBMERSIBLE_PUMP_FOR_SLUDGE_LAUNDRY"
+    },
+    {
+      "excelRow": 25,
+      "item": "TV System Upgrade / Additional Channels",
+      "category": "GENERAL",
+      "catalogItemId": 731,
+      "itemCode": "TV_SYSTEM_UPGRADE_ADDITIONAL_CHANNELS"
+    },
+    {
+      "excelRow": 26,
+      "item": "Smoking Room (ER Area)",
+      "category": "GENERAL",
+      "catalogItemId": 732,
+      "itemCode": "SMOKING_ROOM_ER_AREA"
+    },
+    {
+      "excelRow": 27,
+      "item": "Air Compressor for CSSD",
+      "category": "GENERAL",
+      "catalogItemId": 733,
+      "itemCode": "AIR_COMPRESSOR_FOR_CSSD"
+    },
+    {
+      "excelRow": 28,
+      "item": "Kitchen Cold Store / Freezers / Compressors",
+      "category": "GENERAL",
+      "catalogItemId": 734,
+      "itemCode": "KITCHEN_COLD_STORE_FREEZERS_COMPRESSORS"
+    },
+    {
+      "excelRow": 29,
+      "item": "Split A/C Unit",
+      "category": "GENERAL",
+      "catalogItemId": 735,
+      "itemCode": "SPLIT_A_C_UNIT"
+    },
+    {
+      "excelRow": 30,
+      "item": "Baby Tagging System",
+      "category": "GENERAL",
+      "catalogItemId": 736,
+      "itemCode": "BABY_TAGGING_SYSTEM"
+    },
+    {
+      "excelRow": 31,
+      "item": "UPS",
+      "category": "GENERAL",
+      "catalogItemId": 737,
+      "itemCode": "UPS"
+    },
+    {
+      "excelRow": 32,
+      "item": "Mortuary Body Lift",
+      "category": "GENERAL",
+      "catalogItemId": 738,
+      "itemCode": "MORTUARY_BODY_LIFT"
+    },
+    {
+      "excelRow": 34,
+      "item": "Call Centre Upgrade",
+      "category": "GENERAL",
+      "catalogItemId": 739,
+      "itemCode": "CALL_CENTRE_UPGRADE"
+    },
+    {
+      "excelRow": 35,
+      "item": "Humidifiers",
+      "category": "GENERAL",
+      "catalogItemId": 740,
+      "itemCode": "HUMIDIFIERS"
+    },
+    {
+      "excelRow": 36,
+      "item": "Medical Waste Building Project (MOH Requirements)",
+      "category": "GENERAL",
+      "catalogItemId": 741,
+      "itemCode": "MEDICAL_WASTE_BUILDING_PROJECT_MOH_REQUIREMENTS"
+    },
+    {
+      "excelRow": 37,
+      "item": "Hospital Building Civil Works Maintenance",
+      "category": "GENERAL",
+      "catalogItemId": 742,
+      "itemCode": "HOSPITAL_BUILDING_CIVIL_WORKS_MAINTENANCE"
+    },
+    {
+      "excelRow": 38,
+      "item": "HVAC / Chiller Maintenance",
+      "category": "GENERAL",
+      "catalogItemId": 743,
+      "itemCode": "HVAC_CHILLER_MAINTENANCE"
+    },
+    {
+      "excelRow": 39,
+      "item": "External Store Utilities / MEP Maintenance",
+      "category": "GENERAL",
+      "catalogItemId": 744,
+      "itemCode": "EXTERNAL_STORE_UTILITIES_MEP_MAINTENANCE"
+    },
+    {
+      "excelRow": 40,
+      "item": "Staff Housing Civil / MEP Maintenance",
+      "category": "GENERAL",
+      "catalogItemId": 745,
+      "itemCode": "STAFF_HOUSING_CIVIL_MEP_MAINTENANCE"
+    },
+    {
+      "excelRow": 41,
+      "item": "Non-Medical Equipment & Systems Maintenance",
+      "category": "GENERAL",
+      "catalogItemId": 746,
+      "itemCode": "NON_MEDICAL_EQUIPMENT_SYSTEMS_MAINTENANCE"
+    },
+    {
+      "excelRow": 42,
+      "item": "Mortuary Compressor",
+      "category": "GENERAL",
+      "catalogItemId": 747,
+      "itemCode": "MORTUARY_COMPRESSOR"
+    },
+    {
+      "excelRow": 43,
+      "item": "Boiler Repair",
+      "category": "GENERAL",
+      "catalogItemId": 748,
+      "itemCode": "BOILER_REPAIR"
+    },
+    {
+      "excelRow": 44,
+      "item": "Kitchen Equipment Maintenance",
+      "category": "GENERAL",
+      "catalogItemId": 749,
+      "itemCode": "KITCHEN_EQUIPMENT_MAINTENANCE"
+    },
+    {
+      "excelRow": 45,
+      "item": "Laundry Equipment Maintenance",
+      "category": "GENERAL",
+      "catalogItemId": 750,
+      "itemCode": "LAUNDRY_EQUIPMENT_MAINTENANCE"
+    },
+    {
+      "excelRow": 46,
+      "item": "Microwave",
+      "category": "GENERAL",
+      "catalogItemId": 751,
+      "itemCode": "MICROWAVE"
+    },
+    {
+      "excelRow": 48,
+      "item": "AHU Blower",
+      "category": "GENERAL",
+      "catalogItemId": 752,
+      "itemCode": "AHU_BLOWER"
+    },
+    {
+      "excelRow": 49,
+      "item": "AHU Return Fan Unit",
+      "category": "GENERAL",
+      "catalogItemId": 753,
+      "itemCode": "AHU_RETURN_FAN_UNIT"
+    },
+    {
+      "excelRow": 50,
+      "item": "AHU Motor",
+      "category": "GENERAL",
+      "catalogItemId": 754,
+      "itemCode": "AHU_MOTOR"
+    },
+    {
+      "excelRow": 51,
+      "item": "Kitchen Exhaust Fan Motor",
+      "category": "GENERAL",
+      "catalogItemId": 755,
+      "itemCode": "KITCHEN_EXHAUST_FAN_MOTOR"
+    },
+    {
+      "excelRow": 52,
+      "item": "AGSS Compressor",
+      "category": "GENERAL",
+      "catalogItemId": 756,
+      "itemCode": "AGSS_COMPRESSOR"
+    },
+    {
+      "excelRow": 53,
+      "item": "Chiller Secondary Pump",
+      "category": "GENERAL",
+      "catalogItemId": 757,
+      "itemCode": "CHILLER_SECONDARY_PUMP"
+    },
+    {
+      "excelRow": 54,
+      "item": "Boiler Heating Coil",
+      "category": "GENERAL",
+      "catalogItemId": 758,
+      "itemCode": "BOILER_HEATING_COIL"
+    },
+    {
+      "excelRow": 55,
+      "item": "FCU Fan Motor 800 RPM",
+      "category": "GENERAL",
+      "catalogItemId": 759,
+      "itemCode": "FCU_FAN_MOTOR_800_RPM"
+    },
+    {
+      "excelRow": 56,
+      "item": "FCU Full Assembly Fan Motor 1200 RPM",
+      "category": "GENERAL",
+      "catalogItemId": 760,
+      "itemCode": "FCU_FULL_ASSEMBLY_FAN_MOTOR_1200_RPM"
+    },
+    {
+      "excelRow": 57,
+      "item": "Fire Fighting System Repair",
+      "category": "GENERAL",
+      "catalogItemId": 761,
+      "itemCode": "FIRE_FIGHTING_SYSTEM_REPAIR"
+    },
+    {
+      "excelRow": 58,
+      "item": "Plumbing System Repair / Main Valve Replacement",
+      "category": "GENERAL",
+      "catalogItemId": 762,
+      "itemCode": "PLUMBING_SYSTEM_REPAIR_MAIN_VALVE_REPLACEMENT"
+    },
+    {
+      "excelRow": 59,
+      "item": "Automatic Door Repair",
+      "category": "GENERAL",
+      "catalogItemId": 763,
+      "itemCode": "AUTOMATIC_DOOR_REPAIR"
+    },
+    {
+      "excelRow": 60,
+      "item": "Main RO & AKU Chemicals / Filters",
+      "category": "GENERAL",
+      "catalogItemId": 764,
+      "itemCode": "MAIN_RO_AKU_CHEMICALS_FILTERS"
+    },
+    {
+      "excelRow": 61,
+      "item": "Isolation Room Pressure Monitor",
+      "category": "GENERAL",
+      "catalogItemId": 765,
+      "itemCode": "ISOLATION_ROOM_PRESSURE_MONITOR"
+    },
+    {
+      "excelRow": 62,
+      "item": "RO Plant Reject Water Recycling",
+      "category": "GENERAL",
+      "catalogItemId": 766,
+      "itemCode": "RO_PLANT_REJECT_WATER_RECYCLING"
+    },
+    {
+      "excelRow": 63,
+      "item": "Fire Exit Door Replacement (1.5 HR Rated)",
+      "category": "GENERAL",
+      "catalogItemId": 767,
+      "itemCode": "FIRE_EXIT_DOOR_REPLACEMENT_1_5_HR_RATED"
+    },
+    {
+      "excelRow": 64,
+      "item": "AKU RO Plant Contract",
+      "category": "GENERAL",
+      "catalogItemId": 768,
+      "itemCode": "AKU_RO_PLANT_CONTRACT"
+    },
+    {
+      "excelRow": 65,
+      "item": "Irrigation Landscaping Contract",
+      "category": "GENERAL",
+      "catalogItemId": 769,
+      "itemCode": "IRRIGATION_LANDSCAPING_CONTRACT"
+    },
+    {
+      "excelRow": 66,
+      "item": "Wireless Pager (STC Fouran) Contract - Bravo",
+      "category": "GENERAL",
+      "catalogItemId": 770,
+      "itemCode": "WIRELESS_PAGER_STC_FOURAN_CONTRACT_BRAVO"
+    },
+    {
+      "excelRow": 67,
+      "item": "Telephone / Call Centre Contract - Proposed",
+      "category": "GENERAL",
+      "catalogItemId": 771,
+      "itemCode": "TELEPHONE_CALL_CENTRE_CONTRACT_PROPOSED"
+    },
+    {
+      "excelRow": 68,
+      "item": "Baby Tagging System Contract - Proposed",
+      "category": "GENERAL",
+      "catalogItemId": 772,
+      "itemCode": "BABY_TAGGING_SYSTEM_CONTRACT_PROPOSED"
+    },
+    {
+      "excelRow": 69,
+      "item": "Hospital Elevators Contract",
+      "category": "GENERAL",
+      "catalogItemId": 773,
+      "itemCode": "HOSPITAL_ELEVATORS_CONTRACT"
+    },
+    {
+      "excelRow": 70,
+      "item": "Nekaz Elevators - Old Housing Contract",
+      "category": "GENERAL",
+      "catalogItemId": 774,
+      "itemCode": "NEKAZ_ELEVATORS_OLD_HOUSING_CONTRACT"
+    },
+    {
+      "excelRow": 71,
+      "item": "Al Othaim Elevator - New Housing Contract",
+      "category": "GENERAL",
+      "catalogItemId": 775,
+      "itemCode": "AL_OTHAIM_ELEVATOR_NEW_HOUSING_CONTRACT"
+    },
+    {
+      "excelRow": 72,
+      "item": "Generators (2 Units) Contract",
+      "category": "GENERAL",
+      "catalogItemId": 776,
+      "itemCode": "GENERATORS_2_UNITS_CONTRACT"
+    },
+    {
+      "excelRow": 73,
+      "item": "Fire Fighting System Contract",
+      "category": "GENERAL",
+      "catalogItemId": 777,
+      "itemCode": "FIRE_FIGHTING_SYSTEM_CONTRACT"
+    },
+    {
+      "excelRow": 74,
+      "item": "Communication and Information Technologies",
+      "category": "IT",
+      "catalogItemId": 778,
+      "itemCode": "COMMUNICATION_AND_INFORMATION_TECHNOLOGIES"
+    },
+    {
+      "excelRow": 75,
+      "item": "Medical Gas System Contract",
+      "category": "GENERAL",
+      "catalogItemId": 779,
+      "itemCode": "MEDICAL_GAS_SYSTEM_CONTRACT"
+    },
+    {
+      "excelRow": 76,
+      "item": "EXV for Chiller GX32GB404154",
+      "category": "GENERAL",
+      "catalogItemId": 780,
+      "itemCode": "EXV_FOR_CHILLER_GX32GB404154"
+    },
+    {
+      "excelRow": 77,
+      "item": "EXV for Chiller GX32GB404124",
+      "category": "GENERAL",
+      "catalogItemId": 781,
+      "itemCode": "EXV_FOR_CHILLER_GX32GB404124"
+    },
+    {
+      "excelRow": 78,
+      "item": "FCU Valve Actuator",
+      "category": "GENERAL",
+      "catalogItemId": 782,
+      "itemCode": "FCU_VALVE_ACTUATOR"
+    },
+    {
+      "excelRow": 79,
+      "item": "WC Flushing Unit",
+      "category": "GENERAL",
+      "catalogItemId": 783,
+      "itemCode": "WC_FLUSHING_UNIT"
+    },
+    {
+      "excelRow": 80,
+      "item": "External LED Lights for Trees & Building",
+      "category": "GENERAL",
+      "catalogItemId": 784,
+      "itemCode": "EXTERNAL_LED_LIGHTS_FOR_TREES_BUILDING"
+    },
+    {
+      "excelRow": 81,
+      "item": "60x60 LED Light",
+      "category": "GENERAL",
+      "catalogItemId": 785,
+      "itemCode": "60X60_LED_LIGHT"
+    },
+    {
+      "excelRow": 82,
+      "item": "HEPA Filter for Isolation Rooms",
+      "category": "GENERAL",
+      "catalogItemId": 786,
+      "itemCode": "HEPA_FILTER_FOR_ISOLATION_ROOMS"
+    },
+    {
+      "excelRow": 83,
+      "item": "Bag Filter for AHU",
+      "category": "GENERAL",
+      "catalogItemId": 787,
+      "itemCode": "BAG_FILTER_FOR_AHU"
+    },
+    {
+      "excelRow": 84,
+      "item": "Power Invoice",
+      "category": "GENERAL",
+      "catalogItemId": 788,
+      "itemCode": "POWER_INVOICE"
+    },
+    {
+      "excelRow": 85,
+      "item": "Water Invoice",
+      "category": "GENERAL",
+      "catalogItemId": 789,
+      "itemCode": "WATER_INVOICE"
+    }
+  ],
+  "skippedItems": [
+    {
+      "excelRow": 15,
+      "item": "Medical Air Compressor",
+      "category": "GENERAL",
+      "reason": "A catalog item with this code already exists"
+    },
+    {
+      "excelRow": 33,
+      "item": "Medical Vacuum Pump",
+      "category": "GENERAL",
+      "reason": "A catalog item with this code already exists"
+    },
+    {
+      "excelRow": 47,
+      "item": "Refrigerator",
+      "category": "GENERAL",
+      "reason": "Already exists"
+    }
+  ],
+  "failedItems": []
+}

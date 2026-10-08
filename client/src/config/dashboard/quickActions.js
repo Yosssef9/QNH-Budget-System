@@ -46,7 +46,7 @@ export function getQuickActions(budgetAccess) {
     {
       title: "Budgets",
       description: "View your department budgets.",
-      path: "/budgets",
+      path: "/budgets/my",
       icon: Wallet,
       show: canViewBudget && !canViewCfoReview && !canViewCategoryBudget,
     },
@@ -157,3 +157,4 @@ export function getQuickActions(budgetAccess) {
     },
   ].filter((item) => item.show);
 }
+

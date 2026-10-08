@@ -27,6 +27,7 @@ export default function SearchableMultiSelect({
   disableClear = false,
   multiple = true,
   usePortal = true,
+  portalContainerRef,
 
   searchValue,
   onSearchChange,
@@ -427,10 +428,15 @@ export default function SearchableMultiSelect({
       </button>
 
       {usePortal
-        ? dropdownContent && createPortal(dropdownContent, document.body)
+        ? dropdownContent &&
+          createPortal(
+            dropdownContent,
+            portalContainerRef?.current || document.body,
+          )
         : dropdownContent}
 
       {error && <p className="mt-2 text-xs text-rose-600">{error}</p>}
     </div>
   );
 }
+

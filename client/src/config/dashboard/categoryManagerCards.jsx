@@ -155,7 +155,6 @@ export function getCategoryManagerCards(_budgetAccess, dashboardData) {
           ? `${pendingItems} item decision(s) still need review`
           : "No submitted department category budgets are waiting for review",
       icon: ClipboardCheck,
-      route: "/category-review",
       highlight: pendingReviews > 0 ? "pending" : null,
       show: true,
     },
@@ -167,7 +166,6 @@ export function getCategoryManagerCards(_budgetAccess, dashboardData) {
           ? `${submittedDepartments} submitted, ${notSubmittedDepartments} not submitted`
           : `${submittedDepartments} submitted before closure`,
       icon: DoorOpen,
-      route: "/category-review",
       highlight: null,
       show: true,
     },
@@ -176,7 +174,6 @@ export function getCategoryManagerCards(_budgetAccess, dashboardData) {
       value: packageAction.value,
       description: packageAction.description,
       icon: PackageCheck,
-      route: "/category-review",
       highlight: packageAction.highlight,
       show: true,
     },

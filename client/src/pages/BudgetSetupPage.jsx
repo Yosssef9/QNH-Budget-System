@@ -45,6 +45,7 @@ import {
   useSetupSubItems,
   useSetupTypeUsage,
   useSetupTypes,
+  useSetupAllTypes,
   useSetupUnitsOfMeasure,
   useUpdateSetupCategory,
   useUpdateSetupSubItem,
@@ -83,8 +84,10 @@ export default function BudgetSetupPage() {
   const [adminNotes, setAdminNotes] = useState({});
   const [search, setSearch] = useState("");
   const [categorySearch, setCategorySearch] = useState("");
+  const [globalCatalogSearch, setGlobalCatalogSearch] = useState("");
   const deferredItemSearch = useDeferredValue(search);
   const deferredCategorySearch = useDeferredValue(categorySearch);
+  const deferredGlobalCatalogSearch = useDeferredValue(globalCatalogSearch);
   const [isSetupPanelOpen, setIsSetupPanelOpen] = useState(true);
   const [isRequestsOpen, setIsRequestsOpen] = useState(false);
   const [openRequestIds, setOpenRequestIds] = useState({});
@@ -114,6 +117,11 @@ export default function BudgetSetupPage() {
     isLoading: loadingTypes,
     isError: typesError,
   } = useSetupTypes(activeCategoryId);
+  const {
+    data: allCatalogTypes = [],
+    isLoading: loadingAllCatalogTypes,
+    isError: allCatalogTypesError,
+  } = useSetupAllTypes();
   const {
     data: subItems = [],
     isLoading: loadingSubItems,
@@ -145,6 +153,46 @@ export default function BudgetSetupPage() {
   const approveMutation = useApproveItemRequest();
   const approveAndCreateMutation = useApproveAndCreateItemRequest();
   const rejectMutation = useRejectItemRequest();
+
+  const globalCatalogResults = useMemo(() => {
+    const keyword = deferredGlobalCatalogSearch.trim().toLowerCase();
+
+    if (keyword.length < 2) {
+      return [];
+    }
+
+    const startsWith = [];
+    const contains = [];
+
+    allCatalogTypes.forEach((item) => {
+      const searchableValues = [
+        item.name,
+        item.item_code,
+        item.category_name,
+        item.expense_type,
+        item.unit_name,
+        item.unit_code,
+      ].map((value) => String(value || "").toLowerCase());
+
+      if (!searchableValues.some((value) => value.includes(keyword))) {
+        return;
+      }
+
+      const primaryValues = [
+        String(item.name || "").toLowerCase(),
+        String(item.item_code || "").toLowerCase(),
+      ];
+
+      if (primaryValues.some((value) => value.startsWith(keyword))) {
+        startsWith.push(item);
+      } else {
+        contains.push(item);
+      }
+    });
+
+    return [...startsWith, ...contains];
+  }, [allCatalogTypes, deferredGlobalCatalogSearch]);
+
   const filteredTypes = useMemo(() => {
     const keyword = deferredItemSearch.trim().toLowerCase();
     const status = catalogItemStatus;
@@ -234,6 +282,17 @@ export default function BudgetSetupPage() {
     setSelectedCategoryId(categoryId ? String(categoryId) : "");
     closeSubItemsPanel();
     catalogItemsPagination.resetPage();
+  }
+
+  function showGlobalCatalogItem(item) {
+    if (!item?.budget_category_id) {
+      return;
+    }
+
+    handleSelectCategory(item.budget_category_id);
+    setCatalogItemStatus(item.is_active ? "ACTIVE" : "INACTIVE");
+    setSearch(item.name || item.item_code || "");
+    setGlobalCatalogSearch("");
   }
 
   function buildUsageMessage(action, targetName, usage) {
@@ -1330,6 +1389,117 @@ export default function BudgetSetupPage() {
                   </h2>
 
                   <div className="mt-4 space-y-3">
+                    <div className="rounded-2xl border border-blue-200 bg-blue-50/60 p-4">
+                      <div className="mb-3">
+                        <div className="text-sm font-black text-slate-900">
+                          Search Entire Catalog
+                        </div>
+                        <p className="mt-1 text-xs leading-5 text-slate-600">
+                          Check IT, Biomedical, and General before creating a
+                          new catalog item.
+                        </p>
+                      </div>
+
+                      <EnterpriseSearch
+                        value={globalCatalogSearch}
+                        onChange={setGlobalCatalogSearch}
+                        placeholder="Search all categories..."
+                        showClear={true}
+                      />
+
+                      {deferredGlobalCatalogSearch.trim().length > 0 &&
+                      deferredGlobalCatalogSearch.trim().length < 2 ? (
+                        <p className="mt-3 text-xs font-semibold text-slate-500">
+                          Enter at least 2 characters to search the full catalog.
+                        </p>
+                      ) : null}
+
+                      {deferredGlobalCatalogSearch.trim().length >= 2 ? (
+                        <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                          {loadingAllCatalogTypes ? (
+                            <div className="flex items-center justify-center gap-2 p-4 text-sm font-semibold text-slate-500">
+                              <Loader2 className="animate-spin" size={16} />
+                              Searching entire catalog...
+                            </div>
+                          ) : allCatalogTypesError ? (
+                            <div className="p-4 text-sm font-semibold text-red-700">
+                              Failed to search the full catalog.
+                            </div>
+                          ) : globalCatalogResults.length === 0 ? (
+                            <div className="p-4 text-sm font-semibold text-slate-500">
+                              No matching catalog items found in any category.
+                            </div>
+                          ) : (
+                            <>
+                              <div className="max-h-72 divide-y divide-slate-100 overflow-y-auto">
+                                {globalCatalogResults.slice(0, 10).map((item) => (
+                                  <div
+                                    key={item.id}
+                                    className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between"
+                                  >
+                                    <div className="min-w-0">
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span className="font-bold text-slate-900">
+                                          {item.name}
+                                        </span>
+
+                                        <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-black text-blue-700">
+                                          {item.category_name || "Unknown category"}
+                                        </span>
+
+                                        <span
+                                          className={[
+                                            "rounded-full px-2.5 py-1 text-[11px] font-black",
+                                            item.is_active
+                                              ? "bg-emerald-50 text-emerald-700"
+                                              : "bg-slate-100 text-slate-600",
+                                          ].join(" ")}
+                                        >
+                                          {item.is_active ? "Active" : "Inactive"}
+                                        </span>
+                                      </div>
+
+                                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs font-semibold text-slate-500">
+                                        <span>
+                                          Code: {item.item_code || "-"}
+                                        </span>
+                                        <span>
+                                          {item.expense_type || "-"}
+                                        </span>
+                                        <span>
+                                          {item.unit_name
+                                            ? `${item.unit_name}${
+                                                item.unit_code
+                                                  ? ` (${item.unit_code})`
+                                                  : ""
+                                              }`
+                                            : "No unit"}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => showGlobalCatalogItem(item)}
+                                      className="shrink-0 rounded-xl border border-blue-200 bg-white px-3 py-2 text-xs font-black text-blue-700 transition hover:bg-blue-50"
+                                    >
+                                      Show in category
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {globalCatalogResults.length > 10 ? (
+                                <div className="border-t border-slate-100 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
+                                  Showing first 10 of {globalCatalogResults.length} matches.
+                                </div>
+                              ) : null}
+                            </>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+
                     <SearchableMultiSelect
                       multiple={false}
                       disableClear
@@ -2060,3 +2230,4 @@ export default function BudgetSetupPage() {
     </div>
   );
 }
+

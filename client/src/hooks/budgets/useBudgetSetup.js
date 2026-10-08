@@ -16,6 +16,7 @@ import {
   getSetupUnitsOfMeasure,
   getSetupCategoryUsage,
   getSetupTypeUsage,
+  getBudgetTypes,
 } from "../../api/budgetSetup.api";
 import {
   approveAndCreateItemRequest,
@@ -38,6 +39,13 @@ export function useSetupTypes(categoryId) {
     queryFn: () =>
       getSetupTypesByCategory(categoryId, { includeInactive: true }),
     enabled: Boolean(categoryId),
+  });
+}
+
+export function useSetupAllTypes() {
+  return useQuery({
+    queryKey: ["budget-setup", "all-types"],
+    queryFn: getBudgetTypes,
   });
 }
 
@@ -77,6 +85,9 @@ export function useCreateSetupType() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["budget-setup", "types", variables.categoryId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["budget-setup", "all-types"],
       });
     },
   });
@@ -143,6 +154,9 @@ export function useUpdateSetupCategory() {
       queryClient.invalidateQueries({
         queryKey: ["budget-setup", "categories"],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["budget-setup", "all-types"],
+      });
     },
   });
 }
@@ -155,6 +169,9 @@ export function useUpdateSetupType() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["budget-setup", "types", variables.categoryId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["budget-setup", "all-types"],
       });
     },
   });
@@ -248,3 +265,4 @@ export function useCreateItemRequest() {
     },
   });
 }
+

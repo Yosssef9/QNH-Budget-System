@@ -668,7 +668,7 @@ export default function SystemHealthPage() {
 
   if (isError) {
     return (
-      <div className="p-6">
+      <div>
         <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-red-700">
           <p className="text-lg font-black">System health failed to load.</p>
           <p className="mt-2 text-sm font-semibold">
@@ -681,7 +681,7 @@ export default function SystemHealthPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
         <div className="bg-gradient-to-r from-slate-950 via-blue-950 to-slate-900 p-6 text-white">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
@@ -1292,3 +1292,4 @@ export default function SystemHealthPage() {
     </div>
   );
 }
+

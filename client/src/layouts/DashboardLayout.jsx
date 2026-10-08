@@ -638,7 +638,7 @@ overflow-y-hidden hover:overflow-y-auto
           </button>
         </header>
 
-        <main className="p-8">
+        <main className="p-6">
           <Outlet />
         </main>
       </div>

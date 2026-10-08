@@ -194,7 +194,7 @@ export default function DepartmentsPage() {
     createMutation.isPending || updateDescriptionMutation.isPending;
 
   return (
-    <div className="space-y-5 p-4 text-slate-800 sm:p-6">
+    <div className="space-y-5 text-slate-800">
       <Breadcrumbs />
 
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -532,3 +532,4 @@ export default function DepartmentsPage() {
     </div>
   );
 }
+

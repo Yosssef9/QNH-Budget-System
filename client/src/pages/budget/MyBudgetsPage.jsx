@@ -253,7 +253,7 @@ export default function MyBudgetsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <Breadcrumbs />
       {isCategoryManagerView ? (
         <CategoryBudgetYearsView />
@@ -263,3 +263,4 @@ export default function MyBudgetsPage() {
     </div>
   );
 }
+

@@ -3,10 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
+  Boxes,
+  CircleDollarSign,
+  ClipboardCheck,
+  Database,
   Wallet,
 } from "lucide-react";
 
-import Breadcrumbs from "../../components/Breadcrumbs";
 import CollapsibleSection from "../../components/CollapsibleSection";
 import CurrencyText from "../../components/CurrencyText";
 import SearchableMultiSelect from "../../components/SearchableMultiSelect";
@@ -30,14 +33,20 @@ function formatQuantity(value) {
   });
 }
 
-function MetricCard({ label, value, children }) {
+function CompactMetric({ label, value, children, icon: Icon }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="text-xs font-black uppercase text-slate-500">
-        {label}
-      </div>
-      <div className="mt-1 min-w-0 break-words text-2xl font-black text-slate-950">
-        {children || value}
+    <div className="flex min-w-0 items-center gap-3 bg-white px-4 py-3">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+        <Icon size={17} />
+      </span>
+
+      <div className="min-w-0">
+        <div className="text-[11px] font-black uppercase tracking-wide text-slate-500">
+          {label}
+        </div>
+        <div className="mt-0.5 min-w-0 break-words text-lg font-black leading-6 text-slate-950">
+          {children || value}
+        </div>
       </div>
     </div>
   );
@@ -391,42 +400,37 @@ function CategoryBudgetView({ financialYearId }) {
   );
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-          <div>
+    <div className="space-y-4">
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0">
             <button
               type="button"
               onClick={() => navigate("/budgets/my")}
-              className="mb-4 inline-flex items-center gap-2 text-sm font-bold text-blue-700 transition hover:text-blue-900"
+              className="mb-2 inline-flex items-center gap-1.5 text-xs font-black text-blue-700 transition hover:text-blue-900"
             >
-              <ArrowLeft size={17} />
+              <ArrowLeft size={15} />
               Back to category budget years
             </button>
-            <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
-              <Wallet size={14} />
-              Category Manager Workspace
-            </div>
-            <h1 className="mt-3 text-3xl font-black text-slate-950">
-              {categoryName} Budget · FY {financialYear?.year || "-"}
-            </h1>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">
+
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="mr-1 text-2xl font-black tracking-tight text-slate-950">
+                {categoryName} Budget
+              </h1>
+
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-black text-emerald-700">
                 {String(financialYear?.status || "UNKNOWN").replaceAll("_", " ")}
               </span>
-              <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
+
+              <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-black text-blue-700">
                 {String(packageStatus).replaceAll("_", " ")}
               </span>
             </div>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-              View balances, execution availability, and department requested
-              items for the selected financial year.
-            </p>
           </div>
 
-          <div className="w-full xl:w-72">
-            <label className="mb-2 block text-xs font-black uppercase text-slate-500">
-              Financial year
+          <div className="w-full lg:w-64">
+            <label className="mb-1.5 block text-[11px] font-black uppercase tracking-wide text-slate-500">
+              Financial Year
             </label>
             <SearchableMultiSelect
               name="financialYearId"
@@ -449,6 +453,32 @@ function CategoryBudgetView({ financialYearId }) {
             />
           </div>
         </div>
+
+        <div className="border-t border-slate-100 bg-slate-50/70 p-3">
+          <div className="grid gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 sm:grid-cols-2 xl:grid-cols-4">
+            <CompactMetric
+              label="Package Models"
+              value={balanceItems.length}
+              icon={Boxes}
+            />
+
+            <CompactMetric
+              label="Base Quantity"
+              value={formatQuantity(totalBaseQuantity)}
+              icon={Database}
+            />
+
+            <CompactMetric
+              label="Approved Demand"
+              value={formatQuantity(totalApprovedDemand)}
+              icon={ClipboardCheck}
+            />
+
+            <CompactMetric label="Remaining Amount" icon={CircleDollarSign}>
+              <CurrencyText compact value={totalRemaining} />
+            </CompactMetric>
+          </div>
+        </div>
       </section>
 
       {requestsError ? (
@@ -459,17 +489,13 @@ function CategoryBudgetView({ financialYearId }) {
         </div>
       ) : null}
 
-      <section className="grid gap-4 md:grid-cols-4">
-        <MetricCard label="Package Models" value={balanceItems.length} />
-        <MetricCard label="Base Quantity" value={formatQuantity(totalBaseQuantity)} />
-        <MetricCard
-          label="Approved Demand"
-          value={formatQuantity(totalApprovedDemand)}
-        />
-        <MetricCard label="Remaining Amount">
-          <CurrencyText compact value={totalRemaining} />
-        </MetricCard>
-      </section>
+      {requestsLoading ? (
+        <div className="rounded-2xl border border-dashed bg-white p-8 text-center text-slate-500">
+          Loading department requests...
+        </div>
+      ) : (
+        <CategoryDepartmentRequestsTable items={departmentItems} />
+      )}
 
       <CollapsibleSection
         title="Category Balances"
@@ -497,14 +523,6 @@ function CategoryBudgetView({ financialYearId }) {
         )}
       </CollapsibleSection>
 
-      {requestsLoading ? (
-        <div className="rounded-2xl border border-dashed bg-white p-8 text-center text-slate-500">
-          Loading department requests...
-        </div>
-      ) : (
-        <CategoryDepartmentRequestsTable items={departmentItems} />
-      )}
-
       <PackageSubItemPOLinksDrawer
         open={Boolean(selectedPoSubItem)}
         packageSubItemId={selectedPoSubItem?.id}
@@ -519,8 +537,7 @@ export default function CategoryBudgetViewPage() {
   const selectedFinancialYearId = Number(financialYearId);
 
   return (
-    <div className="space-y-6 p-6">
-      <Breadcrumbs />
+    <div>
       <CategoryBudgetView
         financialYearId={
           Number.isInteger(selectedFinancialYearId) &&
@@ -532,3 +549,5 @@ export default function CategoryBudgetViewPage() {
     </div>
   );
 }
+
+

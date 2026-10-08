@@ -696,7 +696,7 @@ export default function BudgetEnteryPage() {
   // }
 
   return (
-    <div className="space-y-5 p-6 text-slate-800">
+    <div className="space-y-5 text-slate-800">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <Breadcrumbs />
@@ -1529,3 +1529,4 @@ function Legend({ title, desc, color }) {
     </div>
   );
 }
+

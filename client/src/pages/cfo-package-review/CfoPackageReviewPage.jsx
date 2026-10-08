@@ -726,7 +726,7 @@ export default function CfoPackageReviewPage() {
     finalizeAnnualMutation.isPending;
 
   return (
-    <div className="min-h-screen  p-4 lg:p-6">
+    <div className="min-h-screen">
       <div className="mx-auto flex max-w-[1800px] flex-col gap-5">
         <header className="rounded-2xl border border-slate-200 bg-white p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -1233,3 +1233,4 @@ export default function CfoPackageReviewPage() {
     </div>
   );
 }
+

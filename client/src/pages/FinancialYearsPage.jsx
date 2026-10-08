@@ -74,7 +74,7 @@ export default function FinancialYearsPage() {
     }
   }
   return (
-    <div className="space-y-6 p-6 text-slate-800">
+    <div className="space-y-6 text-slate-800">
       <div>
         <Breadcrumbs
           items={[
@@ -321,3 +321,4 @@ export default function FinancialYearsPage() {
     </div>
   );
 }
+

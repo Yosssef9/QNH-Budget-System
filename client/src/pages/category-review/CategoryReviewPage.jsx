@@ -1507,7 +1507,7 @@ const reopenWindowMutation = useMutation({
     });
   }
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-5 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-[1800px] space-y-5">
       <header className="rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm sm:px-6">
   <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -2315,3 +2315,4 @@ const reopenWindowMutation = useMutation({
     </main>
   );
 }
+

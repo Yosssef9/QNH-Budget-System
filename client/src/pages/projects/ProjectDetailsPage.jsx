@@ -28,7 +28,7 @@ export default function ProjectDetailsPage() {
   const { data: project, isLoading } = useProjectDetails(budgetItemId);
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <Breadcrumbs
         items={[
           { label: "Dashboard", path: "/" },
@@ -136,3 +136,4 @@ export default function ProjectDetailsPage() {
     </div>
   );
 }
+

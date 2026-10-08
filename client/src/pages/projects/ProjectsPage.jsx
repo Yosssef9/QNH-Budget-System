@@ -174,7 +174,7 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <Breadcrumbs
         items={[{ label: "Dashboard", path: "/" }, { label: "Projects" }]}
       />
@@ -504,3 +504,4 @@ export default function ProjectsPage() {
     </div>
   );
 }
+

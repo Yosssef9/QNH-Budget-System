@@ -201,7 +201,7 @@ export default function BudgetViewPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <Breadcrumbs
         items={[
           {
@@ -430,3 +430,4 @@ export default function BudgetViewPage() {
     </div>
   );
 }
+

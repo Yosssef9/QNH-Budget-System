@@ -20,6 +20,7 @@ import {
   ClipboardCheck,
   ShoppingCart,
   Building2,
+  Pin,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useUnsavedChanges } from "../context/UnsavedChangesContext";
@@ -330,13 +331,15 @@ export default function DashboardLayout() {
     workspaceSelectionRequired,
     dismissWorkspaceSelection,
   } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarHovered, setSidebarHovered] = useState(false);
+  const [sidebarPinned, setSidebarPinned] = useState(false);
   const [workspaceDialogOpen, setWorkspaceDialogOpen] = useState(false);
   const workspaceButtonRef = useRef(null);
   const queryClient = useQueryClient();
   const location = useLocation();
   const { safeNavigate } = useUnsavedChanges();
   const sidebarSections = getSidebarSections(budgetAccess);
+  const sidebarOpen = sidebarPinned || sidebarHovered;
   const sidebarWidth = sidebarOpen ? "w-[280px]" : "w-[86px]";
   const contentPadding = sidebarOpen ? "pl-[280px]" : "pl-[86px]";
   const activeWorkspace =
@@ -344,6 +347,16 @@ export default function DashboardLayout() {
   const workspaceSummary = formatWorkspaceSummary(activeWorkspace);
   const isWorkspaceDialogOpen =
     workspaceDialogOpen || workspaceSelectionRequired;
+
+  function handleSidebarPinToggle() {
+    if (sidebarPinned) {
+      setSidebarPinned(false);
+      setSidebarHovered(false);
+      return;
+    }
+
+    setSidebarPinned(true);
+  }
 
   async function handleWorkspaceSelect(userRoleId) {
     if (
@@ -375,8 +388,8 @@ export default function DashboardLayout() {
   return (
     <div className="min-h-screen bg-enterprise-bg font-sans text-enterprise-text">
       <aside
-        onMouseEnter={() => setSidebarOpen(true)}
-        onMouseLeave={() => setSidebarOpen(false)}
+        onMouseEnter={() => setSidebarHovered(true)}
+        onMouseLeave={() => setSidebarHovered(false)}
         className={[
           "fixed inset-y-0 left-0 z-30 flex flex-col border-r border-blue-200 bg-white shadow-sm",
           "transition-all duration-300 ease-in-out",
@@ -397,6 +410,48 @@ export default function DashboardLayout() {
               className="h-14 w-14 object-contain transition-all duration-300"
             />
           )}
+        </div>
+
+        <div
+          className={[
+            "flex shrink-0 border-b border-slate-100 py-2",
+            sidebarOpen ? "justify-end px-4" : "justify-center px-2",
+          ].join(" ")}
+        >
+          <button
+            type="button"
+            aria-pressed={sidebarPinned}
+            aria-label={sidebarPinned ? "Unpin sidebar" : "Pin sidebar"}
+            title={
+              sidebarPinned
+                ? "Unpin sidebar and return to hover mode"
+                : "Pin sidebar to keep it open"
+            }
+            onClick={handleSidebarPinToggle}
+            className={[
+              "group flex items-center justify-center rounded-xl border text-xs font-semibold transition-all duration-200",
+              "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500",
+              sidebarOpen ? "h-9 gap-2 px-3" : "h-9 w-9",
+              sidebarPinned
+                ? "border-primary-600 bg-primary-600 text-white shadow-sm hover:bg-primary-700"
+                : "border-slate-200 bg-white text-slate-500 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700",
+            ].join(" ")}
+          >
+            <Pin
+              size={16}
+              className={[
+                "shrink-0 transition-transform duration-200",
+                sidebarPinned ? "rotate-45" : "group-hover:-rotate-12",
+              ].join(" ")}
+              aria-hidden="true"
+            />
+
+            {sidebarOpen && (
+              <span className="whitespace-nowrap">
+                {sidebarPinned ? "Pinned" : "Pin sidebar"}
+              </span>
+            )}
+          </button>
         </div>
 
         <nav

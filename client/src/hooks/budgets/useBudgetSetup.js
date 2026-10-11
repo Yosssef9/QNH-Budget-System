@@ -223,6 +223,9 @@ export function useDeleteSetupType() {
       queryClient.invalidateQueries({
         queryKey: ["budget-setup", "types", variables.categoryId],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["budget-setup", "all-types"],
+      });
     },
   });
 }

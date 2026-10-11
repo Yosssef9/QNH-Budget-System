@@ -362,6 +362,216 @@ export async function updateCatalogItemStatusRepo(id, isActive, updatedBy = null
   return result.recordset[0] || null;
 }
 
+export async function getCatalogItemDeleteBlockersRepo(
+  catalogItemId,
+  transaction,
+) {
+  const request = transaction
+    ? new sql.Request(transaction)
+    : (await poolPromise).request();
+
+  const result = await request
+    .input("catalogItemId", sql.Int, catalogItemId)
+    .query(`
+      SET NOCOUNT ON;
+
+      /*
+       * Lock the catalog item and its reusable sub-items while checking
+       * references so a new dependency cannot be introduced between the
+       * validation and the hard delete in the same transaction.
+       */
+      DECLARE @lockedCatalogItemId INT;
+
+      SELECT @lockedCatalogItemId = id
+      FROM dbo.BS_budget_catalog_items WITH (UPDLOCK, HOLDLOCK)
+      WHERE id = @catalogItemId;
+
+      CREATE TABLE #CatalogSubItems
+      (
+        id INT NOT NULL PRIMARY KEY
+      );
+
+      INSERT INTO #CatalogSubItems (id)
+      SELECT id
+      FROM dbo.BS_budget_catalog_sub_items WITH (UPDLOCK, HOLDLOCK)
+      WHERE catalog_item_id = @catalogItemId;
+
+      CREATE TABLE #DeleteBlockers
+      (
+        source_table NVARCHAR(300) NOT NULL,
+        reference_count BIGINT NOT NULL
+      );
+
+      DECLARE
+        @schemaName SYSNAME,
+        @tableName SYSNAME,
+        @columnName SYSNAME,
+        @referenceCount BIGINT,
+        @sql NVARCHAR(MAX);
+
+      /*
+       * Find every current table that stores a direct catalog_item_id.
+       * The reusable sub-item table is owned by the catalog item itself,
+       * so it is deleted together with the parent and is not a blocker.
+       */
+      DECLARE directCatalogReferenceCursor CURSOR LOCAL FAST_FORWARD FOR
+        SELECT
+          schemaName.name,
+          tableName.name,
+          columnName.name
+        FROM sys.columns AS columnName
+        INNER JOIN sys.tables AS tableName
+          ON tableName.object_id = columnName.object_id
+        INNER JOIN sys.schemas AS schemaName
+          ON schemaName.schema_id = tableName.schema_id
+        WHERE columnName.name = N'catalog_item_id'
+          AND NOT (
+            schemaName.name = N'dbo'
+            AND tableName.name = N'BS_budget_catalog_sub_items'
+          );
+
+      OPEN directCatalogReferenceCursor;
+
+      FETCH NEXT FROM directCatalogReferenceCursor
+      INTO @schemaName, @tableName, @columnName;
+
+      WHILE @@FETCH_STATUS = 0
+      BEGIN
+        SET @referenceCount = 0;
+
+        SET @sql =
+          N'SELECT @countOut = COUNT_BIG(1) FROM '
+          + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName)
+          + N' WHERE ' + QUOTENAME(@columnName) + N' = @catalogItemId;';
+
+        EXEC sys.sp_executesql
+          @sql,
+          N'@catalogItemId INT, @countOut BIGINT OUTPUT',
+          @catalogItemId = @catalogItemId,
+          @countOut = @referenceCount OUTPUT;
+
+        IF @referenceCount > 0
+        BEGIN
+          INSERT INTO #DeleteBlockers (source_table, reference_count)
+          VALUES (
+            QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName),
+            @referenceCount
+          );
+        END;
+
+        FETCH NEXT FROM directCatalogReferenceCursor
+        INTO @schemaName, @tableName, @columnName;
+      END;
+
+      CLOSE directCatalogReferenceCursor;
+      DEALLOCATE directCatalogReferenceCursor;
+
+      /*
+       * A catalog item owns its reusable sub-items. They may be deleted
+       * with the item only when no other table references them.
+       *
+       * Inspect both the live catalog_sub_item_id convention and the
+       * catalog_sub_item_id_snapshot convention used by review history.
+       */
+      DECLARE subItemReferenceCursor CURSOR LOCAL FAST_FORWARD FOR
+        SELECT
+          schemaName.name,
+          tableName.name,
+          columnName.name
+        FROM sys.columns AS columnName
+        INNER JOIN sys.tables AS tableName
+          ON tableName.object_id = columnName.object_id
+        INNER JOIN sys.schemas AS schemaName
+          ON schemaName.schema_id = tableName.schema_id
+        WHERE columnName.name IN (
+          N'catalog_sub_item_id',
+          N'catalog_sub_item_id_snapshot'
+        );
+
+      OPEN subItemReferenceCursor;
+
+      FETCH NEXT FROM subItemReferenceCursor
+      INTO @schemaName, @tableName, @columnName;
+
+      WHILE @@FETCH_STATUS = 0
+      BEGIN
+        SET @referenceCount = 0;
+
+        SET @sql =
+          N'SELECT @countOut = COUNT_BIG(1) FROM '
+          + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName)
+          + N' WHERE ' + QUOTENAME(@columnName)
+          + N' IN (SELECT id FROM #CatalogSubItems);';
+
+        EXEC sys.sp_executesql
+          @sql,
+          N'@countOut BIGINT OUTPUT',
+          @countOut = @referenceCount OUTPUT;
+
+        IF @referenceCount > 0
+        BEGIN
+          INSERT INTO #DeleteBlockers (source_table, reference_count)
+          VALUES (
+            QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName),
+            @referenceCount
+          );
+        END;
+
+        FETCH NEXT FROM subItemReferenceCursor
+        INTO @schemaName, @tableName, @columnName;
+      END;
+
+      CLOSE subItemReferenceCursor;
+      DEALLOCATE subItemReferenceCursor;
+
+      SELECT
+        source_table,
+        SUM(reference_count) AS reference_count
+      FROM #DeleteBlockers
+      GROUP BY source_table
+      ORDER BY source_table;
+    `);
+
+  return result.recordset || [];
+}
+
+export async function deleteCatalogItemRepo(catalogItemId, transaction) {
+  const request = new sql.Request(transaction);
+
+  const result = await request
+    .input("catalogItemId", sql.Int, catalogItemId)
+    .query(`
+      DECLARE @Deleted TABLE
+      (
+        id INT NOT NULL,
+        budget_category_id INT NOT NULL,
+        item_code VARCHAR(80) NOT NULL,
+        name NVARCHAR(200) NOT NULL
+      );
+
+      DELETE FROM dbo.BS_budget_catalog_sub_items
+      WHERE catalog_item_id = @catalogItemId;
+
+      DELETE FROM dbo.BS_budget_catalog_items
+      OUTPUT
+        DELETED.id,
+        DELETED.budget_category_id,
+        DELETED.item_code,
+        DELETED.name
+      INTO @Deleted
+      WHERE id = @catalogItemId;
+
+      SELECT
+        id,
+        budget_category_id,
+        item_code,
+        name
+      FROM @Deleted;
+    `);
+
+  return result.recordset[0] || null;
+}
+
 export async function getSubItemsByCatalogItemRepo(catalogItemId) {
   const pool = await poolPromise;
   const result = await pool.request().input("catalogItemId", sql.Int, catalogItemId)

@@ -10,6 +10,7 @@ import {
   createCatalogItem,
   createCategory,
   createSubItem,
+  deleteCatalogItem,
   deleteCategory,
   getAllCatalogItems,
   getCatalogItemsByCategory,
@@ -117,6 +118,8 @@ router.post("/categories/:categoryId/catalog-items", createCatalogItem);
 router.patch("/catalog-items/:itemId", updateCatalogItem);
 
 router.patch("/catalog-items/:itemId/status", updateCatalogItemStatus);
+
+router.delete("/catalog-items/:itemId", deleteCatalogItem);
 
 router.get("/catalog-items/:itemId/usage", getCatalogItemUsage);
 

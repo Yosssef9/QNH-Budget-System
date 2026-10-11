@@ -22,6 +22,7 @@ import {
   createCatalogItemRepo,
   createCategoryRepo,
   createSubItemRepo,
+  deleteCatalogItemRepo,
   findCatalogItemByCodeRepo,
   findCatalogItemByIdRepo,
   findCatalogItemByNameInCategoryRepo,
@@ -32,6 +33,7 @@ import {
   findSubItemByNameRepo,
   findUnitByIdRepo,
   getAllCatalogItemsRepo,
+  getCatalogItemDeleteBlockersRepo,
   getCatalogItemUsageRepo,
   getCatalogItemsByCategoryRepo,
   getCategoriesRepo,
@@ -416,6 +418,61 @@ export async function updateCatalogItemStatusService({
   }
 
   return mapCatalogItem(await findCatalogItemByIdRepo(id));
+}
+
+export async function deleteCatalogItemService({ id }) {
+  const existing = await findCatalogItemByIdRepo(id);
+
+  if (!existing) {
+    throw new ApiError(404, "Catalog item not found", "CATALOG_ITEM_NOT_FOUND");
+  }
+
+  try {
+    await withTransaction(async (transaction) => {
+      const blockers = await getCatalogItemDeleteBlockersRepo(id, transaction);
+
+      if (blockers.length > 0) {
+        throw new ApiError(
+          409,
+          `Cannot permanently delete "${existing.name}" because it is already used in the budget system. Deactivate it instead.`,
+          "CATALOG_ITEM_IN_USE",
+          {
+            references: blockers.map((blocker) => ({
+              source: blocker.source_table,
+              count: Number(blocker.reference_count || 0),
+            })),
+          },
+        );
+      }
+
+      const deleted = await deleteCatalogItemRepo(id, transaction);
+
+      if (!deleted) {
+        throw new ApiError(
+          404,
+          "Catalog item not found",
+          "CATALOG_ITEM_NOT_FOUND",
+        );
+      }
+    });
+  } catch (error) {
+    const sqlErrorNumber =
+      error?.number ??
+      error?.originalError?.number ??
+      error?.originalError?.info?.number;
+
+    if (Number(sqlErrorNumber) === 547) {
+      throw new ApiError(
+        409,
+        `Cannot permanently delete "${existing.name}" because it is referenced by another budget record. Deactivate it instead.`,
+        "CATALOG_ITEM_IN_USE",
+      );
+    }
+
+    throw error;
+  }
+
+  return mapCatalogItem(existing);
 }
 
 export async function getCatalogItemUsageService(id) {

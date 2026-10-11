@@ -7,6 +7,7 @@ import {
   createCategoryService,
   createSubItemService,
   deactivateCategoryService,
+  deleteCatalogItemService,
   getAllCatalogItemsService,
   getCatalogItemsByCategoryService,
   getCatalogItemUsageService,
@@ -198,6 +199,28 @@ export const updateCatalogItem = asyncHandler(async (req, res) => {
   res.json(
     new ApiResponse({
       message: "Catalog item updated successfully",
+      data,
+    }),
+  );
+});
+
+export const deleteCatalogItem = asyncHandler(async (req, res) => {
+  const id = validatePositiveInt(req.params.itemId, "itemId");
+
+  const data = await deleteCatalogItemService({ id });
+
+  await auditLog(req, {
+    action: "DELETE_CATALOG_ITEM",
+    entityType: "BUDGET_CATALOG_ITEM",
+    entityId: String(data.id),
+    entityName: data.name,
+    description: `Permanently deleted unused catalog item "${data.name}"`,
+    oldValues: data,
+  });
+
+  res.json(
+    new ApiResponse({
+      message: "Catalog item permanently deleted successfully",
       data,
     }),
   );

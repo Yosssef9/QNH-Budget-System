@@ -38,6 +38,7 @@ import {
   useCreateSetupSubItem,
   useCreateSetupType,
   useDeleteSetupCategory,
+  useDeleteSetupType,
   useItemRequests,
   useRejectItemRequest,
   useSetupCategories,
@@ -150,6 +151,7 @@ export default function BudgetSetupPage() {
   const categoryUsageMutation = useSetupCategoryUsage();
   const typeUsageMutation = useSetupTypeUsage();
   const deleteCategoryMutation = useDeleteSetupCategory();
+  const deleteTypeMutation = useDeleteSetupType();
   const approveMutation = useApproveItemRequest();
   const approveAndCreateMutation = useApproveAndCreateItemRequest();
   const rejectMutation = useRejectItemRequest();
@@ -696,6 +698,18 @@ export default function BudgetSetupPage() {
     }
   }
 
+  function requestHardDeleteType(item) {
+    setConfirmAction({
+      type: "HARD_DELETE_TYPE",
+      target: item,
+      usage: [],
+      title: "Permanently delete catalog item?",
+      message: `"${item.name}" will be permanently deleted only if it has never been used anywhere in the budget system. This action cannot be undone.`,
+      confirmText: "Delete Permanently",
+      danger: true,
+    });
+  }
+
   async function handleConfirmAction() {
     if (!confirmAction) return;
 
@@ -724,6 +738,37 @@ export default function BudgetSetupPage() {
       } catch (error) {
         toast.error(
           error?.response?.data?.message || "Failed to delete category",
+        );
+      }
+
+      return;
+    }
+
+    if (confirmAction.type === "HARD_DELETE_TYPE") {
+      try {
+        await deleteTypeMutation.mutateAsync({
+          categoryId: activeCategoryId,
+          typeId: confirmAction.target.id,
+        });
+
+        toast.success("Catalog item permanently deleted successfully");
+
+        if (
+          String(selectedSubItemCatalogItem?.id) ===
+          String(confirmAction.target.id)
+        ) {
+          closeSubItemsPanel();
+        }
+
+        if (String(editingTypeId) === String(confirmAction.target.id)) {
+          cancelEditType();
+        }
+
+        setConfirmAction(null);
+      } catch (error) {
+        toast.error(
+          error?.response?.data?.message ||
+            "Failed to permanently delete catalog item",
         );
       }
 
@@ -819,6 +864,7 @@ export default function BudgetSetupPage() {
   }
   const isConfirmLoading =
     deleteCategoryMutation.isPending ||
+    deleteTypeMutation.isPending ||
     updateTypeStatusMutation.isPending ||
     categoryUsageMutation.isPending ||
     typeUsageMutation.isPending;
@@ -1850,7 +1896,7 @@ export default function BudgetSetupPage() {
                                   className={[
                                     "inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-bold transition",
                                     item.is_active
-                                      ? "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                                      ? "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
                                       : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
                                   ].join(" ")}
                                 >
@@ -1860,6 +1906,16 @@ export default function BudgetSetupPage() {
                                     <CheckCircle2 size={14} />
                                   )}
                                   {item.is_active ? "Deactivate" : "Activate"}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => requestHardDeleteType(item)}
+                                  title="Permanently delete this item if it has never been used"
+                                  className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-100"
+                                >
+                                  <Trash2 size={14} />
+                                  Delete
                                 </button>
                               </div>
                             )}

@@ -93,9 +93,8 @@ export async function deleteSetupCategory(categoryId) {
 }
 
 export async function deleteSetupType({ typeId }) {
-  const response = await api.patch(
-    `/master-catalog/catalog-items/${typeId}/status`,
-    { is_active: false },
+  const response = await api.delete(
+    `/master-catalog/catalog-items/${typeId}`,
   );
   return response.data?.data;
 }

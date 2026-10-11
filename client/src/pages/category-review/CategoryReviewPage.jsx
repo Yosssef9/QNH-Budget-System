@@ -287,6 +287,9 @@ function DepartmentQueueItem({ budget, selected, onSelect }) {
           <p className="truncate text-sm font-bold text-slate-950">
             {budget.department_name}
           </p>
+          <p className="mt-1 truncate text-xs font-semibold text-slate-600">
+            HOD: {budget.hod_name || "Not assigned"}
+          </p>
           <p className="mt-1 text-xs font-medium text-slate-500">
             {total} item{total === 1 ? "" : "s"}
           </p>
@@ -1125,6 +1128,9 @@ export default function CategoryReviewPage() {
             .includes(normalizedSearch) ||
           String(budget.department_code || "")
             .toLowerCase()
+            .includes(normalizedSearch) ||
+          String(budget.hod_name || "")
+            .toLowerCase()
             .includes(normalizedSearch);
         const matchesStatus =
           statusFilter === "ALL" || budget.status === statusFilter;
@@ -1952,7 +1958,10 @@ const reopenWindowMutation = useMutation({
                         </h2>
                         <StatusBadge status={selectedBudget.status} />
                       </div>
-                      <p className="mt-1 text-sm text-slate-500">
+                      <p className="mt-1 text-sm font-semibold text-slate-600">
+                        HOD: {selectedBudget.hod_name || "Not assigned"}
+                      </p>
+                      <p className="mt-0.5 text-sm text-slate-500">
                         {selectedBudget.department_code || "Department"} ·{" "}
                         {selectedBudget.category_name} · FY{" "}
                         {selectedBudget.financial_year}
@@ -2315,4 +2324,5 @@ const reopenWindowMutation = useMutation({
     </main>
   );
 }
+
 

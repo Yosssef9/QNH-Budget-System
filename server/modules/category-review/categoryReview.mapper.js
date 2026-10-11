@@ -53,6 +53,7 @@ export function mapReviewQueue({ rows = [], window = null, coverage = null } = {
     department_id: row.department_id,
     department_name: row.department_name,
     department_code: row.department_code || null,
+    hod_name: row.hod_name || null,
 
     financial_year_id: row.financial_year_id,
     financial_year: row.financial_year,
@@ -246,6 +247,7 @@ export function mapCategoryReviewDetail({ budget, itemRows = [] }) {
     department_id: budget.department_id,
     department_name: budget.department_name,
     department_code: budget.department_code || null,
+    hod_name: budget.hod_name || null,
 
     financial_year_id: budget.financial_year_id,
     financial_year: budget.financial_year,
@@ -331,3 +333,4 @@ export function mapCategoryReviewDetail({ budget, itemRows = [] }) {
     },
   };
 }
+

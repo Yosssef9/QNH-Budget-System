@@ -254,6 +254,7 @@ export function mapCategoryDepartmentItemOverview(row) {
     department_id: row.department_id,
     department_name: row.department_name,
     department_code: row.department_code || null,
+    hod_name: row.hod_name || null,
     financial_year_id: row.financial_year_id,
     financial_year: row.financial_year,
     financial_year_status: row.financial_year_status,
@@ -305,3 +306,4 @@ export function mapCategoryDepartmentItemsOverview(rows = []) {
 
   return Array.from(itemMap.values());
 }
+

@@ -363,6 +363,9 @@ function DepartmentDetailTable({
                   <div className="font-bold text-slate-900">
                     {item.departmentName}
                   </div>
+                  <div className="mt-1 text-xs font-medium text-slate-500">
+                    HOD: {item.hod_name || "Not assigned"}
+                  </div>
                 </td>
 
                 <td className="border border-slate-200 px-4 py-4 align-top">
@@ -677,6 +680,7 @@ export default function CategoryDepartmentRequestsTable({ items }) {
         [
           item.department_name,
           item.department_code,
+          item.hod_name,
           item.catalog_item_name,
           item.item_code,
           item.expense_type,
@@ -910,3 +914,4 @@ export default function CategoryDepartmentRequestsTable({ items }) {
     </>
   );
 }
+

@@ -1,5 +1,6 @@
 import { poolPromise, sql } from "../../config/db.js";
 import { createRequest } from "../../utils/createRequest.js";
+import { ROLE_CODES } from "../access-management/access.constants.js";
 import {
   DEPARTMENT_BUDGET_ITEM_STATUS,
   DEPARTMENT_CATEGORY_BUDGET_STATUS,
@@ -219,6 +220,7 @@ export async function listCategoryDepartmentItemsOverviewRepo({
         db.department_id,
         dept.name AS department_name,
         dept.department_code,
+        departmentHod.hod_name,
         db.financial_year_id,
         fy.year AS financial_year,
         fy.status AS financial_year_status,
@@ -257,6 +259,29 @@ export async function listCategoryDepartmentItemsOverviewRepo({
         ON fy.id = db.financial_year_id
       INNER JOIN dbo.BS_departments AS dept
         ON dept.id = db.department_id
+      OUTER APPLY (
+        SELECT
+          STUFF(
+            (
+              SELECT N', ' + hodUser.USER_NAME
+              FROM dbo.BS_budget_user_roles AS hodAssignment
+              INNER JOIN dbo.BS_budget_roles AS hodRole
+                ON hodRole.id = hodAssignment.role_id
+               AND hodRole.is_active = 1
+              INNER JOIN dbo.users AS hodUser
+                ON hodUser.USER_ID = hodAssignment.user_id
+               AND hodUser.is_active = 1
+              WHERE hodAssignment.department_id = db.department_id
+                AND hodAssignment.is_active = 1
+                AND hodRole.role_code = '${ROLE_CODES.DEPARTMENT_BUDGET_MANAGER}'
+              ORDER BY hodUser.USER_NAME
+              FOR XML PATH(''), TYPE
+            ).value('.', 'NVARCHAR(MAX)'),
+            1,
+            2,
+            N''
+          ) AS hod_name
+      ) AS departmentHod
       INNER JOIN dbo.BS_budget_categories AS category
         ON category.id = dcb.budget_category_id
       INNER JOIN dbo.BS_budget_catalog_items AS catalog
@@ -1327,3 +1352,4 @@ export async function createWorkflowHistoryRepo(transaction, payload) {
       );
     `);
 }
+

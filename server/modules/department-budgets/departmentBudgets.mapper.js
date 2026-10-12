@@ -1,3 +1,5 @@
+import { buildApprovedDistribution } from "../../utils/approvedDistribution.js";
+
 function mapRowVersion(rowVersion) {
   if (!rowVersion) return null;
   if (Buffer.isBuffer(rowVersion)) return rowVersion.toString("base64");
@@ -171,6 +173,17 @@ export function mapDepartmentBudgetDetail({
   }
 
   for (const item of itemMap.values()) {
+    item.approved_distribution =
+      item.category_approved_quantity === null
+        ? []
+        : buildApprovedDistribution({
+            distribution: item.distribution,
+            requestedQuantity: item.requested_quantity,
+            approvedQuantity: item.category_approved_quantity,
+            unitCode: item.unit_code,
+            unitName: item.unit_name,
+          });
+
     const category = categoryMap.get(Number(item.department_category_budget_id));
     if (category) category.items.push(item);
   }
@@ -265,6 +278,9 @@ export function mapCategoryDepartmentItemOverview(row) {
     catalog_item_name: row.catalog_item_name,
     item_code: row.item_code,
     expense_type: row.expense_type,
+    unit_of_measure_id: row.unit_of_measure_id || null,
+    unit_name: row.unit_name || null,
+    unit_code: row.unit_code || null,
     requested_quantity: toNumber(row.requested_quantity),
     hod_item_note: row.hod_item_note || null,
     hodItemNote: row.hod_item_note || null,
@@ -304,6 +320,16 @@ export function mapCategoryDepartmentItemsOverview(rows = []) {
     }
   }
 
-  return Array.from(itemMap.values());
+  return Array.from(itemMap.values()).map((item) => ({
+    ...item,
+    approved_distribution: buildApprovedDistribution({
+      distribution: item.distribution,
+      requestedQuantity: item.requested_quantity,
+      approvedQuantity: item.category_approved_quantity,
+      unitCode: item.unit_code,
+      unitName: item.unit_name,
+    }),
+  }));
 }
+
 

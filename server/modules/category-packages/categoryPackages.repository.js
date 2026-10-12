@@ -378,6 +378,8 @@ export async function listPackageDistributionRowsRepo({
         item.requested_quantity,
         item.category_approved_quantity,
         item.distribution_method,
+        COALESCE(item.unit_name_snapshot, itemUnit.name) AS item_unit_name,
+        COALESCE(item.unit_code_snapshot, itemUnit.unit_code) AS item_unit_code,
 
         distribution.id AS distribution_id,
         distribution.period_type,
@@ -409,6 +411,9 @@ export async function listPackageDistributionRowsRepo({
 
       INNER JOIN dbo.BS_budget_catalog_items AS catalog
         ON catalog.id = packageItem.catalog_item_id
+
+      LEFT JOIN dbo.BS_units_of_measure AS itemUnit
+        ON itemUnit.id = COALESCE(packageItem.unit_of_measure_id_snapshot, catalog.unit_of_measure_id)
 
       INNER JOIN dbo.BS_department_budgets AS departmentBudget
         ON departmentBudget.financial_year_id = pkg.financial_year_id
@@ -1319,6 +1324,8 @@ export async function findDepartmentItemPackageEditContextRepo(
         dept.name AS department_name,
 
         COALESCE(item.catalog_item_name_snapshot, catalog.name) AS catalog_item_name,
+        COALESCE(item.unit_name_snapshot, itemUnit.name) AS unit_name,
+        COALESCE(item.unit_code_snapshot, itemUnit.unit_code) AS unit_code,
 
         packageItem.id AS package_item_id,
         packageItem.cfo_review_status,
@@ -1343,6 +1350,8 @@ export async function findDepartmentItemPackageEditContextRepo(
         ON dept.id = db.department_id
       INNER JOIN dbo.BS_budget_catalog_items AS catalog
         ON catalog.id = item.catalog_item_id
+      LEFT JOIN dbo.BS_units_of_measure AS itemUnit
+        ON itemUnit.id = COALESCE(item.unit_of_measure_id_snapshot, catalog.unit_of_measure_id)
       INNER JOIN dbo.BS_category_budget_packages AS pkg WITH (UPDLOCK, HOLDLOCK)
         ON pkg.financial_year_id = db.financial_year_id
        AND pkg.budget_category_id = dcb.budget_category_id

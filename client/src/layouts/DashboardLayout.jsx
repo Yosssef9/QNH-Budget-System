@@ -96,7 +96,7 @@ function getSidebarSections(budgetAccess) {
         },
         {
           label: canViewCategoryRequests ? "Category Budget" : "Budgets",
-          path: "/budgets",
+           path: canViewCategoryRequests ? "/budgets/my" : "/budgets",
           icon: Wallet,
           show:
             (canViewDepartmentBudgets || canViewCategoryRequests) &&

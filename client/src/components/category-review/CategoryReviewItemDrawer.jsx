@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import AnimatedDrawer from "../budgets/shared/drawers/AnimatedDrawer";
+import { buildApprovedDistribution, isCountableUnit } from "../../utils/approvedDistribution";
 
 const numberFormatter = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 4,
@@ -98,8 +99,12 @@ export default function CategoryReviewItemDrawer({
 
   const approvedValue = draft?.category_approved_quantity ?? "";
   const approvedNumber = Number(approvedValue);
+  const countableUnit = isCountableUnit(item);
   const approvedIsValid =
-    approvedValue !== "" && Number.isFinite(approvedNumber) && approvedNumber >= 0;
+    approvedValue !== "" &&
+    Number.isFinite(approvedNumber) &&
+    approvedNumber >= 0 &&
+    (!countableUnit || Number.isInteger(approvedNumber));
   const decisionCompleted = item.review_status === "CATEGORY_REVIEW_COMPLETED";
   const saveDisabled =
     locked || saving || !approvedIsValid || (decisionCompleted && !dirty);
@@ -107,6 +112,19 @@ export default function CategoryReviewItemDrawer({
   const difference = approvedIsValid ? approvedNumber - requested : null;
   const distribution = item.distribution || [];
   const distributionTotal = distribution.reduce(
+    (sum, row) => sum + Number(row.quantity || 0),
+    0,
+  );
+  const approvedDistribution = approvedIsValid
+    ? buildApprovedDistribution({
+        distribution,
+        requestedQuantity: requested,
+        approvedQuantity: approvedNumber,
+        unitCode: item.unit_code,
+        unitName: item.unit_name,
+      })
+    : [];
+  const approvedDistributionTotal = approvedDistribution.reduce(
     (sum, row) => sum + Number(row.quantity || 0),
     0,
   );
@@ -199,7 +217,7 @@ export default function CategoryReviewItemDrawer({
                   id={`approved-quantity-${item.id}`}
                   type="number"
                   min="0"
-                  step="any"
+                  step={countableUnit ? "1" : "any"}
                   value={approvedValue}
                   disabled={locked || saving}
                   onChange={(event) =>
@@ -209,6 +227,11 @@ export default function CategoryReviewItemDrawer({
                   }
                   className="mt-2 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 text-lg font-black text-slate-950 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100"
                 />
+                {countableUnit ? (
+                  <p className={`mt-2 text-xs font-semibold ${approvedIsValid ? "text-blue-700" : "text-rose-600"}`}>
+                    Countable item: approved quantity must be a whole number.
+                  </p>
+                ) : null}
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -261,10 +284,10 @@ export default function CategoryReviewItemDrawer({
                 <div>
                   <div className="flex items-center gap-2">
                     <BarChart3 className="h-4 w-4 text-violet-700" />
-                    <h3 className="font-black text-slate-950">Department Distribution</h3>
+                    <h3 className="font-black text-slate-950">Distribution</h3>
                   </div>
                   <p className="mt-1 text-xs font-semibold text-slate-500">
-                    {formatDistributionMethod(item.distribution_method)} · {formatNumber(distributionTotal)} distributed
+                    {formatDistributionMethod(item.distribution_method)} · requested {formatNumber(distributionTotal)}
                   </p>
                 </div>
                 <StatusBadge
@@ -279,18 +302,47 @@ export default function CategoryReviewItemDrawer({
                     : "Check distribution"}
                 </StatusBadge>
               </div>
+
               {distribution.length ? (
-                <div className="grid gap-px bg-slate-100 sm:grid-cols-2 lg:grid-cols-3">
-                  {distribution.map((row) => (
-                    <div key={row.id} className="bg-white px-4 py-3">
-                      <p className="text-xs font-bold text-slate-500">
-                        {periodLabel(row)}
-                      </p>
-                      <p className="mt-1 text-lg font-black text-slate-950">
-                        {formatNumber(row.quantity)}
+                <div className="grid gap-4 bg-slate-50 p-4 xl:grid-cols-2">
+                  <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                    <div className="border-b border-slate-200 px-4 py-3">
+                      <p className="text-sm font-black text-slate-950">HOD Requested Distribution</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">Original department timing.</p>
+                    </div>
+                    <div className="grid gap-px bg-slate-100 sm:grid-cols-2 lg:grid-cols-3">
+                      {distribution.map((row) => (
+                        <div key={row.id} className="bg-white px-4 py-3">
+                          <p className="text-xs font-bold text-slate-500">{periodLabel(row)}</p>
+                          <p className="mt-1 text-lg font-black text-slate-950">{formatNumber(row.quantity)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="overflow-hidden rounded-2xl border border-blue-200 bg-white">
+                    <div className="border-b border-blue-100 bg-blue-50/70 px-4 py-3">
+                      <p className="text-sm font-black text-blue-950">Approved Distribution</p>
+                      <p className="mt-1 text-xs font-semibold text-blue-700">
+                        Rebalanced to total {approvedIsValid ? formatNumber(approvedDistributionTotal) : "—"}
+                        {countableUnit ? " using whole units only." : "."}
                       </p>
                     </div>
-                  ))}
+                    {approvedIsValid ? (
+                      <div className="grid gap-px bg-slate-100 sm:grid-cols-2 lg:grid-cols-3">
+                        {approvedDistribution.map((row) => (
+                          <div key={`approved-${row.id || `${row.period_type}-${row.period_no}`}`} className="bg-white px-4 py-3">
+                            <p className="text-xs font-bold text-slate-500">{periodLabel(row)}</p>
+                            <p className="mt-1 text-lg font-black text-blue-700">{formatNumber(row.quantity)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="px-4 py-6 text-sm font-semibold text-rose-600">
+                        Enter a valid approved quantity to preview the approved distribution.
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="px-5 py-6 text-sm text-slate-500">

@@ -7,8 +7,10 @@ import {
   CircleDollarSign,
   ClipboardCheck,
   Database,
+  FileSpreadsheet,
   Wallet,
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 import CollapsibleSection from "../../components/CollapsibleSection";
 import CurrencyText from "../../components/CurrencyText";
@@ -21,11 +23,16 @@ import {
   getCategoryBudgetOverview,
   getCategoryBudgetYears,
 } from "../../api/budget.api";
+import {
+  getCategoryPackageItemDetail,
+  getCurrentCategoryPackage,
+} from "../../api/categoryPackages.api";
 import { getTransferItems } from "../../api/transfer.api";
 import { useAuth } from "../../context/AuthContext";
 import usePagination from "../../hooks/usePagination";
 import useTableSort from "../../hooks/useTableSort";
 import { formatQty } from "../../utils/numberFormatter";
+import { exportCategoryBudgetToExcel } from "../../utils/budgetExcelExport";
 
 function formatQuantity(value) {
   return Number(value || 0).toLocaleString(undefined, {
@@ -340,6 +347,7 @@ function CategoryBudgetView({ financialYearId }) {
   const { budgetAccess } = useAuth();
   const navigate = useNavigate();
   const [selectedPoSubItem, setSelectedPoSubItem] = useState(null);
+  const [exportingExcel, setExportingExcel] = useState(false);
   const categoryName =
     budgetAccess?.budgetCategory?.name ||
     budgetAccess?.category?.name ||
@@ -399,6 +407,55 @@ function CategoryBudgetView({ financialYearId }) {
     0,
   );
 
+  async function handleExportExcel() {
+    setExportingExcel(true);
+
+    try {
+      let packageDetails = [];
+
+      try {
+        const currentPackage = await getCurrentCategoryPackage();
+
+        if (
+          Number(currentPackage?.financial_year_id) === Number(financialYearId)
+        ) {
+          const detailResults = await Promise.allSettled(
+            (currentPackage?.items || []).map((item) =>
+              getCategoryPackageItemDetail(item.id),
+            ),
+          );
+
+          packageDetails = detailResults
+            .filter((result) => result.status === "fulfilled" && result.value)
+            .map((result) => result.value);
+        }
+      } catch (packageError) {
+        if (packageError?.response?.status !== 404) {
+          console.warn(
+            "Current package pricing was not available for Excel export",
+            packageError,
+          );
+        }
+      }
+
+      await exportCategoryBudgetToExcel({
+        categoryName,
+        financialYear,
+        packageStatus,
+        departmentItems,
+        packageDetails,
+        balanceItems,
+      });
+
+      toast.success("Category budget Excel exported");
+    } catch (error) {
+      console.error("Failed to export category budget Excel", error);
+      toast.error("Failed to export category budget Excel");
+    } finally {
+      setExportingExcel(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -428,29 +485,43 @@ function CategoryBudgetView({ financialYearId }) {
             </div>
           </div>
 
-          <div className="w-full lg:w-64">
-            <label className="mb-1.5 block text-[11px] font-black uppercase tracking-wide text-slate-500">
-              Financial Year
-            </label>
-            <SearchableMultiSelect
-              name="financialYearId"
-              multiple={false}
-              disableClear
-              value={Number(financialYearId)}
-              options={categoryYears.map((year) => ({
-                value: Number(year.financial_year_id),
-                label: `FY ${year.financial_year} · ${String(
-                  year.financial_year_status,
-                ).replaceAll("_", " ")}`,
-              }))}
-              onChange={(event) => {
-                const value = event?.target?.value;
-                if (value) {
-                  navigate(`/budgets/my/category/${value}`);
-                }
-              }}
-              placeholder="Select financial year"
-            />
+          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-end lg:w-auto">
+            <div className="w-full sm:w-64">
+              <label className="mb-1.5 block text-[11px] font-black uppercase tracking-wide text-slate-500">
+                Financial Year
+              </label>
+              <SearchableMultiSelect
+                name="financialYearId"
+                multiple={false}
+                disableClear
+                value={Number(financialYearId)}
+                options={categoryYears.map((year) => ({
+                  value: Number(year.financial_year_id),
+                  label: `FY ${year.financial_year} · ${String(
+                    year.financial_year_status,
+                  ).replaceAll("_", " ")}`,
+                }))}
+                onChange={(event) => {
+                  const value = event?.target?.value;
+                  if (value) {
+                    navigate(`/budgets/my/category/${value}`);
+                  }
+                }}
+                placeholder="Select financial year"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              disabled={
+                exportingExcel || requestsLoading || balancesLoading || !overview
+              }
+              className="inline-flex h-[42px] shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-bold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <FileSpreadsheet size={18} />
+              {exportingExcel ? "Exporting..." : "Export Excel"}
+            </button>
           </div>
         </div>
 
@@ -549,5 +620,6 @@ export default function CategoryBudgetViewPage() {
     </div>
   );
 }
+
 
 

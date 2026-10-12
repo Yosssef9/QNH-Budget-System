@@ -19,8 +19,10 @@ import { useBudgetView } from "../../hooks/budgets/useBudgetView";
 import useBudgetTotals from "../../hooks/budgets/useBudgetTotals";
 import { getMyAdjustmentRequests } from "../../api/adjustmentRequests.api";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle } from "lucide-react";
+import toast from "react-hot-toast";
+import { AlertCircle, FileSpreadsheet } from "lucide-react";
 import { formatDateTime } from "../../utils/dateFormatters";
+import { exportDepartmentBudgetToExcel } from "../../utils/budgetExcelExport";
 
 function formatQuantity(value) {
   return Number(value || 0).toLocaleString(undefined, {
@@ -91,6 +93,7 @@ export default function BudgetViewPage() {
   const [selectedExpenseTypes, setSelectedExpenseTypes] = useState([]);
 
   const [selectedMethods, setSelectedMethods] = useState([]);
+  const [exportingExcel, setExportingExcel] = useState(false);
   const [adjustmentDrawerOpen, setAdjustmentDrawerOpen] = useState(false);
   const [selectedDistributionItem, setSelectedDistributionItem] = useState(null);
   const { data: adjustmentRequests = [] } = useQuery({
@@ -176,6 +179,20 @@ export default function BudgetViewPage() {
       ),
     [adjustmentRequests, budget],
   );
+
+  async function handleExportExcel() {
+    setExportingExcel(true);
+
+    try {
+      await exportDepartmentBudgetToExcel({ budget });
+      toast.success("Department budget Excel exported");
+    } catch (error) {
+      console.error("Failed to export department budget Excel", error);
+      toast.error("Failed to export budget Excel");
+    } finally {
+      setExportingExcel(false);
+    }
+  }
   if (isLoading) {
     return (
       <LoadingSpinner
@@ -215,12 +232,24 @@ export default function BudgetViewPage() {
         ]}
       />
 
-      <div>
-        <h1 className="text-3xl font-bold">Department Budget Details</h1>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Department Budget Details</h1>
 
-        <p className="mt-2 text-slate-500">
-          {pageDescription}
-        </p>
+          <p className="mt-2 text-slate-500">{pageDescription}</p>
+        </div>
+
+        {isDepartmentWorkspace && !canViewAllBudgets ? (
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            disabled={exportingExcel}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-bold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <FileSpreadsheet size={18} />
+            {exportingExcel ? "Exporting..." : "Export Excel"}
+          </button>
+        ) : null}
       </div>
 
       <BudgetHeaderCard
@@ -430,4 +459,5 @@ export default function BudgetViewPage() {
     </div>
   );
 }
+
 

@@ -1,5 +1,6 @@
 import { withTransaction } from "../../database/transaction.js";
 import { ApiError } from "../../utils/apiError.js";
+import { buildApprovedDistribution, isCountableUnit } from "../../utils/approvedDistribution.js";
 import { NOTIFICATION_TYPES } from "../../constants/notificationTypes.js";
 import { queueNotification } from "../../services/notification.service.js";
 import {
@@ -319,19 +320,73 @@ function addDistributionValue(group, periodKeys, amount) {
   group.estimated_total += amount;
 }
 
-function distributeRowAmount(row) {
-  const requestedQuantity = Number(row.requested_quantity || 0);
-  const distributionQuantity = Number(
-    row.distribution_quantity ?? row.requested_quantity ?? 0,
-  );
+function distributionRowKey(row) {
+  return row.distribution_id
+    ? `id:${row.distribution_id}`
+    : `${String(row.period_type || "YEAR").toUpperCase()}:${Number(row.period_no || 1)}`;
+}
+
+function buildApprovedDistributionLookup(rows = []) {
+  const items = new Map();
+
+  for (const row of rows) {
+    const itemId = Number(row.department_item_id);
+    if (!itemId) continue;
+
+    if (!items.has(itemId)) {
+      items.set(itemId, {
+        requestedQuantity: Number(row.requested_quantity || 0),
+        approvedQuantity: Number(row.category_approved_quantity || 0),
+        unitCode: row.item_unit_code || null,
+        unitName: row.item_unit_name || null,
+        distributions: new Map(),
+      });
+    }
+
+    if (row.distribution_id) {
+      const key = distributionRowKey(row);
+      if (!items.get(itemId).distributions.has(key)) {
+        items.get(itemId).distributions.set(key, {
+          id: row.distribution_id,
+          period_type: row.period_type,
+          period_no: Number(row.period_no || 1),
+          quantity: Number(row.distribution_quantity || 0),
+        });
+      }
+    }
+  }
+
+  const lookup = new Map();
+
+  for (const [itemId, item] of items.entries()) {
+    const sourceRows = Array.from(item.distributions.values());
+    const approvedRows = buildApprovedDistribution({
+      distribution: sourceRows,
+      requestedQuantity: item.requestedQuantity,
+      approvedQuantity: item.approvedQuantity,
+      unitCode: item.unitCode,
+      unitName: item.unitName,
+    });
+
+    lookup.set(
+      itemId,
+      new Map(approvedRows.map((row) => [distributionRowKey(row), Number(row.quantity || 0)])),
+    );
+  }
+
+  return lookup;
+}
+
+function distributeRowAmount(row, approvedPeriodQuantity) {
+  const approvedQuantity = Number(row.category_approved_quantity || 0);
   const allocatedQuantity = Number(row.allocated_quantity || 0);
   const unitPrice = Number(row.unit_price || 0);
 
-  if (requestedQuantity <= 0 || allocatedQuantity <= 0 || unitPrice <= 0) {
+  if (approvedQuantity <= 0 || allocatedQuantity <= 0 || unitPrice <= 0) {
     return 0;
   }
 
-  return (distributionQuantity / requestedQuantity) * allocatedQuantity * unitPrice;
+  return (approvedPeriodQuantity / approvedQuantity) * allocatedQuantity * unitPrice;
 }
 
 export function buildPackageDistributionAnalysis({ rows, scope }) {
@@ -341,6 +396,7 @@ export function buildPackageDistributionAnalysis({ rows, scope }) {
   const modelMap = new Map();
   const distributionSeen = new Set();
   const allocationSeen = new Set();
+  const approvedDistributionLookup = buildApprovedDistributionLookup(rows || []);
   const totals = createDistributionGroup({
     key: "TOTAL",
     label: scope?.label || "Distribution total",
@@ -438,12 +494,13 @@ export function buildPackageDistributionAnalysis({ rows, scope }) {
       const distributionQuantity = Number(
         row.distribution_quantity ?? row.requested_quantity ?? 0,
       );
-      const requestedQuantity = Number(row.requested_quantity || 0);
       const approvedQuantity = Number(row.category_approved_quantity || 0);
-      const approvedPeriodQuantity =
-        requestedQuantity > 0
-          ? (distributionQuantity / requestedQuantity) * approvedQuantity
-          : 0;
+      const approvedRows = approvedDistributionLookup.get(
+        Number(row.department_item_id),
+      );
+      const approvedPeriodQuantity = row.distribution_id
+        ? Number(approvedRows?.get(distributionRowKey(row)) || 0)
+        : approvedQuantity;
 
       totals.requested_quantity += distributionQuantity;
       totals.approved_quantity += approvedPeriodQuantity;
@@ -471,7 +528,13 @@ export function buildPackageDistributionAnalysis({ rows, scope }) {
       modelMap.get(modelKey).allocated_quantity += allocatedQuantity;
     }
 
-    const amount = distributeRowAmount(row);
+    const approvedRows = approvedDistributionLookup.get(
+      Number(row.department_item_id),
+    );
+    const approvedPeriodQuantity = row.distribution_id
+      ? Number(approvedRows?.get(distributionRowKey(row)) || 0)
+      : Number(row.category_approved_quantity || 0);
+    const amount = distributeRowAmount(row, approvedPeriodQuantity);
     if (amount <= 0) continue;
 
     const periodKeys = getPeriodKeys(row);
@@ -1808,6 +1871,17 @@ export async function updateDepartmentItemApprovedQuantityService({
         400,
         "Only completed department review items can be adjusted from a CFO return",
         "DEPARTMENT_ITEM_NOT_REVIEWED",
+      );
+    }
+
+    if (
+      isCountableUnit({ unitCode: context.unit_code, unitName: context.unit_name }) &&
+      !Number.isInteger(Number(payload.category_approved_quantity))
+    ) {
+      throw new ApiError(
+        400,
+        "Approved quantity must be a whole number for countable items",
+        "COUNTABLE_ITEM_APPROVED_QUANTITY_MUST_BE_INTEGER",
       );
     }
 

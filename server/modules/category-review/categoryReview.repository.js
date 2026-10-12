@@ -492,6 +492,8 @@ export async function findDepartmentBudgetItemForReviewRepo(
       item.department_category_budget_id,
       item.catalog_item_id,
       COALESCE(item.catalog_item_name_snapshot, catalogItem.name) AS catalog_item_name,
+      COALESCE(item.unit_name_snapshot, unit.name) AS unit_name,
+      COALESCE(item.unit_code_snapshot, unit.unit_code) AS unit_code,
       item.requested_quantity,
       item.hod_item_note,
       item.category_approved_quantity,
@@ -519,6 +521,8 @@ export async function findDepartmentBudgetItemForReviewRepo(
       ON category.id = dcb.budget_category_id
     INNER JOIN dbo.BS_budget_catalog_items AS catalogItem
       ON catalogItem.id = item.catalog_item_id
+    LEFT JOIN dbo.BS_units_of_measure AS unit
+      ON unit.id = COALESCE(item.unit_of_measure_id_snapshot, catalogItem.unit_of_measure_id)
     WHERE item.id = @itemId;
   `);
   return result.recordset[0] || null;

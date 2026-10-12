@@ -1,3 +1,5 @@
+import { buildApprovedDistribution } from "../../utils/approvedDistribution.js";
+
 function mapRowVersion(rowVersion) {
   if (!rowVersion) return null;
 
@@ -231,7 +233,19 @@ export function mapCategoryReviewDetail({ budget, itemRows = [] }) {
     }
   }
 
-  const items = Array.from(itemMap.values());
+  const items = Array.from(itemMap.values()).map((item) => ({
+    ...item,
+    approved_distribution:
+      item.category_approved_quantity === null
+        ? []
+        : buildApprovedDistribution({
+            distribution: item.distribution,
+            requestedQuantity: item.requested_quantity,
+            approvedQuantity: item.category_approved_quantity,
+            unitCode: item.unit_code,
+            unitName: item.unit_name,
+          }),
+  }));
 
   const reopenReviewBlockReason = getReopenReviewBlockReason(budget);
 

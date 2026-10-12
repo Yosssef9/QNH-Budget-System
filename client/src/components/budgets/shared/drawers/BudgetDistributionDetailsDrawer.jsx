@@ -10,6 +10,7 @@ import {
 
 import useEscapeKey from "../../../../hooks/useEscapeKey";
 import AnimatedDrawer from "./AnimatedDrawer";
+import { buildApprovedDistribution } from "../../../../utils/approvedDistribution";
 
 function formatQuantity(value) {
   return Number(value || 0).toLocaleString(undefined, {
@@ -114,6 +115,27 @@ export default function BudgetDistributionDetailsDrawer({
     item?.requested_quantity ?? item?.quantity ?? item?.requestedQuantity ?? 0;
   const approvedQuantity =
     item?.category_approved_quantity ?? item?.approvedQuantity ?? null;
+  const approvedDistributionRows = useMemo(() => {
+    if (approvedQuantity === null || approvedQuantity === undefined) return [];
+    if (Array.isArray(item?.approved_distribution) && item.approved_distribution.length) {
+      return [...item.approved_distribution].sort((a, b) => {
+        const typeCompare = String(a.period_type || "").localeCompare(String(b.period_type || ""));
+        if (typeCompare !== 0) return typeCompare;
+        return Number(a.period_no || 0) - Number(b.period_no || 0);
+      });
+    }
+    return buildApprovedDistribution({
+      distribution: distributionRows,
+      requestedQuantity,
+      approvedQuantity,
+      unitCode: item?.unit_code,
+      unitName: item?.unit_name,
+    });
+  }, [approvedQuantity, distributionRows, item?.approved_distribution, item?.unit_code, item?.unit_name, requestedQuantity]);
+  const approvedDistributionTotal = approvedDistributionRows.reduce(
+    (sum, row) => sum + Number(row.quantity || 0),
+    0,
+  );
 
   return (
     <AnimatedDrawer open={open} onClose={onClose} fullScreen>
@@ -200,10 +222,10 @@ export default function BudgetDistributionDetailsDrawer({
               <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h3 className="text-lg font-black text-slate-950">
-                    Distribution Breakdown
+                    Requested Distribution
                   </h3>
                   <p className="mt-1 text-sm font-semibold text-slate-500">
-                    Period-by-period quantity requested by the department.
+                    Period-by-period quantity originally requested by the department.
                   </p>
                 </div>
                 <span className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
@@ -231,6 +253,36 @@ export default function BudgetDistributionDetailsDrawer({
                 </div>
               )}
             </section>
+
+            {approvedQuantity !== null && approvedQuantity !== undefined ? (
+              <section className="rounded-3xl border border-blue-200 bg-white p-6 shadow-sm">
+                <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-lg font-black text-slate-950">Approved Distribution</h3>
+                    <p className="mt-1 text-sm font-semibold text-slate-500">
+                      Rebalanced from the HOD timing pattern to exactly match the approved quantity.
+                    </p>
+                  </div>
+                  <span className="inline-flex w-fit rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
+                    Total {formatQuantity(approvedDistributionTotal)}
+                  </span>
+                </div>
+                {approvedDistributionRows.length ? (
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    {approvedDistributionRows.map((row) => (
+                      <DistributionPeriodCard
+                        key={`approved-${row.period_type}-${row.period_no}-${row.id || ""}`}
+                        row={row}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm font-bold text-slate-600">
+                    No approved distribution rows are available for this item.
+                  </div>
+                )}
+              </section>
+            ) : null}
 
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="grid gap-4 md:grid-cols-3">

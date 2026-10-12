@@ -231,6 +231,9 @@ export async function listCategoryDepartmentItemsOverviewRepo({
         COALESCE(item.catalog_item_name_snapshot, catalog.name) AS catalog_item_name,
         COALESCE(item.catalog_item_code_snapshot, catalog.item_code) AS item_code,
         COALESCE(item.expense_type_snapshot, catalog.expense_type) AS expense_type,
+        COALESCE(item.unit_of_measure_id_snapshot, catalog.unit_of_measure_id) AS unit_of_measure_id,
+        COALESCE(item.unit_name_snapshot, unit.name) AS unit_name,
+        COALESCE(item.unit_code_snapshot, unit.unit_code) AS unit_code,
         item.requested_quantity,
         item.hod_item_note,
         item.is_project,
@@ -286,6 +289,8 @@ export async function listCategoryDepartmentItemsOverviewRepo({
         ON category.id = dcb.budget_category_id
       INNER JOIN dbo.BS_budget_catalog_items AS catalog
         ON catalog.id = item.catalog_item_id
+      LEFT JOIN dbo.BS_units_of_measure AS unit
+        ON unit.id = COALESCE(item.unit_of_measure_id_snapshot, catalog.unit_of_measure_id)
       LEFT JOIN dbo.users AS reviewer
         ON reviewer.USER_ID = item.reviewed_by
       LEFT JOIN dbo.BS_department_category_budget_item_distributions AS distribution
@@ -1352,4 +1357,5 @@ export async function createWorkflowHistoryRepo(transaction, payload) {
       );
     `);
 }
+
 

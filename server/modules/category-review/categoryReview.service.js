@@ -1,5 +1,6 @@
 import { withTransaction } from "../../database/transaction.js";
 import { ApiError } from "../../utils/apiError.js";
+import { isCountableUnit } from "../../utils/approvedDistribution.js";
 import { NOTIFICATION_TYPES } from "../../constants/notificationTypes.js";
 import { queueNotification } from "../../services/notification.service.js";
 import { hasPermission } from "../../../shared/permissions/permissionCodes.js";
@@ -500,6 +501,17 @@ export async function decideCategoryReviewItemService({
       payload.category_approved_quantity === null
         ? Number(item.requested_quantity || 0)
         : payload.category_approved_quantity;
+
+    if (
+      isCountableUnit({ unitCode: item.unit_code, unitName: item.unit_name }) &&
+      !Number.isInteger(Number(approvedQuantity))
+    ) {
+      throw new ApiError(
+        400,
+        "Approved quantity must be a whole number for countable items",
+        "COUNTABLE_ITEM_APPROVED_QUANTITY_MUST_BE_INTEGER",
+      );
+    }
 
     const updated = await updateItemReviewDecisionRepo(transaction, {
       item_id: itemId,

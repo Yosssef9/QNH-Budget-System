@@ -420,6 +420,8 @@ export default function PackageDistributionDrawer({
   data,
   loading = false,
   error = null,
+  embedded = false,
+  showFooterClose = false,
 }) {
   const [periodView, setPeriodView] = useState("monthly");
   const [groupView, setGroupView] = useState("total");
@@ -449,9 +451,14 @@ export default function PackageDistributionDrawer({
   const maxCellValue = Math.max(...periodTotals, 0);
   const isModelBreakdown = groupView === "byModel";
 
-  return (
-    <AnimatedDrawer open={open} onClose={onClose} fullScreen>
-      <div className="flex h-full flex-col bg-slate-50">
+  const content = (
+      <div
+        className={
+          embedded
+            ? "overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-sm"
+            : "flex h-full flex-col bg-slate-50"
+        }
+      >
         <header className="border-b border-slate-200 bg-white">
           <div className="flex items-start justify-between gap-4 bg-gradient-to-r from-slate-950 via-blue-950 to-slate-900 px-6 py-6 text-white">
             <div className="min-w-0">
@@ -466,14 +473,16 @@ export default function PackageDistributionDrawer({
                   "Read-only distribution of approved package value across the financial year."}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-2xl border border-white/15 bg-white/10 p-3 text-white transition hover:bg-white/15"
-              aria-label="Close distribution drawer"
-            >
-              <X size={20} />
-            </button>
+            {!embedded ? (
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-2xl border border-white/15 bg-white/10 p-3 text-white transition hover:bg-white/15"
+                aria-label="Close distribution drawer"
+              >
+                <X size={20} />
+              </button>
+            ) : null}
           </div>
 
           <div className="grid gap-3 border-t border-slate-100 px-6 py-4 md:grid-cols-2 xl:grid-cols-5">
@@ -512,7 +521,7 @@ export default function PackageDistributionDrawer({
           </div>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-y-auto p-6">
+        <main className={embedded ? "p-6" : "min-h-0 flex-1 overflow-y-auto p-6"}>
           {loading ? (
             <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
               <div className="h-[420px] animate-pulse rounded-3xl bg-white" />
@@ -763,7 +772,26 @@ export default function PackageDistributionDrawer({
             </div>
           )}
         </main>
+
+        {!embedded && showFooterClose ? (
+          <footer className="flex shrink-0 justify-end border-t border-slate-200 bg-white px-6 py-4 shadow-[0_-4px_16px_rgba(15,23,42,0.05)]">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
+            >
+              Close
+            </button>
+          </footer>
+        ) : null}
       </div>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <AnimatedDrawer open={open} onClose={onClose} fullScreen>
+      {content}
     </AnimatedDrawer>
   );
 }

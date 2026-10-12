@@ -28,6 +28,7 @@ export default function BudgetItemRequestNoteDrawer({
   note,
   onNoteChange,
   editable = false,
+  showFooterClose = false,
 }) {
   const value = note || "";
   const remaining = MAX_NOTE_LENGTH - value.length;
@@ -148,6 +149,18 @@ export default function BudgetItemRequestNoteDrawer({
             )}
           </section>
         </main>
+
+        {showFooterClose ? (
+          <footer className="flex shrink-0 justify-end border-t border-slate-200 bg-white px-6 py-4 shadow-[0_-4px_16px_rgba(15,23,42,0.05)]">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
+            >
+              Close
+            </button>
+          </footer>
+        ) : null}
       </div>
     </AnimatedDrawer>
   );

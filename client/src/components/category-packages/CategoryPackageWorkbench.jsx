@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import Tooltip from "@mui/material/Tooltip";
@@ -103,6 +103,115 @@ function isValidUnitPrice(value) {
 
 function getManagerUnitPrice(subItem) {
   return subItem?.category_manager_unit_price ?? subItem?.unit_price ?? null;
+}
+
+// Price input formatting must preserve intermediate edits (e.g. "3000." or
+// "3000.50") instead of coercing the user's text to a number on each keystroke.
+function formatEditableUnitPrice(value) {
+  const raw = String(value ?? "");
+  const decimalPoint = raw.indexOf(".");
+  const whole = decimalPoint === -1 ? raw : raw.slice(0, decimalPoint);
+  const fraction = decimalPoint === -1 ? "" : raw.slice(decimalPoint);
+  return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + fraction;
+}
+
+function caretAfterRawCharacters(formatted, rawCharacterCount) {
+  if (rawCharacterCount <= 0) return 0;
+
+  let seen = 0;
+  for (let index = 0; index < formatted.length; index += 1) {
+    if (formatted[index] !== ",") seen += 1;
+    if (seen >= rawCharacterCount) return index + 1;
+  }
+  return formatted.length;
+}
+
+function CategoryManagerPriceInput({
+  label = "Category Manager proposed price",
+  value,
+  onChange,
+  disabled = false,
+  placeholder,
+}) {
+  const inputId = useId();
+  const inputRef = useRef(null);
+  const pendingCaretRef = useRef(null);
+  const formattedValue = formatEditableUnitPrice(value);
+
+  useLayoutEffect(() => {
+    const rawCharacterCount = pendingCaretRef.current;
+    if (rawCharacterCount === null) return;
+
+    const input = inputRef.current;
+    if (input && document.activeElement === input) {
+      const caret = caretAfterRawCharacters(formattedValue, rawCharacterCount);
+      input.setSelectionRange(caret, caret);
+    }
+    pendingCaretRef.current = null;
+  }, [formattedValue]);
+
+  function handlePriceChange(event) {
+    const displayText = event.currentTarget.value;
+    const raw = displayText.replace(/,/g, "");
+
+    // Reject non-price characters without changing the numeric state.
+    if (!/^\d*(?:\.\d*)?$/.test(raw)) {
+      event.currentTarget.value = formattedValue;
+      return;
+    }
+
+    const position = event.currentTarget.selectionStart ?? displayText.length;
+    const rawCharactersBeforeCaret = displayText
+      .slice(0, position)
+      .replace(/,/g, "").length;
+
+    if (raw === String(value ?? "")) {
+      // A typed grouping comma should not leave an extra comma in the field.
+      event.currentTarget.value = formattedValue;
+      const caret = caretAfterRawCharacters(
+        formattedValue,
+        rawCharactersBeforeCaret,
+      );
+      event.currentTarget.setSelectionRange(caret, caret);
+      return;
+    }
+
+    pendingCaretRef.current = rawCharactersBeforeCaret;
+    onChange(raw);
+  }
+
+  return (
+    <div>
+      <label
+        htmlFor={inputId}
+        className="mb-2 block text-sm font-semibold text-slate-700"
+      >
+        {label} <span className="text-red-500">*</span>
+        <span className="sr-only"> (SAR)</span>
+      </label>
+      <div className="relative">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 border-r border-slate-200 pr-2 text-xs font-semibold uppercase text-slate-400"
+        >
+          SAR
+        </span>
+        <input
+          ref={inputRef}
+          id={inputId}
+          type="text"
+          inputMode="decimal"
+          autoComplete="off"
+          required
+          value={formattedValue}
+          onChange={handlePriceChange}
+          placeholder={placeholder}
+          disabled={disabled}
+          className="w-full rounded-2xl border border-blue-200 bg-white py-3 pl-16 pr-3 text-slate-800 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+        />
+      </div>
+    </div>
+  );
 }
 
 function formatNumber(value) {
@@ -610,14 +719,10 @@ function AddModelDrawer({
               ) : null}
 
               <div className="grid gap-4 md:grid-cols-2">
-                <Input
+                <CategoryManagerPriceInput
                   label="Category Manager proposed price"
-                  required
-                  type="number"
-                  min="0"
-                  step="0.01"
                   value={unitPrice}
-                  onChange={(event) => setUnitPrice(event.target.value)}
+                  onChange={setUnitPrice}
                   placeholder="Enter the proposed hospital-wide price"
                 />
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -1151,18 +1256,14 @@ function EditModelDrawer({
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <Input
+            <CategoryManagerPriceInput
               label={
                 isReturnedCorrection
                   ? "Revised Category Manager price"
                   : "Category Manager proposed price"
               }
-              required
-              type="number"
-              min="0"
-              step="0.01"
               value={unitPrice}
-              onChange={(event) => setUnitPrice(event.target.value)}
+              onChange={setUnitPrice}
               disabled={!editable}
             />
             <div className="rounded-2xl border border-slate-200 bg-white p-4">

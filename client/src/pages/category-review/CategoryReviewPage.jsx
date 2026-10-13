@@ -33,6 +33,7 @@ import { can } from "../../helpers/permissions";
 import { PERMISSION_CODES } from "@qnh/permissions";
 
 const VALID_STAGES = new Set(["departments", "package", "submit"]);
+const VALID_DEPARTMENT_VIEWS = new Set(["reviews", "demand"]);
 const VALID_PACKAGE_VIEWS = new Set(["items", "departments", "distribution"]);
 
 function classNames(...values) {
@@ -47,6 +48,28 @@ function formatDateTime(value) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+function normalizeApprovedDistributionDraft(rows = []) {
+  return (Array.isArray(rows) ? rows : []).map((row) => ({
+    period_type: String(row.period_type || "").toUpperCase(),
+    period_no: Number(row.period_no),
+    quantity: row.quantity,
+  }));
+}
+
+function distributionDraftSignature(rows = []) {
+  return JSON.stringify(
+    normalizeApprovedDistributionDraft(rows).map((row) => ({
+      period_type: row.period_type,
+      period_no: row.period_no,
+      quantity: Number(row.quantity || 0),
+    })),
+  );
+}
+
+function roundQuantity(value) {
+  return Math.round(Number(value || 0) * 10000) / 10000;
 }
 
 function statusLabel(value) {
@@ -109,9 +132,12 @@ export default function CategoryReviewPage() {
     ? requestedStage
     : "departments";
   const focusedPackageItemId = Number(searchParams.get("item")) || null;
-  const requestedPackageView = searchParams.get("view");
-  const activePackageView = VALID_PACKAGE_VIEWS.has(requestedPackageView)
-    ? requestedPackageView
+  const requestedView = searchParams.get("view");
+  const activeDepartmentView = VALID_DEPARTMENT_VIEWS.has(requestedView)
+    ? requestedView
+    : "reviews";
+  const activePackageView = VALID_PACKAGE_VIEWS.has(requestedView)
+    ? requestedView
     : "items";
 
   const [selectedBudgetId, setSelectedBudgetId] = useState(null);
@@ -330,8 +356,49 @@ export default function CategoryReviewPage() {
   function selectStage(stage) {
     const next = new URLSearchParams(searchParams);
     next.set("stage", stage);
-    if (stage !== "package") next.delete("item");
+
+    if (stage === "departments") {
+      next.set(
+        "view",
+        VALID_DEPARTMENT_VIEWS.has(next.get("view"))
+          ? next.get("view")
+          : "reviews",
+      );
+      next.delete("item");
+    } else if (stage === "package") {
+      next.set(
+        "view",
+        VALID_PACKAGE_VIEWS.has(next.get("view"))
+          ? next.get("view")
+          : "items",
+      );
+    } else {
+      next.delete("view");
+      next.delete("item");
+    }
+
     setSearchParams(next, { replace: true });
+  }
+
+  function selectDepartmentView(view) {
+    const next = new URLSearchParams(searchParams);
+    next.set("stage", "departments");
+    next.set(
+      "view",
+      VALID_DEPARTMENT_VIEWS.has(view) ? view : "reviews",
+    );
+    next.delete("item");
+    setSearchParams(next, { replace: true });
+  }
+
+  function goToDepartmentReview(departmentCategoryBudgetId) {
+    if (departmentCategoryBudgetId) {
+      setSelectedBudgetId(departmentCategoryBudgetId);
+    }
+    setSearch("");
+    setStatusFilter("ALL");
+    setReviewItemId(null);
+    selectDepartmentView("reviews");
   }
 
   function selectPackageView(view) {
@@ -362,6 +429,11 @@ export default function CategoryReviewPage() {
       category_approved_quantity:
         item?.category_approved_quantity ?? item?.requested_quantity ?? "",
       review_note: item?.review_note || "",
+      approved_distribution_mode:
+        item?.approved_distribution_mode === "CUSTOM" ? "CUSTOM" : "AUTO",
+      approved_distribution: normalizeApprovedDistributionDraft(
+        item?.approved_distribution || [],
+      ),
     };
   }
 
@@ -399,11 +471,20 @@ export default function CategoryReviewPage() {
     if (!storedDraft) return false;
 
     const baseline = getBaseDraft(item);
+    const storedMode =
+      storedDraft.approved_distribution_mode === "CUSTOM" ? "CUSTOM" : "AUTO";
+    const baselineMode =
+      baseline.approved_distribution_mode === "CUSTOM" ? "CUSTOM" : "AUTO";
+
     return (
       Number(storedDraft.category_approved_quantity) !==
         Number(baseline.category_approved_quantity) ||
       String(storedDraft.review_note || "") !==
-        String(baseline.review_note || "")
+        String(baseline.review_note || "") ||
+      storedMode !== baselineMode ||
+      (storedMode === "CUSTOM" &&
+        distributionDraftSignature(storedDraft.approved_distribution) !==
+          distributionDraftSignature(baseline.approved_distribution))
     );
   }
 
@@ -438,6 +519,45 @@ export default function CategoryReviewPage() {
     if (!Number.isFinite(approvedQuantity) || approvedQuantity < 0) {
       toast.error("Approved quantity must be zero or greater");
       return;
+    }
+
+    const approvedDistributionMode =
+      draft.approved_distribution_mode === "CUSTOM" ? "CUSTOM" : "AUTO";
+    const approvedDistribution =
+      approvedDistributionMode === "CUSTOM"
+        ? normalizeApprovedDistributionDraft(draft.approved_distribution).map(
+            (row) => ({
+              ...row,
+              quantity: Number(row.quantity),
+            }),
+          )
+        : [];
+
+    if (
+      approvedDistributionMode === "CUSTOM" &&
+      !isReturnedCfoCorrectionItem(item)
+    ) {
+      const invalidRow = approvedDistribution.some(
+        (row) =>
+          !row.period_type ||
+          !Number.isInteger(row.period_no) ||
+          row.period_no <= 0 ||
+          !Number.isFinite(row.quantity) ||
+          row.quantity < 0,
+      );
+      const distributedQuantity = roundQuantity(
+        approvedDistribution.reduce(
+          (sum, row) => sum + Number(row.quantity || 0),
+          0,
+        ),
+      );
+
+      if (invalidRow || distributedQuantity !== roundQuantity(approvedQuantity)) {
+        toast.error(
+          "Custom approved distribution must be valid and equal the approved quantity",
+        );
+        return;
+      }
     }
 
     const budgetId =
@@ -483,6 +603,8 @@ export default function CategoryReviewPage() {
         payload: {
           category_approved_quantity: approvedQuantity,
           review_note: String(draft.review_note || "").trim(),
+          approved_distribution_mode: approvedDistributionMode,
+          approved_distribution: approvedDistribution,
         },
       });
 
@@ -769,6 +891,10 @@ export default function CategoryReviewPage() {
 
         {activeStage === "departments" ? (
           <DepartmentReviewStage
+            activeView={activeDepartmentView}
+            onViewChange={selectDepartmentView}
+            requestedDemand={queueQuery.data?.requestedDemand}
+            onGoToDepartmentReview={goToDepartmentReview}
             queueLoading={queueQuery.isLoading}
             queueError={queueQuery.error}
             onRetryQueue={() => queueQuery.refetch()}
@@ -942,3 +1068,4 @@ export default function CategoryReviewPage() {
     </main>
   );
 }
+

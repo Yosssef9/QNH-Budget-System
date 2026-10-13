@@ -24,6 +24,30 @@ function mapDistribution(row) {
   };
 }
 
+function normalizeApprovedDistribution(rows = []) {
+  if (!Array.isArray(rows)) return [];
+
+  return rows
+    .map((row) => ({
+      id: row.id ?? row.approved_distribution_id ?? null,
+      period_type: row.period_type,
+      period_no: Number(row.period_no),
+      quantity: toNumber(row.quantity),
+    }))
+    .filter(
+      (row) =>
+        row.period_type &&
+        Number.isInteger(row.period_no) &&
+        row.period_no > 0,
+    )
+    .sort((left, right) => {
+      const typeCompare = String(left.period_type).localeCompare(
+        String(right.period_type),
+      );
+      return typeCompare || left.period_no - right.period_no;
+    });
+}
+
 function getReopenReviewBlockReason(budget) {
   if (budget.status !== "CATEGORY_REVIEW_COMPLETED") {
     return null;
@@ -47,7 +71,117 @@ function getReopenReviewBlockReason(budget) {
   return null;
 }
 
-export function mapReviewQueue({ rows = [], window = null, coverage = null } = {}) {
+
+export function mapRequestedDemand(rows = []) {
+  const itemMap = new Map();
+  const departmentIds = new Set();
+
+  for (const row of rows) {
+    const catalogItemId = Number(row.catalog_item_id);
+    if (!catalogItemId) continue;
+
+    departmentIds.add(Number(row.department_id));
+
+    if (!itemMap.has(catalogItemId)) {
+      itemMap.set(catalogItemId, {
+        catalog_item_id: catalogItemId,
+        catalog_item_name: row.catalog_item_name,
+        expense_type: row.expense_type || null,
+        unit_name: row.unit_name || null,
+        unit_code: row.unit_code || null,
+        is_project: row.is_project === true || row.is_project === 1,
+        total_requested_quantity: 0,
+        approved_so_far: 0,
+        departments: [],
+      });
+    }
+
+    const item = itemMap.get(catalogItemId);
+    const reviewed =
+      row.review_status === "CATEGORY_REVIEW_COMPLETED";
+    const requestedQuantity = toNumber(row.requested_quantity);
+    const approvedQuantity =
+      reviewed &&
+      row.category_approved_quantity !== null &&
+      row.category_approved_quantity !== undefined
+        ? toNumber(row.category_approved_quantity)
+        : null;
+
+    item.total_requested_quantity += requestedQuantity;
+    if (approvedQuantity !== null) {
+      item.approved_so_far += approvedQuantity;
+    }
+
+    item.departments.push({
+      department_budget_item_id: Number(row.department_budget_item_id),
+      department_category_budget_id: Number(row.department_category_budget_id),
+      department_id: Number(row.department_id),
+      department_name: row.department_name,
+      department_code: row.department_code || null,
+      hod_name: row.hod_name || null,
+      requested_quantity: requestedQuantity,
+      approved_quantity: approvedQuantity,
+      review_status: row.review_status,
+      department_status: row.department_category_budget_status,
+    });
+  }
+
+  const items = Array.from(itemMap.values())
+    .map((item) => {
+      const departmentCount = item.departments.length;
+      const reviewedDepartmentCount = item.departments.filter(
+        (department) =>
+          department.review_status === "CATEGORY_REVIEW_COMPLETED",
+      ).length;
+
+      return {
+        ...item,
+        department_count: departmentCount,
+        reviewed_department_count: reviewedDepartmentCount,
+        pending_department_count: Math.max(
+          0,
+          departmentCount - reviewedDepartmentCount,
+        ),
+        review_progress_percent:
+          departmentCount > 0
+            ? (reviewedDepartmentCount / departmentCount) * 100
+            : 0,
+      };
+    })
+    .sort((left, right) => {
+      const quantityDifference =
+        right.total_requested_quantity - left.total_requested_quantity;
+      if (quantityDifference !== 0) return quantityDifference;
+
+      return String(left.catalog_item_name || "").localeCompare(
+        String(right.catalog_item_name || ""),
+      );
+    });
+
+  return {
+    summary: {
+      item_count: items.length,
+      department_count: departmentIds.size,
+      total_requested_quantity: items.reduce(
+        (sum, item) => sum + item.total_requested_quantity,
+        0,
+      ),
+      fully_reviewed_item_count: items.filter(
+        (item) =>
+          item.department_count > 0 &&
+          item.reviewed_department_count === item.department_count,
+      ).length,
+    },
+    items,
+  };
+}
+
+export function mapReviewQueue({
+  rows = [],
+  window = null,
+  coverage = null,
+  requestedDemandRows = [],
+} = {}) {
   const budgets = rows.map((row) => ({
     id: row.department_category_budget_id,
     department_category_budget_id: row.department_category_budget_id,
@@ -157,6 +291,8 @@ export function mapReviewQueue({ rows = [], window = null, coverage = null } = {
         }
       : null,
 
+    requestedDemand: mapRequestedDemand(requestedDemandRows),
+
     budgets,
   };
 }
@@ -225,6 +361,9 @@ export function mapCategoryReviewDetail({ budget, itemRows = [] }) {
         row_version: mapRowVersion(row.item_row_version),
 
         distribution: [],
+        persisted_approved_distribution: normalizeApprovedDistribution(
+          row.approved_distribution,
+        ),
       });
     }
 
@@ -233,19 +372,32 @@ export function mapCategoryReviewDetail({ budget, itemRows = [] }) {
     }
   }
 
-  const items = Array.from(itemMap.values()).map((item) => ({
-    ...item,
-    approved_distribution:
+  const items = Array.from(itemMap.values()).map((item) => {
+    const persistedApprovedDistribution =
+      item.persisted_approved_distribution || [];
+    const approvedDistribution =
       item.category_approved_quantity === null
         ? []
-        : buildApprovedDistribution({
-            distribution: item.distribution,
-            requestedQuantity: item.requested_quantity,
-            approvedQuantity: item.category_approved_quantity,
-            unitCode: item.unit_code,
-            unitName: item.unit_name,
-          }),
-  }));
+        : persistedApprovedDistribution.length
+          ? persistedApprovedDistribution
+          : buildApprovedDistribution({
+              distribution: item.distribution,
+              requestedQuantity: item.requested_quantity,
+              approvedQuantity: item.category_approved_quantity,
+              unitCode: item.unit_code,
+              unitName: item.unit_name,
+            });
+
+    const { persisted_approved_distribution, ...publicItem } = item;
+
+    return {
+      ...publicItem,
+      approved_distribution_mode: persistedApprovedDistribution.length
+        ? "CUSTOM"
+        : "AUTO",
+      approved_distribution: approvedDistribution,
+    };
+  });
 
   const reopenReviewBlockReason = getReopenReviewBlockReason(budget);
 
@@ -347,4 +499,5 @@ export function mapCategoryReviewDetail({ budget, itemRows = [] }) {
     },
   };
 }
+
 

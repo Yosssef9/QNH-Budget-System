@@ -129,7 +129,11 @@ export async function listPackageItemsRepo({ packageId }, transaction = null) {
     valueTotals AS (
       SELECT
         subItem.category_budget_package_item_id AS package_item_id,
-        COALESCE(SUM(subItem.quantity * subItem.unit_price), 0) AS estimated_total
+        COALESCE(SUM(subItem.quantity * subItem.unit_price), 0) AS estimated_total,
+        COALESCE(
+          SUM(subItem.quantity * subItem.category_manager_unit_price),
+          0
+        ) AS category_manager_estimated_total
       FROM dbo.BS_category_budget_package_sub_items AS subItem
       WHERE subItem.is_active = 1
       GROUP BY subItem.category_budget_package_item_id
@@ -181,6 +185,8 @@ export async function listPackageItemsRepo({ packageId }, transaction = null) {
       packageItem.catalog_item_id,
       COALESCE(packageItem.catalog_item_name_snapshot, catalog.name) AS catalog_item_name,
       COALESCE(packageItem.catalog_item_code_snapshot, catalog.item_code) AS catalog_item_code,
+      COALESCE(packageItem.unit_name_snapshot, unit.name) AS unit_name,
+      COALESCE(packageItem.unit_code_snapshot, unit.unit_code) AS unit_code,
       packageItem.cfo_review_status,
       packageItem.cfo_review_note,
       CASE
@@ -200,10 +206,26 @@ export async function listPackageItemsRepo({ packageId }, transaction = null) {
       COALESCE(demand.approved_quantity, 0) AS approved_quantity,
       COALESCE(allocated.allocated_quantity, 0) AS allocated_quantity,
       COALESCE(valueTotals.estimated_total, 0) AS estimated_total,
-      COALESCE(activeSubItems.active_sub_item_count, 0) AS active_sub_item_count
+      COALESCE(valueTotals.category_manager_estimated_total, 0)
+        AS category_manager_estimated_total,
+      COALESCE(activeSubItems.active_sub_item_count, 0) AS active_sub_item_count,
+      (
+        SELECT
+          model.id,
+          model.name,
+          model.category_manager_unit_price,
+          model.unit_price
+        FROM dbo.BS_category_budget_package_sub_items AS model
+        WHERE model.category_budget_package_item_id = packageItem.id
+          AND model.is_active = 1
+        ORDER BY model.name, model.id
+        FOR JSON PATH, INCLUDE_NULL_VALUES
+      ) AS model_unit_prices_json
     FROM dbo.BS_category_budget_package_items AS packageItem
     INNER JOIN dbo.BS_budget_catalog_items AS catalog
       ON catalog.id = packageItem.catalog_item_id
+    LEFT JOIN dbo.BS_units_of_measure AS unit
+      ON unit.id = catalog.unit_of_measure_id
     LEFT JOIN demand
       ON demand.catalog_item_id = packageItem.catalog_item_id
     LEFT JOIN allocated
@@ -462,7 +484,61 @@ export async function listPackageDistributionRowsRepo({
         subItem.name;
     `);
 
-  return result.recordset || [];
+  const approvedResult = await createRequest(pool)
+    .input("packageId", sql.BigInt, packageId)
+    .input("financialYearId", sql.Int, financialYearId)
+    .input("packageItemId", sql.BigInt, packageItemId)
+    .query(`
+      SELECT
+        approved.id,
+        approved.department_budget_item_id,
+        approved.period_type,
+        approved.period_no,
+        approved.quantity
+      FROM dbo.BS_department_category_budget_item_approved_distributions AS approved
+      INNER JOIN dbo.BS_department_category_budget_items AS item
+        ON item.id = approved.department_budget_item_id
+       AND item.is_active = 1
+       AND item.review_status = '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
+      INNER JOIN dbo.BS_department_category_budgets AS departmentCategoryBudget
+        ON departmentCategoryBudget.id = item.department_category_budget_id
+       AND departmentCategoryBudget.status = '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
+      INNER JOIN dbo.BS_department_budgets AS departmentBudget
+        ON departmentBudget.id = departmentCategoryBudget.department_budget_id
+      INNER JOIN dbo.BS_category_budget_packages AS pkg
+        ON pkg.financial_year_id = departmentBudget.financial_year_id
+       AND pkg.budget_category_id = departmentCategoryBudget.budget_category_id
+      INNER JOIN dbo.BS_category_budget_package_items AS packageItem
+        ON packageItem.category_budget_package_id = pkg.id
+       AND packageItem.catalog_item_id = item.catalog_item_id
+       AND packageItem.is_active = 1
+      WHERE
+        (@packageId IS NULL OR pkg.id = @packageId)
+        AND (@financialYearId IS NULL OR pkg.financial_year_id = @financialYearId)
+        AND (@packageItemId IS NULL OR packageItem.id = @packageItemId)
+      ORDER BY
+        approved.department_budget_item_id,
+        approved.period_type,
+        approved.period_no;
+    `);
+
+  const approvedByItemId = new Map();
+  for (const row of approvedResult.recordset || []) {
+    const itemId = Number(row.department_budget_item_id);
+    if (!approvedByItemId.has(itemId)) approvedByItemId.set(itemId, []);
+    approvedByItemId.get(itemId).push({
+      id: row.id,
+      period_type: row.period_type,
+      period_no: Number(row.period_no),
+      quantity: Number(row.quantity || 0),
+    });
+  }
+
+  return (result.recordset || []).map((row) => ({
+    ...row,
+    approved_distribution:
+      approvedByItemId.get(Number(row.department_item_id)) || [],
+  }));
 }
 
 export async function listPackageItemDetailRowsRepo(
@@ -1375,6 +1451,70 @@ export async function findDepartmentItemPackageEditContextRepo(
   return row;
 }
 
+export async function listApprovedDistributionForDepartmentItemRepo(
+  { departmentItemId },
+  transaction = null,
+) {
+  const pool = await poolPromise;
+  const request = createRequest(pool, transaction);
+  const result = await request
+    .input("departmentItemId", sql.BigInt, departmentItemId)
+    .query(`
+      SELECT
+        id,
+        department_budget_item_id,
+        period_type,
+        period_no,
+        quantity
+      FROM dbo.BS_department_category_budget_item_approved_distributions
+      WHERE department_budget_item_id = @departmentItemId
+      ORDER BY period_type, period_no;
+    `);
+
+  return result.recordset || [];
+}
+
+export async function replaceApprovedDistributionForDepartmentItemRepo(
+  transaction,
+  { departmentItemId, distributions = [], actorUserId },
+) {
+  await requestFor(transaction)
+    .input("departmentItemId", sql.BigInt, departmentItemId)
+    .query(`
+      DELETE FROM dbo.BS_department_category_budget_item_approved_distributions
+      WHERE department_budget_item_id = @departmentItemId;
+    `);
+
+  for (const distribution of distributions) {
+    await requestFor(transaction)
+      .input("departmentItemId", sql.BigInt, departmentItemId)
+      .input("periodType", sql.VarChar(20), distribution.period_type)
+      .input("periodNo", sql.Int, distribution.period_no)
+      .input("quantity", sql.Decimal(18, 4), distribution.quantity)
+      .input("actorUserId", sql.Int, actorUserId)
+      .query(`
+        INSERT INTO dbo.BS_department_category_budget_item_approved_distributions
+        (
+          department_budget_item_id,
+          period_type,
+          period_no,
+          quantity,
+          created_by,
+          updated_by
+        )
+        VALUES
+        (
+          @departmentItemId,
+          @periodType,
+          @periodNo,
+          @quantity,
+          @actorUserId,
+          @actorUserId
+        );
+      `);
+  }
+}
+
 export async function updateDepartmentApprovedQuantityForPackageRepo(
   transaction,
   payload,
@@ -1774,3 +1914,5 @@ export async function createWorkflowHistoryRepo(transaction, payload) {
       );
     `);
 }
+
+

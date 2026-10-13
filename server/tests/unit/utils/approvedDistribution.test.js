@@ -62,6 +62,8 @@ describe("approvedDistribution", () => {
   it("recognizes common countable unit labels", () => {
     expect(isCountableUnit({ unitCode: "UNIT" })).toBe(true);
     expect(isCountableUnit({ unitName: "License" })).toBe(true);
+    expect(isCountableUnit({ unitName: "Contract" })).toBe(true);
     expect(isCountableUnit({ unitName: "Kilogram" })).toBe(false);
   });
 });
+

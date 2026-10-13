@@ -11,6 +11,55 @@ function toNumber(value) {
   return Number.isFinite(numberValue) ? numberValue : 0;
 }
 
+
+function normalizeApprovedDistribution(rows = []) {
+  if (!Array.isArray(rows)) return [];
+
+  return rows
+    .map((row) => ({
+      id: row.id ?? null,
+      period_type: String(row.period_type || "").toUpperCase(),
+      period_no: Number(row.period_no),
+      quantity: toNumber(row.quantity),
+    }))
+    .filter(
+      (row) =>
+        (row.period_type === "MONTH" || row.period_type === "QUARTER") &&
+        Number.isInteger(row.period_no) &&
+        row.period_no > 0,
+    )
+    .sort((left, right) => {
+      const typeCompare = left.period_type.localeCompare(right.period_type);
+      if (typeCompare !== 0) return typeCompare;
+      return left.period_no - right.period_no;
+    });
+}
+
+function resolveApprovedDistribution(item) {
+  if (item.category_approved_quantity === null) {
+    return { mode: "AUTO", rows: [] };
+  }
+
+  const persisted = normalizeApprovedDistribution(
+    item.persisted_approved_distribution,
+  );
+
+  if (persisted.length) {
+    return { mode: "CUSTOM", rows: persisted };
+  }
+
+  return {
+    mode: "AUTO",
+    rows: buildApprovedDistribution({
+      distribution: item.distribution,
+      requestedQuantity: item.requested_quantity,
+      approvedQuantity: item.category_approved_quantity,
+      unitCode: item.unit_code,
+      unitName: item.unit_name,
+    }),
+  };
+}
+
 export function mapDistribution(row) {
   return {
     id: row.distribution_id,
@@ -163,6 +212,9 @@ export function mapDepartmentBudgetDetail({
         reviewed_at: row.reviewed_at || null,
         is_active: row.is_active === true || row.is_active === 1,
         row_version: mapRowVersion(row.item_row_version),
+        persisted_approved_distribution: normalizeApprovedDistribution(
+          row.approved_distribution,
+        ),
         distribution: [],
       });
     }
@@ -173,16 +225,10 @@ export function mapDepartmentBudgetDetail({
   }
 
   for (const item of itemMap.values()) {
-    item.approved_distribution =
-      item.category_approved_quantity === null
-        ? []
-        : buildApprovedDistribution({
-            distribution: item.distribution,
-            requestedQuantity: item.requested_quantity,
-            approvedQuantity: item.category_approved_quantity,
-            unitCode: item.unit_code,
-            unitName: item.unit_name,
-          });
+    const approvedDistribution = resolveApprovedDistribution(item);
+    item.approved_distribution_mode = approvedDistribution.mode;
+    item.approved_distribution = approvedDistribution.rows;
+    delete item.persisted_approved_distribution;
 
     const category = categoryMap.get(Number(item.department_category_budget_id));
     if (category) category.items.push(item);
@@ -289,6 +335,9 @@ export function mapCategoryDepartmentItemOverview(row) {
     category_approved_quantity: toNumber(row.category_approved_quantity),
     distribution_method: row.distribution_method,
     distribution: row.distribution_id ? [mapDistribution(row)] : [],
+    persisted_approved_distribution: normalizeApprovedDistribution(
+      row.approved_distribution,
+    ),
     review_status: row.review_status,
     review_note: row.review_note || null,
     reviewed_by_name: row.reviewed_by_name || null,
@@ -320,16 +369,18 @@ export function mapCategoryDepartmentItemsOverview(rows = []) {
     }
   }
 
-  return Array.from(itemMap.values()).map((item) => ({
-    ...item,
-    approved_distribution: buildApprovedDistribution({
-      distribution: item.distribution,
-      requestedQuantity: item.requested_quantity,
-      approvedQuantity: item.category_approved_quantity,
-      unitCode: item.unit_code,
-      unitName: item.unit_name,
-    }),
-  }));
+  return Array.from(itemMap.values()).map((item) => {
+    const approvedDistribution = resolveApprovedDistribution(item);
+    const publicItem = { ...item };
+    delete publicItem.persisted_approved_distribution;
+
+    return {
+      ...publicItem,
+      approved_distribution_mode: approvedDistribution.mode,
+      approved_distribution: approvedDistribution.rows,
+    };
+  });
 }
+
 
 

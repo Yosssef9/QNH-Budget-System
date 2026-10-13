@@ -110,6 +110,14 @@ export function mapPackageItem(row, subItems = []) {
     subItems.length > 0
       ? subItems.length
       : Number(row.active_sub_item_count || 0);
+  const modelUnitPrices = subItems.length
+    ? subItems.map((subItem) => ({
+        id: subItem.id,
+        name: subItem.name,
+        category_manager_unit_price: subItem.category_manager_unit_price,
+        unit_price: subItem.unit_price,
+      }))
+    : JSON.parse(row.model_unit_prices_json || "[]");
 
   return {
     id: row.id,
@@ -117,12 +125,15 @@ export function mapPackageItem(row, subItems = []) {
     catalog_item_id: row.catalog_item_id,
     catalog_item_name: row.catalog_item_name,
     catalog_item_code: row.catalog_item_code,
+    unit_name: row.unit_name || null,
+    unit_code: row.unit_code || null,
     cfo_review_status: row.cfo_review_status,
     cfo_review_note: row.cfo_review_note,
     needs_reconciliation: Boolean(row.needs_reconciliation),
     row_version: row.row_version,
     department_count: Number(row.department_count || 0),
     active_sub_item_count: activeSubItemCount,
+    model_unit_prices: modelUnitPrices,
     requested_quantity: requestedQuantity,
     approved_quantity: approvedQuantity,
     allocated_quantity: allocatedQuantity,
@@ -135,13 +146,17 @@ export function mapPackageItem(row, subItems = []) {
             0,
           )
         : toNumber(row.estimated_total),
-    category_manager_estimated_total: subItems.reduce(
-      (sum, subItem) =>
-        sum +
-        toNumber(subItem.quantity) *
-          toNumber(subItem.category_manager_unit_price),
-      0,
-    ),
+    category_manager_estimated_total:
+      row.category_manager_estimated_total !== null &&
+      row.category_manager_estimated_total !== undefined
+        ? toNumber(row.category_manager_estimated_total)
+        : subItems.reduce(
+            (sum, subItem) =>
+              sum +
+              toNumber(subItem.quantity) *
+                toNumber(subItem.category_manager_unit_price),
+            0,
+          ),
     reconciliation_status: getReconciliationStatus({
       approvedQuantity,
       allocatedQuantity,
@@ -525,3 +540,4 @@ export function mapDepartmentPackageView(rows = []) {
     departments,
   };
 }
+

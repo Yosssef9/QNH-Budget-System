@@ -4,7 +4,12 @@ export async function getCategoryReviewQueue() {
   const response = await api.get("/category-review/queue");
   return response.data?.data || {
     summary: {},
+    coverage: {},
     submissionWindow: null,
+    requestedDemand: {
+      summary: {},
+      items: [],
+    },
     budgets: [],
   };
 }

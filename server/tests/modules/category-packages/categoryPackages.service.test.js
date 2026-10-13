@@ -29,6 +29,7 @@ vi.mock(
     findCatalogSubItemForPackageRepo: vi.fn(),
     findCurrentPackageForCategoryRepo: vi.fn(),
     findDepartmentItemAllocationContextRepo: vi.fn(),
+    findDepartmentItemPackageEditContextRepo: vi.fn(),
     findPackageContextByItemRepo: vi.fn(),
     findPackageContextBySubItemRepo: vi.fn(),
     listPackageSubItemAttachmentsRepo: vi.fn(),
@@ -38,8 +39,11 @@ vi.mock(
     listPackageItemsRepo: vi.fn(),
     listPackageSubItemsForDepartmentItemRepo: vi.fn(),
     listCurrentAllocationsForDepartmentItemRepo: vi.fn(),
+    listApprovedDistributionForDepartmentItemRepo: vi.fn(),
     markPackageSubmittedToPurchasingRepo: vi.fn(),
     recalculatePackageSubItemQuantitiesRepo: vi.fn(),
+    updateDepartmentApprovedQuantityForPackageRepo: vi.fn(),
+    replaceApprovedDistributionForDepartmentItemRepo: vi.fn(),
     updatePackageItemReconciliationRepo: vi.fn(),
     updatePackageSubItemRepo: vi.fn(),
     upsertAllocationRepo: vi.fn(),
@@ -52,9 +56,11 @@ import {
   createWorkflowHistoryRepo,
   deactivatePackageSubItemAttachmentRepo,
   deleteAllocationsForDepartmentItemRepo,
+  deleteAllocationsForSubItemRepo,
   findPackageAttachmentContextRepo,
   findCurrentPackageForCategoryRepo,
   findDepartmentItemAllocationContextRepo,
+  findDepartmentItemPackageEditContextRepo,
   findPackageContextByItemRepo,
   findPackageContextBySubItemRepo,
   listAllocationsForPackageItemRepo,
@@ -63,16 +69,23 @@ import {
   listPackageSubItemPriceHistoryRepo,
   listPackageSubItemsForDepartmentItemRepo,
   listCurrentAllocationsForDepartmentItemRepo,
+  listApprovedDistributionForDepartmentItemRepo,
   markPackageSubmittedToPurchasingRepo,
   recalculatePackageSubItemQuantitiesRepo,
+  updateDepartmentApprovedQuantityForPackageRepo,
+  replaceApprovedDistributionForDepartmentItemRepo,
   updatePackageItemReconciliationRepo,
+  updatePackageSubItemRepo,
   upsertAllocationRepo,
 } from "../../../modules/category-packages/categoryPackages.repository.js";
 import {
   deletePackageSubItemAttachmentService,
+  buildPackageDistributionAnalysis,
   getPackageSubItemPriceHistoryService,
   replaceDepartmentItemAllocationsService,
   submitCategoryPackageToPurchasingService,
+  updateDepartmentItemApprovedQuantityService,
+  updatePackageSubItemService,
   uploadPackageSubItemAttachmentService,
 } from "../../../modules/category-packages/categoryPackages.service.js";
 
@@ -127,6 +140,11 @@ describe("category package service", () => {
       },
     ]);
     listCurrentAllocationsForDepartmentItemRepo.mockResolvedValue([]);
+    listApprovedDistributionForDepartmentItemRepo.mockResolvedValue([]);
+    replaceApprovedDistributionForDepartmentItemRepo.mockResolvedValue(undefined);
+    findDepartmentItemPackageEditContextRepo.mockResolvedValue(null);
+    updateDepartmentApprovedQuantityForPackageRepo.mockResolvedValue(null);
+    updatePackageSubItemRepo.mockResolvedValue({ id: 10 });
     findPackageContextByItemRepo.mockResolvedValue(packageContext);
     findPackageContextBySubItemRepo.mockResolvedValue({
       ...packageContext,
@@ -201,6 +219,234 @@ describe("category package service", () => {
     createWorkflowHistoryRepo.mockResolvedValue({});
     recalculatePackageSubItemQuantitiesRepo.mockResolvedValue({});
     updatePackageItemReconciliationRepo.mockResolvedValue({});
+  });
+
+  it("auto-reconciles every reviewed department to General when its price changes and it is the only active sub-item", async () => {
+    findPackageContextBySubItemRepo.mockResolvedValue({
+      ...packageContext,
+      budget_category_id: 1,
+      package_sub_item_id: 10,
+      package_item_id: 400,
+      category_manager_unit_price: null,
+      quantity: 0,
+      specification: null,
+      note: null,
+      financial_year_status: "OPEN",
+      package_status: "DRAFT",
+    });
+
+    listPackageItemDetailRowsRepo.mockResolvedValue({
+      subItems: [
+        {
+          id: 10,
+          name: "General",
+          sub_item_code: "GENERAL",
+          is_default_general: true,
+          quantity: 0,
+          category_manager_unit_price: 1250,
+        },
+      ],
+      departments: [
+        {
+          department_item_id: 200,
+          department_name: "Laboratory",
+          category_approved_quantity: 8,
+        },
+        {
+          department_item_id: 201,
+          department_name: "Finance",
+          category_approved_quantity: 0,
+        },
+        {
+          department_item_id: 202,
+          department_name: "Nursing",
+          category_approved_quantity: 4,
+        },
+      ],
+    });
+
+    await updatePackageSubItemService({
+      packageSubItemId: 10,
+      actorUserId: 7,
+      budgetAccess: categoryAccess,
+      payload: {
+        category_manager_unit_price: 1250,
+        specification: null,
+        note: null,
+        row_version: Buffer.from("abcdefgh"),
+      },
+    });
+
+    expect(deleteAllocationsForSubItemRepo).toHaveBeenCalledWith(
+      { transaction: true },
+      { packageSubItemId: 10 },
+    );
+    expect(upsertAllocationRepo).toHaveBeenCalledTimes(2);
+    expect(upsertAllocationRepo).toHaveBeenNthCalledWith(
+      1,
+      { transaction: true },
+      expect.objectContaining({
+        department_item_id: 200,
+        package_sub_item_id: 10,
+        allocated_quantity: 8,
+      }),
+    );
+    expect(upsertAllocationRepo).toHaveBeenNthCalledWith(
+      2,
+      { transaction: true },
+      expect.objectContaining({
+        department_item_id: 202,
+        package_sub_item_id: 10,
+        allocated_quantity: 4,
+      }),
+    );
+    expect(recalculatePackageSubItemQuantitiesRepo).toHaveBeenCalledWith(
+      { transaction: true },
+      { packageItemId: 400, actorUserId: 7 },
+    );
+    expect(updatePackageItemReconciliationRepo).toHaveBeenCalledWith(
+      { transaction: true },
+      { packageItemId: 400, actorUserId: 7 },
+    );
+    expect(createWorkflowHistoryRepo).toHaveBeenCalledWith(
+      { transaction: true },
+      expect.objectContaining({
+        new_values_json: expect.stringContaining(
+          '"auto_reconciled_to_general":true',
+        ),
+      }),
+    );
+  });
+
+  it("does not auto-reconcile a price change when the package item has multiple active sub-items", async () => {
+    findPackageContextBySubItemRepo.mockResolvedValue({
+      ...packageContext,
+      budget_category_id: 1,
+      package_sub_item_id: 10,
+      package_item_id: 400,
+      category_manager_unit_price: 1000,
+      quantity: 15,
+      financial_year_status: "OPEN",
+      package_status: "DRAFT",
+    });
+    listPackageItemDetailRowsRepo.mockResolvedValue({
+      subItems: [
+        {
+          id: 10,
+          name: "General",
+          sub_item_code: "GENERAL",
+          is_default_general: true,
+        },
+        {
+          id: 11,
+          name: "Dell Latitude 5450",
+          sub_item_code: "DELL_LATITUDE_5450",
+          is_default_general: false,
+        },
+      ],
+      departments: [
+        { department_item_id: 200, category_approved_quantity: 15 },
+      ],
+    });
+
+    await updatePackageSubItemService({
+      packageSubItemId: 10,
+      actorUserId: 7,
+      budgetAccess: categoryAccess,
+      payload: {
+        category_manager_unit_price: 1250,
+        specification: null,
+        note: null,
+        row_version: Buffer.from("abcdefgh"),
+      },
+    });
+
+    expect(deleteAllocationsForSubItemRepo).not.toHaveBeenCalled();
+    expect(upsertAllocationRepo).not.toHaveBeenCalled();
+    expect(recalculatePackageSubItemQuantitiesRepo).not.toHaveBeenCalled();
+    expect(updatePackageItemReconciliationRepo).not.toHaveBeenCalled();
+  });
+
+  it("does not auto-reconcile a single non-General sub-item", async () => {
+    findPackageContextBySubItemRepo.mockResolvedValue({
+      ...packageContext,
+      budget_category_id: 1,
+      package_sub_item_id: 11,
+      package_item_id: 400,
+      category_manager_unit_price: 1000,
+      quantity: 15,
+      financial_year_status: "OPEN",
+      package_status: "DRAFT",
+    });
+    listPackageItemDetailRowsRepo.mockResolvedValue({
+      subItems: [
+        {
+          id: 11,
+          name: "Dell Latitude 5450",
+          sub_item_code: "DELL_LATITUDE_5450",
+          is_default_general: false,
+        },
+      ],
+      departments: [
+        { department_item_id: 200, category_approved_quantity: 15 },
+      ],
+    });
+
+    await updatePackageSubItemService({
+      packageSubItemId: 11,
+      actorUserId: 7,
+      budgetAccess: categoryAccess,
+      payload: {
+        category_manager_unit_price: 1250,
+        specification: null,
+        note: null,
+        row_version: Buffer.from("abcdefgh"),
+      },
+    });
+
+    expect(deleteAllocationsForSubItemRepo).not.toHaveBeenCalled();
+    expect(upsertAllocationRepo).not.toHaveBeenCalled();
+  });
+
+  it("does not auto-reconcile General when the price value did not change", async () => {
+    findPackageContextBySubItemRepo.mockResolvedValue({
+      ...packageContext,
+      budget_category_id: 1,
+      package_sub_item_id: 10,
+      package_item_id: 400,
+      category_manager_unit_price: 1250,
+      quantity: 15,
+      financial_year_status: "OPEN",
+      package_status: "DRAFT",
+    });
+    listPackageItemDetailRowsRepo.mockResolvedValue({
+      subItems: [
+        {
+          id: 10,
+          name: "General",
+          sub_item_code: "GENERAL",
+          is_default_general: true,
+        },
+      ],
+      departments: [
+        { department_item_id: 200, category_approved_quantity: 15 },
+      ],
+    });
+
+    await updatePackageSubItemService({
+      packageSubItemId: 10,
+      actorUserId: 7,
+      budgetAccess: categoryAccess,
+      payload: {
+        category_manager_unit_price: 1250,
+        specification: "Updated specification only",
+        note: null,
+        row_version: Buffer.from("abcdefgh"),
+      },
+    });
+
+    expect(deleteAllocationsForSubItemRepo).not.toHaveBeenCalled();
+    expect(upsertAllocationRepo).not.toHaveBeenCalled();
   });
 
   it("rejects department allocation greater than the approved quantity", async () => {
@@ -480,4 +726,120 @@ describe("category package service", () => {
       purchasing_price: { before: 600, after: 600 },
     });
   });
+  it("uses a persisted custom approved distribution in package distribution analysis", () => {
+    const rows = [
+      {
+        package_id: 300,
+        financial_year_id: 9,
+        financial_year: 2027,
+        budget_category_id: 1,
+        category_name: "IT",
+        category_code: "IT",
+        package_item_id: 400,
+        catalog_item_id: 30,
+        catalog_item_name: "Laptop",
+        catalog_item_code: "LAPTOP",
+        department_id: 10,
+        department_name: "Information Technology",
+        department_code: "IT",
+        department_item_id: 200,
+        requested_quantity: 12,
+        category_approved_quantity: 10,
+        item_unit_name: "Unit",
+        item_unit_code: "UNIT",
+        distribution_id: 1,
+        period_type: "MONTH",
+        period_no: 1,
+        distribution_quantity: 12,
+        allocation_id: 50,
+        allocated_quantity: 10,
+        package_sub_item_id: 10,
+        package_sub_item_name: "General",
+        unit_price: 100,
+        approved_distribution: [
+          { period_type: "MONTH", period_no: 1, quantity: 3 },
+          { period_type: "MONTH", period_no: 3, quantity: 2 },
+          { period_type: "MONTH", period_no: 5, quantity: 1 },
+          { period_type: "MONTH", period_no: 9, quantity: 2 },
+          { period_type: "MONTH", period_no: 12, quantity: 2 },
+        ],
+      },
+    ];
+
+    const result = buildPackageDistributionAnalysis({
+      rows,
+      scope: { label: "IT package" },
+    });
+
+    expect(result.totals.approved_quantity).toBe(10);
+    expect(result.totals.periods.monthly["1"]).toBe(300);
+    expect(result.totals.periods.monthly["3"]).toBe(200);
+    expect(result.totals.periods.monthly["5"]).toBe(100);
+    expect(result.totals.periods.monthly["9"]).toBe(200);
+    expect(result.totals.periods.monthly["12"]).toBe(200);
+    expect(result.totals.periods.monthly["2"]).toBe(0);
+    expect(result.totals.estimated_total).toBe(1000);
+  });
+
+  it("rebalances a saved custom distribution when CFO return changes only approved quantity", async () => {
+    findDepartmentItemPackageEditContextRepo.mockResolvedValue({
+      department_item_id: 200,
+      department_category_budget_id: 100,
+      department_id: 10,
+      department_name: "Information Technology",
+      catalog_item_name: "Laptop",
+      unit_name: "Unit",
+      unit_code: "UNIT",
+      budget_category_id: 1,
+      category_name: "IT",
+      financial_year_id: 9,
+      financial_year: 2027,
+      financial_year_status: "OPEN",
+      review_status: "CATEGORY_REVIEW_COMPLETED",
+      package_item_id: 400,
+      package_status: "RETURNED_BY_CFO",
+      cfo_review_status: "NEEDS_MODIFICATION",
+      cfo_review_note: "Reduce quantity",
+    });
+    listApprovedDistributionForDepartmentItemRepo.mockResolvedValue(
+      Array.from({ length: 12 }, (_, index) => ({
+        id: index + 1,
+        period_type: "MONTH",
+        period_no: index + 1,
+        quantity: index < 10 ? 1 : 0,
+      })),
+    );
+    updateDepartmentApprovedQuantityForPackageRepo.mockResolvedValue({
+      id: 200,
+      old_approved_quantity: 10,
+      new_approved_quantity: 8,
+    });
+
+    await updateDepartmentItemApprovedQuantityService({
+      departmentItemId: 200,
+      actorUserId: 7,
+      budgetAccess: categoryAccess,
+      payload: {
+        category_approved_quantity: 8,
+        row_version: Buffer.from("abcdefgh"),
+      },
+    });
+
+    expect(replaceApprovedDistributionForDepartmentItemRepo).toHaveBeenCalledWith(
+      { transaction: true },
+      expect.objectContaining({
+        departmentItemId: 200,
+        actorUserId: 7,
+        distributions: expect.any(Array),
+      }),
+    );
+
+    const saved =
+      replaceApprovedDistributionForDepartmentItemRepo.mock.calls[0][1]
+        .distributions;
+    expect(saved.reduce((sum, row) => sum + row.quantity, 0)).toBe(8);
+    expect(saved.every((row) => Number.isInteger(row.quantity))).toBe(true);
+  });
+
 });
+

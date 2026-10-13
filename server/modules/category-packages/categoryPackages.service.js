@@ -47,10 +47,12 @@ import {
   listPackageSubItemPriceHistoryRepo,
   listPackageSubItemsForDepartmentItemRepo,
   listCurrentAllocationsForDepartmentItemRepo,
+  listApprovedDistributionForDepartmentItemRepo,
   markPackageSubmittedToPurchasingRepo,
   recalculatePackageSubItemQuantitiesRepo,
 
   updateDepartmentApprovedQuantityForPackageRepo,
+  replaceApprovedDistributionForDepartmentItemRepo,
   updatePackageItemReconciliationRepo,
   updatePackageSubItemRepo,
   upsertAllocationRepo,
@@ -321,9 +323,44 @@ function addDistributionValue(group, periodKeys, amount) {
 }
 
 function distributionRowKey(row) {
-  return row.distribution_id
-    ? `id:${row.distribution_id}`
-    : `${String(row.period_type || "YEAR").toUpperCase()}:${Number(row.period_no || 1)}`;
+  return `${String(row.period_type || "YEAR").toUpperCase()}:${Number(
+    row.period_no || 1,
+  )}`;
+}
+
+function normalizeApprovedDistributionRows(rows = []) {
+  if (!Array.isArray(rows)) return [];
+
+  const unique = new Map();
+
+  for (const row of rows) {
+    const periodType = String(row?.period_type || "").toUpperCase();
+    const periodNo = Number(row?.period_no);
+    const quantity = Number(row?.quantity || 0);
+
+    if (
+      !["MONTH", "QUARTER"].includes(periodType) ||
+      !Number.isInteger(periodNo) ||
+      periodNo <= 0 ||
+      !Number.isFinite(quantity) ||
+      quantity < 0
+    ) {
+      continue;
+    }
+
+    unique.set(`${periodType}:${periodNo}`, {
+      id: row.id ?? null,
+      period_type: periodType,
+      period_no: periodNo,
+      quantity,
+    });
+  }
+
+  return Array.from(unique.values()).sort((left, right) => {
+    const typeCompare = left.period_type.localeCompare(right.period_type);
+    if (typeCompare !== 0) return typeCompare;
+    return left.period_no - right.period_no;
+  });
 }
 
 function buildApprovedDistributionLookup(rows = []) {
@@ -340,15 +377,18 @@ function buildApprovedDistributionLookup(rows = []) {
         unitCode: row.item_unit_code || null,
         unitName: row.item_unit_name || null,
         distributions: new Map(),
+        approvedDistribution: normalizeApprovedDistributionRows(
+          row.approved_distribution,
+        ),
       });
     }
 
-    if (row.distribution_id) {
+    if (row.period_type) {
       const key = distributionRowKey(row);
       if (!items.get(itemId).distributions.has(key)) {
         items.get(itemId).distributions.set(key, {
-          id: row.distribution_id,
-          period_type: row.period_type,
+          id: row.distribution_id ?? null,
+          period_type: String(row.period_type).toUpperCase(),
           period_no: Number(row.period_no || 1),
           quantity: Number(row.distribution_quantity || 0),
         });
@@ -360,21 +400,79 @@ function buildApprovedDistributionLookup(rows = []) {
 
   for (const [itemId, item] of items.entries()) {
     const sourceRows = Array.from(item.distributions.values());
-    const approvedRows = buildApprovedDistribution({
-      distribution: sourceRows,
-      requestedQuantity: item.requestedQuantity,
-      approvedQuantity: item.approvedQuantity,
-      unitCode: item.unitCode,
-      unitName: item.unitName,
-    });
+    const approvedRows = item.approvedDistribution.length
+      ? item.approvedDistribution
+      : buildApprovedDistribution({
+          distribution: sourceRows,
+          requestedQuantity: item.requestedQuantity,
+          approvedQuantity: item.approvedQuantity,
+          unitCode: item.unitCode,
+          unitName: item.unitName,
+        });
 
     lookup.set(
       itemId,
-      new Map(approvedRows.map((row) => [distributionRowKey(row), Number(row.quantity || 0)])),
+      new Map(
+        approvedRows.map((row) => [
+          distributionRowKey(row),
+          Number(row.quantity || 0),
+        ]),
+      ),
     );
   }
 
   return lookup;
+}
+
+function expandRowsWithApprovedDistributionPeriods(rows = []) {
+  const expanded = [...rows];
+  const groups = new Map();
+
+  for (const row of rows) {
+    const itemId = Number(row.department_item_id);
+    if (!itemId) continue;
+
+    const allocationIdentity =
+      row.allocation_id ??
+      (row.package_sub_item_id
+        ? `sub-item:${row.package_sub_item_id}`
+        : "unallocated");
+    const groupKey = `${itemId}:${allocationIdentity}`;
+
+    if (!groups.has(groupKey)) {
+      groups.set(groupKey, {
+        baseRow: row,
+        existingPeriods: new Set(),
+        approvedDistribution: normalizeApprovedDistributionRows(
+          row.approved_distribution,
+        ),
+      });
+    }
+
+    if (row.period_type) {
+      groups.get(groupKey).existingPeriods.add(distributionRowKey(row));
+    }
+  }
+
+  for (const group of groups.values()) {
+    for (const approvedRow of group.approvedDistribution) {
+      if (Number(approvedRow.quantity || 0) <= 0) continue;
+
+      const periodKey = distributionRowKey(approvedRow);
+      if (group.existingPeriods.has(periodKey)) continue;
+
+      expanded.push({
+        ...group.baseRow,
+        distribution_id: null,
+        period_type: approvedRow.period_type,
+        period_no: approvedRow.period_no,
+        distribution_quantity: 0,
+      });
+      group.existingPeriods.add(periodKey);
+    }
+  }
+
+  return expanded;
 }
 
 function distributeRowAmount(row, approvedPeriodQuantity) {
@@ -396,7 +494,9 @@ export function buildPackageDistributionAnalysis({ rows, scope }) {
   const modelMap = new Map();
   const distributionSeen = new Set();
   const allocationSeen = new Set();
-  const approvedDistributionLookup = buildApprovedDistributionLookup(rows || []);
+  const analysisRows = expandRowsWithApprovedDistributionPeriods(rows || []);
+  const approvedDistributionLookup =
+    buildApprovedDistributionLookup(analysisRows);
   const totals = createDistributionGroup({
     key: "TOTAL",
     label: scope?.label || "Distribution total",
@@ -404,7 +504,7 @@ export function buildPackageDistributionAnalysis({ rows, scope }) {
     meta: {},
   });
 
-  for (const row of rows || []) {
+  for (const row of analysisRows) {
     const categoryKey = `category:${row.budget_category_id}`;
     const itemKey = `item:${row.package_item_id}`;
     const departmentKey = `department:${row.department_id}`;
@@ -485,20 +585,23 @@ export function buildPackageDistributionAnalysis({ rows, scope }) {
       );
     }
 
+    const hasPeriod = Boolean(row.period_type);
     const distributionKey = [
       row.department_item_id,
-      row.distribution_id || "default",
+      hasPeriod ? distributionRowKey(row) : "default",
     ].join(":");
     if (!distributionSeen.has(distributionKey)) {
       distributionSeen.add(distributionKey);
       const distributionQuantity = Number(
-        row.distribution_quantity ?? row.requested_quantity ?? 0,
+        row.distribution_quantity ??
+          (hasPeriod ? 0 : row.requested_quantity) ??
+          0,
       );
       const approvedQuantity = Number(row.category_approved_quantity || 0);
       const approvedRows = approvedDistributionLookup.get(
         Number(row.department_item_id),
       );
-      const approvedPeriodQuantity = row.distribution_id
+      const approvedPeriodQuantity = hasPeriod
         ? Number(approvedRows?.get(distributionRowKey(row)) || 0)
         : approvedQuantity;
 
@@ -531,7 +634,7 @@ export function buildPackageDistributionAnalysis({ rows, scope }) {
     const approvedRows = approvedDistributionLookup.get(
       Number(row.department_item_id),
     );
-    const approvedPeriodQuantity = row.distribution_id
+    const approvedPeriodQuantity = row.period_type
       ? Number(approvedRows?.get(distributionRowKey(row)) || 0)
       : Number(row.category_approved_quantity || 0);
     const amount = distributeRowAmount(row, approvedPeriodQuantity);
@@ -616,6 +719,111 @@ function roundQuantity(value) {
 
 function hasQuantityMismatch(left, right) {
   return roundQuantity(left) !== roundQuantity(right);
+}
+
+function hasPriceChanged(left, right) {
+  const leftMissing = left === null || left === undefined || left === "";
+  const rightMissing = right === null || right === undefined || right === "";
+
+  if (leftMissing || rightMissing) {
+    return leftMissing !== rightMissing;
+  }
+
+  return (
+    Math.round(Number(left) * 1000000) !==
+    Math.round(Number(right) * 1000000)
+  );
+}
+
+function isDefaultGeneralSubItem(subItem) {
+  const isDefaultGeneral =
+    subItem?.is_default_general === true ||
+    Number(subItem?.is_default_general || 0) === 1;
+  const code = String(subItem?.sub_item_code || "")
+    .trim()
+    .toUpperCase();
+
+  return isDefaultGeneral && code === "GENERAL";
+}
+
+async function autoReconcileSingleGeneralSubItem({
+  transaction,
+  packageItemId,
+  actorUserId,
+}) {
+  const detailRows = await listPackageItemDetailRowsRepo(
+    { packageItemId },
+    transaction,
+  );
+  const subItems = Array.isArray(detailRows?.subItems)
+    ? detailRows.subItems
+    : [];
+
+  if (subItems.length !== 1 || !isDefaultGeneralSubItem(subItems[0])) {
+    return {
+      autoReconciled: false,
+      departmentCount: 0,
+      totalApprovedQuantity: null,
+    };
+  }
+
+  const generalSubItem = subItems[0];
+  const departments = Array.isArray(detailRows?.departments)
+    ? detailRows.departments
+    : [];
+
+  /*
+   * With General as the only active model, its allocation is intentionally
+   * system-managed. Rebuild it from the current reviewed department demand
+   * so stale/manual allocation rows cannot survive a price save.
+   */
+  await deleteAllocationsForSubItemRepo(transaction, {
+    packageSubItemId: generalSubItem.id,
+  });
+
+  let totalApprovedQuantity = 0;
+
+  for (const department of departments) {
+    const departmentItemId = Number(department.department_item_id);
+    const approvedQuantity = roundQuantity(
+      department.category_approved_quantity,
+    );
+
+    if (!Number.isInteger(departmentItemId) || departmentItemId <= 0) {
+      continue;
+    }
+
+    totalApprovedQuantity = roundQuantity(
+      totalApprovedQuantity + Math.max(0, approvedQuantity),
+    );
+
+    if (approvedQuantity <= 0) {
+      continue;
+    }
+
+    await upsertAllocationRepo(transaction, {
+      department_item_id: departmentItemId,
+      package_sub_item_id: generalSubItem.id,
+      allocated_quantity: approvedQuantity,
+      actor_user_id: actorUserId,
+    });
+  }
+
+  await recalculatePackageSubItemQuantitiesRepo(transaction, {
+    packageItemId,
+    actorUserId,
+  });
+
+  await updatePackageItemReconciliationRepo(transaction, {
+    packageItemId,
+    actorUserId,
+  });
+
+  return {
+    autoReconciled: true,
+    departmentCount: departments.length,
+    totalApprovedQuantity,
+  };
 }
 
 function getAllocationTotal(allocations, packageSubItemId = null) {
@@ -1037,6 +1245,28 @@ export async function updatePackageSubItemService({
       );
     }
 
+    const priceChanged = hasPriceChanged(
+      context.category_manager_unit_price,
+      payload.category_manager_unit_price,
+    );
+    const hasAllocatablePrice =
+      payload.category_manager_unit_price !== null &&
+      payload.category_manager_unit_price !== undefined &&
+      Number(payload.category_manager_unit_price) > 0;
+
+    const autoReconciliation =
+      priceChanged && hasAllocatablePrice
+        ? await autoReconcileSingleGeneralSubItem({
+            transaction,
+            packageItemId: context.package_item_id,
+            actorUserId,
+          })
+        : {
+            autoReconciled: false,
+            departmentCount: 0,
+            totalApprovedQuantity: null,
+          };
+
     await createWorkflowHistoryRepo(transaction, {
       financial_year_id: context.financial_year_id,
       entity_type: "CATEGORY_PACKAGE_SUB_ITEM",
@@ -1052,7 +1282,14 @@ export async function updatePackageSubItemService({
         category_manager_unit_price: payload.category_manager_unit_price,
         specification: payload.specification,
         note: payload.note,
-        quantity: context.quantity,
+        quantity: autoReconciliation.autoReconciled
+          ? autoReconciliation.totalApprovedQuantity
+          : context.quantity,
+        auto_reconciled_to_general: autoReconciliation.autoReconciled,
+        auto_reconciled_department_count:
+          autoReconciliation.autoReconciled
+            ? autoReconciliation.departmentCount
+            : 0,
       }),
       user_role_id: getUserRoleId(budgetAccess),
       acting_workspace: getActingWorkspace(budgetAccess),
@@ -1885,6 +2122,12 @@ export async function updateDepartmentItemApprovedQuantityService({
       );
     }
 
+    const previousApprovedDistribution =
+      await listApprovedDistributionForDepartmentItemRepo(
+        { departmentItemId },
+        transaction,
+      );
+
     const updated = await updateDepartmentApprovedQuantityForPackageRepo(
       transaction,
       {
@@ -1903,6 +2146,36 @@ export async function updateDepartmentItemApprovedQuantityService({
       );
     }
 
+    let nextApprovedDistribution = previousApprovedDistribution.map((row) => ({
+      period_type: String(row.period_type || "").toUpperCase(),
+      period_no: Number(row.period_no),
+      quantity: Number(row.quantity || 0),
+    }));
+
+    if (
+      nextApprovedDistribution.length &&
+      roundQuantity(updated.old_approved_quantity) !==
+        roundQuantity(updated.new_approved_quantity)
+    ) {
+      nextApprovedDistribution = buildApprovedDistribution({
+        distribution: nextApprovedDistribution,
+        requestedQuantity: updated.old_approved_quantity,
+        approvedQuantity: updated.new_approved_quantity,
+        unitCode: context.unit_code,
+        unitName: context.unit_name,
+      }).map((row) => ({
+        period_type: String(row.period_type || "").toUpperCase(),
+        period_no: Number(row.period_no),
+        quantity: roundQuantity(row.quantity),
+      }));
+
+      await replaceApprovedDistributionForDepartmentItemRepo(transaction, {
+        departmentItemId,
+        distributions: nextApprovedDistribution,
+        actorUserId,
+      });
+    }
+
     await updatePackageItemReconciliationRepo(transaction, {
       packageItemId: context.package_item_id,
       actorUserId,
@@ -1919,10 +2192,18 @@ export async function updateDepartmentItemApprovedQuantityService({
         "Category Manager updated approved quantity after CFO return",
       old_values_json: JSON.stringify({
         categoryApprovedQuantity: updated.old_approved_quantity,
+        approvedDistributionMode: previousApprovedDistribution.length
+          ? "CUSTOM"
+          : "AUTO",
+        approvedDistribution: previousApprovedDistribution,
         cfoReviewStatus: context.cfo_review_status,
       }),
       new_values_json: JSON.stringify({
         categoryApprovedQuantity: updated.new_approved_quantity,
+        approvedDistributionMode: nextApprovedDistribution.length
+          ? "CUSTOM"
+          : "AUTO",
+        approvedDistribution: nextApprovedDistribution,
         packageItemId: context.package_item_id,
       }),
       user_role_id: getUserRoleId(budgetAccess),
@@ -1977,3 +2258,4 @@ export async function updateDepartmentItemApprovedQuantityService({
   // Do not load the complete package-workbench item again.
   return result;
 }
+

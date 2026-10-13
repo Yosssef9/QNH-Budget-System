@@ -37,10 +37,70 @@ export function validateItemDecisionPayload(body = {}) {
   const approvedQuantity = optionalQuantity(
     body.category_approved_quantity ?? body.categoryApprovedQuantity,
   );
+  const distributionMode = String(
+    body.approved_distribution_mode ??
+      body.approvedDistributionMode ??
+      "AUTO",
+  )
+    .trim()
+    .toUpperCase();
+
+  if (!["AUTO", "CUSTOM"].includes(distributionMode)) {
+    throw new ApiError(
+      400,
+      "Approved distribution mode must be AUTO or CUSTOM",
+      "INVALID_APPROVED_DISTRIBUTION_MODE",
+    );
+  }
+
+  const rawDistribution =
+    body.approved_distribution ?? body.approvedDistribution ?? [];
+
+  if (!Array.isArray(rawDistribution)) {
+    throw new ApiError(
+      400,
+      "Approved distribution must be an array",
+      "INVALID_APPROVED_DISTRIBUTION",
+    );
+  }
+
+  const approvedDistribution = rawDistribution.map((row, index) => {
+    const periodType = String(
+      row?.period_type ?? row?.periodType ?? "",
+    )
+      .trim()
+      .toUpperCase();
+    const periodNo = Number(row?.period_no ?? row?.periodNo);
+    const quantity = Number(row?.quantity);
+
+    if (!periodType || !Number.isInteger(periodNo) || periodNo <= 0) {
+      throw new ApiError(
+        400,
+        `Approved distribution row ${index + 1} has an invalid period`,
+        "INVALID_APPROVED_DISTRIBUTION_PERIOD",
+      );
+    }
+
+    if (!Number.isFinite(quantity) || quantity < 0) {
+      throw new ApiError(
+        400,
+        `Approved distribution row ${index + 1} has an invalid quantity`,
+        "INVALID_APPROVED_DISTRIBUTION_QUANTITY",
+      );
+    }
+
+    return {
+      period_type: periodType,
+      period_no: periodNo,
+      quantity,
+    };
+  });
 
   return {
     category_approved_quantity: approvedQuantity,
     review_note: reviewNote || null,
+    approved_distribution_mode: distributionMode,
+    approved_distribution: approvedDistribution,
   };
 }
 
@@ -94,3 +154,4 @@ export function validateReopenDepartmentCategoryReviewPayload(body = {}) {
     row_version: rowVersionBuffer,
   };
 }
+

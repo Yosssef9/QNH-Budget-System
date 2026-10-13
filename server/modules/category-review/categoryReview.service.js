@@ -21,7 +21,11 @@ import {
   findDepartmentCategoryBudgetForReviewRepo,
   findOpenSubmissionWindowForCategoryRepo,
   listCategoryReviewQueueRepo,
+  listCategoryRequestedDemandRepo,
   listItemsForReviewBudgetRepo,
+  listRequestedDistributionsForItemRepo,
+  listApprovedDistributionsForItemRepo,
+  replaceItemApprovedDistributionsRepo,
   markCategoryBudgetReviewCompletedRepo,
   reopenSubmissionWindowRepo,
   updateItemReviewDecisionRepo,
@@ -166,6 +170,157 @@ function quantityChanged(left, right) {
   return Math.round(leftValue * 10000) !== Math.round(rightValue * 10000);
 }
 
+function roundQuantity(value) {
+  return Math.round(Number(value || 0) * 10000) / 10000;
+}
+
+function normalizePersistedDistribution(rows = []) {
+  return (Array.isArray(rows) ? rows : [])
+    .map((row) => ({
+      period_type: String(row.period_type || "").toUpperCase(),
+      period_no: Number(row.period_no),
+      quantity: roundQuantity(row.quantity),
+    }))
+    .filter(
+      (row) =>
+        row.period_type &&
+        Number.isInteger(row.period_no) &&
+        row.period_no > 0,
+    )
+    .sort((left, right) => {
+      const typeCompare = left.period_type.localeCompare(right.period_type);
+      return typeCompare || left.period_no - right.period_no;
+    });
+}
+
+function approvedDistributionChanged(leftRows = [], rightRows = []) {
+  const left = normalizePersistedDistribution(leftRows);
+  const right = normalizePersistedDistribution(rightRows);
+  if (left.length !== right.length) return true;
+
+  return left.some((row, index) => {
+    const other = right[index];
+    return (
+      row.period_type !== other.period_type ||
+      row.period_no !== other.period_no ||
+      quantityChanged(row.quantity, other.quantity)
+    );
+  });
+}
+
+function resolveCustomDistributionShape(item, requestedRows = []) {
+  const method = String(item.distribution_method || "").toUpperCase();
+
+  if (method === "MONTHLY") {
+    return { periodType: "MONTH", periodCount: 12 };
+  }
+
+  if (method === "QUARTERLY") {
+    return { periodType: "QUARTER", periodCount: 4 };
+  }
+
+  if (method === "CUSTOM") {
+    const types = [
+      ...new Set(
+        requestedRows
+          .map((row) => String(row.period_type || "").toUpperCase())
+          .filter((type) => type === "MONTH" || type === "QUARTER"),
+      ),
+    ];
+
+    if (types.length === 1) {
+      return {
+        periodType: types[0],
+        periodCount: types[0] === "MONTH" ? 12 : 4,
+      };
+    }
+  }
+
+  throw new ApiError(
+    400,
+    "This item does not have a monthly or quarterly distribution that can be customized",
+    "APPROVED_DISTRIBUTION_NOT_CUSTOMIZABLE",
+  );
+}
+
+function validateCustomApprovedDistribution({
+  item,
+  requestedRows,
+  payloadRows,
+  approvedQuantity,
+}) {
+  const { periodType, periodCount } = resolveCustomDistributionShape(
+    item,
+    requestedRows,
+  );
+  const countable = isCountableUnit({
+    unitCode: item.unit_code,
+    unitName: item.unit_name,
+  });
+  const quantities = new Map();
+
+  for (const row of payloadRows || []) {
+    const rowType = String(row.period_type || "").toUpperCase();
+    const periodNo = Number(row.period_no);
+    const quantity = Number(row.quantity);
+
+    if (rowType !== periodType || periodNo < 1 || periodNo > periodCount) {
+      throw new ApiError(
+        400,
+        `Approved distribution must use ${periodType} periods 1-${periodCount}`,
+        "INVALID_APPROVED_DISTRIBUTION_PERIOD",
+      );
+    }
+
+    if (quantities.has(periodNo)) {
+      throw new ApiError(
+        400,
+        "Approved distribution contains a duplicate period",
+        "DUPLICATE_APPROVED_DISTRIBUTION_PERIOD",
+      );
+    }
+
+    if (!Number.isFinite(quantity) || quantity < 0) {
+      throw new ApiError(
+        400,
+        "Approved distribution quantities must be zero or greater",
+        "INVALID_APPROVED_DISTRIBUTION_QUANTITY",
+      );
+    }
+
+    if (countable && !Number.isInteger(quantity)) {
+      throw new ApiError(
+        400,
+        "Approved distribution quantities must be whole numbers for countable items",
+        "COUNTABLE_APPROVED_DISTRIBUTION_MUST_BE_INTEGER",
+      );
+    }
+
+    quantities.set(periodNo, roundQuantity(quantity));
+  }
+
+  const normalized = Array.from({ length: periodCount }, (_, index) => ({
+    period_type: periodType,
+    period_no: index + 1,
+    quantity: quantities.get(index + 1) ?? 0,
+  }));
+  const distributed = roundQuantity(
+    normalized.reduce((sum, row) => sum + Number(row.quantity || 0), 0),
+  );
+  const approved = roundQuantity(approvedQuantity);
+
+  if (distributed !== approved) {
+    throw new ApiError(
+      400,
+      "Approved distribution total must equal the approved quantity",
+      "APPROVED_DISTRIBUTION_TOTAL_MISMATCH",
+      { approvedQuantity: approved, distributedQuantity: distributed },
+    );
+  }
+
+  return normalized;
+}
+
 async function buildDetail(departmentCategoryBudgetId, transaction = null) {
   const budget = await findDepartmentCategoryBudgetForReviewRepo(
     departmentCategoryBudgetId,
@@ -194,7 +349,7 @@ export async function listCategoryReviewQueueService({ budgetAccess }) {
     budgetCategoryId,
   });
 
-  const [rows, coverage] = await Promise.all([
+  const [rows, coverage, requestedDemandRows] = await Promise.all([
     listCategoryReviewQueueRepo({
       budgetCategoryId,
     }),
@@ -204,12 +359,19 @@ export async function listCategoryReviewQueueService({ budgetAccess }) {
           budgetCategoryId,
         })
       : null,
+    window?.financial_year_id
+      ? listCategoryRequestedDemandRepo({
+          financialYearId: window.financial_year_id,
+          budgetCategoryId,
+        })
+      : [],
   ]);
 
   return mapReviewQueue({
     rows,
     window,
     coverage,
+    requestedDemandRows,
   });
 }
 
@@ -513,6 +675,23 @@ export async function decideCategoryReviewItemService({
       );
     }
 
+    const requestedDistributionRows =
+      await listRequestedDistributionsForItemRepo(itemId, transaction);
+    const previousApprovedDistribution =
+      await listApprovedDistributionsForItemRepo(itemId, transaction);
+
+    const approvedDistributionMode =
+      payload.approved_distribution_mode === "CUSTOM" ? "CUSTOM" : "AUTO";
+    const nextApprovedDistribution =
+      approvedDistributionMode === "CUSTOM"
+        ? validateCustomApprovedDistribution({
+            item,
+            requestedRows: requestedDistributionRows,
+            payloadRows: payload.approved_distribution,
+            approvedQuantity,
+          })
+        : [];
+
     const updated = await updateItemReviewDecisionRepo(transaction, {
       item_id: itemId,
       category_approved_quantity: approvedQuantity,
@@ -528,6 +707,12 @@ export async function decideCategoryReviewItemService({
       );
     }
 
+    await replaceItemApprovedDistributionsRepo(transaction, {
+      itemId,
+      distributions: nextApprovedDistribution,
+      actorUserId,
+    });
+
     await createWorkflowHistoryRepo(transaction, {
       financial_year_id: item.financial_year_id,
       entity_type: "DEPARTMENT_CATEGORY_BUDGET_ITEM",
@@ -542,9 +727,17 @@ export async function decideCategoryReviewItemService({
       note: payload.review_note,
       old_values_json: JSON.stringify({
         categoryApprovedQuantity: item.category_approved_quantity,
+        approvedDistributionMode: previousApprovedDistribution.length
+          ? "CUSTOM"
+          : "AUTO",
+        approvedDistribution: normalizePersistedDistribution(
+          previousApprovedDistribution,
+        ),
       }),
       new_values_json: JSON.stringify({
         categoryApprovedQuantity: approvedQuantity,
+        approvedDistributionMode,
+        approvedDistribution: nextApprovedDistribution,
       }),
       user_role_id: getUserRoleId(budgetAccess),
       acting_workspace: getActingWorkspace(budgetAccess),
@@ -555,7 +748,11 @@ export async function decideCategoryReviewItemService({
       item.review_status ===
         DEPARTMENT_BUDGET_ITEM_STATUS.CATEGORY_REVIEW_COMPLETED &&
       (quantityChanged(item.category_approved_quantity, approvedQuantity) ||
-        normalizeNote(item.review_note) !== normalizeNote(payload.review_note))
+        normalizeNote(item.review_note) !== normalizeNote(payload.review_note) ||
+        approvedDistributionChanged(
+          previousApprovedDistribution,
+          nextApprovedDistribution,
+        ))
     ) {
       approvalUpdateNotification = {
         notificationType: NOTIFICATION_TYPES.DEPARTMENT_BUDGET_APPROVAL_UPDATED,
@@ -841,3 +1038,4 @@ export async function reopenDepartmentCategoryReviewService({
     return buildDetail(departmentCategoryBudgetId, transaction);
   });
 }
+

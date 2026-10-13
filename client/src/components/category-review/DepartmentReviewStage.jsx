@@ -8,6 +8,8 @@ import {
   Search,
 } from "lucide-react";
 
+import RequestedDemandView from "./RequestedDemandView";
+
 const numberFormatter = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 4,
 });
@@ -168,6 +170,10 @@ function differenceMeta(requested, approved) {
 }
 
 export default function DepartmentReviewStage({
+  activeView,
+  onViewChange,
+  requestedDemand,
+  onGoToDepartmentReview,
   queueLoading,
   queueError,
   onRetryQueue,
@@ -207,6 +213,37 @@ export default function DepartmentReviewStage({
       tabIndex={0}
       className="space-y-4 focus:outline-none"
     >
+      <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+        {[
+          ["reviews", "Review by Department"],
+          ["demand", "Requested Demand"],
+        ].map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => onViewChange(value)}
+            className={classNames(
+              "rounded-lg px-4 py-2 text-xs font-black transition sm:text-sm",
+              activeView === value
+                ? "bg-blue-50 text-blue-700 shadow-sm"
+                : "text-slate-500 hover:bg-slate-50 hover:text-slate-800",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {activeView === "demand" ? (
+        <RequestedDemandView
+          loading={queueLoading}
+          error={queueError}
+          onRetry={onRetryQueue}
+          data={requestedDemand}
+          onGoToDepartmentReview={onGoToDepartmentReview}
+        />
+      ) : (
+        <>
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           icon={Building2}
@@ -529,6 +566,8 @@ export default function DepartmentReviewStage({
           )}
         </section>
       </section>
+        </>
+      )}
     </div>
   );
 }

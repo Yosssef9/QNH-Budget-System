@@ -15,6 +15,8 @@ const COUNTABLE_UNIT_TOKENS = new Set([
   "LICENSES",
   "LICENCE",
   "LICENCES",
+  "CONTRACT",
+  "CONTRACTS",
 ]);
 
 function normalizeUnitToken(value) {
@@ -96,3 +98,4 @@ export function buildApprovedDistribution({
     return { ...row, quantity };
   });
 }
+

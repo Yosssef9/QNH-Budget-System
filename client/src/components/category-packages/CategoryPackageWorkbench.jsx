@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
+import Tooltip from "@mui/material/Tooltip";
 import {
   AlertCircle,
   ArrowRight,
@@ -2247,8 +2248,80 @@ function PackageDocumentsPanel({ subItems, editable, open }) {
   );
 }
 
+function PackageItemUnitPrice({ item, onOpenModels }) {
+  const models = item.model_unit_prices || [];
+
+  if (models.length === 0) {
+    return <span className="text-slate-400">—</span>;
+  }
+
+  if (models.length === 1) {
+    const price = models[0].category_manager_unit_price;
+    return isValidUnitPrice(price) ? (
+      <CurrencyText value={price} />
+    ) : (
+      <span className="text-amber-700">Not set</span>
+    );
+  }
+
+  return (
+    <Tooltip
+      arrow
+      placement="top"
+      title={
+        <div className="min-w-[220px] max-w-[320px] p-1">
+          <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">
+            Model Unit Prices
+          </p>
+          <div className="space-y-2">
+            {models.map((model) => (
+              <div key={model.id} className="flex items-start justify-between gap-3 text-xs">
+                <span className="min-w-0 break-words font-semibold text-slate-700">
+                  {model.name}
+                </span>
+                <span className="shrink-0 font-black text-slate-900">
+                  {isValidUnitPrice(model.category_manager_unit_price) ? (
+                    <CurrencyText value={model.category_manager_unit_price} />
+                  ) : (
+                    "Not set"
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 border-t border-slate-100 pt-2 text-[11px] text-slate-500">
+            Click to open Models & Allocation
+          </p>
+        </div>
+      }
+      slotProps={{
+        tooltip: {
+          sx: {
+            bgcolor: "#ffffff",
+            border: "1px solid #e2e8f0",
+            borderRadius: "12px",
+            boxShadow: "0 12px 30px rgba(15,23,42,0.15)",
+            maxWidth: "340px",
+          },
+        },
+        arrow: { sx: { color: "#ffffff" } },
+      }}
+    >
+      <button
+        type="button"
+        onClick={onOpenModels}
+        aria-label={`View prices for ${models.length} models of ${item.catalog_item_name}; open Models and Allocation`}
+        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 font-black text-blue-700 underline decoration-dotted underline-offset-4 transition hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+      >
+        {models.length} models <ArrowRight className="h-3.5 w-3.5" />
+      </button>
+    </Tooltip>
+  );
+}
+
 function PackageItemWorkspaceDrawer({
   open,
+  initialTab = "OVERVIEW",
   onClose,
   packageData,
   item,
@@ -2268,8 +2341,8 @@ function PackageItemWorkspaceDrawer({
   const [tab, setTab] = useState("OVERVIEW");
 
   useEffect(() => {
-    if (open) setTab("OVERVIEW");
-  }, [open, item?.id]);
+    if (open) setTab(initialTab);
+  }, [open, item?.id, initialTab]);
 
   const subItems = detail?.sub_items || [];
   const departments = detail?.departments || [];
@@ -2672,7 +2745,7 @@ function DepartmentItemsDrawer({ open, onClose, department, onManageItem }) {
                       <td className="px-5 py-4">
                         <p className="font-black text-slate-950">{item.catalog_item_name}</p>
                         <p className="mt-1 text-xs font-semibold text-slate-500">
-                          {item.catalog_item_code || "Catalog item"}
+                          {item.unit_name || item.unit_code || "Unit"}
                         </p>
                       </td>
                       <td className="px-5 py-4 font-black text-slate-950">
@@ -2730,6 +2803,7 @@ export default function CategoryPackageWorkbench({
   const [filter, setFilter] = useState("ALL");
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const [workspaceInitialTab, setWorkspaceInitialTab] = useState("OVERVIEW");
   const [selectedDepartmentId, setSelectedDepartmentId] = useState(null);
   const [addModelOpen, setAddModelOpen] = useState(false);
   const [editingSubItem, setEditingSubItem] = useState(null);
@@ -2764,6 +2838,7 @@ export default function CategoryPackageWorkbench({
     const target = items.find((item) => Number(item.id) === Number(focusItemId));
     if (!target) return;
     setSelectedItemId(target.id);
+    setWorkspaceInitialTab("OVERVIEW");
     setWorkspaceOpen(true);
   }, [focusItemId, items]);
 
@@ -2916,8 +2991,9 @@ export default function CategoryPackageWorkbench({
     },
   });
 
-  function openItem(itemId) {
+  function openItem(itemId, initialTab = "OVERVIEW") {
     setSelectedItemId(itemId);
+    setWorkspaceInitialTab(initialTab);
     setWorkspaceOpen(true);
   }
 
@@ -3095,8 +3171,9 @@ export default function CategoryPackageWorkbench({
                   <th className="px-5 py-3">Approved Demand</th>
                   <th className="px-5 py-3">Departments</th>
                   <th className="px-5 py-3">Models</th>
-                  <th className="px-5 py-3">Reconciliation</th>
+                  <th className="px-5 py-3">Unit Price</th>
                   <th className="px-5 py-3">Estimated Value</th>
+                  <th className="px-5 py-3">Reconciliation</th>
                   <th className="px-5 py-3">Issues</th>
                   <th className="px-5 py-3 text-right">Action</th>
                 </tr>
@@ -3105,12 +3182,18 @@ export default function CategoryPackageWorkbench({
                 {filteredItems.map((item) => {
                   const itemBlockers = itemBlockersById.get(Number(item.id)) || [];
                   const editable = isPackageItemEditable(packageData.status, item) && packageEditable;
+                  const modelPrices = item.model_unit_prices || [];
+                  const allModelsPriced =
+                    modelPrices.length > 0 &&
+                    modelPrices.every((model) =>
+                      isValidUnitPrice(model.category_manager_unit_price),
+                    );
                   return (
                     <tr key={item.id} className="hover:bg-slate-50/70">
                       <td className="px-5 py-4">
                         <p className="font-black text-slate-950">{item.catalog_item_name}</p>
                         <p className="mt-1 text-xs font-semibold text-slate-500">
-                          {item.catalog_item_code || "Catalog item"}
+                       {item.unit_name || item.unit_code || "Unit"} 
                         </p>
                       </td>
                       <td className="px-5 py-4 font-black text-slate-950">{formatNumber(item.approved_quantity)}</td>
@@ -3124,10 +3207,20 @@ export default function CategoryPackageWorkbench({
                         </button>
                       </td>
                       <td className="px-5 py-4 font-bold text-slate-700">{item.active_sub_item_count || 0}</td>
-                      <td className="px-5 py-4"><StatusBadge status={item.reconciliation_status} compact /></td>
-                      <td className="px-5 py-4 font-black text-slate-950">
-                        <CurrencyText compact value={item.category_manager_estimated_total ?? item.estimated_total ?? 0} />
+                      <td className="px-5 py-4 font-bold text-slate-900">
+                        <PackageItemUnitPrice
+                          item={item}
+                          onOpenModels={() => openItem(item.id, "MODELS")}
+                        />
                       </td>
+                      <td className="px-5 py-4 font-black text-slate-950">
+                        {allModelsPriced ? (
+                          <CurrencyText value={item.category_manager_estimated_total ?? item.estimated_total ?? 0} />
+                        ) : (
+                          <span className="text-xs text-amber-700">Not available</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4"><StatusBadge status={item.reconciliation_status} compact /></td>
                       <td className="px-5 py-4">
                         {itemBlockers.length ? (
                           <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-black text-amber-700">
@@ -3195,6 +3288,7 @@ export default function CategoryPackageWorkbench({
 
       <PackageItemWorkspaceDrawer
         open={workspaceOpen}
+        initialTab={workspaceInitialTab}
         onClose={closeItemWorkspace}
         packageData={packageData}
         item={selectedItem}
@@ -3361,3 +3455,4 @@ export default function CategoryPackageWorkbench({
     </section>
   );
 }
+

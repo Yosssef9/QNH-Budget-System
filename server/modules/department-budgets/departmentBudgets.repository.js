@@ -11,6 +11,33 @@ function requestFor(transaction = null) {
   return transaction ? new sql.Request(transaction) : null;
 }
 
+function groupApprovedDistributions(rows = []) {
+  const byItemId = new Map();
+
+  for (const row of rows) {
+    const itemId = Number(row.department_budget_item_id);
+    if (!itemId) continue;
+    if (!byItemId.has(itemId)) byItemId.set(itemId, []);
+    byItemId.get(itemId).push({
+      id: row.id,
+      period_type: row.period_type,
+      period_no: Number(row.period_no),
+      quantity: Number(row.quantity || 0),
+    });
+  }
+
+  return byItemId;
+}
+
+function attachApprovedDistributions(rows = [], approvedRows = [], itemIdField) {
+  const byItemId = groupApprovedDistributions(approvedRows);
+  return (rows || []).map((row) => ({
+    ...row,
+    approved_distribution:
+      byItemId.get(Number(row[itemIdField])) || [],
+  }));
+}
+
 function departmentBudgetSelect() {
   return `
     SELECT
@@ -321,7 +348,36 @@ export async function listCategoryDepartmentItemsOverviewRepo({
         distribution.period_type,
         distribution.period_no;
     `);
-  return result.recordset;
+
+  const approvedResult = await pool
+    .request()
+    .input("budgetCategoryId", sql.Int, budgetCategoryId)
+    .input("financialYearId", sql.Int, financialYearId)
+    .query(`
+      SELECT
+        approved.id,
+        approved.department_budget_item_id,
+        approved.period_type,
+        approved.period_no,
+        approved.quantity
+      FROM dbo.BS_department_category_budget_item_approved_distributions AS approved
+      INNER JOIN dbo.BS_department_category_budget_items AS item
+        ON item.id = approved.department_budget_item_id
+      INNER JOIN dbo.BS_department_category_budgets AS dcb
+        ON dcb.id = item.department_category_budget_id
+      INNER JOIN dbo.BS_department_budgets AS db
+        ON db.id = dcb.department_budget_id
+      WHERE dcb.budget_category_id = @budgetCategoryId
+        AND db.financial_year_id = @financialYearId
+        AND item.is_active = 1
+      ORDER BY approved.department_budget_item_id, approved.period_type, approved.period_no;
+    `);
+
+  return attachApprovedDistributions(
+    result.recordset,
+    approvedResult.recordset,
+    "department_budget_item_id",
+  );
 }
 
 export async function listAllDepartmentBudgetsOverviewRepo() {
@@ -537,7 +593,29 @@ export async function listHistoryItemsForCategoryBudgetRepo(
         AND item.is_active = 1
       ORDER BY COALESCE(item.catalog_item_name_snapshot, catalogItem.name), item.id, distribution.period_type, distribution.period_no;
     `);
-  return result.recordset;
+
+  const approvedResult = await createRequest(pool, transaction)
+    .input("departmentCategoryBudgetId", sql.BigInt, departmentCategoryBudgetId)
+    .query(`
+      SELECT
+        approved.id,
+        approved.department_budget_item_id,
+        approved.period_type,
+        approved.period_no,
+        approved.quantity
+      FROM dbo.BS_department_category_budget_item_approved_distributions AS approved
+      INNER JOIN dbo.BS_department_category_budget_items AS item
+        ON item.id = approved.department_budget_item_id
+      WHERE item.department_category_budget_id = @departmentCategoryBudgetId
+        AND item.is_active = 1
+      ORDER BY approved.department_budget_item_id, approved.period_type, approved.period_no;
+    `);
+
+  return attachApprovedDistributions(
+    result.recordset,
+    approvedResult.recordset,
+    "item_id",
+  );
 }
 
 export async function findDepartmentBudgetByIdRepo(
@@ -711,7 +789,31 @@ export async function listItemsForDepartmentBudgetRepo(
       WHERE dcb.department_budget_id = @departmentBudgetId
       ORDER BY category.sort_order, COALESCE(item.catalog_item_name_snapshot, catalogItem.name), item.id, distribution.period_type, distribution.period_no;
     `);
-  return result.recordset;
+
+  const approvedResult = await createRequest(pool, transaction)
+    .input("departmentBudgetId", sql.BigInt, departmentBudgetId)
+    .query(`
+      SELECT
+        approved.id,
+        approved.department_budget_item_id,
+        approved.period_type,
+        approved.period_no,
+        approved.quantity
+      FROM dbo.BS_department_category_budget_item_approved_distributions AS approved
+      INNER JOIN dbo.BS_department_category_budget_items AS item
+        ON item.id = approved.department_budget_item_id
+      INNER JOIN dbo.BS_department_category_budgets AS dcb
+        ON dcb.id = item.department_category_budget_id
+      WHERE dcb.department_budget_id = @departmentBudgetId
+        AND item.is_active = 1
+      ORDER BY approved.department_budget_item_id, approved.period_type, approved.period_no;
+    `);
+
+  return attachApprovedDistributions(
+    result.recordset,
+    approvedResult.recordset,
+    "item_id",
+  );
 }
 
 export async function findDepartmentCategoryBudgetRepo(
@@ -1357,5 +1459,6 @@ export async function createWorkflowHistoryRepo(transaction, payload) {
       );
     `);
 }
+
 
 

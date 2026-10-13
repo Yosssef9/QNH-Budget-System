@@ -62,6 +62,65 @@ function periodLabel(row) {
   return `${String(row?.period_type || "Period").replaceAll("_", " ")} ${no || ""}`.trim();
 }
 
+function roundQuantity(value) {
+  return Math.round(Number(value || 0) * 10000) / 10000;
+}
+
+function getApprovedDistributionShape(item, distribution = []) {
+  const method = String(item?.distribution_method || "").toUpperCase();
+
+  if (method === "MONTHLY") {
+    return { periodType: "MONTH", periodCount: 12 };
+  }
+
+  if (method === "QUARTERLY") {
+    return { periodType: "QUARTER", periodCount: 4 };
+  }
+
+  if (method === "CUSTOM") {
+    const types = [
+      ...new Set(
+        distribution
+          .map((row) => String(row?.period_type || "").toUpperCase())
+          .filter((type) => type === "MONTH" || type === "QUARTER"),
+      ),
+    ];
+
+    if (types.length === 1) {
+      return {
+        periodType: types[0],
+        periodCount: types[0] === "MONTH" ? 12 : 4,
+      };
+    }
+  }
+
+  return null;
+}
+
+function fillDistributionPeriods(rows, shape) {
+  if (!shape) return Array.isArray(rows) ? rows : [];
+
+  const byPeriod = new Map(
+    (Array.isArray(rows) ? rows : [])
+      .filter(
+        (row) =>
+          String(row?.period_type || "").toUpperCase() === shape.periodType,
+      )
+      .map((row) => [Number(row.period_no), row]),
+  );
+
+  return Array.from({ length: shape.periodCount }, (_, index) => {
+    const periodNo = index + 1;
+    const existing = byPeriod.get(periodNo);
+    return {
+      id: existing?.id ?? null,
+      period_type: shape.periodType,
+      period_no: periodNo,
+      quantity: existing?.quantity ?? 0,
+    };
+  });
+}
+
 function StatusBadge({ children, tone = "slate" }) {
   const tones = {
     slate: "border-slate-200 bg-slate-50 text-slate-700",
@@ -106,8 +165,6 @@ export default function CategoryReviewItemDrawer({
     approvedNumber >= 0 &&
     (!countableUnit || Number.isInteger(approvedNumber));
   const decisionCompleted = item.review_status === "CATEGORY_REVIEW_COMPLETED";
-  const saveDisabled =
-    locked || saving || !approvedIsValid || (decisionCompleted && !dirty);
   const requested = Number(item.requested_quantity || 0);
   const difference = approvedIsValid ? approvedNumber - requested : null;
   const distribution = item.distribution || [];
@@ -115,7 +172,8 @@ export default function CategoryReviewItemDrawer({
     (sum, row) => sum + Number(row.quantity || 0),
     0,
   );
-  const approvedDistribution = approvedIsValid
+  const distributionShape = getApprovedDistributionShape(item, distribution);
+  const automaticApprovedDistribution = approvedIsValid
     ? buildApprovedDistribution({
         distribution,
         requestedQuantity: requested,
@@ -124,10 +182,77 @@ export default function CategoryReviewItemDrawer({
         unitName: item.unit_name,
       })
     : [];
-  const approvedDistributionTotal = approvedDistribution.reduce(
-    (sum, row) => sum + Number(row.quantity || 0),
-    0,
+  const automaticDisplayRows = fillDistributionPeriods(
+    automaticApprovedDistribution,
+    distributionShape,
   );
+  const approvedDistributionMode =
+    draft?.approved_distribution_mode === "CUSTOM" ? "CUSTOM" : "AUTO";
+  const customApprovedDistribution = fillDistributionPeriods(
+    draft?.approved_distribution || item.approved_distribution || [],
+    distributionShape,
+  );
+  const returnedAdjustedCustomDistribution =
+    returnedCorrection &&
+    approvedDistributionMode === "CUSTOM" &&
+    approvedIsValid
+      ? fillDistributionPeriods(
+          buildApprovedDistribution({
+            distribution: customApprovedDistribution,
+            requestedQuantity:
+              item.category_approved_quantity ?? item.requested_quantity ?? 0,
+            approvedQuantity: approvedNumber,
+            unitCode: item.unit_code,
+            unitName: item.unit_name,
+          }),
+          distributionShape,
+        )
+      : customApprovedDistribution;
+  const customRowsValid = returnedAdjustedCustomDistribution.every((row) => {
+    if (row.quantity === "" || row.quantity === null || row.quantity === undefined) {
+      return false;
+    }
+    const quantity = Number(row.quantity);
+    return (
+      Number.isFinite(quantity) &&
+      quantity >= 0 &&
+      (!countableUnit || Number.isInteger(quantity))
+    );
+  });
+  const customDistributionTotal = roundQuantity(
+    returnedAdjustedCustomDistribution.reduce(
+      (sum, row) => sum + Number(row.quantity || 0),
+      0,
+    ),
+  );
+  const customDistributionRemaining = approvedIsValid
+    ? roundQuantity(approvedNumber - customDistributionTotal)
+    : null;
+  const customDistributionValid =
+    approvedIsValid &&
+    Boolean(distributionShape) &&
+    customRowsValid &&
+    customDistributionTotal === roundQuantity(approvedNumber);
+  const approvedDistribution =
+    approvedDistributionMode === "CUSTOM"
+      ? returnedAdjustedCustomDistribution
+      : automaticDisplayRows;
+  const approvedDistributionTotal = roundQuantity(
+    approvedDistribution.reduce(
+      (sum, row) => sum + Number(row.quantity || 0),
+      0,
+    ),
+  );
+  const distributionDecisionValid =
+    returnedCorrection ||
+    approvedDistributionMode !== "CUSTOM" ||
+    customDistributionValid;
+  const saveDisabled =
+    locked ||
+    saving ||
+    !approvedIsValid ||
+    !distributionDecisionValid ||
+    (decisionCompleted && !dirty);
   const hodNote = item.hod_item_note || item.hodItemNote || "";
   const isProject = item.is_project === true || item.is_project === 1 || item.isProject === true;
 
@@ -322,20 +447,164 @@ export default function CategoryReviewItemDrawer({
 
                   <div className="overflow-hidden rounded-2xl border border-blue-200 bg-white">
                     <div className="border-b border-blue-100 bg-blue-50/70 px-4 py-3">
-                      <p className="text-sm font-black text-blue-950">Approved Distribution</p>
-                      <p className="mt-1 text-xs font-semibold text-blue-700">
-                        Rebalanced to total {approvedIsValid ? formatNumber(approvedDistributionTotal) : "—"}
-                        {countableUnit ? " using whole units only." : "."}
-                      </p>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="text-sm font-black text-blue-950">Approved Distribution</p>
+                          <p className="mt-1 text-xs font-semibold text-blue-700">
+                            {approvedDistributionMode === "CUSTOM"
+                              ? "Manually distribute the approved quantity across the available periods."
+                              : `Automatically rebalanced to total ${approvedIsValid ? formatNumber(approvedDistributionTotal) : "—"}${countableUnit ? " using whole units only." : "."}`}
+                          </p>
+                        </div>
+                        {approvedIsValid ? (
+                          <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-blue-800 shadow-sm ring-1 ring-blue-100">
+                            Total {formatNumber(approvedDistributionTotal)}
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
+
                     {approvedIsValid ? (
-                      <div className="grid gap-px bg-slate-100 sm:grid-cols-2 lg:grid-cols-3">
-                        {approvedDistribution.map((row) => (
-                          <div key={`approved-${row.id || `${row.period_type}-${row.period_no}`}`} className="bg-white px-4 py-3">
-                            <p className="text-xs font-bold text-slate-500">{periodLabel(row)}</p>
-                            <p className="mt-1 text-lg font-black text-blue-700">{formatNumber(row.quantity)}</p>
+                      <div className="space-y-3 p-3">
+                        {distributionShape ? (
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <button
+                              type="button"
+                              disabled={locked || returnedCorrection || saving}
+                              onClick={() =>
+                                onDraftChange({
+                                  approved_distribution_mode: "AUTO",
+                                })
+                              }
+                              className={`rounded-xl border px-3 py-3 text-left transition ${
+                                approvedDistributionMode === "AUTO"
+                                  ? "border-blue-300 bg-blue-50 text-blue-900 ring-2 ring-blue-100"
+                                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                              } disabled:cursor-not-allowed disabled:opacity-60`}
+                            >
+                              <span className="block text-sm font-black">Use Automatic Distribution</span>
+                              <span className="mt-1 block text-xs font-semibold text-slate-500">
+                                Keep the system-balanced approved timing.
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              disabled={locked || returnedCorrection || saving}
+                              onClick={() => {
+                                const existingCustomTotal = roundQuantity(
+                                  customApprovedDistribution.reduce(
+                                    (sum, row) =>
+                                      sum + Number(row.quantity || 0),
+                                    0,
+                                  ),
+                                );
+                                const seedRows =
+                                  existingCustomTotal ===
+                                  roundQuantity(approvedNumber)
+                                    ? customApprovedDistribution
+                                    : automaticDisplayRows;
+
+                                onDraftChange({
+                                  approved_distribution_mode: "CUSTOM",
+                                  approved_distribution: seedRows.map((row) => ({
+                                    period_type: row.period_type,
+                                    period_no: row.period_no,
+                                    quantity: row.quantity,
+                                  })),
+                                });
+                              }}
+                              className={`rounded-xl border px-3 py-3 text-left transition ${
+                                approvedDistributionMode === "CUSTOM"
+                                  ? "border-blue-300 bg-blue-50 text-blue-900 ring-2 ring-blue-100"
+                                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                              } disabled:cursor-not-allowed disabled:opacity-60`}
+                            >
+                              <span className="block text-sm font-black">Customize Distribution</span>
+                              <span className="mt-1 block text-xs font-semibold text-slate-500">
+                                Enter the approved quantity for each {distributionShape.periodType === "MONTH" ? "month" : "quarter"}.
+                              </span>
+                            </button>
                           </div>
-                        ))}
+                        ) : null}
+
+                        {approvedDistributionMode === "CUSTOM" && distributionShape ? (
+                          <div
+                            className={`grid grid-cols-3 gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold ${
+                              customDistributionValid
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                                : "border-amber-200 bg-amber-50 text-amber-800"
+                            }`}
+                          >
+                            <div>
+                              <span className="block text-[10px] uppercase tracking-wide opacity-70">Distributed</span>
+                              <span className="mt-0.5 block text-sm font-black">{formatNumber(customDistributionTotal)}</span>
+                            </div>
+                            <div>
+                              <span className="block text-[10px] uppercase tracking-wide opacity-70">Remaining</span>
+                              <span className="mt-0.5 block text-sm font-black">
+                                {customDistributionRemaining === null
+                                  ? "—"
+                                  : formatNumber(customDistributionRemaining)}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-end">
+                              <span className="font-black">
+                                {customDistributionValid ? "Valid" : "Check total"}
+                              </span>
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                          {approvedDistribution.map((row) => (
+                            <div
+                              key={`approved-${row.period_type}-${row.period_no}`}
+                              className="rounded-xl border border-slate-200 bg-white px-3 py-3"
+                            >
+                              <label
+                                htmlFor={`approved-distribution-${item.id}-${row.period_type}-${row.period_no}`}
+                                className="text-xs font-bold text-slate-500"
+                              >
+                                {periodLabel(row)}
+                              </label>
+                              {approvedDistributionMode === "CUSTOM" && distributionShape ? (
+                                <input
+                                  id={`approved-distribution-${item.id}-${row.period_type}-${row.period_no}`}
+                                  type="number"
+                                  min="0"
+                                  step={countableUnit ? "1" : "any"}
+                                  value={row.quantity}
+                                  disabled={locked || returnedCorrection || saving}
+                                  onChange={(event) => {
+                                    const nextRows = customApprovedDistribution.map((currentRow) =>
+                                      Number(currentRow.period_no) === Number(row.period_no) &&
+                                      String(currentRow.period_type) === String(row.period_type)
+                                        ? { ...currentRow, quantity: event.target.value }
+                                        : currentRow,
+                                    );
+                                    onDraftChange({
+                                      approved_distribution_mode: "CUSTOM",
+                                      approved_distribution: nextRows,
+                                    });
+                                  }}
+                                  className="mt-2 w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-base font-black text-blue-800 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100"
+                                />
+                              ) : (
+                                <p className="mt-1 text-lg font-black text-blue-700">
+                                  {formatNumber(row.quantity)}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        {approvedDistributionMode === "CUSTOM" &&
+                        !returnedCorrection &&
+                        !customDistributionValid ? (
+                          <p className="px-1 text-xs font-semibold text-rose-600">
+                            The custom distribution must use valid {countableUnit ? "whole-number " : ""}quantities and total exactly {formatNumber(approvedNumber)}.
+                          </p>
+                        ) : null}
                       </div>
                     ) : (
                       <div className="px-4 py-6 text-sm font-semibold text-rose-600">
@@ -446,3 +715,4 @@ export default function CategoryReviewItemDrawer({
     </AnimatedDrawer>
   );
 }
+

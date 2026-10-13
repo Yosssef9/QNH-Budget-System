@@ -16,8 +16,13 @@ vi.mock("../../../modules/category-review/categoryReview.repository.js", () => (
   findDepartmentCategoryBudgetForReviewRepo: vi.fn(),
   findDepartmentCategoryReviewReopenContextRepo: vi.fn(),
   findOpenSubmissionWindowForCategoryRepo: vi.fn(),
+  getCategoryDepartmentCoverageRepo: vi.fn(),
   listCategoryReviewQueueRepo: vi.fn(),
+  listCategoryRequestedDemandRepo: vi.fn(),
   listItemsForReviewBudgetRepo: vi.fn(),
+  listRequestedDistributionsForItemRepo: vi.fn(),
+  listApprovedDistributionsForItemRepo: vi.fn(),
+  replaceItemApprovedDistributionsRepo: vi.fn(),
   markCategoryBudgetReviewCompletedRepo: vi.fn(),
   markPackageItemNeedsReconciliationRepo: vi.fn(),
   reopenDepartmentCategoryReviewRepo: vi.fn(),
@@ -34,8 +39,13 @@ import {
   findDepartmentCategoryBudgetForReviewRepo,
   findDepartmentCategoryReviewReopenContextRepo,
   findOpenSubmissionWindowForCategoryRepo,
+  getCategoryDepartmentCoverageRepo,
   listCategoryReviewQueueRepo,
+  listCategoryRequestedDemandRepo,
   listItemsForReviewBudgetRepo,
+  listRequestedDistributionsForItemRepo,
+  listApprovedDistributionsForItemRepo,
+  replaceItemApprovedDistributionsRepo,
   markCategoryBudgetReviewCompletedRepo,
   markPackageItemNeedsReconciliationRepo,
   reopenDepartmentCategoryReviewRepo,
@@ -147,6 +157,14 @@ beforeEach(() => {
   vi.clearAllMocks();
 
   listCategoryReviewQueueRepo.mockResolvedValue([]);
+  listCategoryRequestedDemandRepo.mockResolvedValue([]);
+  getCategoryDepartmentCoverageRepo.mockResolvedValue({
+    total_department_count: 32,
+    submitted_department_count: 1,
+    not_submitted_department_count: 31,
+    in_review_department_count: 1,
+    completed_department_count: 0,
+  });
 
   findOpenSubmissionWindowForCategoryRepo.mockResolvedValue({
     id: 900,
@@ -167,6 +185,9 @@ beforeEach(() => {
   );
 
   listItemsForReviewBudgetRepo.mockResolvedValue([]);
+  listRequestedDistributionsForItemRepo.mockResolvedValue([]);
+  listApprovedDistributionsForItemRepo.mockResolvedValue([]);
+  replaceItemApprovedDistributionsRepo.mockResolvedValue(undefined);
 
   findDepartmentBudgetItemForReviewRepo.mockResolvedValue(
     reviewItem,
@@ -203,6 +224,80 @@ beforeEach(() => {
 
     expect(listCategoryReviewQueueRepo).toHaveBeenCalledWith({
       budgetCategoryId: 1,
+    });
+    expect(listCategoryRequestedDemandRepo).toHaveBeenCalledWith({
+      financialYearId: 9,
+      budgetCategoryId: 1,
+    });
+  });
+
+  it("consolidates requested demand by catalog item", async () => {
+    listCategoryRequestedDemandRepo.mockResolvedValue([
+      {
+        department_budget_item_id: 201,
+        department_category_budget_id: 101,
+        department_id: 10,
+        department_name: "Information Technology",
+        department_code: "IT",
+        hod_name: "HOD One",
+        department_category_budget_status: "IN_CATEGORY_REVIEW",
+        catalog_item_id: 30,
+        catalog_item_name: "Laptop",
+        expense_type: "CAPEX",
+        unit_name: "Unit",
+        unit_code: "UNIT",
+        requested_quantity: 3,
+        category_approved_quantity: 3,
+        review_status: "CATEGORY_REVIEW_COMPLETED",
+      },
+      {
+        department_budget_item_id: 202,
+        department_category_budget_id: 102,
+        department_id: 11,
+        department_name: "Finance",
+        department_code: "FIN",
+        hod_name: "HOD Two",
+        department_category_budget_status: "IN_CATEGORY_REVIEW",
+        catalog_item_id: 30,
+        catalog_item_name: "Laptop",
+        expense_type: "CAPEX",
+        unit_name: "Unit",
+        unit_code: "UNIT",
+        requested_quantity: 3,
+        category_approved_quantity: null,
+        review_status: "PENDING_CATEGORY_REVIEW",
+      },
+      {
+        department_budget_item_id: 203,
+        department_category_budget_id: 103,
+        department_id: 12,
+        department_name: "Patient Safety",
+        department_code: "PS",
+        hod_name: "HOD Three",
+        department_category_budget_status: "IN_CATEGORY_REVIEW",
+        catalog_item_id: 30,
+        catalog_item_name: "Laptop",
+        expense_type: "CAPEX",
+        unit_name: "Unit",
+        unit_code: "UNIT",
+        requested_quantity: 3,
+        category_approved_quantity: null,
+        review_status: "PENDING_CATEGORY_REVIEW",
+      },
+    ]);
+
+    const result = await listCategoryReviewQueueService({
+      budgetAccess: categoryAccess,
+    });
+
+    expect(result.requestedDemand.items).toHaveLength(1);
+    expect(result.requestedDemand.items[0]).toMatchObject({
+      catalog_item_id: 30,
+      catalog_item_name: "Laptop",
+      department_count: 3,
+      reviewed_department_count: 1,
+      total_requested_quantity: 9,
+      approved_so_far: 3,
     });
   });
 
@@ -372,6 +467,8 @@ beforeEach(() => {
     ).toEqual({
       category_approved_quantity: 0,
       review_note: null,
+      approved_distribution_mode: "AUTO",
+      approved_distribution: [],
     });
   });
 
@@ -394,6 +491,125 @@ beforeEach(() => {
       }),
     );
     expect(createWorkflowHistoryRepo).toHaveBeenCalled();
+    expect(replaceItemApprovedDistributionsRepo).toHaveBeenCalledWith(
+      { transaction: true },
+      expect.objectContaining({
+        itemId: 200,
+        distributions: [],
+        actorUserId: 7,
+      }),
+    );
+  });
+
+  it("saves a valid custom monthly approved distribution", async () => {
+    findDepartmentBudgetItemForReviewRepo.mockResolvedValue({
+      ...reviewItem,
+      distribution_method: "MONTHLY",
+      unit_name: "Unit",
+      unit_code: "UNIT",
+    });
+    listRequestedDistributionsForItemRepo.mockResolvedValue(
+      Array.from({ length: 12 }, (_, index) => ({
+        id: index + 1,
+        period_type: "MONTH",
+        period_no: index + 1,
+        quantity: 1,
+      })),
+    );
+
+    const customDistribution = [
+      3, 0, 2, 0, 1, 0, 0, 0, 2, 0, 0, 2,
+    ].map((quantity, index) => ({
+      period_type: "MONTH",
+      period_no: index + 1,
+      quantity,
+    }));
+
+    await decideCategoryReviewItemService({
+      itemId: 200,
+      actorUserId: 7,
+      budgetAccess: categoryAccess,
+      payload: {
+        category_approved_quantity: 10,
+        review_note: "Manual monthly timing",
+        approved_distribution_mode: "CUSTOM",
+        approved_distribution: customDistribution,
+      },
+    });
+
+    expect(replaceItemApprovedDistributionsRepo).toHaveBeenCalledWith(
+      { transaction: true },
+      {
+        itemId: 200,
+        distributions: customDistribution,
+        actorUserId: 7,
+      },
+    );
+  });
+
+  it("rejects a custom distribution whose total does not equal approved quantity", async () => {
+    findDepartmentBudgetItemForReviewRepo.mockResolvedValue({
+      ...reviewItem,
+      distribution_method: "MONTHLY",
+      unit_name: "Unit",
+      unit_code: "UNIT",
+    });
+    listRequestedDistributionsForItemRepo.mockResolvedValue([
+      { id: 1, period_type: "MONTH", period_no: 1, quantity: 12 },
+    ]);
+
+    await expect(
+      decideCategoryReviewItemService({
+        itemId: 200,
+        actorUserId: 7,
+        budgetAccess: categoryAccess,
+        payload: {
+          category_approved_quantity: 10,
+          review_note: null,
+          approved_distribution_mode: "CUSTOM",
+          approved_distribution: [
+            { period_type: "MONTH", period_no: 1, quantity: 9 },
+          ],
+        },
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      errorCode: "APPROVED_DISTRIBUTION_TOTAL_MISMATCH",
+    });
+
+    expect(updateItemReviewDecisionRepo).not.toHaveBeenCalled();
+  });
+
+  it("rejects fractional custom quantities for countable items", async () => {
+    findDepartmentBudgetItemForReviewRepo.mockResolvedValue({
+      ...reviewItem,
+      distribution_method: "MONTHLY",
+      unit_name: "Contract",
+      unit_code: "CONTRACT",
+    });
+    listRequestedDistributionsForItemRepo.mockResolvedValue([
+      { id: 1, period_type: "MONTH", period_no: 1, quantity: 12 },
+    ]);
+
+    await expect(
+      decideCategoryReviewItemService({
+        itemId: 200,
+        actorUserId: 7,
+        budgetAccess: categoryAccess,
+        payload: {
+          category_approved_quantity: 10,
+          review_note: null,
+          approved_distribution_mode: "CUSTOM",
+          approved_distribution: [
+            { period_type: "MONTH", period_no: 1, quantity: 9.5 },
+            { period_type: "MONTH", period_no: 2, quantity: 0.5 },
+          ],
+        },
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      errorCode: "COUNTABLE_APPROVED_DISTRIBUTION_MUST_BE_INTEGER",
+    });
   });
 
   it("notifies the affected department when an already-reviewed decision changes", async () => {
@@ -626,3 +842,4 @@ describe("reopen department review payload validator", () => {
   });
 });
 });
+

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import toast from "react-hot-toast";
 import {
+  ArrowUpRight,
   CalendarDays,
   CheckCircle2,
   CircleDollarSign,
@@ -193,7 +194,7 @@ function CfoSubItemDrawer({ subItem, departments = [], open, onClose }) {
 
             <section className="rounded-2xl border border-slate-200 bg-white p-4">
               <h4 className="text-sm font-black text-slate-950">
-                Allocated departments
+                Receiving departments
               </h4>
               <div className="mt-3 space-y-2">
                 {(subItem.allocations || []).length ? (
@@ -226,7 +227,7 @@ function CfoSubItemDrawer({ subItem, departments = [], open, onClose }) {
                   })
                 ) : (
                   <p className="rounded-xl bg-slate-50 px-3 py-4 text-sm text-slate-500">
-                    No departments are allocated to this model.
+                    No receiving departments for this model.
                   </p>
                 )}
               </div>
@@ -319,6 +320,7 @@ export default function CfoPackageItemsView({
   onAccept,
   onNeedsModification,
   onViewDistribution,
+  onOpenDepartment,
 }) {
   const selectedItem = itemDetail?.package_item;
   const [isItemListOpen, setIsItemListOpen] = useState(true);
@@ -434,7 +436,7 @@ export default function CfoPackageItemsView({
                 <div className="min-w-0 flex-1">
                   <div
                     title={item.catalog_item_name}
-                    className="line-clamp-2 break-words font-bold leading-5 text-slate-900"
+                    className="break-words text-base font-black leading-5 text-slate-900"
                   >
                     {item.catalog_item_name}
                   </div>
@@ -501,23 +503,29 @@ export default function CfoPackageItemsView({
           <div>
             <div className="border-b border-slate-200 p-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-950">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">
+                    Package item
+                  </p>
+                  <h2 className="mt-1 break-words text-2xl font-black leading-tight text-slate-950 sm:text-3xl">
                     {selectedItem?.catalog_item_name}
                   </h2>
-                  <p className="mt-1 text-sm text-slate-500">
+                  <p className="mt-2 text-sm font-medium text-slate-600">
                     Requested {selectedItem?.requested_quantity} · Approved{" "}
-                    {selectedItem?.approved_quantity} · Allocated{" "}
-                    {selectedItem?.allocated_quantity}
-                  </p>
-                  <p className="mt-1 text-sm font-bold text-slate-800">
-                    Item total:{" "}
-                    <CurrencyText value={selectedItem?.estimated_total || 0} />
+                    {selectedItem?.approved_quantity}
                   </p>
                 </div>
-                <CfoReviewStatusBadge
-                  status={selectedItem?.cfo_review_status}
-                />
+                <div className="flex flex-col items-start gap-3 sm:items-end">
+                  <CfoReviewStatusBadge status={selectedItem?.cfo_review_status} />
+                  <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 sm:text-right">
+                    <p className="text-[11px] font-black uppercase tracking-wide text-blue-700">
+                      Total item value
+                    </p>
+                    <p className="mt-1 text-2xl font-black tabular-nums text-slate-950 sm:text-3xl">
+                      <CurrencyText value={selectedItem?.estimated_total ?? 0} />
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {selectedItem?.cfo_review_note ? (
@@ -666,42 +674,41 @@ export default function CfoPackageItemsView({
                 <h3 className="text-sm font-bold text-slate-900">
                   Department demand breakdown
                 </h3>
-                <div className="mt-3 space-y-2">
+                <div
+                  className="mt-3 max-h-[520px] space-y-2 overflow-y-auto overscroll-contain pr-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                  role="region"
+                  aria-label="Department demand breakdown"
+                  tabIndex={0}
+                >
                   {(itemDetail?.departments || []).map((department) => (
-                    <div
+                    <button
                       key={department.department_item_id}
-                      className="rounded-xl border border-slate-200 p-3"
+                      type="button"
+                      onClick={() => onOpenDepartment?.(department.department_id)}
+                      aria-label={`Open ${department.department_name} in By Department view`}
+                      className="group w-full cursor-pointer rounded-xl border border-slate-200 p-3 text-left transition-colors hover:border-blue-300 hover:bg-blue-50/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
                     >
                       <div className="flex justify-between gap-3">
                         <div>
-                          <div className="font-bold text-slate-900">
+                          <div className="flex items-center gap-1.5 font-bold text-slate-900 group-hover:text-blue-700">
                             {department.department_name}
+                            <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-blue-600" aria-hidden="true" />
                           </div>
                           <div className="text-xs text-slate-500">
                             Requested {department.requested_quantity} · Approved{" "}
                             {department.approved_quantity}
                           </div>
                         </div>
-                        <CfoReviewStatusBadge
-                          status={department.reconciliation_status}
-                        />
-                      </div>
-                      <div className="mt-3 text-xs text-slate-600">
-                        {(department.allocations || []).length
-                          ? department.allocations
-                              .map(
-                                (allocation) =>
-                                  `${allocation.package_sub_item_name}: ${allocation.allocated_quantity}`,
-                              )
-                              .join(" · ")
-                          : "No model split configured."}
+                        {department.reconciliation_status !== "RECONCILED" && (
+                          <CfoReviewStatusBadge status={department.reconciliation_status || "NOT_CONFIGURED"} />
+                        )}
                       </div>
                       {department.review_note && (
                         <div className="mt-2 rounded-lg bg-slate-50 p-2 text-xs text-slate-600">
                           Category Manager note: {department.review_note}
                         </div>
                       )}
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -736,3 +743,4 @@ export default function CfoPackageItemsView({
     </div>
   );
 }
+

@@ -201,7 +201,7 @@ export default function CfoSplitDetailsDrawer({
             </h2>
             {focusDepartmentItemId ? (
               <p className="mt-1 text-sm text-slate-500">
-                Focused on the selected department allocation.
+                Focused on the selected department.
               </p>
             ) : null}
           </div>
@@ -227,7 +227,7 @@ export default function CfoSplitDetailsDrawer({
           ) : (
             <>
               <section className="rounded-2xl border border-slate-200 bg-white p-4">
-                <div className="grid gap-3 sm:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-3">
                   <div className="rounded-xl bg-slate-50 px-3 py-2">
                     <p className="text-[11px] font-bold uppercase text-slate-500">
                       Requested
@@ -242,14 +242,6 @@ export default function CfoSplitDetailsDrawer({
                     </p>
                     <p className="text-base font-black text-slate-950">
                       {packageItem?.approved_quantity ?? "-"}
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-slate-50 px-3 py-2">
-                    <p className="text-[11px] font-bold uppercase text-slate-500">
-                      Allocated
-                    </p>
-                    <p className="text-base font-black text-slate-950">
-                      {packageItem?.allocated_quantity ?? "-"}
                     </p>
                   </div>
                   <div className="rounded-xl bg-blue-50 px-3 py-2">
@@ -379,7 +371,7 @@ export default function CfoSplitDetailsDrawer({
 
                       <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
                         <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-                          Department allocations
+                          Receiving departments
                         </p>
                         {allocations.length ? (
                           <div className="space-y-2">
@@ -418,7 +410,7 @@ export default function CfoSplitDetailsDrawer({
                           </div>
                         ) : (
                           <p className="text-sm text-slate-500">
-                            No allocations are recorded for this model.
+                            No receiving departments are recorded for this model.
                           </p>
                         )}
                       </div>
@@ -459,3 +451,4 @@ export default function CfoSplitDetailsDrawer({
     </AnimatedDrawer>
   );
 }
+

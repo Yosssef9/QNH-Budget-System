@@ -190,8 +190,6 @@ function CategoryPackageSection({ pkg, onSelectPackageItem }) {
     (sum, item) => sum + toNumber(item.approved_quantity),
     0,
   );
-  const allocated =
-    pkg.summary?.allocatedQuantity || pkg.summary?.allocated_quantity || "-";
 
   return (
     <CollapsibleSection
@@ -206,14 +204,10 @@ function CategoryPackageSection({ pkg, onSelectPackageItem }) {
       headerClassName="bg-slate-50 hover:bg-slate-100"
       iconClassName="border-slate-200 text-slate-700"
     >
-      <div className="mb-4 grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
+      <div className="mb-4 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
         <span className="rounded-xl bg-slate-50 px-3 py-2 font-bold text-slate-700">
           <CheckCircle2 className="mr-1 inline h-3.5 w-3.5 text-blue-600" />
           {packageApproved} approved
-        </span>
-        <span className="rounded-xl bg-slate-50 px-3 py-2 font-bold text-slate-700">
-          <Layers3 className="mr-1 inline h-3.5 w-3.5 text-emerald-600" />
-          {allocated} allocated
         </span>
         <span className="rounded-xl bg-slate-50 px-3 py-2 font-bold text-slate-700">
           <CurrencyText compact value={packageValue} />
@@ -228,7 +222,6 @@ function CategoryPackageSection({ pkg, onSelectPackageItem }) {
                 <th className="px-5 py-3">Item</th>
                 <th className="px-5 py-3 text-right">Requested</th>
                 <th className="px-5 py-3 text-right">Approved</th>
-                <th className="px-5 py-3 text-right">Allocated</th>
                 <th className="px-5 py-3 text-right">Sub-items</th>
                 <th className="px-5 py-3 text-right">Value</th>
                 <th className="px-5 py-3">Status</th>
@@ -251,18 +244,12 @@ function CategoryPackageSection({ pkg, onSelectPackageItem }) {
                     <p className="font-bold text-slate-900">
                       {item.catalog_item_name}
                     </p>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      {item.catalog_item_code || "Catalog item"}
-                    </p>
                   </td>
                   <td className="px-5 py-3 text-right font-semibold">
                     {item.requested_quantity}
                   </td>
                   <td className="px-5 py-3 text-right font-semibold">
                     {item.approved_quantity}
-                  </td>
-                  <td className="px-5 py-3 text-right font-semibold">
-                    {item.allocated_quantity}
                   </td>
                   <td className="px-5 py-3 text-right font-semibold">
                     {item.active_sub_item_count || 0}
@@ -323,7 +310,7 @@ function getSplitSummary(item) {
   if (!allocations.length) return "No split";
   if (allocations.length === 1) {
     const allocation = allocations[0];
-    return `${allocation.package_sub_item_name}: ${allocation.allocated_quantity}`;
+    return `${allocation.package_sub_item_name || "Model"}: ${allocation.allocated_quantity}`;
   }
   return `${allocations.length} models`;
 }
@@ -335,6 +322,9 @@ function DepartmentItemTable({ department, onSelectPackageItem }) {
     rows,
     "catalog_item_name",
     "asc",
+  );
+  const showReconciliationIssues = rows.some(
+    (item) => item.reconciliation_status !== "RECONCILED",
   );
   const pagination = usePagination(sortedRows.length, 10);
   const pagedRows = sortedRows.slice(
@@ -379,21 +369,15 @@ function DepartmentItemTable({ department, onSelectPackageItem }) {
                   onSort={handleSort}
                   className="text-right"
                 />
-                <SortableHeader
-                  label="Allocated"
-                  column="allocated_quantity"
-                  sortColumn={sortColumn}
-                  sortDirection={sortDirection}
-                  onSort={handleSort}
-                  className="text-right"
-                />
                 <th className="border border-slate-200 px-4 py-3">
                   Model split
                 </th>
                 <th className="border border-slate-200 px-4 py-3 text-right">
                   Total value
                 </th>
-                <th className="border border-slate-200 px-4 py-3">Status</th>
+                {showReconciliationIssues && (
+                  <th className="border border-slate-200 px-4 py-3">Issues</th>
+                )}
                 <th className="border border-slate-200 px-4 py-3">Action</th>
               </tr>
             </thead>
@@ -416,18 +400,12 @@ function DepartmentItemTable({ department, onSelectPackageItem }) {
                     <p className="font-bold text-slate-900">
                       {item.catalog_item_name}
                     </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {item.catalog_item_code || "Catalog item"}
-                    </p>
                   </td>
                   <td className="px-4 py-3 text-right font-semibold">
                     {item.requested_quantity}
                   </td>
                   <td className="px-4 py-3 text-right font-semibold">
                     {item.approved_quantity}
-                  </td>
-                  <td className="px-4 py-3 text-right font-semibold">
-                    {item.allocated_quantity}
                   </td>
                   <td className="px-4 py-3">
                     <p className="font-semibold text-slate-800">
@@ -440,9 +418,13 @@ function DepartmentItemTable({ department, onSelectPackageItem }) {
                   <td className="px-4 py-3 text-right font-bold">
                     <CurrencyText compact value={getItemEstimatedTotal(item)} />
                   </td>
-                  <td className="px-4 py-3">
-                    <CfoReviewStatusBadge status={item.reconciliation_status} />
-                  </td>
+                  {showReconciliationIssues && (
+                    <td className="px-4 py-3">
+                      {item.reconciliation_status !== "RECONCILED" ? (
+                        <CfoReviewStatusBadge status={item.reconciliation_status || "NOT_CONFIGURED"} />
+                      ) : null}
+                    </td>
+                  )}
                   <td className="px-4 py-3">
                     <button
                       type="button"
@@ -528,10 +510,6 @@ export default function CfoTotalPackageOverview({ packages, onSelectPackageItem 
     sortedPackages,
     (item) => item.approved_quantity,
   );
-  const totalAllocated = sumPackageItems(
-    sortedPackages,
-    (item) => item.allocated_quantity,
-  );
   const totalValue = sumPackageItems(
     sortedPackages,
     (item) => item.estimated_total,
@@ -575,13 +553,12 @@ export default function CfoTotalPackageOverview({ packages, onSelectPackageItem 
           </div>
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <CfoMetric label="Total value" value={totalValue} currency />
           <CfoMetric label="Package items" value={totalItems} />
           <CfoMetric label="Sub-items" value={totalSubItems} />
           <CfoMetric label="Requested qty" value={totalRequested} />
           <CfoMetric label="Approved qty" value={totalApproved} />
-          <CfoMetric label="Allocated qty" value={totalAllocated} />
         </div>
       </section>
 
@@ -603,25 +580,35 @@ export default function CfoTotalPackageOverview({ packages, onSelectPackageItem 
               <CollapsibleSection
                 key={department.department_id}
                 title={department.department_name}
-                description={`${department.department_code || "Department"} - ${
-                  department.item_count
-                } item${department.item_count === 1 ? "" : "s"} across submitted categories`}
+                description={`${department.item_count} item${department.item_count === 1 ? "" : "s"} across submitted categories`}
                 icon={<Building2 size={20} />}
                 defaultOpen={department.issue_count > 0}
+                action={
+                  <div className="flex flex-wrap items-center justify-end gap-3">
+                    {department.issue_count > 0 && (
+                      <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-black text-amber-800">
+                        {department.issue_count} issue{department.issue_count === 1 ? "" : "s"}
+                      </span>
+                    )}
+                    <div className="min-w-0 text-right">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-blue-600">
+                        Department total
+                      </p>
+                      <p className="text-lg font-black text-blue-900 sm:text-xl">
+                        <CurrencyText value={department.estimated_total} />
+                      </p>
+                    </div>
+                  </div>
+                }
                 className="border-slate-200"
                 headerClassName="bg-slate-50 hover:bg-slate-100"
                 iconClassName="border-slate-200 text-slate-700"
               >
-                <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+                <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   <QuantityLine label="Requested" value={department.requested_quantity} />
                   <QuantityLine label="Approved" value={department.approved_quantity} />
-                  <QuantityLine label="Allocated" value={department.allocated_quantity} />
                   <QuantityLine label="Items" value={department.item_count} />
                   <QuantityLine label="Issues" value={department.issue_count} />
-                  <span className="rounded-xl bg-blue-50 px-3 py-2 font-bold text-blue-900">
-                    Value:{" "}
-                    <CurrencyText compact value={department.estimated_total} />
-                  </span>
                 </div>
                 <DepartmentItemTable
                   department={department}
@@ -646,3 +633,4 @@ export default function CfoTotalPackageOverview({ packages, onSelectPackageItem 
     </div>
   );
 }
+

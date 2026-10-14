@@ -313,6 +313,7 @@ export default function CfoPackageReviewPage() {
   const [selectedPackageId, setSelectedPackageId] = useState(null);
   const [selectedPackageItemId, setSelectedPackageItemId] = useState(null);
   const [perspective, setPerspective] = useState("ITEMS");
+  const [focusedDepartmentId, setFocusedDepartmentId] = useState(null);
   const [modal, setModal] = useState(null);
   const [isPackageQueueOpen, setIsPackageQueueOpen] = useState(true);
   const [isPackageTimelineOpen, setIsPackageTimelineOpen] = useState(false);
@@ -784,6 +785,7 @@ export default function CfoPackageReviewPage() {
         setSelectedPackageItemId(null);
         setIsPackageTimelineOpen(false);
         setDistributionContext(null);
+        setFocusedDepartmentId(null);
         setPerspective("ITEMS");
       }}
     />
@@ -894,6 +896,7 @@ export default function CfoPackageReviewPage() {
               onSelectPackage={(packageId) => {
                 setSelectedPackageId(packageId);
                 setSelectedPackageItemId(null);
+                setFocusedDepartmentId(null);
                 setIsPackageTimelineOpen(false);
                 setDistributionContext(null);
               }}
@@ -922,6 +925,7 @@ export default function CfoPackageReviewPage() {
                   onSelectPackageItem={({ packageId, packageItemId }) => {
                     setSelectedPackageId(packageId);
                     setSelectedPackageItemId(packageItemId);
+                    setFocusedDepartmentId(null);
                     setPerspective("ITEMS");
                   }}
                 />
@@ -1095,7 +1099,10 @@ export default function CfoPackageReviewPage() {
                 <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-2">
                   <button
                     type="button"
-                    onClick={() => setPerspective("ITEMS")}
+                    onClick={() => {
+                      setFocusedDepartmentId(null);
+                      setPerspective("ITEMS");
+                    }}
                     className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold ${
                       perspective === "ITEMS"
                         ? "bg-blue-600 text-white"
@@ -1107,7 +1114,10 @@ export default function CfoPackageReviewPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setPerspective("DEPARTMENTS")}
+                    onClick={() => {
+                      setFocusedDepartmentId(null);
+                      setPerspective("DEPARTMENTS");
+                    }}
                     className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold ${
                       perspective === "DEPARTMENTS"
                         ? "bg-blue-600 text-white"
@@ -1138,6 +1148,10 @@ export default function CfoPackageReviewPage() {
                           canDecide && !selectedYearReadOnly && packageInReview
                         }
                         onSelectItem={setSelectedPackageItemId}
+                        onOpenDepartment={(departmentId) => {
+                          setFocusedDepartmentId(departmentId);
+                          setPerspective("DEPARTMENTS");
+                        }}
                         onAccept={(item) => setModal({ type: "ACCEPT", item })}
                         onNeedsModification={(item) =>
                           setModal({ type: "NEEDS_MODIFICATION", item })
@@ -1158,8 +1172,10 @@ export default function CfoPackageReviewPage() {
                           packageData?.departmentView?.departments || []
                         }
                         packageId={selectedPackage.id}
+                        focusDepartmentId={focusedDepartmentId}
                         onSelectPackageItem={(packageItemId) => {
                           setSelectedPackageItemId(packageItemId);
+                          setFocusedDepartmentId(null);
                           setPerspective("ITEMS");
                         }}
                       />
@@ -1233,4 +1249,5 @@ export default function CfoPackageReviewPage() {
     </div>
   );
 }
+
 

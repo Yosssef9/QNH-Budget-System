@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Building2, Eye } from "lucide-react";
 
 import usePagination from "../../hooks/usePagination";
@@ -42,7 +42,7 @@ function getSplitSummary(item) {
   if (!allocations.length) return "No split";
   if (allocations.length === 1) {
     const allocation = allocations[0];
-    return `${allocation.package_sub_item_name}: ${allocation.allocated_quantity}`;
+    return `${allocation.package_sub_item_name || "Model"}: ${allocation.allocated_quantity}`;
   }
   return `${allocations.length} models`;
 }
@@ -54,6 +54,9 @@ function DepartmentTable({ department, packageId, onSelectPackageItem }) {
     rows,
     "catalog_item_name",
     "asc",
+  );
+  const showReconciliationIssues = rows.some(
+    (item) => item.reconciliation_status !== "RECONCILED",
   );
   const pagination = usePagination(sortedRows.length, 10);
   const pagedRows = sortedRows.slice(
@@ -91,21 +94,15 @@ function DepartmentTable({ department, packageId, onSelectPackageItem }) {
                   onSort={handleSort}
                   className="text-right"
                 />
-                <SortableHeader
-                  label="Allocated"
-                  column="allocated_quantity"
-                  sortColumn={sortColumn}
-                  sortDirection={sortDirection}
-                  onSort={handleSort}
-                  className="text-right"
-                />
                 <th className="border border-slate-200 px-4 py-3">
                   Model split
                 </th>
                 <th className="border border-slate-200 px-4 py-3 text-right">
                   Total value
                 </th>
-                <th className="border border-slate-200 px-4 py-3">Status</th>
+                {showReconciliationIssues && (
+                  <th className="border border-slate-200 px-4 py-3">Issues</th>
+                )}
                 <th className="border border-slate-200 px-4 py-3">Action</th>
               </tr>
             </thead>
@@ -120,18 +117,12 @@ function DepartmentTable({ department, packageId, onSelectPackageItem }) {
                     <p className="font-bold text-slate-900">
                       {item.catalog_item_name}
                     </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {item.catalog_item_code || "Catalog item"}
-                    </p>
                   </td>
                   <td className="px-4 py-3 text-right font-semibold">
                     {item.requested_quantity}
                   </td>
                   <td className="px-4 py-3 text-right font-semibold">
                     {item.approved_quantity}
-                  </td>
-                  <td className="px-4 py-3 text-right font-semibold">
-                    {item.allocated_quantity}
                   </td>
                   <td className="px-4 py-3">
                     <p className="font-semibold text-slate-800">
@@ -144,9 +135,13 @@ function DepartmentTable({ department, packageId, onSelectPackageItem }) {
                   <td className="px-4 py-3 text-right font-bold">
                     <CurrencyText compact value={getAllocationTotal(item.allocations)} />
                   </td>
-                  <td className="px-4 py-3">
-                    <CfoReviewStatusBadge status={item.reconciliation_status} />
-                  </td>
+                  {showReconciliationIssues && (
+                    <td className="px-4 py-3">
+                      {item.reconciliation_status !== "RECONCILED" ? (
+                        <CfoReviewStatusBadge status={item.reconciliation_status || "NOT_CONFIGURED"} />
+                      ) : null}
+                    </td>
+                  )}
                   <td className="px-4 py-3">
                     <button
                       type="button"
@@ -194,7 +189,24 @@ export default function CfoDepartmentView({
   departments,
   packageId,
   onSelectPackageItem,
+  focusDepartmentId = null,
 }) {
+  const focusedDepartmentRef = useRef(null);
+
+  useEffect(() => {
+    if (focusDepartmentId == null || !focusedDepartmentRef.current) return;
+
+    // The By Department view mounts after the item view has exited.
+    // Focus the expanded accordion only once its DOM node is available.
+    const frameId = requestAnimationFrame(() => {
+      const target = focusedDepartmentRef.current;
+      if (!target) return;
+      target.scrollIntoView({ block: "start", behavior: "auto" });
+      target.querySelector("button")?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frameId);
+  }, [focusDepartmentId, departments]);
+
   if (!departments?.length) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-sm text-slate-500">
@@ -209,23 +221,47 @@ export default function CfoDepartmentView({
         const issueCount = getIssueCount(department);
         const departmentTotal = getDepartmentTotal(department);
 
+        const isFocused =
+          focusDepartmentId != null &&
+          Number(focusDepartmentId) === Number(department.department_id);
+
         return (
-          <CollapsibleSection
+          <div
             key={department.department_id}
+            ref={isFocused ? focusedDepartmentRef : null}
+            className="scroll-mt-36"
+          >
+          <CollapsibleSection
             title={department.department_name}
-            description={`${department.department_code || "Department"} - ${
-              department.item_count || department.items?.length || 0
-            } item${(department.item_count || department.items?.length || 0) === 1 ? "" : "s"}`}
+            description={`${department.item_count || department.items?.length || 0} item${(department.item_count || department.items?.length || 0) === 1 ? "" : "s"}`}
             icon={<Building2 size={20} />}
-            defaultOpen={issueCount > 0}
+            defaultOpen={issueCount > 0 || isFocused}
             action={
-              <CfoReviewStatusBadge status={department.reconciliation_status} />
+              <div className="flex flex-wrap items-center justify-end gap-3">
+                {(issueCount > 0 || (department.reconciliation_status && department.reconciliation_status !== "RECONCILED")) && (
+                  <CfoReviewStatusBadge
+                    status={
+                      department.reconciliation_status && department.reconciliation_status !== "RECONCILED"
+                        ? department.reconciliation_status
+                        : "NEEDS_RECONCILIATION"
+                    }
+                  />
+                )}
+                <div className="min-w-0 text-right">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-blue-600">
+                    Department total
+                  </p>
+                  <p className="text-lg font-black text-blue-900 sm:text-xl">
+                    <CurrencyText value={departmentTotal} />
+                  </p>
+                </div>
+              </div>
             }
             className="border-slate-200"
             headerClassName="bg-slate-50 hover:bg-slate-100"
             iconClassName="border-slate-200 text-slate-700"
           >
-            <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <div className="rounded-xl bg-slate-50 px-3 py-2">
                 <p className="text-[11px] font-bold uppercase text-slate-500">
                   Requested
@@ -244,26 +280,10 @@ export default function CfoDepartmentView({
               </div>
               <div className="rounded-xl bg-slate-50 px-3 py-2">
                 <p className="text-[11px] font-bold uppercase text-slate-500">
-                  Allocated
-                </p>
-                <p className="text-base font-black text-slate-950">
-                  {department.allocated_quantity}
-                </p>
-              </div>
-              <div className="rounded-xl bg-slate-50 px-3 py-2">
-                <p className="text-[11px] font-bold uppercase text-slate-500">
                   Issues
                 </p>
                 <p className="text-base font-black text-slate-950">
                   {issueCount}
-                </p>
-              </div>
-              <div className="rounded-xl bg-blue-50 px-3 py-2">
-                <p className="text-[11px] font-bold uppercase text-blue-600">
-                  Department total
-                </p>
-                <p className="text-base font-black text-blue-900">
-                  <CurrencyText compact value={departmentTotal} />
                 </p>
               </div>
             </div>
@@ -274,8 +294,10 @@ export default function CfoDepartmentView({
               onSelectPackageItem={onSelectPackageItem}
             />
           </CollapsibleSection>
+          </div>
         );
       })}
     </div>
   );
 }
+

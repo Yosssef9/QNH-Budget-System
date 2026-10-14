@@ -182,11 +182,6 @@ export default function CfoPackageItemComparisonDrawer({
                 <span className="rounded-full bg-white/10 px-3 py-1 text-blue-100">
                   FY {summary.financial_year || "-"}
                 </span>
-                <span className="rounded-full bg-white/10 px-3 py-1 text-blue-100">
-                  {summary.package_item_code ||
-                    packageItem?.catalog_item_code ||
-                    "-"}
-                </span>
               </div>
             </div>
             <button
@@ -387,3 +382,4 @@ export default function CfoPackageItemComparisonDrawer({
     </AnimatedDrawer>
   );
 }
+

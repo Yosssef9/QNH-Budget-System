@@ -1,5 +1,12 @@
+import { Fragment, useEffect, useRef, useState } from "react";
+import toast from "react-hot-toast";
+import { isCountableUnit } from "../../utils/approvedDistribution";
+
 import {
   AlertCircle,
+  ChevronDown,
+  ChevronRight,
+  Save,
   Building2,
   CheckCircle2,
   Clock3,
@@ -169,6 +176,266 @@ function differenceMeta(requested, approved) {
   };
 }
 
+function DepartmentReviewItemsTable({
+  items,
+  selectedBudget,
+  onReviewItem,
+  canReviewItems,
+  onInlineSave,
+  getItemDraft,
+  onItemDraftChange,
+  isItemSaving,
+  isItemDraftDirty,
+}) {
+  const [expandedItemId, setExpandedItemId] = useState(null);
+  const focusAfterSaveRef = useRef(null);
+  const saveInFlightRef = useRef(false);
+
+  useEffect(() => {
+    if (expandedItemId === null) return;
+    const input = document.getElementById(`category-inline-quantity-${expandedItemId}`);
+    input?.focus({ preventScroll: true });
+    input?.select();
+    if (Number(focusAfterSaveRef.current) === Number(expandedItemId)) {
+      focusAfterSaveRef.current = null;
+      input?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [expandedItemId]);
+
+  function toggleItem(itemId) {
+    setExpandedItemId((current) =>
+      Number(current) === Number(itemId) ? null : itemId,
+    );
+  }
+
+  async function saveAndAdvance(item, index) {
+    if (saveInFlightRef.current) return;
+    saveInFlightRef.current = true;
+    try {
+      const saved = await onInlineSave(item);
+      if (!saved) return;
+
+      // Follow the displayed order without wrapping to earlier rows.
+      // In a CFO return round, only corrected items are editable.
+      const subsequentItems = items.slice(index + 1);
+      const nextItem =
+        selectedBudget.status === "CATEGORY_REVIEW_COMPLETED" &&
+        selectedBudget.category_package_status === "RETURNED_BY_CFO"
+          ? subsequentItems.find(
+              (candidate) =>
+                candidate.package_item_cfo_review_status === "NEEDS_MODIFICATION",
+            )
+          : subsequentItems[0];
+      if (nextItem) {
+        focusAfterSaveRef.current = nextItem.id;
+        setExpandedItemId(nextItem.id);
+      } else {
+        setExpandedItemId(null);
+        toast.success("Reached the last reviewable item in this department");
+      }
+    } finally {
+      saveInFlightRef.current = false;
+    }
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-left text-sm">
+        <thead className="bg-slate-50 text-[11px] font-black uppercase tracking-wide text-slate-500">
+          <tr>
+            <th className="px-5 py-3">Item</th>
+            <th className="px-5 py-3">Expense Type</th>
+            <th className="px-5 py-3">Requested</th>
+            <th className="px-5 py-3">Approved</th>
+            <th className="px-5 py-3">Difference</th>
+            <th className="px-5 py-3">Review Status</th>
+            <th className="px-5 py-3 text-right">Action</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {items.map((item, index) => {
+            const difference = differenceMeta(
+              item.requested_quantity,
+              item.category_approved_quantity,
+            );
+            const returnedCorrection =
+              selectedBudget.status === "CATEGORY_REVIEW_COMPLETED" &&
+              selectedBudget.category_package_status === "RETURNED_BY_CFO" &&
+              item.package_item_cfo_review_status === "NEEDS_MODIFICATION";
+            const editable =
+              canReviewItems &&
+              (selectedBudget.status === "IN_CATEGORY_REVIEW" || returnedCorrection);
+            const expanded = Number(expandedItemId) === Number(item.id);
+            const draft = getItemDraft(item);
+            const rawQuantity = draft.category_approved_quantity;
+            const quantity = Number(rawQuantity);
+            const isCountable = isCountableUnit(item);
+            const quantityValid =
+              rawQuantity !== "" && rawQuantity !== null &&
+              rawQuantity !== undefined && Number.isFinite(quantity) &&
+              quantity >= 0 && (!isCountable || Number.isInteger(quantity));
+            const customDistribution =
+              draft.approved_distribution_mode === "CUSTOM" && !returnedCorrection;
+            const saving = isItemSaving(item);
+            const dirty = isItemDraftDirty(item);
+            const alreadyReviewed = item.review_status === "CATEGORY_REVIEW_COMPLETED";
+            const canSave =
+              editable && quantityValid && !customDistribution && !saving &&
+              (!alreadyReviewed || dirty);
+
+            return (
+              <Fragment key={item.id}>
+                <tr
+                  onClick={(event) => {
+                    if (event.target.closest("button, a, input, select, textarea")) return;
+                    toggleItem(item.id);
+                  }}
+                  className={classNames(
+                    "cursor-pointer align-middle hover:bg-blue-50/60",
+                    expanded ? "bg-blue-50/40" : "",
+                  )}
+                >
+                  <td className="px-5 py-4">
+                    <button
+                      type="button"
+                      onClick={() => toggleItem(item.id)}
+                      aria-expanded={expanded}
+                      aria-controls={expanded ? `category-inline-panel-${item.id}` : undefined}
+                      className="flex w-full items-start gap-2 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                    >
+                      {expanded ? (
+                        <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                      ) : (
+                        <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                      )}
+                      <span className="min-w-0">
+                        <span className="block font-black text-slate-950">{item.catalog_item_name}</span>
+                        <span className="mt-1 block text-xs font-semibold text-slate-500">
+                          {item.unit_name || item.unit_code || "Unit"}
+                          {item.is_project ? " · Project" : ""}
+                        </span>
+                        {dirty ? (
+                          <span className="mt-1 block text-xs font-bold text-amber-700">
+                            Unsaved changes
+                          </span>
+                        ) : null}
+                      </span>
+                    </button>
+                  </td>
+                  <td className="px-5 py-4">
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700">
+                      {item.expense_type || "—"}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4 font-bold text-slate-900">
+                    {formatNumber(item.requested_quantity)}
+                  </td>
+                  <td className="px-5 py-4 font-black text-slate-950">
+                    {item.category_approved_quantity === null
+                      ? "—"
+                      : formatNumber(item.category_approved_quantity)}
+                  </td>
+                  <td className={classNames("px-5 py-4 font-black", difference.classes)}>
+                    {difference.label}
+                  </td>
+                  <td className="px-5 py-4">
+                    <div className="flex flex-wrap gap-1.5">
+                      <StatusBadge status={item.review_status} compact />
+                      {item.package_item_cfo_review_status ? (
+                        <StatusBadge status={item.package_item_cfo_review_status} compact />
+                      ) : null}
+                    </div>
+                  </td>
+                  <td className="px-5 py-4 text-right">
+                    <button
+                      type="button"
+                      onClick={() => onReviewItem(item.id)}
+                      className={classNames(
+                        "inline-flex items-center justify-center rounded-xl px-3 py-2 text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
+                        editable
+                          ? "bg-blue-600 text-white hover:bg-blue-700"
+                          : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+                      )}
+                    >
+                      {editable
+                        ? alreadyReviewed ? "Edit Review" : "Review"
+                        : "View"}
+                    </button>
+                  </td>
+                </tr>
+                {expanded ? (
+                  <tr id={`category-inline-panel-${item.id}`} className="bg-blue-50/40">
+                    <td colSpan={7} className="px-5 pb-5 pt-1">
+                      <form
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          if (canSave) void saveAndAdvance(item, index);
+                        }}
+                        className="flex flex-col gap-3 rounded-xl border border-blue-200 bg-white p-4 sm:flex-row sm:items-end"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <label
+                            htmlFor={`category-inline-quantity-${item.id}`}
+                            className="block text-xs font-black uppercase tracking-wide text-slate-700"
+                          >
+                            Approved Quantity
+                          </label>
+                          <input
+                            id={`category-inline-quantity-${item.id}`}
+                            type="number"
+                            min="0"
+                            step={isCountable ? "1" : "any"}
+                            value={rawQuantity ?? ""}
+                            onChange={(event) =>
+                              onItemDraftChange(item, {
+                                category_approved_quantity: event.target.value,
+                              })
+                            }
+                            disabled={!editable || saving}
+                            aria-invalid={!quantityValid}
+                            className="mt-2 w-full rounded-xl border border-blue-200 bg-slate-50 px-3 py-2.5 text-lg font-black text-slate-950 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60 sm:max-w-xs"
+                          />
+                          <p className="mt-2 text-xs text-slate-500">
+                            Requested: {formatNumber(item.requested_quantity)}
+                            {isCountable ? " · Whole numbers only" : ""}
+                          </p>
+                          {!quantityValid ? (
+                            <p className="mt-1 text-xs font-semibold text-rose-700">
+                              Enter a valid non-negative {isCountable ? "whole number" : "quantity"}.
+                            </p>
+                          ) : null}
+                          {customDistribution ? (
+                            <p className="mt-2 text-xs font-semibold text-amber-700">
+                              This item has a custom approved distribution. Use Review to keep its period allocations consistent.
+                            </p>
+                          ) : null}
+                          {!editable ? (
+                            <p className="mt-2 text-xs font-semibold text-slate-500">
+                              This item is read-only in the current review stage.
+                            </p>
+                          ) : null}
+                        </div>
+                        <button
+                          type="submit"
+                          disabled={!canSave}
+                          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                        >
+                          <Save className="h-4 w-4" />
+                          {saving ? "Saving..." : "Save Quantity & Next"}
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                ) : null}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function DepartmentReviewStage({
   activeView,
   onViewChange,
@@ -194,6 +461,11 @@ export default function DepartmentReviewStage({
   coverage,
   onReviewItem,
   canReviewItems,
+  onInlineSave,
+  getItemDraft,
+  onItemDraftChange,
+  isItemSaving,
+  isItemDraftDirty,
   canComplete,
   onCompleteReview,
   canReopenReview,
@@ -448,92 +720,18 @@ export default function DepartmentReviewStage({
                 ) : null}
               </header>
 
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="bg-slate-50 text-[11px] font-black uppercase tracking-wide text-slate-500">
-                    <tr>
-                      <th className="px-5 py-3">Item</th>
-                      <th className="px-5 py-3">Expense Type</th>
-                      <th className="px-5 py-3">Requested</th>
-                      <th className="px-5 py-3">Approved</th>
-                      <th className="px-5 py-3">Difference</th>
-                      <th className="px-5 py-3">Review Status</th>
-                      <th className="px-5 py-3 text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {items.map((item) => {
-                      const difference = differenceMeta(
-                        item.requested_quantity,
-                        item.category_approved_quantity,
-                      );
-                      const returnedCorrection =
-                        selectedBudget.status === "CATEGORY_REVIEW_COMPLETED" &&
-                        selectedBudget.category_package_status === "RETURNED_BY_CFO" &&
-                        item.package_item_cfo_review_status === "NEEDS_MODIFICATION";
-                      const editable =
-                        canReviewItems &&
-                        (selectedBudget.status === "IN_CATEGORY_REVIEW" || returnedCorrection);
-
-                      return (
-                        <tr key={item.id} className="align-middle hover:bg-slate-50/70">
-                          <td className="px-5 py-4">
-                            <p className="font-black text-slate-950">
-                              {item.catalog_item_name}
-                            </p>
-                            <p className="mt-1 text-xs font-semibold text-slate-500">
-                              {item.unit_name || item.unit_code || "Unit"}
-                              {item.is_project ? " · Project" : ""}
-                            </p>
-                          </td>
-                          <td className="px-5 py-4">
-                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700">
-                              {item.expense_type || "—"}
-                            </span>
-                          </td>
-                          <td className="px-5 py-4 font-bold text-slate-900">
-                            {formatNumber(item.requested_quantity)}
-                          </td>
-                          <td className="px-5 py-4 font-black text-slate-950">
-                            {item.category_approved_quantity === null
-                              ? "—"
-                              : formatNumber(item.category_approved_quantity)}
-                          </td>
-                          <td className={classNames("px-5 py-4 font-black", difference.classes)}>
-                            {difference.label}
-                          </td>
-                          <td className="px-5 py-4">
-                            <div className="flex flex-wrap gap-1.5">
-                              <StatusBadge status={item.review_status} compact />
-                              {item.package_item_cfo_review_status ? (
-                                <StatusBadge status={item.package_item_cfo_review_status} compact />
-                              ) : null}
-                            </div>
-                          </td>
-                          <td className="px-5 py-4 text-right">
-                            <button
-                              type="button"
-                              onClick={() => onReviewItem(item.id)}
-                              className={classNames(
-                                "inline-flex items-center justify-center rounded-xl px-3 py-2 text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
-                                editable
-                                  ? "bg-blue-600 text-white hover:bg-blue-700"
-                                  : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
-                              )}
-                            >
-                              {editable
-                                ? item.review_status === "CATEGORY_REVIEW_COMPLETED"
-                                  ? "Edit Review"
-                                  : "Review"
-                                : "View"}
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <DepartmentReviewItemsTable
+                key={selectedBudget.id}
+                items={items}
+                selectedBudget={selectedBudget}
+                onReviewItem={onReviewItem}
+                canReviewItems={canReviewItems}
+                onInlineSave={onInlineSave}
+                getItemDraft={getItemDraft}
+                onItemDraftChange={onItemDraftChange}
+                isItemSaving={isItemSaving}
+                isItemDraftDirty={isItemDraftDirty}
+              />
 
               <footer className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                 <div>

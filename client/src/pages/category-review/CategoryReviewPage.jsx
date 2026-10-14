@@ -477,8 +477,8 @@ export default function CategoryReviewPage() {
       baseline.approved_distribution_mode === "CUSTOM" ? "CUSTOM" : "AUTO";
 
     return (
-      Number(storedDraft.category_approved_quantity) !==
-        Number(baseline.category_approved_quantity) ||
+      String(storedDraft.category_approved_quantity ?? "") !==
+        String(baseline.category_approved_quantity ?? "") ||
       String(storedDraft.review_note || "") !==
         String(baseline.review_note || "") ||
       storedMode !== baselineMode ||
@@ -516,9 +516,14 @@ export default function CategoryReviewPage() {
     const draft = getDraft(item);
     const approvedQuantity = Number(draft.category_approved_quantity);
 
-    if (!Number.isFinite(approvedQuantity) || approvedQuantity < 0) {
+    if (
+      draft.category_approved_quantity === "" ||
+      draft.category_approved_quantity === null ||
+      draft.category_approved_quantity === undefined ||
+      !Number.isFinite(approvedQuantity) || approvedQuantity < 0
+    ) {
       toast.error("Approved quantity must be zero or greater");
-      return;
+      return false;
     }
 
     const approvedDistributionMode =
@@ -556,7 +561,7 @@ export default function CategoryReviewPage() {
         toast.error(
           "Custom approved distribution must be valid and equal the approved quantity",
         );
-        return;
+        return false;
       }
     }
 
@@ -595,7 +600,7 @@ export default function CategoryReviewPage() {
           );
           if (candidates[0]) setReviewItemId(candidates[0].id);
         }
-        return;
+        return true;
       }
 
       const data = await decisionMutation.mutateAsync({
@@ -636,10 +641,12 @@ export default function CategoryReviewPage() {
           toast.success("This is the last item in the department");
         }
       }
+      return true;
     } catch (error) {
       toast.error(
         error?.response?.data?.message || "Failed to save review decision",
       );
+      return false;
     } finally {
       setSavingItemIds((current) =>
         current.filter((itemId) => Number(itemId) !== Number(item.id)),
@@ -918,6 +925,11 @@ export default function CategoryReviewPage() {
             coverage={coverage}
             onReviewItem={setReviewItemId}
             canReviewItems={canReviewItems}
+            onInlineSave={(item) => saveDecision(item)}
+            getItemDraft={getDraft}
+            onItemDraftChange={updateDraft}
+            isItemSaving={(item) => savingItemIds.includes(item.id)}
+            isItemDraftDirty={isDraftDirty}
             canComplete={canComplete}
             onCompleteReview={() => setCompleteModalOpen(true)}
             canReopenReview={canReopenDepartmentReview}

@@ -4,7 +4,6 @@ import { isCountableUnit } from "../../utils/approvedDistribution";
 
 import {
   AlertCircle,
-  ChevronDown,
   ChevronRight,
   Save,
   Building2,
@@ -300,14 +299,15 @@ function DepartmentReviewItemsTable({
                       type="button"
                       onClick={() => toggleItem(item.id)}
                       aria-expanded={expanded}
-                      aria-controls={expanded ? `category-inline-panel-${item.id}` : undefined}
+                      aria-controls={`category-inline-panel-${item.id}`}
                       className="flex w-full items-start gap-2 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     >
-                      {expanded ? (
-                        <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                      ) : (
-                        <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-                      )}
+                      <ChevronRight
+                        className={classNames(
+                          "mt-0.5 h-4 w-4 shrink-0 transition-transform duration-[240ms] ease-in-out motion-reduce:transition-none",
+                          expanded ? "rotate-90 text-blue-600" : "text-slate-400",
+                        )}
+                      />
                       <span className="min-w-0">
                         <span className="block font-black text-slate-950">{item.catalog_item_name}</span>
                         <span className="mt-1 block text-xs font-semibold text-slate-500">
@@ -363,70 +363,84 @@ function DepartmentReviewItemsTable({
                     </button>
                   </td>
                 </tr>
-                {expanded ? (
-                  <tr id={`category-inline-panel-${item.id}`} className="bg-blue-50/40">
-                    <td colSpan={7} className="px-5 pb-5 pt-1">
-                      <form
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          if (canSave) void saveAndAdvance(item, index);
-                        }}
-                        className="flex flex-col gap-3 rounded-xl border border-blue-200 bg-white p-4 sm:flex-row sm:items-end"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <label
-                            htmlFor={`category-inline-quantity-${item.id}`}
-                            className="block text-xs font-black uppercase tracking-wide text-slate-700"
+                <tr className="!border-t-0 bg-blue-50/40">
+                  <td colSpan={7} className="p-0">
+                    <div
+                      id={`category-inline-panel-${item.id}`}
+                      aria-hidden={!expanded}
+                      inert={!expanded}
+                      className={classNames(
+                        "grid transition-[grid-template-rows,opacity] duration-[240ms] ease-in-out motion-reduce:transition-none",
+                        expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+                      )}
+                    >
+                      <div className="min-h-0 overflow-hidden">
+                        <div className="px-5 pb-5 pt-1">
+                          <form
+                            onSubmit={(event) => {
+                              event.preventDefault();
+                              if (canSave) void saveAndAdvance(item, index);
+                            }}
+                            className="flex flex-col items-start gap-2 rounded-xl border border-blue-200 bg-white p-4"
                           >
-                            Approved Quantity
-                          </label>
-                          <input
-                            id={`category-inline-quantity-${item.id}`}
-                            type="number"
-                            min="0"
-                            step={isCountable ? "1" : "any"}
-                            value={rawQuantity ?? ""}
-                            onChange={(event) =>
-                              onItemDraftChange(item, {
-                                category_approved_quantity: event.target.value,
-                              })
-                            }
-                            disabled={!editable || saving}
-                            aria-invalid={!quantityValid}
-                            className="mt-2 w-full rounded-xl border border-blue-200 bg-slate-50 px-3 py-2.5 text-lg font-black text-slate-950 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60 sm:max-w-xs"
-                          />
-                          <p className="mt-2 text-xs text-slate-500">
-                            Requested: {formatNumber(item.requested_quantity)}
-                            {isCountable ? " · Whole numbers only" : ""}
-                          </p>
-                          {!quantityValid ? (
-                            <p className="mt-1 text-xs font-semibold text-rose-700">
-                              Enter a valid non-negative {isCountable ? "whole number" : "quantity"}.
+                            <div className="flex flex-wrap items-end gap-3">
+                              <div className="w-36 sm:w-40">
+                                <label
+                                  htmlFor={`category-inline-quantity-${item.id}`}
+                                  className="block text-xs font-black uppercase tracking-wide text-slate-700"
+                                >
+                                  Approved Quantity
+                                </label>
+                                <input
+                                  id={`category-inline-quantity-${item.id}`}
+                                  type="number"
+                                  min="0"
+                                  step={isCountable ? "1" : "any"}
+                                  value={rawQuantity ?? ""}
+                                  onChange={(event) =>
+                                    onItemDraftChange(item, {
+                                      category_approved_quantity: event.target.value,
+                                    })
+                                  }
+                                  disabled={!editable || saving}
+                                  aria-invalid={!quantityValid}
+                                  className="mt-2 w-full rounded-xl border border-blue-200 bg-slate-50 px-3 py-2.5 text-lg font-black text-slate-950 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                />
+                              </div>
+                              <button
+                                type="submit"
+                                disabled={!canSave}
+                                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                              >
+                                <Save className="h-4 w-4" />
+                                {saving ? "Saving..." : "Save Quantity & Next"}
+                              </button>
+                            </div>
+                            <p className="text-xs text-slate-500">
+                              Requested: {formatNumber(item.requested_quantity)}
+                              {isCountable ? " · Whole numbers only" : ""}
                             </p>
-                          ) : null}
-                          {customDistribution ? (
-                            <p className="mt-2 text-xs font-semibold text-amber-700">
-                              This item has a custom approved distribution. Use Review to keep its period allocations consistent.
-                            </p>
-                          ) : null}
-                          {!editable ? (
-                            <p className="mt-2 text-xs font-semibold text-slate-500">
-                              This item is read-only in the current review stage.
-                            </p>
-                          ) : null}
+                            {!quantityValid ? (
+                              <p className="text-xs font-semibold text-rose-700">
+                                Enter a valid non-negative {isCountable ? "whole number" : "quantity"}.
+                              </p>
+                            ) : null}
+                            {customDistribution ? (
+                              <p className="text-xs font-semibold text-amber-700">
+                                This item has a custom approved distribution. Use Review to keep its period allocations consistent.
+                              </p>
+                            ) : null}
+                            {!editable ? (
+                              <p className="text-xs font-semibold text-slate-500">
+                                This item is read-only in the current review stage.
+                              </p>
+                            ) : null}
+                          </form>
                         </div>
-                        <button
-                          type="submit"
-                          disabled={!canSave}
-                          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-                        >
-                          <Save className="h-4 w-4" />
-                          {saving ? "Saving..." : "Save Quantity & Next"}
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                ) : null}
+                      </div>
+                    </div>
+                  </td>
+                </tr>
               </Fragment>
             );
           })}

@@ -1,29 +1,36 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
+import Tooltip from "@mui/material/Tooltip";
 import {
   AlertCircle,
+  ArrowRight,
   Boxes,
   Building2,
   CalendarDays,
-  Check,
   CheckCircle2,
   CircleDollarSign,
   ClipboardList,
   Download,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  FilterX,
   Eye,
   FileText,
   FilePlus2,
+  History,
   Layers3,
   Loader2,
   Lock,
+  PackageCheck,
   PackagePlus,
   Paperclip,
   Pencil,
   RefreshCw,
   Save,
-  Send,
+  Search,
   SlidersHorizontal,
   Trash2,
   UploadCloud,
@@ -32,19 +39,25 @@ import {
 
 import ConfirmModal from "../ConfirmModal";
 import CurrencyText from "../CurrencyText";
-import EnterpriseSearch from "../EnterpriseSearch";
 import Input from "../Input";
 import SearchableMultiSelect from "../SearchableMultiSelect";
 import CatalogSubItemFields from "../catalog/CatalogSubItemFields";
 import AnimatedDrawer from "../budgets/shared/drawers/AnimatedDrawer";
-import CollapsiblePanelToggle from "../layout/CollapsiblePanelToggle";
+import BudgetItemRequestNoteDrawer from "../budgets/shared/drawers/BudgetItemRequestNoteDrawer";
 import PackageSubItemPriceIntelligenceDrawer from "../budgets/price-intelligence/PackageSubItemPriceIntelligenceDrawer";
 import PackageDistributionDrawer from "./PackageDistributionDrawer";
+import PackageSubItemPriceHistoryDrawer from "./PackageSubItemPriceHistoryDrawer";
+import {
+  filterStage2Departments,
+  filterStage2Items,
+  matchesPreparationFilter,
+  scopePackageItem,
+} from "./packageStage2Filters";
+import { usePackageSubItemPriceHistory } from "../../hooks/category-packages/usePackageSubItemPriceHistory";
 import {
   downloadBlobAttachment,
   viewBlobAttachment,
 } from "../../helpers/attachmentPreview.helper";
-
 import {
   createPackageSubItem,
   deletePackageSubItemAttachment,
@@ -56,7 +69,6 @@ import {
   getPackageSubItemAttachments,
   removePackageSubItem,
   replaceDepartmentItemAllocations,
-  submitCategoryPackageToCfo,
   uploadPackageSubItemAttachment,
   updatePackageSubItem,
 } from "../../api/categoryPackages.api";
@@ -76,25 +88,28 @@ const EMPTY_REUSABLE_MODEL = {
   default_unit_of_measure_id: "",
 };
 
-const ITEM_FILTERS = [
+const PACKAGE_FILTERS = [
   { value: "ALL", label: "All" },
-  {
-    value: "NEEDS_MODIFICATION",
-    label: "Needs modification",
-    tone: "amber",
-  },
-  { value: "NEEDS_RECONCILIATION", label: "Needs attention" },
-  { value: "NOT_CONFIGURED", label: "Not configured" },
-  { value: "SHORT", label: "Short" },
-  { value: "EXCESS", label: "Excess" },
+  { value: "NEEDS_MODIFICATION", label: "CFO Changes" },
+  { value: "NEEDS_SETUP", label: "Needs Setup" },
+  { value: "NEEDS_ATTENTION", label: "Needs Attention" },
   { value: "RECONCILED", label: "Reconciled" },
 ];
 
-const DEPARTMENT_FILTERS = [
-  { value: "ALL", label: "All" },
-  { value: "NEEDS_ALLOCATION", label: "Needs allocation" },
-  { value: "RECONCILED", label: "Fully allocated" },
-];
+const STAGE2_SELECT_CLASS = "min-w-0 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100";
+
+function Stage2Select({ label, value, onChange, options, className = "" }) {
+  return (
+    <label className={classNames("flex min-w-0 flex-col gap-1.5", className)}>
+      <span className="text-[11px] font-bold text-slate-500">{label}</span>
+      <select className={STAGE2_SELECT_CLASS} value={value} onChange={(event) => onChange(event.target.value)}>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
 
 function classNames(...values) {
   return values.filter(Boolean).join(" ");
@@ -104,15 +119,126 @@ function toNumber(value) {
   const numericValue = Number(value);
   return Number.isFinite(numericValue) ? numericValue : 0;
 }
+
 function isValidUnitPrice(value) {
-  if (value === null || value === undefined || value === "") {
-    return false;
-  }
-
+  if (value === null || value === undefined || value === "") return false;
   const numericValue = Number(value);
-
   return Number.isFinite(numericValue) && numericValue > 0;
 }
+
+function getManagerUnitPrice(subItem) {
+  return subItem?.category_manager_unit_price ?? subItem?.unit_price ?? null;
+}
+
+// Price input formatting must preserve intermediate edits (e.g. "3000." or
+// "3000.50") instead of coercing the user's text to a number on each keystroke.
+function formatEditableUnitPrice(value) {
+  const raw = String(value ?? "");
+  const decimalPoint = raw.indexOf(".");
+  const whole = decimalPoint === -1 ? raw : raw.slice(0, decimalPoint);
+  const fraction = decimalPoint === -1 ? "" : raw.slice(decimalPoint);
+  return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + fraction;
+}
+
+function caretAfterRawCharacters(formatted, rawCharacterCount) {
+  if (rawCharacterCount <= 0) return 0;
+
+  let seen = 0;
+  for (let index = 0; index < formatted.length; index += 1) {
+    if (formatted[index] !== ",") seen += 1;
+    if (seen >= rawCharacterCount) return index + 1;
+  }
+  return formatted.length;
+}
+
+function CategoryManagerPriceInput({
+  label = "Category Manager proposed price",
+  value,
+  onChange,
+  disabled = false,
+  placeholder,
+}) {
+  const inputId = useId();
+  const inputRef = useRef(null);
+  const pendingCaretRef = useRef(null);
+  const formattedValue = formatEditableUnitPrice(value);
+
+  useLayoutEffect(() => {
+    const rawCharacterCount = pendingCaretRef.current;
+    if (rawCharacterCount === null) return;
+
+    const input = inputRef.current;
+    if (input && document.activeElement === input) {
+      const caret = caretAfterRawCharacters(formattedValue, rawCharacterCount);
+      input.setSelectionRange(caret, caret);
+    }
+    pendingCaretRef.current = null;
+  }, [formattedValue]);
+
+  function handlePriceChange(event) {
+    const displayText = event.currentTarget.value;
+    const raw = displayText.replace(/,/g, "");
+
+    // Reject non-price characters without changing the numeric state.
+    if (!/^\d*(?:\.\d*)?$/.test(raw)) {
+      event.currentTarget.value = formattedValue;
+      return;
+    }
+
+    const position = event.currentTarget.selectionStart ?? displayText.length;
+    const rawCharactersBeforeCaret = displayText
+      .slice(0, position)
+      .replace(/,/g, "").length;
+
+    if (raw === String(value ?? "")) {
+      // A typed grouping comma should not leave an extra comma in the field.
+      event.currentTarget.value = formattedValue;
+      const caret = caretAfterRawCharacters(
+        formattedValue,
+        rawCharactersBeforeCaret,
+      );
+      event.currentTarget.setSelectionRange(caret, caret);
+      return;
+    }
+
+    pendingCaretRef.current = rawCharactersBeforeCaret;
+    onChange(raw);
+  }
+
+  return (
+    <div>
+      <label
+        htmlFor={inputId}
+        className="mb-2 block text-sm font-semibold text-slate-700"
+      >
+        {label} <span className="text-red-500">*</span>
+        <span className="sr-only"> (SAR)</span>
+      </label>
+      <div className="relative">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 border-r border-slate-200 pr-2 text-xs font-semibold uppercase text-slate-400"
+        >
+          SAR
+        </span>
+        <input
+          ref={inputRef}
+          id={inputId}
+          type="text"
+          inputMode="decimal"
+          autoComplete="off"
+          required
+          value={formattedValue}
+          onChange={handlePriceChange}
+          placeholder={placeholder}
+          disabled={disabled}
+          className="w-full rounded-2xl border border-blue-200 bg-white py-3 pl-16 pr-3 text-slate-800 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+        />
+      </div>
+    </div>
+  );
+}
+
 function formatNumber(value) {
   return numberFormatter.format(toNumber(value));
 }
@@ -141,22 +267,6 @@ function isPackageItemEditable(packageStatus, item) {
   return (
     packageStatus === "RETURNED_BY_CFO" &&
     item?.cfo_review_status === "NEEDS_MODIFICATION"
-  );
-}
-
-function getAllocationEstimatedTotal(allocations = []) {
-  return allocations.reduce(
-    (sum, allocation) =>
-      sum +
-      toNumber(allocation.allocated_quantity) * toNumber(allocation.unit_price),
-    0,
-  );
-}
-
-function getDepartmentEstimatedTotal(department) {
-  return (department?.items || []).reduce(
-    (sum, item) => sum + getAllocationEstimatedTotal(item.allocations),
-    0,
   );
 }
 
@@ -209,6 +319,12 @@ function getStatusMeta(status) {
       background: "bg-indigo-50",
       text: "text-indigo-700",
       dot: "bg-indigo-500",
+    },
+    IN_PURCHASING_REVIEW: {
+      border: "border-violet-200",
+      background: "bg-violet-50",
+      text: "text-violet-700",
+      dot: "bg-violet-500",
     },
     CFO_REVIEW_COMPLETED: {
       border: "border-emerald-200",
@@ -339,244 +455,6 @@ function QuantityProgress({ approved, allocated }) {
         <span>{formatNumber(approvedValue)} approved</span>
       </div>
     </div>
-  );
-}
-
-function PerspectiveTabs({ value, onChange }) {
-  const tabs = [
-    {
-      value: "ITEM",
-      label: "By Requested Item",
-      helper: "Configure shared models, pricing, and department demand",
-      icon: Boxes,
-    },
-    {
-      value: "DEPARTMENT",
-      label: "By Department",
-      helper: "Review every approved item and model split per department",
-      icon: Building2,
-    },
-  ];
-
-  return (
-    <div
-      role="tablist"
-      aria-label="Category package workspace perspective"
-      className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-100 p-1.5 md:grid-cols-2"
-    >
-      {tabs.map((tab) => {
-        const Icon = tab.icon;
-        const selected = value === tab.value;
-
-        return (
-          <button
-            key={tab.value}
-            id={`category-package-${tab.value.toLowerCase()}-tab`}
-            type="button"
-            role="tab"
-            aria-selected={selected}
-            aria-controls={`category-package-${tab.value.toLowerCase()}-panel`}
-            tabIndex={selected ? 0 : -1}
-            onClick={() => onChange(tab.value)}
-            className={classNames(
-              "flex min-w-0 items-start gap-3 rounded-xl px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
-              selected
-                ? "bg-white text-blue-700 shadow-sm"
-                : "text-slate-600 hover:bg-white/60 hover:text-slate-900",
-            )}
-          >
-            <span
-              className={classNames(
-                "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
-                selected ? "bg-blue-100" : "bg-slate-200/70",
-              )}
-            >
-              <Icon className="h-4.5 w-4.5" />
-            </span>
-            <span className="min-w-0">
-              <span className="block text-sm font-black">{tab.label}</span>
-              <span className="mt-0.5 block text-xs leading-5 text-slate-500">
-                {tab.helper}
-              </span>
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function FilterChips({ options, value, onChange }) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {options.map((option) => {
-        const selected = value === option.value;
-        const isAmber = option.tone === "amber";
-
-        return (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => onChange(option.value)}
-            className={classNames(
-              "rounded-full border px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2",
-              selected && isAmber
-                ? "border-amber-400 bg-amber-400 text-amber-950 shadow-sm focus-visible:ring-amber-400"
-                : selected
-                  ? "border-blue-600 bg-blue-600 text-white focus-visible:ring-blue-500"
-                  : isAmber
-                    ? "border-amber-200 bg-amber-50 text-amber-800 hover:border-amber-300 hover:bg-amber-100 focus-visible:ring-amber-400"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900 focus-visible:ring-blue-500",
-            )}
-          >
-            {option.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function ItemQueueCard({ item, selected, onClick }) {
-  const remaining = toNumber(item.remaining_quantity);
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={classNames(
-        "w-full rounded-2xl border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
-        selected
-          ? "border-blue-300 bg-blue-50 shadow-sm"
-          : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50",
-      )}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-black text-slate-950">
-            {item.catalog_item_name}
-          </p>
-          <p className="mt-1 text-xs font-semibold text-slate-500">
-            {item.department_count} department
-            {Number(item.department_count) === 1 ? "" : "s"}
-          </p>
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
-          {item.cfo_review_status ? (
-            <StatusBadge status={item.cfo_review_status} compact />
-          ) : null}
-          <StatusBadge status={item.reconciliation_status} compact />
-        </div>
-      </div>
-
-      {item.cfo_review_note ? (
-        <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-800">
-          CFO note: {item.cfo_review_note}
-        </p>
-      ) : null}
-
-      <div className="mt-3">
-        <QuantityProgress
-          approved={item.approved_quantity}
-          allocated={item.allocated_quantity}
-        />
-      </div>
-
-      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-        <div className="rounded-xl bg-white/80 px-2.5 py-2">
-          <span className="block font-black text-slate-900">
-            {formatNumber(item.requested_quantity)}
-          </span>
-          <span className="text-slate-500">Requested</span>
-        </div>
-        <div className="rounded-xl bg-white/80 px-2.5 py-2">
-          <span className="block font-black text-slate-900">
-            {formatNumber(item.approved_quantity)}
-          </span>
-          <span className="text-slate-500">Approved</span>
-        </div>
-        <div className="rounded-xl bg-white/80 px-2.5 py-2">
-          <span className="block font-black text-slate-900">
-            <CurrencyText compact value={item.estimated_total || 0} />
-          </span>
-          <span className="text-slate-500">Value</span>
-        </div>
-        <div className="rounded-xl bg-white/80 px-2.5 py-2">
-          <span
-            className={classNames(
-              "block font-black",
-              remaining === 0
-                ? "text-emerald-700"
-                : remaining < 0
-                  ? "text-rose-700"
-                  : "text-amber-700",
-            )}
-          >
-            {formatNumber(Math.abs(remaining))}
-          </span>
-          <span className="text-slate-500">
-            {remaining < 0 ? "Excess" : "Remaining"}
-          </span>
-        </div>
-      </div>
-    </button>
-  );
-}
-
-function DepartmentQueueCard({ department, selected, onClick }) {
-  const remaining = toNumber(department.remaining_quantity);
-  const estimatedTotal = getDepartmentEstimatedTotal(department);
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={classNames(
-        "w-full rounded-2xl border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
-        selected
-          ? "border-blue-300 bg-blue-50 shadow-sm"
-          : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50",
-      )}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-black text-slate-950">
-            {department.department_name}
-          </p>
-          <p className="mt-1 text-xs font-semibold text-slate-500">
-            {department.department_code || "Department"} ·{" "}
-            {department.item_count} item
-            {Number(department.item_count) === 1 ? "" : "s"}
-          </p>
-        </div>
-        <StatusBadge status={department.reconciliation_status} compact />
-      </div>
-
-      <div className="mt-3">
-        <QuantityProgress
-          approved={department.approved_quantity}
-          allocated={department.allocated_quantity}
-        />
-      </div>
-
-      <div className="mt-3 flex items-center justify-between text-xs">
-        <span className="font-semibold text-slate-500">Allocation issues</span>
-        <span
-          className={classNames(
-            "font-black",
-            remaining === 0 ? "text-emerald-700" : "text-amber-700",
-          )}
-        >
-          {department.issue_count || 0}
-        </span>
-      </div>
-      <div className="mt-2 flex items-center justify-between rounded-xl bg-white/80 px-2.5 py-2 text-xs">
-        <span className="font-semibold text-slate-500">Department total</span>
-        <span className="font-black text-slate-900">
-          <CurrencyText compact value={estimatedTotal} />
-        </span>
-      </div>
-    </button>
   );
 }
 
@@ -728,7 +606,7 @@ function AddModelDrawer({
 
     onAddPackageModel({
       catalog_sub_item_id: Number(catalogSubItemId),
-      unit_price: Number(unitPrice),
+      category_manager_unit_price: Number(unitPrice),
       specification: specification.trim() || null,
       note: note.trim() || null,
     });
@@ -866,15 +744,11 @@ function AddModelDrawer({
               ) : null}
 
               <div className="grid gap-4 md:grid-cols-2">
-                <Input
-                  label="Shared unit price"
-                  required
-                  type="number"
-                  min="0"
-                  step="0.01"
+                <CategoryManagerPriceInput
+                  label="Category Manager proposed price"
                   value={unitPrice}
-                  onChange={(event) => setUnitPrice(event.target.value)}
-                  placeholder="Enter one hospital-wide price"
+                  onChange={setUnitPrice}
+                  placeholder="Enter the proposed hospital-wide price"
                 />
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-xs font-black uppercase tracking-wide text-slate-500">
@@ -1003,8 +877,13 @@ function PackageAttachmentManager({ subItem, open, editable }) {
   const queryClient = useQueryClient();
   const [removeCandidate, setRemoveCandidate] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(null);
+  const [attachmentNote, setAttachmentNote] = useState("");
 
   const packageSubItemId = subItem?.id;
+  useEffect(() => {
+    if (open) setAttachmentNote("");
+  }, [open, packageSubItemId]);
+
   const attachmentsQuery = useQuery({
     queryKey: [
       "category-packages",
@@ -1031,10 +910,11 @@ function PackageAttachmentManager({ subItem, open, editable }) {
   }
 
   const uploadMutation = useMutation({
-    mutationFn: ({ file }) =>
+    mutationFn: ({ file, description }) =>
       uploadPackageSubItemAttachment({
         packageSubItemId,
         file,
+        payload: { description: description || null },
         onUploadProgress: (event) => {
           if (!event.total) return;
           setUploadProgress(Math.round((event.loaded * 100) / event.total));
@@ -1043,6 +923,7 @@ function PackageAttachmentManager({ subItem, open, editable }) {
     onSuccess: async () => {
       toast.success("Attachment uploaded");
       setUploadProgress(null);
+      setAttachmentNote("");
       await invalidateAttachments();
     },
     onError: (error) => {
@@ -1131,7 +1012,10 @@ function PackageAttachmentManager({ subItem, open, editable }) {
               disabled={uploadMutation.isPending}
               onChange={(event) => {
                 const files = Array.from(event.target.files || []);
-                files.forEach((file) => uploadMutation.mutate({ file }));
+                const description = attachmentNote.trim();
+                files.forEach((file) =>
+                  uploadMutation.mutate({ file, description }),
+                );
                 event.target.value = "";
               }}
             />
@@ -1143,6 +1027,21 @@ function PackageAttachmentManager({ subItem, open, editable }) {
           </span>
         )}
       </div>
+
+      {editable ? (
+        <div className="mt-4 rounded-xl border border-blue-100 bg-white p-3">
+          <Input
+            label="Attachment note"
+            value={attachmentNote}
+            maxLength={500}
+            onChange={(event) => setAttachmentNote(event.target.value)}
+            placeholder="Optional context explaining this evidence"
+          />
+          <p className="mt-1 text-xs font-medium text-slate-500">
+            This note applies to every file selected in the next upload.
+          </p>
+        </div>
+      ) : null}
 
       {uploadProgress !== null ? (
         <div className="mt-3">
@@ -1193,6 +1092,11 @@ function PackageAttachmentManager({ subItem, open, editable }) {
                   <p className="truncate text-sm font-black text-slate-950">
                     {attachment.original_file_name}
                   </p>
+                  {attachment.description ? (
+                    <p className="mt-1 whitespace-pre-wrap break-words rounded-lg border border-violet-100 bg-violet-50 px-2.5 py-2 text-xs font-medium leading-5 text-violet-900">
+                      {attachment.description}
+                    </p>
+                  ) : null}
                   <p className="mt-0.5 text-xs font-semibold text-slate-500">
                     {attachment.mime_type || "File"} ·{" "}
                     {formatFileSize(attachment.file_size_bytes)}
@@ -1201,6 +1105,18 @@ function PackageAttachmentManager({ subItem, open, editable }) {
                     Uploaded by {attachment.uploaded_by_name || "Unknown"} ·{" "}
                     {formatDateTime(attachment.uploaded_at)}
                   </p>
+                  <span
+                    className={classNames(
+                      "mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-black uppercase",
+                      attachment.attachment_source === "PURCHASING"
+                        ? "border-violet-200 bg-violet-50 text-violet-700"
+                        : "border-blue-200 bg-blue-50 text-blue-700",
+                    )}
+                  >
+                    {attachment.attachment_source === "PURCHASING"
+                      ? "Purchasing"
+                      : "Category Manager"}
+                  </span>
                 </div>
               </div>
               <div className="flex shrink-0 gap-2">
@@ -1230,7 +1146,8 @@ function PackageAttachmentManager({ subItem, open, editable }) {
                   <Download className="h-4 w-4" />
                   Download
                 </button>
-                {editable ? (
+                {editable &&
+                attachment.attachment_source !== "PURCHASING" ? (
                   <button
                     type="button"
                     onClick={() => setRemoveCandidate(attachment)}
@@ -1283,6 +1200,7 @@ function EditModelDrawer({
   onSubmit,
   loading,
   editable,
+  isReturnedCorrection,
 }) {
   const [unitPrice, setUnitPrice] = useState("");
   const [specification, setSpecification] = useState("");
@@ -1290,14 +1208,29 @@ function EditModelDrawer({
 
   useEffect(() => {
     if (!open) return;
+    const managerPrice = subItem?.category_manager_unit_price;
+    const previousSubmittedManagerPrice =
+      subItem?.last_submitted_category_manager_unit_price;
+    const lastPurchasingPrice = subItem?.last_purchasing_unit_price;
+    const hasSavedRevision =
+      previousSubmittedManagerPrice !== null &&
+      previousSubmittedManagerPrice !== undefined &&
+      managerPrice !== null &&
+      managerPrice !== undefined &&
+      Number(managerPrice) !== Number(previousSubmittedManagerPrice);
+    const initialPrice =
+      isReturnedCorrection && !hasSavedRevision && lastPurchasingPrice != null
+        ? lastPurchasingPrice
+        : getManagerUnitPrice(subItem);
+
     setUnitPrice(
-      subItem?.unit_price === null || subItem?.unit_price === undefined
+      initialPrice === null || initialPrice === undefined
         ? ""
-        : String(Number(subItem.unit_price)),
+        : String(Number(initialPrice)),
     );
     setSpecification(subItem?.specification || "");
     setNote(subItem?.note || "");
-  }, [open, subItem]);
+  }, [isReturnedCorrection, open, subItem]);
 
   function submit() {
     if (!subItem?.row_version) {
@@ -1314,7 +1247,7 @@ function EditModelDrawer({
 
     onSubmit({
       row_version: subItem.row_version,
-      unit_price: Number(unitPrice),
+      category_manager_unit_price: Number(unitPrice),
       specification: specification.trim() || null,
       note: note.trim() || null,
     });
@@ -1348,14 +1281,15 @@ function EditModelDrawer({
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <Input
-              label="Shared unit price"
-              required
-              type="number"
-              min="0"
-              step="0.01"
+            <CategoryManagerPriceInput
+              label={
+                isReturnedCorrection
+                  ? "Revised Category Manager price"
+                  : "Category Manager proposed price"
+              }
               value={unitPrice}
-              onChange={(event) => setUnitPrice(event.target.value)}
+              onChange={setUnitPrice}
+              disabled={!editable}
             />
             <div className="rounded-2xl border border-slate-200 bg-white p-4">
               <p className="text-xs font-black uppercase tracking-wide text-slate-500">
@@ -1369,6 +1303,55 @@ function EditModelDrawer({
               </p>
             </div>
           </div>
+
+          {isReturnedCorrection &&
+          subItem?.latest_accepted_review_round != null ? (
+            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="font-black text-amber-950">
+                    Price baseline reviewed by CFO
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-amber-800">
+                    Your revised price starts from the last Purchasing price unless you already saved a correction.
+                  </p>
+                </div>
+                <span className="rounded-full border border-amber-200 bg-white px-3 py-1 text-xs font-black text-amber-800">
+                  Round {subItem.latest_accepted_review_round}
+                </span>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-amber-200 bg-white p-4">
+                  <p className="text-xs font-black uppercase text-slate-500">
+                    Previous manager proposal
+                  </p>
+                  <p className="mt-1 text-lg font-black text-slate-950">
+                    <CurrencyText
+                      value={
+                        subItem.last_submitted_category_manager_unit_price
+                      }
+                    />
+                  </p>
+                </div>
+                <div className="rounded-xl border border-violet-200 bg-violet-50 p-4">
+                  <p className="text-xs font-black uppercase text-violet-700">
+                    Purchasing price reviewed by CFO
+                  </p>
+                  <p className="mt-1 text-lg font-black text-slate-950">
+                    <CurrencyText value={subItem.last_purchasing_unit_price} />
+                  </p>
+                  {subItem.last_purchasing_reviewed_by_name ? (
+                    <p className="mt-1 text-xs font-semibold text-violet-700">
+                      {subItem.last_purchasing_reviewed_by_name}
+                      {subItem.last_purchasing_reviewed_at
+                        ? ` · ${formatDateTime(subItem.last_purchasing_reviewed_at)}`
+                        : ""}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </section>
+          ) : null}
 
           <Input
             label="Shared specification"
@@ -1484,7 +1467,7 @@ function AllocationDrawer({
     const unpricedAllocation = subItems.find(
       (subItem) =>
         toNumber(values[subItem.id]) > 0 &&
-        !isValidUnitPrice(subItem.unit_price),
+        !isValidUnitPrice(getManagerUnitPrice(subItem)),
     );
 
     if (unpricedAllocation) {
@@ -1579,7 +1562,9 @@ function AllocationDrawer({
               {subItems.map((subItem) => {
                 const allocationValue = values[subItem.id] ?? "";
 
-                const hasValidUnitPrice = isValidUnitPrice(subItem.unit_price);
+                const hasValidUnitPrice = isValidUnitPrice(
+                  getManagerUnitPrice(subItem),
+                );
 
                 return (
                   <article
@@ -1600,9 +1585,9 @@ function AllocationDrawer({
                         </div>
                         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-slate-500">
                           <span>
-                            Shared price:{" "}
+                            Manager proposed price:{" "}
                             {hasValidUnitPrice ? (
-                              <CurrencyText value={subItem.unit_price} />
+                              <CurrencyText value={getManagerUnitPrice(subItem)} />
                             ) : (
                               <span className="font-black text-amber-700">
                                 Price required
@@ -1641,7 +1626,7 @@ function AllocationDrawer({
 
                               <div>
                                 <p className="text-xs font-black text-amber-900">
-                                  Shared unit price required
+                                  Proposed unit price required
                                 </p>
 
                                 <p className="mt-1 text-xs leading-5 text-amber-800">
@@ -1775,6 +1760,7 @@ function SharedModelsPanel({
   onEdit,
   onRemove,
   onViewPriceContext,
+  onViewPriceHistory,
 }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -1867,13 +1853,13 @@ function SharedModelsPanel({
 
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                    Shared price
+                    Manager proposed price
                   </p>
                   <p className="mt-1 font-black text-slate-950">
-                    {subItem.unit_price === null ? (
+                    {getManagerUnitPrice(subItem) === null ? (
                       "Not set"
                     ) : (
-                      <CurrencyText value={subItem.unit_price} />
+                      <CurrencyText value={getManagerUnitPrice(subItem)} />
                     )}
                   </p>
                 </div>
@@ -1895,10 +1881,12 @@ function SharedModelsPanel({
                     Estimated value
                   </p>
                   <p className="mt-1 font-black text-slate-950">
-                    {subItem.line_total === null ? (
+                    {subItem.category_manager_line_total === null ? (
                       "-"
                     ) : (
-                      <CurrencyText value={subItem.line_total} />
+                      <CurrencyText
+                        value={subItem.category_manager_line_total}
+                      />
                     )}
                   </p>
                   <p className="mt-1 inline-flex items-center gap-1 text-[11px] text-slate-500">
@@ -1916,6 +1904,15 @@ function SharedModelsPanel({
                   >
                     <CircleDollarSign className="h-3.5 w-3.5" />
                     Price Context
+                  </button>
+                  <button
+                    type="button"
+                    title="View quantity and price history"
+                    onClick={() => onViewPriceHistory(subItem)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-100"
+                  >
+                    <History className="h-3.5 w-3.5" />
+                    History
                   </button>
                   <button
                     type="button"
@@ -1950,6 +1947,7 @@ function DepartmentDemandPanel({
   subItems,
   editable,
   onAllocate,
+  onViewHodNote,
 }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -2016,6 +2014,21 @@ function DepartmentDemandPanel({
                           Review note: {department.review_note}
                         </p>
                       ) : null}
+                      <button
+                        type="button"
+                        onClick={() => onViewHodNote?.(department)}
+                        className={[
+                          "mt-2 inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-black transition",
+                          department.hod_item_note || department.hodItemNote
+                            ? "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                            : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50",
+                        ].join(" ")}
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        {department.hod_item_note || department.hodItemNote
+                          ? "HOD note"
+                          : "No HOD note"}
+                      </button>
                     </td>
                     <td className="px-5 py-4">
                       {formatNumber(department.requested_quantity)}
@@ -2076,705 +2089,978 @@ function DepartmentDemandPanel({
   );
 }
 
-function ItemPerspective({
-  filteredItems,
-  selectedItem,
-  selectedItemDetail,
-  loadingDetail,
-  search,
-  onSearchChange,
-  filter,
-  onFilterChange,
-  onSelectItem,
-  editable,
-  onAddModel,
-  onEditModel,
-  onRemoveModel,
-  onViewPriceContext,
-  onViewDistribution,
-  onAllocate,
-}) {
-  const subItems = selectedItemDetail?.sub_items || [];
-  const departments = selectedItemDetail?.departments || [];
-  const [isItemListOpen, setIsItemListOpen] = useState(true);
+
+function PackageItemOverview({ item, detail, blockers, onViewDistribution }) {
+  const subItems = detail?.sub_items || [];
+  const departments = detail?.departments || [];
+  const itemBlockers = blockers.filter(
+    (blocker) => Number(blocker.packageItemId) === Number(item?.id),
+  );
 
   return (
-    <div
-      id="category-package-item-panel"
-      role="tabpanel"
-      aria-labelledby="category-package-item-tab"
-      className={[
-        "grid min-h-[720px] transition-all duration-300 ease-in-out",
-        isItemListOpen
-          ? "xl:grid-cols-[350px_minmax(0,1fr)]"
-          : "xl:grid-cols-[0px_minmax(0,1fr)]",
-      ].join(" ")}
-    >
-      <aside
-        className={[
-         "flex flex-col overflow-hidden border-b border-slate-200 bg-white xl:sticky xl:top-4 xl:h-[calc(100vh-2rem)] xl:self-start xl:border-b-0 xl:border-r xl:rounded-l-[1.75rem]",
-          isItemListOpen ? "opacity-100" : "pointer-events-none opacity-0",
-        ].join(" ")}
-        aria-hidden={!isItemListOpen}
-      >
-        <div className="space-y-3 border-b border-slate-200 p-4">
-          <EnterpriseSearch
-            value={search}
-            onChange={onSearchChange}
-            placeholder="Search requested items"
-            size="sm"
-          />
-          <FilterChips
-            options={ITEM_FILTERS}
-            value={filter}
-            onChange={onFilterChange}
-          />
-        </div>
-        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
-          {filteredItems.length > 0 ? (
-            filteredItems.map((item) => (
-              <ItemQueueCard
-                key={item.id}
-                item={item}
-                selected={Number(selectedItem?.id) === Number(item.id)}
-                onClick={() => onSelectItem(item.id)}
-              />
-            ))
-          ) : (
-            <EmptyQueue
-              icon={Boxes}
-              title="No matching requested items"
-              message="Change the search or status filter to see other package items."
+    <div className="space-y-5">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          label="Requested"
+          value={formatNumber(item?.requested_quantity)}
+          icon={ClipboardList}
+        />
+        <MetricCard
+          label="Approved"
+          value={formatNumber(item?.approved_quantity)}
+          icon={CheckCircle2}
+          tone="blue"
+        />
+        <MetricCard
+          label="Allocated"
+          value={formatNumber(item?.allocated_quantity)}
+          icon={Layers3}
+          tone="emerald"
+        />
+        <MetricCard
+          label="Estimated Value"
+          value={
+            <CurrencyText
+              value={
+                item?.category_manager_estimated_total ?? item?.estimated_total ?? 0
+              }
             />
+          }
+          icon={CircleDollarSign}
+        />
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+                Package Setup
+              </p>
+              <h3 className="mt-1 font-black text-slate-950">
+                Models and department demand
+              </h3>
+            </div>
+            <StatusBadge status={item?.reconciliation_status} />
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+            <div className="rounded-xl bg-slate-50 p-3">
+              <p className="text-xs font-bold text-slate-500">Package models</p>
+              <p className="mt-1 text-xl font-black text-slate-950">
+                {subItems.length}
+              </p>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-3">
+              <p className="text-xs font-bold text-slate-500">Departments</p>
+              <p className="mt-1 text-xl font-black text-slate-950">
+                {departments.length}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => onViewDistribution?.(item)}
+            className="mt-4 inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-black text-violet-700 hover:bg-violet-100"
+          >
+            <CalendarDays className="h-4 w-4" /> View Item Distribution
+          </button>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+                Readiness
+              </p>
+              <h3 className="mt-1 font-black text-slate-950">
+                Item-specific blockers
+              </h3>
+            </div>
+            <span
+              className={classNames(
+                "rounded-full px-2.5 py-1 text-xs font-black",
+                itemBlockers.length
+                  ? "bg-amber-50 text-amber-700"
+                  : "bg-emerald-50 text-emerald-700",
+              )}
+            >
+              {itemBlockers.length
+                ? `${itemBlockers.length} issue${itemBlockers.length === 1 ? "" : "s"}`
+                : "Ready"}
+            </span>
+          </div>
+          {itemBlockers.length ? (
+            <div className="mt-4 space-y-2">
+              {itemBlockers.map((blocker, index) => (
+                <div
+                  key={`${blocker.code}-${index}`}
+                  className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900"
+                >
+                  <span className="font-black">{formatStatus(blocker.code)}:</span>{" "}
+                  {blocker.message}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-4 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+              <div>
+                <p className="font-black">This item is ready</p>
+                <p className="mt-1 text-sm leading-6">
+                  Models, quantities, prices and allocations currently satisfy the package checks.
+                </p>
+              </div>
+            </div>
           )}
         </div>
-      </aside>
+      </section>
 
-      <main className="min-w-0 bg-slate-50 p-4 sm:p-5">
-        <div className="mb-4">
-          <CollapsiblePanelToggle
-            isOpen={isItemListOpen}
-            onToggle={() => setIsItemListOpen((prev) => !prev)}
-            openLabel="Show Requested Items"
-            closeLabel="Hide Requested Items"
-          />
-        </div>
-        {!selectedItem ? (
-          <EmptyQueue
-            icon={Boxes}
-            title="No package items yet"
-            message="Completed department reviews will create hospital package-item demand."
-          />
-        ) : (
-          <div className="space-y-5">
-            <section className="rounded-2xl border border-slate-200 bg-white p-5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h2 className="text-2xl font-black text-slate-950">
-                      {selectedItem.catalog_item_name}
-                    </h2>
-                    {selectedItem.cfo_review_status ? (
-                      <StatusBadge status={selectedItem.cfo_review_status} />
-                    ) : null}
-                    <StatusBadge status={selectedItem.reconciliation_status} />
-                  </div>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">
-                    Configure shared hospital models, then allocate each
-                    department's approved demand across those models.
-                  </p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
-                  {selectedItem.department_count} requesting department
-                  {Number(selectedItem.department_count) === 1 ? "" : "s"}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onViewDistribution?.(selectedItem)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-black text-violet-700 hover:bg-violet-100"
-                  >
-                    <CalendarDays className="h-4 w-4" />
-                    View Distribution
-                  </button>
-                  {subItems.length > 0 ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onViewPriceContext(
-                          subItems[0],
-                          subItems,
-                          "OVERALL_AVERAGE",
-                        )
-                      }
-                      className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 hover:bg-blue-100"
-                    >
-                      <CircleDollarSign className="h-4 w-4" />
-                      Item Price Context
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-
-              {selectedItem.cfo_review_note ? (
-                <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                  <p className="font-black">CFO modification note</p>
-                  <p className="mt-1 leading-6">
-                    {selectedItem.cfo_review_note}
-                  </p>
-                </div>
-              ) : null}
-
-              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                <MetricCard
-                  label="Requested"
-                  value={formatNumber(selectedItem.requested_quantity)}
-                  icon={ClipboardList}
-                />
-                <MetricCard
-                  label="Approved"
-                  value={formatNumber(selectedItem.approved_quantity)}
-                  icon={CheckCircle2}
-                  tone="blue"
-                />
-                <MetricCard
-                  label="Allocated"
-                  value={formatNumber(selectedItem.allocated_quantity)}
-                  icon={Layers3}
-                  tone="emerald"
-                />
-                <MetricCard
-                  label={
-                    toNumber(selectedItem.remaining_quantity) < 0
-                      ? "Excess"
-                      : "Remaining"
-                  }
-                  value={formatNumber(
-                    Math.abs(toNumber(selectedItem.remaining_quantity)),
-                  )}
-                  icon={AlertCircle}
-                  tone={
-                    toNumber(selectedItem.remaining_quantity) === 0
-                      ? "emerald"
-                      : toNumber(selectedItem.remaining_quantity) < 0
-                        ? "rose"
-                        : "amber"
-                  }
-                />
-                <MetricCard
-                  label="Estimated value"
-                  value={
-                    <CurrencyText value={selectedItem.estimated_total || 0} />
-                  }
-                  // icon={CircleDollarSign}
-                />
-              </div>
-            </section>
-
-            {loadingDetail ? (
-              <div className="space-y-4">
-                <div className="h-72 animate-pulse rounded-2xl bg-white" />
-                <div className="h-72 animate-pulse rounded-2xl bg-white" />
-              </div>
-            ) : (
-              <>
-                <SharedModelsPanel
-                  packageItem={selectedItem}
-                  subItems={subItems}
-                  editable={editable}
-                  onAdd={onAddModel}
-                  onEdit={onEditModel}
-                  onRemove={onRemoveModel}
-                  onViewPriceContext={onViewPriceContext}
-                />
-                <DepartmentDemandPanel
-                  departments={departments}
-                  subItems={subItems}
-                  editable={editable}
-                  onAllocate={onAllocate}
-                />
-              </>
-            )}
+      {item?.cfo_review_note ? (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+            <div>
+              <p className="font-black">CFO modification note</p>
+              <p className="mt-1 text-sm leading-6">{item.cfo_review_note}</p>
+            </div>
           </div>
-        )}
-      </main>
+        </section>
+      ) : null}
     </div>
   );
 }
 
-function ModelSplit({ allocations, onViewPriceContext }) {
-  if (!allocations?.length) {
-    return <span className="text-xs italic text-slate-400">Not allocated</span>;
+function PackagePricingPanel({
+  subItems,
+  editable,
+  onEdit,
+  onViewPriceContext,
+  onViewPriceHistory,
+}) {
+  if (!subItems.length) {
+    return (
+      <EmptyQueue
+        icon={CircleDollarSign}
+        title="No package models to price"
+        message="Add a package model first, then enter the Category Manager proposed price."
+      />
+    );
   }
 
-  const modelOptions = allocations.map((allocation) => ({
-    id: allocation.package_sub_item_id,
-    name: allocation.package_sub_item_name,
-    unit_price: allocation.unit_price,
-    quantity: allocation.package_sub_item_quantity,
-    line_total: allocation.line_total,
-  }));
+  return (
+    <div className="space-y-3">
+      {subItems.map((subItem) => {
+        const price = getManagerUnitPrice(subItem);
+        const priceValid = isValidUnitPrice(price);
+
+        return (
+          <section
+            key={subItem.id}
+            className="rounded-2xl border border-slate-200 bg-white p-5"
+          >
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-black text-slate-950">{subItem.name}</h3>
+                  <span
+                    className={classNames(
+                      "rounded-full border px-2.5 py-1 text-[10px] font-black uppercase",
+                      priceValid
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : "border-amber-200 bg-amber-50 text-amber-700",
+                    )}
+                  >
+                    {priceValid ? "Price Ready" : "Price Required"}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs font-semibold text-slate-500">
+                  {subItem.sub_item_code || "No model code"} · {formatNumber(subItem.quantity)} {subItem.unit_of_measure_code || subItem.unit_of_measure_name || "units"}
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[560px]">
+                <div className="rounded-xl bg-blue-50 p-3">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-blue-700">
+                    CM Proposed Price
+                  </p>
+                  <p className="mt-1 text-base font-black text-slate-950">
+                    {priceValid ? <CurrencyText value={price} /> : "Not set"}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-slate-50 p-3">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">
+                    Allocated Qty
+                  </p>
+                  <p className="mt-1 text-base font-black text-slate-950">
+                    {formatNumber(subItem.quantity)}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-slate-50 p-3">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">
+                    Estimated Value
+                  </p>
+                  <p className="mt-1 text-base font-black text-slate-950">
+                    {subItem.category_manager_line_total === null ? (
+                      "—"
+                    ) : (
+                      <CurrencyText value={subItem.category_manager_line_total} />
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => onViewPriceContext(subItem, subItems)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 hover:bg-blue-100"
+              >
+                <CircleDollarSign className="h-3.5 w-3.5" /> Price Context
+              </button>
+              <button
+                type="button"
+                onClick={() => onViewPriceHistory(subItem)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-black text-violet-700 hover:bg-violet-100"
+              >
+                <History className="h-3.5 w-3.5" /> History
+              </button>
+              <button
+                type="button"
+                disabled={!editable}
+                onClick={() => onEdit(subItem)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-black text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                <Pencil className="h-3.5 w-3.5" /> Edit Price & Details
+              </button>
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function PackageDocumentsPanel({ subItems, editable, open }) {
+  if (!subItems.length) {
+    return (
+      <EmptyQueue
+        icon={Paperclip}
+        title="No package models yet"
+        message="Documents are stored against package models. Add a model before uploading supporting documents."
+      />
+    );
+  }
 
   return (
-    <div className="space-y-2">
-      {allocations.map((allocation) => (
-        <div
-          key={allocation.allocation_id || allocation.package_sub_item_id}
-          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2"
-        >
-          <div>
-            <p className="text-xs font-black text-slate-800">
-              {allocation.package_sub_item_name}
-            </p>
-            <p className="mt-0.5 text-[11px] text-slate-500">
-              {allocation.unit_price === null ? (
-                "Price not set"
-              ) : (
-                <CurrencyText value={allocation.unit_price} />
-              )}
-            </p>
+    <div className="space-y-4">
+      {subItems.map((subItem) => (
+        <section key={subItem.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div>
+              <h3 className="font-black text-slate-950">{subItem.name}</h3>
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                {subItem.sub_item_code || "Package model"}
+              </p>
+            </div>
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-600">
+              {subItem.attachment_count || 0} file{Number(subItem.attachment_count) === 1 ? "" : "s"}
+            </span>
           </div>
-          <button
-            type="button"
-            onClick={() =>
-              onViewPriceContext?.(
-                modelOptions.find(
-                  (model) =>
-                    Number(model.id) ===
-                    Number(allocation.package_sub_item_id),
-                ),
-                modelOptions,
-              )
-            }
-            className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-black text-blue-700 hover:bg-blue-100"
-          >
-            Context
-          </button>
-          <span className="rounded-lg bg-white px-2 py-1 text-xs font-black text-slate-900 shadow-sm">
-            {formatNumber(allocation.allocated_quantity)}
-          </span>
-        </div>
+          <PackageAttachmentManager subItem={subItem} open={open} editable={editable} />
+        </section>
       ))}
     </div>
   );
 }
 
-function DepartmentPerspective({
-  filteredDepartments,
-  selectedDepartment,
-  search,
-  onSearchChange,
-  filter,
-  onFilterChange,
-  onSelectDepartment,
-  editable,
-  packageStatus,
-  onEditAllocation,
-  onViewPriceContext,
-  loading,
-}) {
-  const [isDepartmentListOpen, setIsDepartmentListOpen] = useState(true);
+function PackageItemUnitPrice({ item, onOpenModels }) {
+  const models = item.model_unit_prices || [];
+
+  if (models.length === 0) {
+    return <span className="text-slate-400">—</span>;
+  }
+
+  if (models.length === 1) {
+    const price = models[0].category_manager_unit_price;
+    return isValidUnitPrice(price) ? (
+      <CurrencyText value={price} />
+    ) : (
+      <span className="text-amber-700">Not set</span>
+    );
+  }
 
   return (
-    <div
-      id="category-package-department-panel"
-      role="tabpanel"
-      aria-labelledby="category-package-department-tab"
-      className={[
-        "grid min-h-[720px] transition-all duration-300 ease-in-out",
-        isDepartmentListOpen
-          ? "xl:grid-cols-[350px_minmax(0,1fr)]"
-          : "xl:grid-cols-[0px_minmax(0,1fr)]",
-      ].join(" ")}
-    >
-      <aside
-        className={[
-        "flex flex-col overflow-hidden border-b border-slate-200 bg-white xl:sticky xl:top-4 xl:h-[calc(100vh-2rem)] xl:self-start xl:border-b-0 xl:border-r xl:rounded-l-[1.75rem]",
-          isDepartmentListOpen
-            ? "opacity-100"
-            : "pointer-events-none opacity-0",
-        ].join(" ")}
-        aria-hidden={!isDepartmentListOpen}
-      >
-        <div className="space-y-3 border-b border-slate-200 p-4">
-          <EnterpriseSearch
-            value={search}
-            onChange={onSearchChange}
-            placeholder="Search departments"
-            size="sm"
-          />
-          <FilterChips
-            options={DEPARTMENT_FILTERS}
-            value={filter}
-            onChange={onFilterChange}
-          />
+    <Tooltip
+      arrow
+      placement="top"
+      title={
+        <div className="min-w-[220px] max-w-[320px] p-1">
+          <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">
+            Model Unit Prices
+          </p>
+          <div className="space-y-2">
+            {models.map((model) => (
+              <div key={model.id} className="flex items-start justify-between gap-3 text-xs">
+                <span className="min-w-0 break-words font-semibold text-slate-700">
+                  {model.name}
+                </span>
+                <span className="shrink-0 font-black text-slate-900">
+                  {isValidUnitPrice(model.category_manager_unit_price) ? (
+                    <CurrencyText value={model.category_manager_unit_price} />
+                  ) : (
+                    "Not set"
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 border-t border-slate-100 pt-2 text-[11px] text-slate-500">
+            Click to open Models & Allocation
+          </p>
         </div>
-        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+      }
+      slotProps={{
+        tooltip: {
+          sx: {
+            bgcolor: "#ffffff",
+            border: "1px solid #e2e8f0",
+            borderRadius: "12px",
+            boxShadow: "0 12px 30px rgba(15,23,42,0.15)",
+            maxWidth: "340px",
+          },
+        },
+        arrow: { sx: { color: "#ffffff" } },
+      }}
+    >
+      <button
+        type="button"
+        onClick={onOpenModels}
+        aria-label={`View prices for ${models.length} models of ${item.catalog_item_name}; open Models and Allocation`}
+        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 font-black text-blue-700 underline decoration-dotted underline-offset-4 transition hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+      >
+        {models.length} models <ArrowRight className="h-3.5 w-3.5" />
+      </button>
+    </Tooltip>
+  );
+}
+
+function PackageItemWorkspaceDrawer({
+  open,
+  initialTab = "OVERVIEW",
+  onClose,
+  packageData,
+  item,
+  detail,
+  loading,
+  blockers,
+  editable,
+  onAddModel,
+  onEditModel,
+  onRemoveModel,
+  onAllocate,
+  onViewPriceContext,
+  onViewPriceHistory,
+  onViewDistribution,
+  onViewHodNote,
+}) {
+  const [tab, setTab] = useState("OVERVIEW");
+
+  useEffect(() => {
+    if (open) setTab(initialTab);
+  }, [open, item?.id, initialTab]);
+
+  const subItems = detail?.sub_items || [];
+  const departments = detail?.departments || [];
+  const tabs = [
+    { key: "OVERVIEW", label: "Overview" },
+    { key: "MODELS", label: "Models & Allocation" },
+    { key: "PRICING", label: "Pricing" },
+    { key: "DOCUMENTS", label: "Documents" },
+  ];
+
+  return (
+    <AnimatedDrawer open={open} onClose={onClose} fullScreen>
+      <div className="flex h-full min-h-0 flex-col bg-slate-50">
+        <header className="shrink-0 border-b border-slate-200 bg-white px-5 py-5 sm:px-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-700">
+                Manage Package Item
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <h2 className="min-w-0 break-words text-2xl font-black text-slate-950">
+                  {item?.catalog_item_name || "Package Item"}
+                </h2>
+                {item ? <StatusBadge status={item.reconciliation_status} /> : null}
+                {item?.cfo_review_status ? <StatusBadge status={item.cfo_review_status} /> : null}
+              </div>
+              <p className="mt-2 text-sm text-slate-500">
+                {packageData?.category_name} package · FY {packageData?.financial_year} · {item?.department_count || 0} requesting department{Number(item?.department_count || 0) === 1 ? "" : "s"}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+              aria-label="Close package item workspace"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="mt-5 flex gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Package item workspace">
+            {tabs.map((entry) => (
+              <button
+                key={entry.key}
+                type="button"
+                role="tab"
+                aria-selected={tab === entry.key}
+                onClick={() => setTab(entry.key)}
+                className={classNames(
+                  "whitespace-nowrap rounded-lg px-4 py-2 text-sm font-black transition",
+                  tab === entry.key
+                    ? "bg-white text-blue-700 shadow-sm"
+                    : "text-slate-500 hover:text-slate-800",
+                )}
+              >
+                {entry.label}
+              </button>
+            ))}
+          </div>
+        </header>
+
+        <main className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
           {loading ? (
-            [1, 2, 3, 4].map((item) => (
-              <div
-                key={item}
-                className="h-36 animate-pulse rounded-2xl bg-slate-100"
-              />
-            ))
-          ) : filteredDepartments.length > 0 ? (
-            filteredDepartments.map((department) => (
-              <DepartmentQueueCard
-                key={department.department_id}
-                department={department}
-                selected={
-                  Number(selectedDepartment?.department_id) ===
-                  Number(department.department_id)
-                }
-                onClick={() => onSelectDepartment(department.department_id)}
-              />
-            ))
-          ) : (
+            <div className="space-y-4">
+              <div className="h-28 animate-pulse rounded-2xl bg-white" />
+              <div className="h-72 animate-pulse rounded-2xl bg-white" />
+            </div>
+          ) : !item ? (
             <EmptyQueue
-              icon={Building2}
-              title="No matching departments"
-              message="Change the search or allocation filter to see other departments."
+              icon={Boxes}
+              title="Package item not found"
+              message="Close this workspace and select another package item."
+            />
+          ) : tab === "OVERVIEW" ? (
+            <PackageItemOverview
+              item={item}
+              detail={detail}
+              blockers={blockers}
+              onViewDistribution={onViewDistribution}
+            />
+          ) : tab === "MODELS" ? (
+            <div className="space-y-5">
+              <SharedModelsPanel
+                packageItem={item}
+                subItems={subItems}
+                editable={editable}
+                onAdd={onAddModel}
+                onEdit={onEditModel}
+                onRemove={onRemoveModel}
+                onViewPriceContext={onViewPriceContext}
+                onViewPriceHistory={onViewPriceHistory}
+              />
+              <DepartmentDemandPanel
+                departments={departments}
+                subItems={subItems}
+                editable={editable}
+                onAllocate={onAllocate}
+                onViewHodNote={onViewHodNote}
+              />
+            </div>
+          ) : tab === "PRICING" ? (
+            <PackagePricingPanel
+              subItems={subItems}
+              editable={editable}
+              onEdit={onEditModel}
+              onViewPriceContext={onViewPriceContext}
+              onViewPriceHistory={onViewPriceHistory}
+            />
+          ) : (
+            <PackageDocumentsPanel
+              subItems={subItems}
+              editable={editable}
+              open={open && tab === "DOCUMENTS"}
             />
           )}
-        </div>
-      </aside>
+        </main>
 
-      <main className="min-w-0 bg-slate-50 p-4 sm:p-5">
-        <div className="mb-4">
-          <CollapsiblePanelToggle
-            isOpen={isDepartmentListOpen}
-            onToggle={() => setIsDepartmentListOpen((prev) => !prev)}
-            openLabel="Show Departments"
-            closeLabel="Hide Departments"
-          />
-        </div>
-        {loading ? (
-          <div className="space-y-4">
-            <div className="h-52 animate-pulse rounded-2xl bg-white" />
-            <div className="h-96 animate-pulse rounded-2xl bg-white" />
-          </div>
-        ) : !selectedDepartment ? (
-          <EmptyQueue
-            icon={Building2}
-            title="No department demand available"
-            message="Completed category reviews will appear here grouped by department."
-          />
-        ) : (
-          <div className="space-y-5">
-            <section className="rounded-2xl border border-slate-200 bg-white p-5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h2 className="text-2xl font-black text-slate-950">
-                      {selectedDepartment.department_name}
-                    </h2>
-                    <StatusBadge
-                      status={selectedDepartment.reconciliation_status}
-                    />
-                  </div>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">
-                    Review every approved generic item and the exact shared
-                    models assigned to this department.
-                  </p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
-                  {selectedDepartment.department_code || "Department"}
-                </div>
-              </div>
+        <footer className="flex shrink-0 justify-end border-t border-slate-200 bg-white px-6 py-4 shadow-[0_-4px_16px_rgba(15,23,42,0.05)]">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
+          >
+            Close
+          </button>
+        </footer>
+      </div>
+    </AnimatedDrawer>
+  );
+}
 
-              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-                <MetricCard
-                  label="Requested items"
-                  value={selectedDepartment.item_count}
-                  icon={Boxes}
-                />
-                <MetricCard
-                  label="Requested quantity"
-                  value={formatNumber(selectedDepartment.requested_quantity)}
-                  icon={ClipboardList}
-                />
-                <MetricCard
-                  label="Approved quantity"
-                  value={formatNumber(selectedDepartment.approved_quantity)}
-                  icon={CheckCircle2}
-                  tone="blue"
-                />
-                <MetricCard
-                  label="Allocated quantity"
-                  value={formatNumber(selectedDepartment.allocated_quantity)}
-                  icon={Layers3}
-                  tone="emerald"
-                />
-                <MetricCard
-                  label="Department total"
-                  value={
-                    <CurrencyText
-                      value={getDepartmentEstimatedTotal(selectedDepartment)}
-                    />
-                  }
-                  icon={CircleDollarSign}
-                />
-                <MetricCard
-                  label="Allocation issues"
-                  value={selectedDepartment.issue_count || 0}
-                  icon={AlertCircle}
-                  tone={
-                    Number(selectedDepartment.issue_count) > 0
-                      ? "amber"
-                      : "emerald"
-                  }
-                />
-              </div>
-            </section>
+const PACKAGE_VIEWS = [
+  {
+    value: "items",
+    label: "Package Items",
+    description: "Models, prices and item reconciliation",
+    icon: Boxes,
+  },
+  {
+    value: "departments",
+    label: "Department Breakdown",
+    description: "Approved demand by department",
+    icon: Building2,
+  },
+  {
+    value: "distribution",
+    label: "Package Distribution",
+    description: "Approved value across the year",
+    icon: CalendarDays,
+  },
+];
 
-            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-              <div className="border-b border-slate-200 px-5 py-4">
-                <h3 className="font-black text-slate-950">
-                  Approved Items and Model Splits
-                </h3>
-                <p className="mt-1 text-sm leading-6 text-slate-500">
-                  Prices and specifications are shared on the package model.
-                  This view only changes how the department's approved quantity
-                  is distributed across those models.
-                </p>
-              </div>
-
-              <div className="divide-y divide-slate-100">
-                {(selectedDepartment.items || []).map((item) => {
-                  const itemEditable =
-                    editable && isPackageItemEditable(packageStatus, item);
-                  const itemTotal = getAllocationEstimatedTotal(
-                    item.allocations,
-                  );
-
-                  return (
-                    <article key={item.department_item_id} className="p-5">
-                      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.9fr)_auto] xl:items-start">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h4 className="font-black text-slate-950">
-                              {item.catalog_item_name}
-                            </h4>
-                            <StatusBadge
-                              status={item.reconciliation_status}
-                              compact
-                            />
-                            {item.cfo_review_status ? (
-                              <StatusBadge
-                                status={item.cfo_review_status}
-                                compact
-                              />
-                            ) : null}
-                          </div>
-                          <p className="mt-1 text-xs font-semibold text-slate-500">
-                            {item.catalog_item_code || "Catalog item"}
-                          </p>
-
-                          <div className="mt-4 grid grid-cols-4 gap-2 text-xs">
-                            <div className="rounded-xl bg-slate-50 px-3 py-2">
-                              <span className="block font-black text-slate-950">
-                                {formatNumber(item.requested_quantity)}
-                              </span>
-                              <span className="text-slate-500">Requested</span>
-                            </div>
-                            <div className="rounded-xl bg-blue-50 px-3 py-2">
-                              <span className="block font-black text-blue-800">
-                                {formatNumber(item.approved_quantity)}
-                              </span>
-                              <span className="text-blue-600">Approved</span>
-                            </div>
-                            <div className="rounded-xl bg-emerald-50 px-3 py-2">
-                              <span className="block font-black text-emerald-800">
-                                {formatNumber(item.allocated_quantity)}
-                              </span>
-                              <span className="text-emerald-600">
-                                Allocated
-                              </span>
-                            </div>
-                            <div className="rounded-xl bg-amber-50 px-3 py-2">
-                              <span className="block font-black text-amber-800">
-                                {formatNumber(
-                                  Math.abs(toNumber(item.remaining_quantity)),
-                                )}
-                              </span>
-                              <span className="text-amber-600">
-                                {toNumber(item.remaining_quantity) < 0
-                                  ? "Excess"
-                                  : "Remaining"}
-                              </span>
-                            </div>
-                            <div className="rounded-xl bg-slate-50 px-3 py-2">
-                              <span className="block font-black text-slate-950">
-                                <CurrencyText compact value={itemTotal} />
-                              </span>
-                              <span className="text-slate-500">Value</span>
-                            </div>
-                          </div>
-
-                          {item.review_note ? (
-                            <p className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">
-                              Category review note: {item.review_note}
-                            </p>
-                          ) : null}
-                          {item.cfo_review_note ? (
-                            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
-                              <span className="font-black">CFO note:</span>{" "}
-                              {item.cfo_review_note}
-                            </div>
-                          ) : null}
-                        </div>
-
-                        <div>
-                          <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">
-                            Current model split
-                          </p>
-                          <ModelSplit
-                            allocations={item.allocations}
-                            onViewPriceContext={onViewPriceContext}
-                          />
-                        </div>
-
-                        <button
-                          type="button"
-                          disabled={!itemEditable}
-                          onClick={() => onEditAllocation(item)}
-                          className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-black text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400"
-                        >
-                          <SlidersHorizontal className="h-4 w-4" />
-                          Edit Allocation
-                        </button>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
-          </div>
-        )}
-      </main>
+function PackagePreparationNavigation({ value, onChange }) {
+  return (
+    <div
+      role="tablist"
+      aria-label="Package preparation views"
+      className="grid overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:grid-cols-3"
+    >
+      {PACKAGE_VIEWS.map((entry) => {
+        const Icon = entry.icon;
+        const active = value === entry.value;
+        return (
+          <button
+            key={entry.value}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(entry.value)}
+            className={classNames(
+              "relative flex items-center gap-3 border-b border-slate-200 px-5 py-4 text-left transition last:border-b-0 lg:border-b-0 lg:border-r lg:last:border-r-0",
+              active
+                ? "bg-blue-50/70 text-blue-800"
+                : "bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-950",
+            )}
+          >
+            <span
+              className={classNames(
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border",
+                active
+                  ? "border-blue-200 bg-blue-600 text-white"
+                  : "border-slate-200 bg-slate-50 text-slate-500",
+              )}
+            >
+              <Icon className="h-5 w-5" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-black">{entry.label}</span>
+              <span
+                className={classNames(
+                  "mt-0.5 block truncate text-xs font-semibold",
+                  active ? "text-blue-600" : "text-slate-400",
+                )}
+              >
+                {entry.description}
+              </span>
+            </span>
+            {active ? (
+              <span className="absolute inset-x-0 bottom-0 h-0.5 bg-blue-600" />
+            ) : null}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-export default function CategoryPackageWorkbench() {
+function DepartmentBreakdownView({ data, loading, error, onOpenDepartment }) {
+  const departments = data?.departments || [];
+  const summary = data?.summary || {};
+
+  if (loading) {
+    return (
+      <section className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="h-24 animate-pulse rounded-2xl bg-slate-100" />
+          ))}
+        </div>
+        <div className="h-[420px] animate-pulse rounded-2xl bg-slate-100" />
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-800">
+        {error?.response?.data?.message || "Failed to load department package view."}
+      </section>
+    );
+  }
+
+  return (
+    <section className="space-y-4">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          label="Departments"
+          value={summary.department_count || 0}
+          helper="with approved package demand"
+          icon={Building2}
+        />
+        <MetricCard
+          label="Approved Qty"
+          value={formatNumber(summary.approved_quantity)}
+          helper="approved across departments"
+          icon={CheckCircle2}
+          tone="blue"
+        />
+        <MetricCard
+          label="Allocated Qty"
+          value={formatNumber(summary.allocated_quantity)}
+          helper="assigned to package models"
+          icon={Layers3}
+          tone="emerald"
+        />
+        <MetricCard
+          label="Allocation Issues"
+          value={summary.issue_count || 0}
+          helper="departments/items needing attention"
+          icon={AlertCircle}
+          tone={Number(summary.issue_count) > 0 ? "amber" : "emerald"}
+        />
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 px-5 py-4">
+          <h2 className="text-lg font-black text-slate-950">Department Breakdown</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Select a department to review its approved package items and allocation status.
+          </p>
+        </div>
+
+        {departments.length ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="bg-slate-50 text-[11px] font-black uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-5 py-3">Department</th>
+                  <th className="px-5 py-3">Items</th>
+                  <th className="px-5 py-3">Approved</th>
+                  <th className="px-5 py-3">Allocated</th>
+                  <th className="px-5 py-3">Remaining</th>
+                  <th className="px-5 py-3">Issues</th>
+                  <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {departments.map((department) => (
+                  <tr key={department.department_id} className="hover:bg-slate-50/70">
+                    <td className="px-5 py-4">
+                      <p className="font-black text-slate-950">{department.department_name}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">
+                        {department.department_code || "Department"}
+                      </p>
+                    </td>
+                    <td className="px-5 py-4 font-bold text-slate-700">
+                      {department.item_count || 0}
+                    </td>
+                    <td className="px-5 py-4 font-black text-slate-950">
+                      {formatNumber(department.approved_quantity)}
+                    </td>
+                    <td className="px-5 py-4 font-bold text-emerald-700">
+                      {formatNumber(department.allocated_quantity)}
+                    </td>
+                    <td className="px-5 py-4 font-bold text-amber-700">
+                      {formatNumber(Math.abs(toNumber(department.remaining_quantity)))}
+                    </td>
+                    <td className="px-5 py-4">
+                      <span
+                        className={classNames(
+                          "rounded-full border px-2.5 py-1 text-xs font-black",
+                          Number(department.issue_count || 0) > 0
+                            ? "border-amber-200 bg-amber-50 text-amber-700"
+                            : "border-emerald-200 bg-emerald-50 text-emerald-700",
+                        )}
+                      >
+                        {department.issue_count || 0} issue{Number(department.issue_count || 0) === 1 ? "" : "s"}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      <StatusBadge status={department.reconciliation_status} compact />
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() => onOpenDepartment(department.department_id)}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-xs font-black text-white transition hover:bg-blue-700"
+                      >
+                        View Items <ArrowRight className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyQueue
+            icon={Building2}
+            title="No approved department demand"
+            message="Completed department reviews with approved package demand will appear here."
+          />
+        )}
+      </section>
+    </section>
+  );
+}
+
+function DepartmentItemsDrawer({ open, onClose, department, onManageItem }) {
+  if (!department) return null;
+
+  return (
+    <AnimatedDrawer open={open} onClose={onClose} fullScreen>
+      <div className="flex h-full min-h-0 flex-col bg-slate-50">
+        <DrawerHeader
+          eyebrow="Package Department Items"
+          title={department.department_name || "Department"}
+          description="Review this department's approved package demand and open any item that needs model, price, or allocation work."
+          onClose={onClose}
+        >
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <MetricCard label="Items" value={department.item_count || 0} icon={Boxes} />
+            <MetricCard label="Approved" value={formatNumber(department.approved_quantity)} icon={CheckCircle2} tone="blue" />
+            <MetricCard label="Allocated" value={formatNumber(department.allocated_quantity)} icon={Layers3} tone="emerald" />
+            <MetricCard label="Remaining" value={formatNumber(Math.abs(toNumber(department.remaining_quantity)))} icon={AlertCircle} tone={toNumber(department.remaining_quantity) === 0 ? "emerald" : "amber"} />
+            <MetricCard label="Issues" value={department.issue_count || 0} icon={AlertCircle} tone={Number(department.issue_count || 0) > 0 ? "amber" : "emerald"} />
+          </div>
+        </DrawerHeader>
+
+        <main className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 px-5 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-black text-slate-950">Approved Package Items</h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {department.department_code || "Department"} · {department.item_count || 0} item{Number(department.item_count || 0) === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <StatusBadge status={department.reconciliation_status} compact />
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead className="bg-slate-50 text-[11px] font-black uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-5 py-3">Item</th>
+                    <th className="px-5 py-3">Approved</th>
+                    <th className="px-5 py-3">Allocated</th>
+                    <th className="px-5 py-3">Remaining</th>
+                    <th className="px-5 py-3">Status</th>
+                    <th className="px-5 py-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {(department.items || []).map((item) => (
+                    <tr key={item.department_item_id} className="hover:bg-slate-50/70">
+                      <td className="px-5 py-4">
+                        <p className="font-black text-slate-950">{item.catalog_item_name}</p>
+                        <p className="mt-1 text-xs font-semibold text-slate-500">
+                          {item.unit_name || item.unit_code || "Unit"}
+                        </p>
+                      </td>
+                      <td className="px-5 py-4 font-black text-slate-950">
+                        {formatNumber(item.approved_quantity)}
+                      </td>
+                      <td className="px-5 py-4 font-bold text-emerald-700">
+                        {formatNumber(item.allocated_quantity)}
+                      </td>
+                      <td className="px-5 py-4 font-bold text-amber-700">
+                        {formatNumber(Math.abs(toNumber(item.remaining_quantity)))}
+                      </td>
+                      <td className="px-5 py-4">
+                        <StatusBadge status={item.reconciliation_status} compact />
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <button
+                          type="button"
+                          disabled={!item.package_item_id}
+                          onClick={() => onManageItem(item.package_item_id)}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                        >
+                          Manage Item <ArrowRight className="h-3.5 w-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+
+        <footer className="flex shrink-0 justify-end border-t border-slate-200 bg-white px-6 py-4 shadow-[0_-4px_16px_rgba(15,23,42,0.05)]">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
+          >
+            Close
+          </button>
+        </footer>
+      </div>
+    </AnimatedDrawer>
+  );
+}
+
+export default function CategoryPackageWorkbench({
+  focusItemId = null,
+  onClearFocusItem,
+  view = "items",
+  onViewChange = () => {},
+}) {
   const queryClient = useQueryClient();
-
-  const [perspective, setPerspective] = useState("ITEM");
-  const [itemSearch, setItemSearch] = useState("");
-  const [itemFilter, setItemFilter] = useState("ALL");
-  const [selectedItemId, setSelectedItemId] = useState(null);
-  const [departmentSearch, setDepartmentSearch] = useState("");
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("ALL");
+  const [expenseType, setExpenseType] = useState("ALL");
   const [departmentFilter, setDepartmentFilter] = useState("ALL");
+  const [priceStatus, setPriceStatus] = useState("ALL");
+  const [modelStatus, setModelStatus] = useState("ALL");
+  const [allocationStatus, setAllocationStatus] = useState("ALL");
+  const [sortBy, setSortBy] = useState("NAME");
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+  const [tablePage, setTablePage] = useState(1);
+  const [selectedItemId, setSelectedItemId] = useState(null);
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const [workspaceInitialTab, setWorkspaceInitialTab] = useState("OVERVIEW");
   const [selectedDepartmentId, setSelectedDepartmentId] = useState(null);
-
   const [addModelOpen, setAddModelOpen] = useState(false);
   const [editingSubItem, setEditingSubItem] = useState(null);
   const [removeCandidate, setRemoveCandidate] = useState(null);
   const [allocationContext, setAllocationContext] = useState(null);
-  const [submitOpen, setSubmitOpen] = useState(false);
-  const [showAllBlockers, setShowAllBlockers] = useState(false);
   const [priceContext, setPriceContext] = useState(null);
+  const [priceHistorySubItem, setPriceHistorySubItem] = useState(null);
   const [distributionContext, setDistributionContext] = useState(null);
+  const [hodNoteContext, setHodNoteContext] = useState(null);
 
   const packageQuery = useQuery({
     queryKey: ["category-packages", "current"],
     queryFn: getCurrentCategoryPackage,
   });
 
+  const packageData = packageQuery.data;
+  const items = useMemo(() => packageData?.items || [], [packageData?.items]);
+  const blockers = packageData?.readiness?.blockers || [];
+  const itemPreparationBlockers = blockers.filter(
+    (blocker) => blocker.packageItemId || blocker.packageSubItemId,
+  );
+  const preparationReady = Boolean(packageData?.items?.length) && itemPreparationBlockers.length === 0;
+  const packageEditable = ["DRAFT", "RETURNED_BY_CFO"].includes(packageData?.status);
+
+  useEffect(() => {
+    if (!packageData?.id) return;
+    setFilter(packageData.status === "RETURNED_BY_CFO" ? "NEEDS_MODIFICATION" : "ALL");
+  }, [packageData?.id, packageData?.status]);
+
+  useEffect(() => {
+    if (!focusItemId || !items.length) return;
+    const target = items.find((item) => Number(item.id) === Number(focusItemId));
+    if (!target) return;
+    setSelectedItemId(target.id);
+    setWorkspaceInitialTab("OVERVIEW");
+    setWorkspaceOpen(true);
+  }, [focusItemId, items]);
+
+  const itemBlockersById = useMemo(() => {
+    const map = new Map();
+    for (const blocker of blockers) {
+      if (!blocker.packageItemId) continue;
+      const key = Number(blocker.packageItemId);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(blocker);
+    }
+    return map;
+  }, [blockers]);
+
+  const filteredItems = useMemo(
+    () => filterStage2Items(items, {
+      search, status: filter, expenseType, departmentId: departmentFilter,
+      priceStatus, modelStatus, allocationStatus, sortBy,
+    }, itemBlockersById),
+    // Primitive dependencies prevent unstable object references from rerunning filters.
+    [items, itemBlockersById, search, filter, expenseType, departmentFilter,
+      priceStatus, modelStatus, allocationStatus, sortBy],
+  );
+  const expenseScopedItems = useMemo(() =>
+    items.map((item) => scopePackageItem(item, expenseType, departmentFilter)).filter(Boolean),
+    [items, expenseType, departmentFilter],
+  );
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / 25));
+  const effectivePage = Math.min(tablePage, totalPages);
+  const visibleItems = filteredItems.slice((effectivePage - 1) * 25, effectivePage * 25);
+
+  useEffect(() => {
+    setTablePage(1);
+  }, [search, filter, expenseType, departmentFilter, priceStatus, modelStatus, allocationStatus, sortBy]);
+
+  function clearStage2Filters() {
+    setSearch("");
+    setFilter(packageData?.status === "RETURNED_BY_CFO" ? "NEEDS_MODIFICATION" : "ALL");
+    setExpenseType("ALL");
+    setDepartmentFilter("ALL");
+    setPriceStatus("ALL");
+    setModelStatus("ALL");
+    setAllocationStatus("ALL");
+    setSortBy("NAME");
+    setTablePage(1);
+  }
+
+  const hasActiveFilters = Boolean(search.trim()) || expenseType !== "ALL" ||
+    departmentFilter !== "ALL" || priceStatus !== "ALL" || modelStatus !== "ALL" ||
+    allocationStatus !== "ALL" || sortBy !== "NAME" ||
+    (filter !== "ALL" && !(filter === "NEEDS_MODIFICATION" && packageData?.status === "RETURNED_BY_CFO"));
+
+  const selectedItem =
+    items.find((item) => Number(item.id) === Number(selectedItemId)) || null;
+  const selectedItemEditable =
+    packageEditable && isPackageItemEditable(packageData?.status, selectedItem);
+
+  const itemDetailQuery = useQuery({
+    queryKey: ["category-packages", "items", selectedItem?.id || null],
+    queryFn: () => getCategoryPackageItemDetail(selectedItem.id),
+    enabled: workspaceOpen && Boolean(selectedItem?.id),
+  });
+
   const departmentViewQuery = useQuery({
     queryKey: ["category-packages", "departments"],
     queryFn: getCategoryPackageDepartments,
-    enabled: perspective === "DEPARTMENT" && Boolean(packageQuery.data?.id),
+    enabled: Boolean(packageData?.id),
   });
 
-  const packageData = packageQuery.data;
-  const items = useMemo(() => packageData?.items || [], [packageData?.items]);
-useEffect(() => {
-  if (!packageData?.id) return;
+  const packageDistributionQuery = useQuery({
+    queryKey: ["category-packages", "distribution", "category", expenseType],
+    queryFn: () => getCategoryPackageDistribution({ expenseType }),
+    enabled: view === "distribution" && Boolean(packageData?.id),
+  });
 
-  setItemFilter(
-    packageData.status === "RETURNED_BY_CFO"
-      ? "NEEDS_MODIFICATION"
-      : "ALL",
+  const filteredDepartmentData = useMemo(() =>
+    filterStage2Departments(departmentViewQuery.data, expenseType),
+    [departmentViewQuery.data, expenseType],
   );
-
-  setSelectedItemId(null);
-}, [packageData?.id, packageData?.status]);
-  const filteredItems = useMemo(() => {
-  const query = itemSearch.trim().toLowerCase();
-
-  return items.filter((item) => {
-    const matchesSearch =
-      !query ||
-      item.catalog_item_name?.toLowerCase().includes(query) ||
-      item.catalog_item_code?.toLowerCase().includes(query);
-
-    const matchesFilter =
-      itemFilter === "ALL" ||
-      (itemFilter === "NEEDS_MODIFICATION" &&
-        item.cfo_review_status === "NEEDS_MODIFICATION") ||
-      (itemFilter !== "NEEDS_MODIFICATION" &&
-        item.reconciliation_status === itemFilter);
-
-    return matchesSearch && matchesFilter;
-  });
-}, [itemFilter, itemSearch, items]);
-
-const selectedItem =
-  filteredItems.find(
-    (item) => Number(item.id) === Number(selectedItemId),
-  ) ||
-  filteredItems[0] ||
-  null;
-  const effectiveSelectedItemId = selectedItem?.id || null;
-
-  const itemDetailQuery = useQuery({
-    queryKey: ["category-packages", "items", effectiveSelectedItemId],
-    queryFn: () => getCategoryPackageItemDetail(effectiveSelectedItemId),
-    enabled: perspective === "ITEM" && Boolean(effectiveSelectedItemId),
-  });
-
-  const departmentViewData = departmentViewQuery.data;
-  const departments = useMemo(
-    () => departmentViewData?.departments || [],
-    [departmentViewData?.departments],
-  );
-
-  const filteredDepartments = useMemo(() => {
-    const query = departmentSearch.trim().toLowerCase();
-
-    return departments.filter((department) => {
-      const matchesSearch =
-        !query ||
-        department.department_name?.toLowerCase().includes(query) ||
-        department.department_code?.toLowerCase().includes(query);
-      const matchesFilter =
-        departmentFilter === "ALL" ||
-        (departmentFilter === "RECONCILED" &&
-          department.reconciliation_status === "RECONCILED") ||
-        (departmentFilter === "NEEDS_ALLOCATION" &&
-          department.reconciliation_status !== "RECONCILED");
-      return matchesSearch && matchesFilter;
-    });
-  }, [departmentFilter, departmentSearch, departments]);
-
   const selectedDepartment =
-    departments.find(
+    (filteredDepartmentData?.departments || []).find(
       (department) =>
         Number(department.department_id) === Number(selectedDepartmentId),
-    ) ||
-    filteredDepartments[0] ||
-    departments[0] ||
-    null;
+    ) || null;
 
   const allocationDetailQuery = useQuery({
-    queryKey: [
-      "category-packages",
-      "items",
-      allocationContext?.packageItemId || null,
-    ],
-    queryFn: () =>
-      getCategoryPackageItemDetail(allocationContext.packageItemId),
+    queryKey: ["category-packages", "items", allocationContext?.packageItemId || null],
+    queryFn: () => getCategoryPackageItemDetail(allocationContext.packageItemId),
     enabled: Boolean(allocationContext?.packageItemId),
   });
 
@@ -2783,8 +3069,7 @@ const selectedItem =
       Number(department.department_item_id) ===
       Number(allocationContext?.departmentItemId),
   );
-  const allocationPackageItem =
-    allocationDetailQuery.data?.package_item || null;
+  const allocationPackageItem = allocationDetailQuery.data?.package_item || null;
   const allocationSubItems = allocationDetailQuery.data?.sub_items || [];
 
   const distributionQuery = useQuery({
@@ -2800,29 +3085,10 @@ const selectedItem =
     enabled: Boolean(distributionContext),
   });
 
-  const blockers = packageData?.readiness?.blockers || [];
-  const ready = Boolean(packageData?.readiness?.ready);
-  const packageEditable = ["DRAFT", "RETURNED_BY_CFO"].includes(
-    packageData?.status,
+  const priceHistoryQuery = usePackageSubItemPriceHistory(
+    priceHistorySubItem?.id,
+    Boolean(priceHistorySubItem),
   );
-  const selectedItemEditable =
-    packageEditable && isPackageItemEditable(packageData?.status, selectedItem);
-  const editingSubItemPackageItem = items.find(
-    (item) =>
-      Number(item.id) ===
-      Number(editingSubItem?.category_budget_package_item_id),
-  );
-  const editingSubItemEditable =
-    packageEditable &&
-    isPackageItemEditable(packageData?.status, editingSubItemPackageItem);
-  const removeCandidatePackageItem = items.find(
-    (item) =>
-      Number(item.id) ===
-      Number(removeCandidate?.category_budget_package_item_id),
-  );
-  const removeCandidateEditable =
-    packageEditable &&
-    isPackageItemEditable(packageData?.status, removeCandidatePackageItem);
 
   async function invalidatePackageWorkspace() {
     await Promise.all([
@@ -2839,9 +3105,7 @@ const selectedItem =
       await invalidatePackageWorkspace();
     },
     onError: (error) => {
-      toast.error(
-        error?.response?.data?.message || "Failed to add package model",
-      );
+      toast.error(error?.response?.data?.message || "Failed to add package model");
     },
   });
 
@@ -2853,9 +3117,7 @@ const selectedItem =
       await invalidatePackageWorkspace();
     },
     onError: (error) => {
-      toast.error(
-        error?.response?.data?.message || "Failed to update package model",
-      );
+      toast.error(error?.response?.data?.message || "Failed to update package model");
     },
   });
 
@@ -2867,9 +3129,7 @@ const selectedItem =
       await invalidatePackageWorkspace();
     },
     onError: (error) => {
-      toast.error(
-        error?.response?.data?.message || "Failed to remove package model",
-      );
+      toast.error(error?.response?.data?.message || "Failed to remove package model");
     },
   });
 
@@ -2881,84 +3141,63 @@ const selectedItem =
       await invalidatePackageWorkspace();
     },
     onError: (error) => {
-      toast.error(
-        error?.response?.data?.message ||
-          "Failed to save department allocation",
-      );
+      toast.error(error?.response?.data?.message || "Failed to save department allocation");
     },
   });
 
-  const submitMutation = useMutation({
-    mutationFn: submitCategoryPackageToCfo,
-    onSuccess: async () => {
-      toast.success("Category package submitted to CFO");
-      setSubmitOpen(false);
-      await invalidatePackageWorkspace();
-    },
-    onError: (error) => {
-      toast.error(
-        error?.response?.data?.message || "Failed to submit package to CFO",
-      );
-    },
-  });
+  function openItem(itemId, initialTab = "OVERVIEW") {
+    setSelectedItemId(itemId);
+    setWorkspaceInitialTab(initialTab);
+    setWorkspaceOpen(true);
+  }
 
-  function openAllocationForItemDepartment(department) {
+  function closeItemWorkspace() {
+    setWorkspaceOpen(false);
+    onClearFocusItem?.();
+  }
+
+  function openAllocation(department) {
     if (!selectedItemEditable) return;
     setAllocationContext({
-      packageItemId: effectiveSelectedItemId,
+      packageItemId: selectedItem?.id,
       departmentItemId: department.department_item_id,
     });
   }
 
-  function openAllocationFromDepartmentView(item) {
-    if (!isPackageItemEditable(packageData?.status, item)) return;
-    setAllocationContext({
-      packageItemId: item.package_item_id,
-      departmentItemId: item.department_item_id,
-    });
-  }
-
-  function openPriceContext(
-    subItem,
-    subItems = [],
-    view = "MODEL",
-  ) {
-    setPriceContext({
-      subItem,
-      subItems,
-      view,
-    });
+  function openPriceContext(subItem, subItems = [], view = "MODEL") {
+    setPriceContext({ subItem, subItems, view });
   }
 
   if (packageQuery.isLoading) {
     return (
-      <section className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white">
-        <div className="animate-pulse space-y-4 p-6">
-          <div className="h-8 w-72 rounded bg-slate-200" />
-          <div className="grid gap-3 md:grid-cols-4">
-            {[1, 2, 3, 4].map((item) => (
-              <div key={item} className="h-28 rounded-2xl bg-slate-100" />
-            ))}
-          </div>
-          <div className="h-[620px] rounded-2xl bg-slate-100" />
+      <section className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div key={index} className="h-24 animate-pulse rounded-2xl bg-slate-100" />
+          ))}
         </div>
+        <div className="h-[620px] animate-pulse rounded-2xl bg-slate-100" />
       </section>
     );
   }
 
   if (packageQuery.isError || !packageData) {
     return (
-      <section className="rounded-[1.75rem] border border-rose-200 bg-rose-50 p-6 text-rose-800">
+      <section className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-rose-800">
         <div className="flex items-start gap-3">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
           <div>
-            <p className="font-black">
-              Failed to load category package workspace
-            </p>
+            <p className="font-black">Failed to load category package</p>
             <p className="mt-1 text-sm">
-              {packageQuery.error?.response?.data?.message ||
-                "Refresh the page after checking the Category Packages API."}
+              {packageQuery.error?.response?.data?.message || "Refresh the page and try again."}
             </p>
+            <button
+              type="button"
+              onClick={() => packageQuery.refetch()}
+              className="mt-3 inline-flex items-center gap-2 rounded-xl bg-rose-700 px-3 py-2 text-xs font-black text-white"
+            >
+              <RefreshCw className="h-3.5 w-3.5" /> Retry
+            </button>
           </div>
         </div>
       </section>
@@ -2967,246 +3206,357 @@ const selectedItem =
 
   const approvedTotal = toNumber(packageData.summary?.approvedQuantity);
   const allocatedTotal = toNumber(packageData.summary?.allocatedQuantity);
-  const remainingTotal = approvedTotal - allocatedTotal;
-  const estimatedPackageTotal = items.reduce(
-    (sum, item) => sum + toNumber(item.estimated_total),
+  const modelCount = items.reduce(
+    (sum, item) => sum + Number(item.active_sub_item_count || 0),
     0,
   );
-  const displayedBlockers = showAllBlockers ? blockers : blockers.slice(0, 4);
+  const reconciledCount = items.filter(
+    (item) => item.reconciliation_status === "RECONCILED",
+  ).length;
+  const estimatedPackageTotal = items.reduce(
+    (sum, item) =>
+      sum + toNumber(item.category_manager_estimated_total ?? item.estimated_total),
+    0,
+  );
+
+  const filterCounts = Object.fromEntries(
+    PACKAGE_FILTERS.map((entry) => [
+      entry.value,
+      expenseScopedItems.filter((item) =>
+        matchesPreparationFilter(item, entry.value, itemBlockersById.get(Number(item.id)) || []),
+      ).length,
+    ]),
+  );
+  const filteredApproved = filteredItems.reduce((sum, item) => sum + item.view_approved_quantity, 0);
+  const filteredValueUnavailable = filteredItems.some((item) => item.view_estimated_value === null);
+  const filteredValue = filteredItems.reduce((sum, item) => sum + (item.view_estimated_value || 0), 0);
+  const departmentOptions = [
+    { value: "ALL", label: "All Departments" },
+    ...(departmentViewQuery.data?.departments || [])
+      .map((department) => ({ value: String(department.department_id), label: department.department_name }))
+      .sort((a, b) => a.label.localeCompare(b.label)),
+  ];
 
   return (
-   <section className="rounded-[1.75rem] border border-slate-200 bg-slate-50 shadow-sm">
-      <header className="border-b border-slate-200 bg-white px-5 py-5 sm:px-6">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+    <section className="space-y-4">
+      {packageData.status === "RETURNED_BY_CFO" && packageData.return_reason ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+            <div>
+              <p className="font-black">CFO returned this package for modification</p>
+              <p className="mt-1 text-sm leading-6">{packageData.return_reason}</p>
+              <p className="mt-1 text-xs font-semibold text-amber-700">
+                Only package items marked Needs Modification are editable.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <MetricCard label="Approved Demand" value={formatNumber(approvedTotal)} helper="approved quantity" icon={CheckCircle2} tone="blue" />
+        <MetricCard label="Package Models" value={modelCount} helper={`${items.length} package items`} icon={PackageCheck} />
+        <MetricCard label="Allocated" value={formatNumber(allocatedTotal)} helper="across departments" icon={Layers3} tone="emerald" />
+        <MetricCard label="Reconciled Items" value={`${reconciledCount}/${items.length}`} icon={CheckCircle2} tone={reconciledCount === items.length && items.length ? "emerald" : "amber"} />
+        <MetricCard label="Item Blockers" value={preparationReady ? "Prepared" : `${itemPreparationBlockers.length} blocker${itemPreparationBlockers.length === 1 ? "" : "s"}`} helper={<CurrencyText compact value={estimatedPackageTotal} />} icon={preparationReady ? CheckCircle2 : AlertCircle} tone={preparationReady ? "emerald" : "amber"} />
+      </section>
+
+      <PackagePreparationNavigation value={view} onChange={onViewChange} />
+
+      {view !== "items" ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-xs font-black text-slate-600">Expense Type</span>
+            <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Expense type">
+              {["ALL", "CAPEX", "OPEX"].map((option) => (
+                <button key={option} type="button" aria-pressed={expenseType === option}
+                  onClick={() => setExpenseType(option)}
+                  className={classNames("rounded-lg px-4 py-2 text-xs font-black transition",
+                    expenseType === option ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:bg-white")}
+                >{option === "ALL" ? "All" : option}</button>
+              ))}
+            </div>
+          </div>
+          <span className="text-xs font-semibold text-slate-500">{expenseType === "ALL" ? "All expense types" : `${expenseType} only`}</span>
+        </div>
+      ) : null}
+
+      {view === "items" ? (
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-                Category Package Workbench
-              </p>
+              <h2 className="text-lg font-black text-slate-950">Package Items</h2>
               <StatusBadge status={packageData.status} compact />
             </div>
-            <h1 className="mt-1 text-2xl font-black text-slate-950 sm:text-3xl">
-              {packageData.category_name} Package
-            </h1>
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
-              Build one hospital-wide package from approved department demand.
-              Configure each shared model once, then allocate department
-              quantities without duplicating prices or specifications.
+            <p className="mt-1 text-sm text-slate-500">
+              Configure hospital-wide models, prices and allocations without mixing them into department review.
             </p>
-            <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold text-slate-500">
-              <span className="rounded-full bg-slate-100 px-3 py-1.5">
-                FY {packageData.financial_year}
-              </span>
-              <span className="rounded-full bg-slate-100 px-3 py-1.5">
-                Window: {formatStatus(packageData.submission_window?.status)}
-              </span>
-              <span className="rounded-full bg-slate-100 px-3 py-1.5">
-                {items.length} requested item{items.length === 1 ? "" : "s"}
-              </span>
-              {packageData.returned_at ? (
-                <span className="rounded-full bg-amber-100 px-3 py-1.5 text-amber-700">
-                  Returned by CFO on {formatDateTime(packageData.returned_at)}
-                </span>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <button
-              type="button"
-              onClick={() =>
-                setDistributionContext({
-                  type: "CATEGORY_PACKAGE",
-                  title: `${packageData.category_name} Package Distribution`,
-                  subtitle: `FY ${packageData.financial_year} approved package value across the year`,
-                })
-              }
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-bold text-violet-700 transition hover:bg-violet-100"
-            >
-              <CalendarDays className="h-4 w-4" />
-              Package Distribution
-            </button>
-            <button
-              type="button"
-              onClick={() => invalidatePackageWorkspace()}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Refresh
-            </button>
-            <button
-              type="button"
-              disabled={!ready || submitMutation.isPending || !packageEditable}
-              onClick={() => setSubmitOpen(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-            >
-              <Send className="h-4 w-4" />
-              Submit Package to CFO
-            </button>
           </div>
         </div>
 
-     {packageData.status === "RETURNED_BY_CFO" &&
-packageData.return_reason ? (
-  <div className="mt-5 min-w-0 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
-    <p className="text-sm font-black">
-      CFO return reason
-    </p>
-
-    <div className="mt-3 max-h-32 w-full overflow-y-auto rounded-xl border border-amber-200 bg-white/70 px-3 py-2.5">
-      <p className="whitespace-pre-wrap break-words text-sm leading-6 [overflow-wrap:anywhere]">
-        {packageData.return_reason}
-      </p>
-    </div>
-  </div>
-) : null}
-
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-          <MetricCard
-            label="Package total"
-            value={<CurrencyText value={estimatedPackageTotal} />}
-            // icon={CircleDollarSign}
-            tone="blue"
-          />
-          <MetricCard
-            label="Approved demand"
-            value={formatNumber(approvedTotal)}
-            icon={CheckCircle2}
-          />
-          <MetricCard
-            label="Allocated"
-            value={formatNumber(allocatedTotal)}
-            icon={Layers3}
-            tone="emerald"
-          />
-          <MetricCard
-            label={remainingTotal < 0 ? "Excess" : "Remaining"}
-            value={formatNumber(Math.abs(remainingTotal))}
-            icon={AlertCircle}
-            tone={
-              remainingTotal === 0
-                ? "emerald"
-                : remainingTotal < 0
-                  ? "rose"
-                  : "amber"
-            }
-          />
-          <MetricCard
-            label="Reconciled items"
-            value={`${items.filter((item) => item.reconciliation_status === "RECONCILED").length}/${items.length}`}
-            icon={Check}
-          />
-          <MetricCard
-            label="Submission readiness"
-            value={
-              ready
-                ? "Ready"
-                : `${blockers.length} blocker${blockers.length === 1 ? "" : "s"}`
-            }
-            icon={ready ? CheckCircle2 : AlertCircle}
-            tone={ready ? "emerald" : "amber"}
-          />
-        </div>
-
-        <div className="mt-5">
-          <PerspectiveTabs value={perspective} onChange={setPerspective} />
-        </div>
-      </header>
-
-      {!ready ? (
-        <div className="border-b border-amber-200 bg-amber-50 px-5 py-4 sm:px-6">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="font-black text-amber-950">
-                    Package cannot be submitted yet
-                  </p>
-                  <p className="mt-0.5 text-sm text-amber-800">
-                    Resolve the following package, price, or allocation issues.
-                  </p>
-                </div>
-                {blockers.length > 4 ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowAllBlockers((current) => !current)}
-                    className="text-xs font-black text-amber-900 underline underline-offset-4"
-                  >
-                    {showAllBlockers
-                      ? "Show fewer"
-                      : `Show all ${blockers.length}`}
-                  </button>
-                ) : null}
-              </div>
-              <ul className="mt-3 grid gap-2 lg:grid-cols-2">
-                {displayedBlockers.map((blocker, index) => (
-                  <li
-                    key={`${blocker.code}-${blocker.packageItemId || "package"}-${index}`}
-                    className="rounded-xl border border-amber-200 bg-white/70 px-3 py-2 text-sm text-amber-900"
-                  >
-                    <span className="font-black">
-                      {formatStatus(blocker.code)}:
-                    </span>{" "}
-                    {blocker.message}
-                  </li>
+        <div className="space-y-3 border-b border-slate-100 px-4 py-4 sm:px-5">
+          <div className="grid gap-3 lg:grid-cols-[minmax(200px,1.3fr)_auto_minmax(140px,0.8fr)_minmax(140px,0.8fr)_auto] lg:items-end">
+            <label className="relative flex min-w-0 flex-col gap-1.5">
+              <span className="text-[11px] font-bold text-slate-500">Search</span>
+              <Search className="pointer-events-none absolute bottom-3 left-3 h-4 w-4 text-slate-400" />
+              <input value={search} onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search package items or codes..." aria-label="Search package items"
+                className="w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-8 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-300 focus:bg-white focus:ring-2 focus:ring-blue-100" />
+              {search ? <button type="button" onClick={() => setSearch("")} aria-label="Clear search" className="absolute bottom-3 right-3 text-slate-400 hover:text-slate-700"><X className="h-4 w-4" /></button> : null}
+            </label>
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <span className="text-[11px] font-bold text-slate-500">Expense Type</span>
+              <div className="inline-flex w-max rounded-xl border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Expense type">
+                {["ALL", "CAPEX", "OPEX"].map((option) => (
+                  <button key={option} type="button" aria-pressed={expenseType === option}
+                    onClick={() => setExpenseType(option)}
+                    className={classNames("rounded-lg px-3 py-2 text-xs font-black transition",
+                      expenseType === option ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:bg-white")}
+                  >{option === "ALL" ? "All" : option}</button>
                 ))}
-              </ul>
+              </div>
+            </div>
+            <Stage2Select label="Department" value={departmentFilter} onChange={setDepartmentFilter} options={departmentOptions} />
+            <Stage2Select label="Price Status" value={priceStatus} onChange={setPriceStatus}
+              options={[{value:"ALL",label:"All Price Statuses"},{value:"MISSING",label:"Missing Price"},{value:"PARTIAL",label:"Partially Priced"},{value:"PRICED",label:"Fully Priced"}]} />
+            <div className="flex min-w-0 flex-wrap gap-2 lg:justify-end">
+              <button type="button" onClick={() => setMoreFiltersOpen((value) => !value)} aria-expanded={moreFiltersOpen}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs font-black text-blue-700 hover:bg-blue-100">
+                <SlidersHorizontal className="h-4 w-4" /> More Filters <ChevronDown className={classNames("h-4 w-4 transition-transform", moreFiltersOpen && "rotate-180")} />
+              </button>
+              <button type="button" disabled={!hasActiveFilters} onClick={clearStage2Filters}
+                className="inline-flex items-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-50 disabled:opacity-40">
+                <FilterX className="h-4 w-4" /> Clear
+              </button>
+            </div>
+          </div>
+          {moreFiltersOpen ? (
+            <div className="grid gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3 sm:grid-cols-2">
+              <Stage2Select label="Models" value={modelStatus} onChange={setModelStatus}
+                options={[{value:"ALL",label:"All Models"},{value:"NONE",label:"No Models"},{value:"ONE",label:"One Model"},{value:"MULTIPLE",label:"Multiple Models"}]} />
+              <Stage2Select label="Allocation Status" value={allocationStatus} onChange={setAllocationStatus}
+                options={[{value:"ALL",label:"All Allocations"},{value:"FULL",label:"Fully Allocated"},{value:"SHORT",label:"Short"},{value:"EXCESS",label:"Excess"}]} />
+            </div>
+          ) : null}
+          <div className="flex flex-wrap items-center gap-2" aria-label="Preparation status filters">
+            {PACKAGE_FILTERS.filter((entry) => entry.value !== "NEEDS_MODIFICATION" || packageData.status === "RETURNED_BY_CFO")
+              .map((entry) => (
+                <button type="button" key={entry.value} aria-pressed={filter === entry.value} onClick={() => setFilter(entry.value)}
+                  className={classNames("rounded-xl border px-3 py-2 text-xs font-black transition",
+                    filter === entry.value ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50")}
+                >{entry.label} {filterCounts[entry.value]}</button>
+              ))}
+          </div>
+          {hasActiveFilters ? (
+            <div className="flex flex-wrap items-center gap-1.5" aria-label="Active filters">
+              {[
+                ...(expenseType !== "ALL" ? [{ label: expenseType, clear: () => setExpenseType("ALL") }] : []),
+                ...(departmentFilter !== "ALL" ? [{ label: departmentOptions.find((d) => d.value === departmentFilter)?.label || "Department", clear: () => setDepartmentFilter("ALL") }] : []),
+                ...(priceStatus !== "ALL" ? [{ label: `Price: ${priceStatus.toLowerCase()}`, clear: () => setPriceStatus("ALL") }] : []),
+                ...(modelStatus !== "ALL" ? [{ label: `Models: ${modelStatus.toLowerCase()}`, clear: () => setModelStatus("ALL") }] : []),
+                ...(allocationStatus !== "ALL" ? [{ label: `Allocation: ${allocationStatus.toLowerCase()}`, clear: () => setAllocationStatus("ALL") }] : []),
+                ...(search.trim() ? [{ label: `Search: ${search}`, clear: () => setSearch("") }] : []),
+              ].map((chip) => (
+                <button key={chip.label} type="button" onClick={chip.clear}
+                  title={`Remove ${chip.label} filter`}
+                  className="inline-flex max-w-64 items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700 hover:bg-blue-100">
+                  <span className="truncate">{chip.label}</span> <X className="h-3 w-3 shrink-0" />
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-700">
+              <span className="text-blue-700">{expenseType === "ALL" ? "All Expenses" : expenseType}</span>
+              <span className="text-slate-300">·</span>
+              <span>{filteredItems.length} matching items</span>
+              <span className="text-slate-300">·</span>
+              <span>Approved {formatNumber(filteredApproved)}</span>
+              <span className="text-slate-300">·</span>
+              <span className="text-emerald-700">{expenseType !== "ALL" || departmentFilter !== "ALL" ? "Allocated Value" : "Estimated Value"}: {filteredValueUnavailable ? "Not fully priced" : <CurrencyText compact value={filteredValue} />}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="hidden text-[11px] text-slate-500 2xl:inline">Overall reconciliation remains unchanged</span>
+              <Stage2Select label="Sort" value={sortBy} onChange={setSortBy} className="w-[155px]"
+                options={[{value:"NAME",label:"Name (A–Z)"},{value:"VALUE",label:"Highest Value"},{value:"DEMAND",label:"Highest Demand"},{value:"DEPARTMENTS",label:"Most Departments"},{value:"ATTENTION",label:"Issues First"}]} />
             </div>
           </div>
         </div>
-      ) : (
-        <div className="border-b border-emerald-200 bg-emerald-50 px-5 py-3 sm:px-6">
-          <div className="flex items-center gap-2 text-sm font-bold text-emerald-800">
-            <CheckCircle2 className="h-4 w-4" />
-            All package models, prices, and department allocations are ready for
-            CFO submission.
-          </div>
-        </div>
-      )}
 
-      {perspective === "ITEM" ? (
-        <ItemPerspective
-          filteredItems={filteredItems}
-          selectedItem={selectedItem}
-          selectedItemDetail={itemDetailQuery.data}
-          loadingDetail={itemDetailQuery.isLoading}
-          search={itemSearch}
-          onSearchChange={setItemSearch}
-          filter={itemFilter}
-          onFilterChange={setItemFilter}
-          onSelectItem={setSelectedItemId}
-          editable={selectedItemEditable}
-          onAddModel={() => setAddModelOpen(true)}
-          onEditModel={setEditingSubItem}
-          onRemoveModel={setRemoveCandidate}
-          onViewPriceContext={openPriceContext}
-          onViewDistribution={(item) =>
-            setDistributionContext({
-              type: "PACKAGE_ITEM",
-              packageItemId: item.id,
-              title: `${item.catalog_item_name} Distribution`,
-              subtitle: `${packageData.category_name} package - FY ${packageData.financial_year}`,
-            })
-          }
-          onAllocate={openAllocationForItemDepartment}
-        />
-      ) : (
-        <DepartmentPerspective
-          filteredDepartments={filteredDepartments}
-          selectedDepartment={selectedDepartment}
-          search={departmentSearch}
-          onSearchChange={setDepartmentSearch}
-          filter={departmentFilter}
-          onFilterChange={setDepartmentFilter}
-          onSelectDepartment={setSelectedDepartmentId}
-          editable={packageEditable}
-          packageStatus={packageData.status}
-          onEditAllocation={openAllocationFromDepartmentView}
-          onViewPriceContext={openPriceContext}
+        {filteredItems.length ? (
+          <div>
+            <div className="max-h-[65vh] overflow-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="sticky top-0 z-10 bg-slate-50 text-[11px] font-black uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-5 py-3">Item</th>
+                  <th className="px-5 py-3">Approved Demand</th>
+                  <th className="px-5 py-3">Departments</th>
+                  <th className="px-5 py-3">Models</th>
+                  <th className="px-5 py-3">Unit Price</th>
+                  <th className="px-5 py-3">{expenseType !== "ALL" || departmentFilter !== "ALL" ? "Allocated Value" : "Estimated Value"}</th>
+                  <th className="px-5 py-3">Reconciliation</th>
+                  <th className="px-5 py-3">Issues</th>
+                  <th className="px-5 py-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {visibleItems.map((item) => {
+                  const itemBlockers = itemBlockersById.get(Number(item.id)) || [];
+                  const editable = isPackageItemEditable(packageData.status, item) && packageEditable;
+                  const modelPrices = item.model_unit_prices || [];
+                  const allModelsPriced =
+                    modelPrices.length > 0 &&
+                    modelPrices.every((model) =>
+                      isValidUnitPrice(model.category_manager_unit_price),
+                    );
+                  return (
+                    <tr key={item.id} className="transition-colors hover:bg-blue-50/40">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2.5">
+                          <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-100 bg-slate-50 text-blue-700"><Boxes className="h-4 w-4" /></span>
+                          <div className="min-w-[170px]">
+                            <p className="font-black text-slate-950">{item.catalog_item_name}</p>
+                            <p className="mt-0.5 text-xs font-semibold text-slate-500">{item.unit_name || item.unit_code || "Unit"}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 font-black text-slate-950">{formatNumber(item.view_approved_quantity)}</td>
+                      <td className="px-5 py-4">
+                        <button
+                          type="button"
+                          onClick={() => onViewChange("departments")}
+                          className="font-black text-blue-700 underline decoration-dotted underline-offset-4"
+                        >
+                          {item.view_department_count} department{Number(item.view_department_count) === 1 ? "" : "s"}
+                        </button>
+                      </td>
+                      <td className="px-5 py-4 font-bold text-slate-700">{item.active_sub_item_count || 0}</td>
+                      <td className="px-5 py-4 font-bold text-slate-900">
+                        <PackageItemUnitPrice
+                          item={item}
+                          onOpenModels={() => openItem(item.id, "MODELS")}
+                        />
+                      </td>
+                      <td className="px-5 py-4 font-black text-slate-950">
+                        {allModelsPriced && item.view_estimated_value !== null ? (
+                          <CurrencyText value={item.view_estimated_value} />
+                        ) : (
+                          <span className="text-xs text-amber-700">Not available</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4" title="Overall package reconciliation, not limited to the selected expense type"><StatusBadge status={item.reconciliation_status} compact /></td>
+                      <td className="px-5 py-4">
+                        {itemBlockers.length ? (
+                          <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-black text-amber-700">
+                            {itemBlockers.length} issue{itemBlockers.length === 1 ? "" : "s"}
+                          </span>
+                        ) : (
+                          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700">
+                            Ready
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => openItem(item.id)}
+                          className={classNames(
+                            "inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black transition",
+                            editable
+                              ? "bg-blue-600 text-white hover:bg-blue-700"
+                              : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+                          )}
+                        >
+                          {editable ? "Manage" : "View"}
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-3 text-xs font-semibold text-slate-600">
+              <span>Showing {(effectivePage - 1) * 25 + 1}–{Math.min(effectivePage * 25, filteredItems.length)} of {filteredItems.length} items</span>
+              <div className="flex items-center gap-2">
+                <button type="button" disabled={effectivePage <= 1} onClick={() => setTablePage((page) => Math.max(1, page - 1))}
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 hover:bg-slate-50 disabled:opacity-40"><ChevronLeft className="h-4 w-4" /> Previous</button>
+                <span>Page {effectivePage} of {totalPages}</span>
+                <button type="button" disabled={effectivePage >= totalPages} onClick={() => setTablePage((page) => Math.min(totalPages, page + 1))}
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 hover:bg-slate-50 disabled:opacity-40">Next <ChevronRight className="h-4 w-4" /></button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <EmptyQueue
+            icon={Boxes}
+            title="No matching package items"
+            message="No items match these filters. Clear filters to see the full package."
+          />
+        )}
+      </section>
+
+      ) : null}
+
+      {view === "departments" ? (
+        <DepartmentBreakdownView
+          data={filteredDepartmentData}
           loading={departmentViewQuery.isLoading}
+          error={departmentViewQuery.error}
+          onOpenDepartment={setSelectedDepartmentId}
         />
-      )}
+      ) : null}
+
+      {view === "distribution" ? (
+        <PackageDistributionDrawer
+          embedded
+          open
+          onClose={() => onViewChange("items")}
+          title={`${packageData.category_name} Package Distribution`}
+          subtitle={`FY ${packageData.financial_year} · ${expenseType === "ALL" ? "All expense types" : expenseType} approved package value across the year`}
+          data={packageDistributionQuery.data}
+          loading={packageDistributionQuery.isLoading}
+          error={packageDistributionQuery.error}
+        />
+      ) : null}
+
+      <PackageItemWorkspaceDrawer
+        open={workspaceOpen}
+        initialTab={workspaceInitialTab}
+        onClose={closeItemWorkspace}
+        packageData={packageData}
+        item={selectedItem}
+        detail={itemDetailQuery.data}
+        loading={itemDetailQuery.isLoading}
+        blockers={blockers}
+        editable={selectedItemEditable}
+        onAddModel={() => setAddModelOpen(true)}
+        onEditModel={setEditingSubItem}
+        onRemoveModel={setRemoveCandidate}
+        onAllocate={openAllocation}
+        onViewPriceContext={openPriceContext}
+        onViewPriceHistory={setPriceHistorySubItem}
+        onViewDistribution={(item) =>
+          setDistributionContext({
+            type: "PACKAGE_ITEM",
+            packageItemId: item.id,
+            title: `${item.catalog_item_name} Distribution`,
+            subtitle: `${packageData.category_name} package · FY ${packageData.financial_year}`,
+          })
+        }
+        onViewHodNote={setHodNoteContext}
+      />
+
+      <DepartmentItemsDrawer
+        open={Boolean(selectedDepartment)}
+        onClose={() => setSelectedDepartmentId(null)}
+        department={selectedDepartment}
+        onManageItem={(itemId) => openItem(itemId)}
+      />
 
       <AddModelDrawer
         open={addModelOpen}
@@ -3216,11 +3566,8 @@ packageData.return_reason ? (
         addingPackageModel={createSubItemMutation.isPending}
         onAddPackageModel={(payload) =>
           selectedItemEditable
-            ? createSubItemMutation.mutate({
-                packageItemId: effectiveSelectedItemId,
-                payload,
-              })
-            : toast.error("This package item is locked by the CFO decision")
+            ? createSubItemMutation.mutate({ packageItemId: selectedItem.id, payload })
+            : toast.error("This package item is locked")
         }
       />
 
@@ -3229,7 +3576,24 @@ packageData.return_reason ? (
         onClose={() => setEditingSubItem(null)}
         subItem={editingSubItem}
         loading={updateSubItemMutation.isPending}
-        editable={editingSubItemEditable}
+        editable={Boolean(
+          editingSubItem &&
+            packageEditable &&
+            isPackageItemEditable(
+              packageData.status,
+              items.find(
+                (item) =>
+                  Number(item.id) === Number(editingSubItem.category_budget_package_item_id),
+              ),
+            ),
+        )}
+        isReturnedCorrection={
+          packageData.status === "RETURNED_BY_CFO" &&
+          items.find(
+            (item) =>
+              Number(item.id) === Number(editingSubItem?.category_budget_package_item_id),
+          )?.cfo_review_status === "NEEDS_MODIFICATION"
+        }
         onSubmit={(payload) =>
           updateSubItemMutation.mutate({
             packageSubItemId: editingSubItem.id,
@@ -3257,6 +3621,7 @@ packageData.return_reason ? (
       <PackageDistributionDrawer
         open={Boolean(distributionContext)}
         onClose={() => setDistributionContext(null)}
+        showFooterClose
         title={distributionContext?.title}
         subtitle={distributionContext?.subtitle}
         data={distributionQuery.data}
@@ -3277,12 +3642,6 @@ packageData.return_reason ? (
             toast.error("Model row version is missing. Refresh and try again.");
             return;
           }
-
-          if (!removeCandidateEditable) {
-            toast.error("This package item is locked by the CFO decision");
-            return;
-          }
-
           removeSubItemMutation.mutate({
             packageSubItemId: removeCandidate.id,
             payload: {
@@ -3291,155 +3650,7 @@ packageData.return_reason ? (
             },
           });
         }}
-      >
-        <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
-          <p className="font-black">Affected allocation summary</p>
-          <p className="mt-1">
-            {removeCandidate?.allocations?.length || 0} department allocation
-            row
-            {Number(removeCandidate?.allocations?.length) === 1 ? "" : "s"},
-            totaling {formatNumber(removeCandidate?.quantity)} units.
-          </p>
-        </div>
-      </ConfirmModal>
-
-    <ConfirmModal
-  open={submitOpen}
-  title="Submit Category Package to CFO?"
-  message={`You are about to submit the ${packageData.category_name} package for CFO review. Review the package summary carefully before confirming. Package models, prices, specifications, attachments, and department allocations will be locked while the package is under CFO review.`}
-  confirmText="Submit Package to CFO"
-  cancelText="Review Again"
-  loading={submitMutation.isPending}
-  onCancel={() => setSubmitOpen(false)}
-  onConfirm={() =>
-    submitMutation.mutate({
-      packageId: packageData.id,
-      payload: {
-        row_version: packageData.row_version,
-      },
-    })
-  }
->
-  <div className="mt-5 space-y-4">
-    {/* Main package identity and total amount */}
-    <section className="overflow-hidden rounded-2xl border border-blue-200 bg-blue-50">
-      <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-700">
-            Package Being Submitted
-          </p>
-
-          <h3 className="mt-1 text-xl font-black text-slate-950">
-            {packageData.category_name} Package
-          </h3>
-
-          <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
-            <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-blue-700">
-              Financial Year {packageData.financial_year}
-            </span>
-
-            <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-blue-700">
-              {items.length} requested item
-              {items.length === 1 ? "" : "s"}
-            </span>
-
-            <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-blue-700">
-              {formatStatus(packageData.status)}
-            </span>
-          </div>
-        </div>
-
-        <div className="shrink-0 rounded-2xl border border-blue-200 bg-white px-5 py-4 text-left sm:min-w-[220px] sm:text-right">
-          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-blue-700 sm:justify-end">
-            <CircleDollarSign className="h-4 w-4" />
-            Total Package Amount
-          </div>
-
-          <div className="mt-2 text-2xl font-black text-slate-950">
-            <CurrencyText value={estimatedPackageTotal} />
-          </div>
-
-          <p className="mt-1 text-xs font-semibold text-slate-500">
-            Based on allocated quantities and shared unit prices
-          </p>
-        </div>
-      </div>
-    </section>
-
-    {/* Quantity and item summary */}
-    <section className="grid gap-3 sm:grid-cols-2">
-      <div className="rounded-2xl border border-slate-200 bg-white p-4">
-        <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
-            <Boxes className="h-5 w-5" />
-          </span>
-
-          <div>
-            <p className="text-xs font-black uppercase tracking-wide text-slate-500">
-              Requested Items
-            </p>
-
-            <p className="mt-1 text-2xl font-black text-slate-950">
-              {items.length}
-            </p>
-
-            <p className="mt-1 text-xs leading-5 text-slate-500">
-              Generic package items included in this submission
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4">
-        <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-700">
-            <CheckCircle2 className="h-5 w-5" />
-          </span>
-
-          <div>
-            <p className="text-xs font-black uppercase tracking-wide text-blue-700">
-              Approved Quantity
-            </p>
-
-            <p className="mt-1 text-2xl font-black text-slate-950">
-              {formatNumber(approvedTotal)}
-            </p>
-
-            <p className="mt-1 text-xs leading-5 text-blue-700">
-              Total quantity approved by the Category Manager
-            </p>
-          </div>
-        </div>
-      </div>
-
-
-
-
-    </section>
-
-
-
-    {/* Locking consequence */}
-    <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-      <div className="flex items-start gap-3">
-        <Lock className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
-
-        <div>
-          <p className="text-sm font-black text-amber-950">
-            What happens after submission?
-          </p>
-
-          <p className="mt-1 text-sm leading-6 text-amber-900">
-            Shared models, prices, specifications, attachments, and
-            department allocations will become read-only while the CFO
-            reviews this package. They can be edited again only if the CFO
-            returns the package for modification.
-          </p>
-        </div>
-      </div>
-    </section>
-  </div>
-</ConfirmModal>
+      />
 
       <PackageSubItemPriceIntelligenceDrawer
         open={Boolean(priceContext?.subItem)}
@@ -3454,7 +3665,32 @@ packageData.return_reason ? (
           }))
         }
         onClose={() => setPriceContext(null)}
+        showFooterClose
       />
+
+      <PackageSubItemPriceHistoryDrawer
+        open={Boolean(priceHistorySubItem)}
+        onClose={() => setPriceHistorySubItem(null)}
+        subItem={priceHistorySubItem}
+        query={priceHistoryQuery}
+        showFooterClose
+      />
+
+      {hodNoteContext ? (
+        <BudgetItemRequestNoteDrawer
+          open={Boolean(hodNoteContext)}
+          onClose={() => setHodNoteContext(null)}
+          itemName={hodNoteContext.catalog_item_name || selectedItem?.catalog_item_name}
+          categoryName={packageData.category_name}
+          departmentName={hodNoteContext.department_name}
+          requestedQuantity={hodNoteContext.requested_quantity}
+          distributionMethod={null}
+          note={hodNoteContext.hod_item_note || hodNoteContext.hodItemNote || ""}
+          editable={false}
+          showFooterClose
+        />
+      ) : null}
     </section>
   );
 }
+

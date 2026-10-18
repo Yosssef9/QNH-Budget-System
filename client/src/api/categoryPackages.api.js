@@ -27,9 +27,12 @@ export async function getCategoryPackageReadiness() {
   return response.data?.data;
 }
 
-export async function getCategoryPackageDistribution({ packageItemId } = {}) {
+export async function getCategoryPackageDistribution({ packageItemId, expenseType } = {}) {
   const response = await api.get("/category-packages/distribution", {
-    params: packageItemId ? { packageItemId } : undefined,
+    params: {
+      ...(packageItemId ? { packageItemId } : {}),
+      ...(expenseType && expenseType !== "ALL" ? { expenseType } : {}),
+    },
   });
   return response.data?.data;
 }
@@ -38,6 +41,14 @@ export async function getCategoryPackageItemDetail(packageItemId) {
   if (!packageItemId) return null;
   const response = await api.get(`/category-packages/items/${packageItemId}`);
   return response.data?.data;
+}
+
+export async function getPackageSubItemPriceHistory(packageSubItemId) {
+  if (!packageSubItemId) return [];
+  const response = await api.get(
+    `/category-packages/sub-items/${packageSubItemId}/price-history`,
+  );
+  return response.data?.data || [];
 }
 
 export async function createPackageSubItem({ packageItemId, payload }) {
@@ -144,9 +155,9 @@ export async function updateDepartmentItemApprovedQuantity({
   return response.data?.data;
 }
 
-export async function submitCategoryPackageToCfo({ packageId, payload }) {
+export async function submitCategoryPackageToPurchasing({ packageId, payload }) {
   const response = await api.patch(
-    `/category-packages/${packageId}/submit-to-cfo`,
+    `/category-packages/${packageId}/submit-to-purchasing`,
     payload,
   );
   return response.data?.data;

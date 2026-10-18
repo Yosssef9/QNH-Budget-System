@@ -13,6 +13,10 @@ import {
   CircleDollarSign,
   ClipboardList,
   Download,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  FilterX,
   Eye,
   FileText,
   FilePlus2,
@@ -37,12 +41,19 @@ import ConfirmModal from "../ConfirmModal";
 import CurrencyText from "../CurrencyText";
 import Input from "../Input";
 import SearchableMultiSelect from "../SearchableMultiSelect";
+import SortableHeader from "../SortableHeader";
 import CatalogSubItemFields from "../catalog/CatalogSubItemFields";
 import AnimatedDrawer from "../budgets/shared/drawers/AnimatedDrawer";
 import BudgetItemRequestNoteDrawer from "../budgets/shared/drawers/BudgetItemRequestNoteDrawer";
 import PackageSubItemPriceIntelligenceDrawer from "../budgets/price-intelligence/PackageSubItemPriceIntelligenceDrawer";
 import PackageDistributionDrawer from "./PackageDistributionDrawer";
 import PackageSubItemPriceHistoryDrawer from "./PackageSubItemPriceHistoryDrawer";
+import {
+  filterStage2Departments,
+  filterStage2Items,
+  matchesPreparationFilter,
+  scopePackageItem,
+} from "./packageStage2Filters";
 import { usePackageSubItemPriceHistory } from "../../hooks/category-packages/usePackageSubItemPriceHistory";
 import {
   downloadBlobAttachment,
@@ -85,6 +96,26 @@ const PACKAGE_FILTERS = [
   { value: "NEEDS_ATTENTION", label: "Needs Attention" },
   { value: "RECONCILED", label: "Reconciled" },
 ];
+
+// Use the project-wide searchable, portaled Select in single-selection mode.
+// Its change callback provides an event-like { target: { value } } payload.
+function Stage2Select({ label, value, onChange, options, className = "" }) {
+  return (
+    <div className={classNames("flex min-w-0 flex-col gap-1.5", className)}>
+      <span className="text-[11px] font-bold text-slate-500">{label}</span>
+      <SearchableMultiSelect
+        name={label}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        options={options}
+        placeholder={`Select ${label.toLowerCase()}`}
+        multiple={false}
+        disableClear
+        usePortal
+      />
+    </div>
+  );
+}
 
 function classNames(...values) {
   return values.filter(Boolean).join(" ");
@@ -2902,6 +2933,15 @@ export default function CategoryPackageWorkbench({
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("ALL");
+  const [expenseType, setExpenseType] = useState("ALL");
+  const [departmentFilter, setDepartmentFilter] = useState("ALL");
+  const [priceStatus, setPriceStatus] = useState("ALL");
+  const [modelStatus, setModelStatus] = useState("ALL");
+  const [allocationStatus, setAllocationStatus] = useState("ALL");
+  const [sortColumn, setSortColumn] = useState("NAME");
+  const [sortDirection, setSortDirection] = useState("asc");
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+  const [tablePage, setTablePage] = useState(1);
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [workspaceInitialTab, setWorkspaceInitialTab] = useState("OVERVIEW");
@@ -2954,27 +2994,53 @@ export default function CategoryPackageWorkbench({
     return map;
   }, [blockers]);
 
-  const filteredItems = useMemo(() => {
-    const normalized = search.trim().toLowerCase();
-    return items.filter((item) => {
-      const matchesSearch =
-        !normalized ||
-        String(item.catalog_item_name || "").toLowerCase().includes(normalized) ||
-        String(item.catalog_item_code || "").toLowerCase().includes(normalized);
-      const itemBlockers = itemBlockersById.get(Number(item.id)) || [];
-      const hasSetupIssue =
-        Number(item.approved_quantity || 0) > 0 && Number(item.active_sub_item_count || 0) === 0;
-      const needsAttention =
-        item.reconciliation_status !== "RECONCILED" || itemBlockers.length > 0;
-      const matchesFilter =
-        filter === "ALL" ||
-        (filter === "NEEDS_MODIFICATION" && item.cfo_review_status === "NEEDS_MODIFICATION") ||
-        (filter === "NEEDS_SETUP" && hasSetupIssue) ||
-        (filter === "NEEDS_ATTENTION" && needsAttention) ||
-        (filter === "RECONCILED" && item.reconciliation_status === "RECONCILED");
-      return matchesSearch && matchesFilter;
-    });
-  }, [filter, itemBlockersById, items, search]);
+  const filteredItems = useMemo(
+    () => filterStage2Items(items, {
+      search, status: filter, expenseType, departmentId: departmentFilter,
+      priceStatus, modelStatus, allocationStatus, sortBy: sortColumn, sortDirection,
+    }, itemBlockersById),
+    // Primitive dependencies prevent unstable object references from rerunning filters.
+    [items, itemBlockersById, search, filter, expenseType, departmentFilter,
+      priceStatus, modelStatus, allocationStatus, sortColumn, sortDirection],
+  );
+  const expenseScopedItems = useMemo(() =>
+    items.map((item) => scopePackageItem(item, expenseType, departmentFilter)).filter(Boolean),
+    [items, expenseType, departmentFilter],
+  );
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / 25));
+  const effectivePage = Math.min(tablePage, totalPages);
+  const visibleItems = filteredItems.slice((effectivePage - 1) * 25, effectivePage * 25);
+
+  useEffect(() => {
+    setTablePage(1);
+  }, [search, filter, expenseType, departmentFilter, priceStatus, modelStatus, allocationStatus, sortColumn, sortDirection]);
+
+  function handlePackageSort(column) {
+    if (column === sortColumn) {
+      setSortDirection((previous) => previous === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  }
+
+  function clearStage2Filters() {
+    setSearch("");
+    setFilter(packageData?.status === "RETURNED_BY_CFO" ? "NEEDS_MODIFICATION" : "ALL");
+    setExpenseType("ALL");
+    setDepartmentFilter("ALL");
+    setPriceStatus("ALL");
+    setModelStatus("ALL");
+    setAllocationStatus("ALL");
+    setSortColumn("NAME");
+    setSortDirection("asc");
+    setTablePage(1);
+  }
+
+  const hasActiveFilters = Boolean(search.trim()) || expenseType !== "ALL" ||
+    departmentFilter !== "ALL" || priceStatus !== "ALL" || modelStatus !== "ALL" ||
+    allocationStatus !== "ALL" || sortColumn !== "NAME" || sortDirection !== "asc" ||
+    (filter !== "ALL" && !(filter === "NEEDS_MODIFICATION" && packageData?.status === "RETURNED_BY_CFO"));
 
   const selectedItem =
     items.find((item) => Number(item.id) === Number(selectedItemId)) || null;
@@ -2990,17 +3056,21 @@ export default function CategoryPackageWorkbench({
   const departmentViewQuery = useQuery({
     queryKey: ["category-packages", "departments"],
     queryFn: getCategoryPackageDepartments,
-    enabled: (view === "departments" || Boolean(selectedDepartmentId)) && Boolean(packageData?.id),
+    enabled: Boolean(packageData?.id),
   });
 
   const packageDistributionQuery = useQuery({
-    queryKey: ["category-packages", "distribution", "category"],
-    queryFn: () => getCategoryPackageDistribution(),
+    queryKey: ["category-packages", "distribution", "category", expenseType],
+    queryFn: () => getCategoryPackageDistribution({ expenseType }),
     enabled: view === "distribution" && Boolean(packageData?.id),
   });
 
+  const filteredDepartmentData = useMemo(() =>
+    filterStage2Departments(departmentViewQuery.data, expenseType),
+    [departmentViewQuery.data, expenseType],
+  );
   const selectedDepartment =
-    (departmentViewQuery.data?.departments || []).find(
+    (filteredDepartmentData?.departments || []).find(
       (department) =>
         Number(department.department_id) === Number(selectedDepartmentId),
     ) || null;
@@ -3167,22 +3237,22 @@ export default function CategoryPackageWorkbench({
   );
 
   const filterCounts = Object.fromEntries(
-    PACKAGE_FILTERS.map((entry) => {
-      if (entry.value === "ALL") return [entry.value, items.length];
-      const count = items.filter((item) => {
-        const itemBlockers = itemBlockersById.get(Number(item.id)) || [];
-        const hasSetupIssue =
-          Number(item.approved_quantity || 0) > 0 && Number(item.active_sub_item_count || 0) === 0;
-        const needsAttention =
-          item.reconciliation_status !== "RECONCILED" || itemBlockers.length > 0;
-        if (entry.value === "NEEDS_MODIFICATION") return item.cfo_review_status === "NEEDS_MODIFICATION";
-        if (entry.value === "NEEDS_SETUP") return hasSetupIssue;
-        if (entry.value === "NEEDS_ATTENTION") return needsAttention;
-        return item.reconciliation_status === "RECONCILED";
-      }).length;
-      return [entry.value, count];
-    }),
+    PACKAGE_FILTERS.map((entry) => [
+      entry.value,
+      expenseScopedItems.filter((item) =>
+        matchesPreparationFilter(item, entry.value, itemBlockersById.get(Number(item.id)) || []),
+      ).length,
+    ]),
   );
+  const filteredApproved = filteredItems.reduce((sum, item) => sum + item.view_approved_quantity, 0);
+  const filteredValueUnavailable = filteredItems.some((item) => item.view_estimated_value === null);
+  const filteredValue = filteredItems.reduce((sum, item) => sum + (item.view_estimated_value || 0), 0);
+  const departmentOptions = [
+    { value: "ALL", label: "All Departments" },
+    ...(departmentViewQuery.data?.departments || [])
+      .map((department) => ({ value: String(department.department_id), label: department.department_name }))
+      .sort((a, b) => a.label.localeCompare(b.label)),
+  ];
 
   return (
     <section className="space-y-4">
@@ -3211,6 +3281,24 @@ export default function CategoryPackageWorkbench({
 
       <PackagePreparationNavigation value={view} onChange={onViewChange} />
 
+      {view !== "items" ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-xs font-black text-slate-600">Expense Type</span>
+            <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Expense type">
+              {["ALL", "CAPEX", "OPEX"].map((option) => (
+                <button key={option} type="button" aria-pressed={expenseType === option}
+                  onClick={() => setExpenseType(option)}
+                  className={classNames("rounded-lg px-4 py-2 text-xs font-black transition",
+                    expenseType === option ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:bg-white")}
+                >{option === "ALL" ? "All" : option}</button>
+              ))}
+            </div>
+          </div>
+          <span className="text-xs font-semibold text-slate-500">{expenseType === "ALL" ? "All expense types" : `${expenseType} only`}</span>
+        </div>
+      ) : null}
+
       {view === "items" ? (
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-4 xl:flex-row xl:items-center xl:justify-between">
@@ -3225,62 +3313,131 @@ export default function CategoryPackageWorkbench({
           </div>
         </div>
 
-        <div className="border-b border-slate-100 px-5 py-4">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="relative max-w-xl flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search package items"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100"
-              />
+        <div className="space-y-3 border-b border-slate-100 px-4 py-4 sm:px-5">
+          {approvedTotal === 0 ? (
+            <p className="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-xs font-medium text-sky-900">
+              No completed department demand yet. CAPEX/OPEX uses the catalog item type until department reviews are approved; approved quantities remain zero.
+            </p>
+          ) : null}
+          <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-2 xl:grid-cols-12">
+            <label className="relative flex min-w-0 flex-col gap-1.5 md:col-span-2 xl:col-span-4">
+              <span className="text-[11px] font-bold text-slate-500">Search</span>
+              <Search className="pointer-events-none absolute bottom-3 left-3 h-4 w-4 text-slate-400" />
+              <input value={search} onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search package items or codes..." aria-label="Search package items"
+                className="w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-8 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-300 focus:bg-white focus:ring-2 focus:ring-blue-100" />
+              {search ? <button type="button" onClick={() => setSearch("")} aria-label="Clear search" className="absolute bottom-3 right-3 text-slate-400 hover:text-slate-700"><X className="h-4 w-4" /></button> : null}
+            </label>
+            <div className="flex min-w-0 flex-col gap-1.5 xl:col-span-2">
+              <span className="text-[11px] font-bold text-slate-500">Expense Type</span>
+              <div className="inline-flex w-max rounded-xl border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Expense type">
+                {["ALL", "CAPEX", "OPEX"].map((option) => (
+                  <button key={option} type="button" aria-pressed={expenseType === option}
+                    onClick={() => setExpenseType(option)}
+                    className={classNames("rounded-lg px-3 py-2 text-xs font-black transition",
+                      expenseType === option ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:bg-white")}
+                  >{option === "ALL" ? "All" : option}</button>
+                ))}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {PACKAGE_FILTERS.filter(
-                (entry) =>
-                  entry.value !== "NEEDS_MODIFICATION" ||
-                  packageData.status === "RETURNED_BY_CFO",
-              ).map((entry) => {
-                const active = filter === entry.value;
-                return (
-                  <button
-                    key={entry.value}
-                    type="button"
-                    onClick={() => setFilter(entry.value)}
-                    className={classNames(
-                      "rounded-xl border px-3 py-2 text-xs font-black transition",
-                      active
-                        ? "border-blue-200 bg-blue-50 text-blue-700"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
-                    )}
-                  >
-                    {entry.label} {filterCounts[entry.value]}
-                  </button>
-                );
-              })}
+            <Stage2Select label="Department" value={departmentFilter} onChange={setDepartmentFilter} options={departmentOptions} className="xl:col-span-2" />
+            <Stage2Select label="Price Status" value={priceStatus} onChange={setPriceStatus} className="xl:col-span-2"
+              options={[{value:"ALL",label:"All Price Statuses"},{value:"MISSING",label:"Missing Price"},{value:"PARTIAL",label:"Partially Priced"},{value:"PRICED",label:"Fully Priced"}]} />
+            <div className="flex min-w-0 flex-wrap gap-2 md:col-span-2 xl:col-span-2 xl:justify-end">
+              <button type="button" onClick={() => setMoreFiltersOpen((value) => !value)} aria-expanded={moreFiltersOpen}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs font-black text-blue-700 hover:bg-blue-100">
+                <SlidersHorizontal className="h-4 w-4" /> More Filters <ChevronDown className={classNames("h-4 w-4 transition-transform", moreFiltersOpen && "rotate-180")} />
+              </button>
+              <button type="button" disabled={!hasActiveFilters} onClick={clearStage2Filters}
+                className="inline-flex items-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-50 disabled:opacity-40">
+                <FilterX className="h-4 w-4" /> Clear
+              </button>
             </div>
+          </div>
+          {moreFiltersOpen ? (
+            <div className="grid gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3 sm:grid-cols-2">
+              <Stage2Select label="Models" value={modelStatus} onChange={setModelStatus}
+                options={[{value:"ALL",label:"All Models"},{value:"NONE",label:"No Models"},{value:"ONE",label:"One Model"},{value:"MULTIPLE",label:"Multiple Models"}]} />
+              <Stage2Select label="Allocation Status" value={allocationStatus} onChange={setAllocationStatus}
+                options={[{value:"ALL",label:"All Allocations"},{value:"FULL",label:"Fully Allocated"},{value:"SHORT",label:"Short"},{value:"EXCESS",label:"Excess"}]} />
+            </div>
+          ) : null}
+          <div className="flex flex-wrap items-center gap-2" aria-label="Preparation status filters">
+            {PACKAGE_FILTERS.filter((entry) => entry.value !== "NEEDS_MODIFICATION" || packageData.status === "RETURNED_BY_CFO")
+              .map((entry) => (
+                <button type="button" key={entry.value} aria-pressed={filter === entry.value} onClick={() => setFilter(entry.value)}
+                  className={classNames("rounded-xl border px-3 py-2 text-xs font-black transition",
+                    filter === entry.value ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50")}
+                >{entry.label} {filterCounts[entry.value]}</button>
+              ))}
+          </div>
+          {hasActiveFilters ? (
+            <div className="flex flex-wrap items-center gap-1.5" aria-label="Active filters">
+              {[
+                ...(expenseType !== "ALL" ? [{ label: expenseType, clear: () => setExpenseType("ALL") }] : []),
+                ...(departmentFilter !== "ALL" ? [{ label: departmentOptions.find((d) => d.value === departmentFilter)?.label || "Department", clear: () => setDepartmentFilter("ALL") }] : []),
+                ...(priceStatus !== "ALL" ? [{ label: `Price: ${priceStatus.toLowerCase()}`, clear: () => setPriceStatus("ALL") }] : []),
+                ...(modelStatus !== "ALL" ? [{ label: `Models: ${modelStatus.toLowerCase()}`, clear: () => setModelStatus("ALL") }] : []),
+                ...(allocationStatus !== "ALL" ? [{ label: `Allocation: ${allocationStatus.toLowerCase()}`, clear: () => setAllocationStatus("ALL") }] : []),
+                ...(search.trim() ? [{ label: `Search: ${search}`, clear: () => setSearch("") }] : []),
+              ].map((chip) => (
+                <button key={chip.label} type="button" onClick={chip.clear}
+                  title={`Remove ${chip.label} filter`}
+                  className="inline-flex max-w-64 items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700 hover:bg-blue-100">
+                  <span className="truncate">{chip.label}</span> <X className="h-3 w-3 shrink-0" />
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-700">
+              <span className="text-blue-700">{expenseType === "ALL" ? "All Expenses" : expenseType}</span>
+              <span className="text-slate-300">·</span>
+              <span>{filteredItems.length} matching items</span>
+              <span className="text-slate-300">·</span>
+              <span>Approved {formatNumber(filteredApproved)}</span>
+              <span className="text-slate-300">·</span>
+              <span className="text-emerald-700">{expenseType !== "ALL" || departmentFilter !== "ALL" ? "Allocated Value" : "Estimated Value"}: {filteredValueUnavailable ? "Not fully priced" : <CurrencyText compact value={filteredValue} />}</span>
+            </div>
+            <span className="text-[11px] font-medium text-slate-500">Click a column header to sort · Overall reconciliation unchanged</span>
           </div>
         </div>
 
         {filteredItems.length ? (
-          <div className="overflow-x-auto">
+          <div>
+            <div className="max-h-[65vh] overflow-auto">
             <table className="min-w-full text-left text-sm">
-              <thead className="bg-slate-50 text-[11px] font-black uppercase tracking-wide text-slate-500">
+              <thead className="sticky top-0 z-10 bg-slate-50 text-[11px] font-black uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-5 py-3">Item</th>
-                  <th className="px-5 py-3">Approved Demand</th>
-                  <th className="px-5 py-3">Departments</th>
-                  <th className="px-5 py-3">Models</th>
-                  <th className="px-5 py-3">Unit Price</th>
-                  <th className="px-5 py-3">Estimated Value</th>
-                  <th className="px-5 py-3">Reconciliation</th>
-                  <th className="px-5 py-3">Issues</th>
+                  <SortableHeader label="Item" column="NAME" sortColumn={sortColumn}
+                    sortDirection={sortDirection} onSort={handlePackageSort}
+                    className="whitespace-nowrap border-x-0 border-t-0 border-b-slate-200 px-5 py-3" />
+                  <SortableHeader label="Approved Demand" column="DEMAND" sortColumn={sortColumn}
+                    sortDirection={sortDirection} onSort={handlePackageSort}
+                    className="whitespace-nowrap border-x-0 border-t-0 border-b-slate-200 px-5 py-3" />
+                  <SortableHeader label="Departments" column="DEPARTMENTS" sortColumn={sortColumn}
+                    sortDirection={sortDirection} onSort={handlePackageSort}
+                    className="whitespace-nowrap border-x-0 border-t-0 border-b-slate-200 px-5 py-3" />
+                  <SortableHeader label="Models" column="MODELS" sortColumn={sortColumn}
+                    sortDirection={sortDirection} onSort={handlePackageSort}
+                    className="whitespace-nowrap border-x-0 border-t-0 border-b-slate-200 px-5 py-3" />
+                  <SortableHeader label="Unit Price" column="UNIT_PRICE" sortColumn={sortColumn}
+                    sortDirection={sortDirection} onSort={handlePackageSort}
+                    className="whitespace-nowrap border-x-0 border-t-0 border-b-slate-200 px-5 py-3" />
+                  <SortableHeader label={expenseType !== "ALL" || departmentFilter !== "ALL" ? "Allocated Value" : "Estimated Value"} column="VALUE" sortColumn={sortColumn}
+                    sortDirection={sortDirection} onSort={handlePackageSort}
+                    className="whitespace-nowrap border-x-0 border-t-0 border-b-slate-200 px-5 py-3" />
+                  <SortableHeader label="Reconciliation" column="RECONCILIATION" sortColumn={sortColumn}
+                    sortDirection={sortDirection} onSort={handlePackageSort}
+                    className="whitespace-nowrap border-x-0 border-t-0 border-b-slate-200 px-5 py-3" />
+                  <SortableHeader label="Issues" column="ATTENTION" sortColumn={sortColumn}
+                    sortDirection={sortDirection} onSort={handlePackageSort}
+                    className="whitespace-nowrap border-x-0 border-t-0 border-b-slate-200 px-5 py-3" />
                   <th className="px-5 py-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredItems.map((item) => {
+                {visibleItems.map((item) => {
                   const itemBlockers = itemBlockersById.get(Number(item.id)) || [];
                   const editable = isPackageItemEditable(packageData.status, item) && packageEditable;
                   const modelPrices = item.model_unit_prices || [];
@@ -3290,21 +3447,28 @@ export default function CategoryPackageWorkbench({
                       isValidUnitPrice(model.category_manager_unit_price),
                     );
                   return (
-                    <tr key={item.id} className="hover:bg-slate-50/70">
+                    <tr key={item.id} className="transition-colors hover:bg-blue-50/40">
                       <td className="px-5 py-4">
-                        <p className="font-black text-slate-950">{item.catalog_item_name}</p>
-                        <p className="mt-1 text-xs font-semibold text-slate-500">
-                       {item.unit_name || item.unit_code || "Unit"} 
-                        </p>
+                        <div className="flex items-center gap-2.5">
+                          <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-100 bg-slate-50 text-blue-700"><Boxes className="h-4 w-4" /></span>
+                          <div className="min-w-[170px]">
+                            <p className="font-black text-slate-950">{item.catalog_item_name}</p>
+                            <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                              {item.unit_name || item.unit_code || "Unit"}
+                              <span className="mx-1.5 text-slate-300">·</span>
+                              <span className="text-blue-700">{item.view_expense_type}</span>
+                            </p>
+                          </div>
+                        </div>
                       </td>
-                      <td className="px-5 py-4 font-black text-slate-950">{formatNumber(item.approved_quantity)}</td>
+                      <td className="px-5 py-4 font-black text-slate-950">{formatNumber(item.view_approved_quantity)}</td>
                       <td className="px-5 py-4">
                         <button
                           type="button"
                           onClick={() => onViewChange("departments")}
                           className="font-black text-blue-700 underline decoration-dotted underline-offset-4"
                         >
-                          {item.department_count} department{Number(item.department_count) === 1 ? "" : "s"}
+                          {item.view_department_count} department{Number(item.view_department_count) === 1 ? "" : "s"}
                         </button>
                       </td>
                       <td className="px-5 py-4 font-bold text-slate-700">{item.active_sub_item_count || 0}</td>
@@ -3315,13 +3479,13 @@ export default function CategoryPackageWorkbench({
                         />
                       </td>
                       <td className="px-5 py-4 font-black text-slate-950">
-                        {allModelsPriced ? (
-                          <CurrencyText value={item.category_manager_estimated_total ?? item.estimated_total ?? 0} />
+                        {allModelsPriced && item.view_estimated_value !== null ? (
+                          <CurrencyText value={item.view_estimated_value} />
                         ) : (
                           <span className="text-xs text-amber-700">Not available</span>
                         )}
                       </td>
-                      <td className="px-5 py-4"><StatusBadge status={item.reconciliation_status} compact /></td>
+                      <td className="px-5 py-4" title="Overall package reconciliation, not limited to the selected expense type"><StatusBadge status={item.reconciliation_status} compact /></td>
                       <td className="px-5 py-4">
                         {itemBlockers.length ? (
                           <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-black text-amber-700">
@@ -3353,12 +3517,23 @@ export default function CategoryPackageWorkbench({
                 })}
               </tbody>
             </table>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-3 text-xs font-semibold text-slate-600">
+              <span>Showing {(effectivePage - 1) * 25 + 1}–{Math.min(effectivePage * 25, filteredItems.length)} of {filteredItems.length} items</span>
+              <div className="flex items-center gap-2">
+                <button type="button" disabled={effectivePage <= 1} onClick={() => setTablePage((page) => Math.max(1, page - 1))}
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 hover:bg-slate-50 disabled:opacity-40"><ChevronLeft className="h-4 w-4" /> Previous</button>
+                <span>Page {effectivePage} of {totalPages}</span>
+                <button type="button" disabled={effectivePage >= totalPages} onClick={() => setTablePage((page) => Math.min(totalPages, page + 1))}
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 hover:bg-slate-50 disabled:opacity-40">Next <ChevronRight className="h-4 w-4" /></button>
+              </div>
+            </div>
           </div>
         ) : (
           <EmptyQueue
             icon={Boxes}
             title="No matching package items"
-            message="Change the search or package filter to see other items."
+            message="No items match these filters. Clear filters to see the full package."
           />
         )}
       </section>
@@ -3367,7 +3542,7 @@ export default function CategoryPackageWorkbench({
 
       {view === "departments" ? (
         <DepartmentBreakdownView
-          data={departmentViewQuery.data}
+          data={filteredDepartmentData}
           loading={departmentViewQuery.isLoading}
           error={departmentViewQuery.error}
           onOpenDepartment={setSelectedDepartmentId}
@@ -3380,7 +3555,7 @@ export default function CategoryPackageWorkbench({
           open
           onClose={() => onViewChange("items")}
           title={`${packageData.category_name} Package Distribution`}
-          subtitle={`FY ${packageData.financial_year} approved package value across the year`}
+          subtitle={`FY ${packageData.financial_year} · ${expenseType === "ALL" ? "All expense types" : expenseType} approved package value across the year`}
           data={packageDistributionQuery.data}
           loading={packageDistributionQuery.isLoading}
           error={packageDistributionQuery.error}

@@ -89,6 +89,7 @@ export const getCategoryPackageDistribution = asyncHandler(async (req, res) => {
     : null;
   const data = await getCategoryPackageDistributionService({
     packageItemId,
+    expenseType: req.query.expenseType || "ALL",
     budgetAccess: req.budgetAccess,
   });
 

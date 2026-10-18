@@ -40,6 +40,7 @@ import {
   findPackageContextBySubItemRepo,
   listAllocationsForPackageItemRepo,
   listDepartmentPackageViewRowsRepo,
+  listPackageItemExpenseContributionsRepo,
   listPackageDistributionRowsRepo,
   listPackageItemDetailRowsRepo,
   listPackageItemsRepo,
@@ -1002,7 +1003,28 @@ async function loadPackageForCategory(budgetCategoryId) {
   }
 
   const packageItems = await listPackageItemsRepo({ packageId: packageRow.id });
-  const mappedItems = packageItems.map((item) => mapPackageItem(item));
+  const contributions = await listPackageItemExpenseContributionsRepo({ packageId: packageRow.id });
+  const contributionsByItem = new Map();
+  for (const row of contributions) {
+    const id = Number(row.package_item_id);
+    if (!contributionsByItem.has(id)) contributionsByItem.set(id, []);
+    contributionsByItem.get(id).push({
+      department_item_id: row.department_item_id,
+      department_id: row.department_id,
+      department_name: row.department_name,
+      department_code: row.department_code,
+      expense_type: row.expense_type,
+      requested_quantity: Number(row.requested_quantity || 0),
+      approved_quantity: Number(row.approved_quantity || 0),
+      allocated_quantity: Number(row.allocated_quantity || 0),
+      estimated_allocated_value: Number(row.estimated_allocated_value || 0),
+      unpriced_allocations: Number(row.unpriced_allocations || 0),
+    });
+  }
+  const mappedItems = packageItems.map((item) => ({
+    ...mapPackageItem(item),
+    expense_contributions: contributionsByItem.get(Number(item.id)) || [],
+  }));
   const packageData = mapPackage(packageRow, mappedItems);
   packageData.readiness = await buildPackageReadiness(packageData);
   return packageData;
@@ -1043,6 +1065,7 @@ export async function getCategoryPackageDepartmentsService({ budgetAccess }) {
 
 export async function getCategoryPackageDistributionService({
   packageItemId = null,
+  expenseType = "ALL",
   budgetAccess,
 }) {
   assertPermission(
@@ -1053,6 +1076,10 @@ export async function getCategoryPackageDistributionService({
   );
 
   const budgetCategoryId = assertCategoryWorkspace(budgetAccess);
+  const normalizedExpense = String(expenseType || "ALL").toUpperCase();
+  if (!["ALL", "CAPEX", "OPEX"].includes(normalizedExpense)) {
+    throw new ApiError(400, "Invalid expense type filter", "INVALID_EXPENSE_TYPE");
+  }
   const packageRow = await findCurrentPackageForCategoryRepo({
     budgetCategoryId,
   });
@@ -1075,6 +1102,7 @@ export async function getCategoryPackageDistributionService({
   const rows = await listPackageDistributionRowsRepo({
     packageId: packageRow.id,
     packageItemId,
+    expenseType: normalizedExpense,
   });
 
   return buildPackageDistributionAnalysis({

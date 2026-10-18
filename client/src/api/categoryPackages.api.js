@@ -27,9 +27,12 @@ export async function getCategoryPackageReadiness() {
   return response.data?.data;
 }
 
-export async function getCategoryPackageDistribution({ packageItemId } = {}) {
+export async function getCategoryPackageDistribution({ packageItemId, expenseType } = {}) {
   const response = await api.get("/category-packages/distribution", {
-    params: packageItemId ? { packageItemId } : undefined,
+    params: {
+      ...(packageItemId ? { packageItemId } : {}),
+      ...(expenseType && expenseType !== "ALL" ? { expenseType } : {}),
+    },
   });
   return response.data?.data;
 }

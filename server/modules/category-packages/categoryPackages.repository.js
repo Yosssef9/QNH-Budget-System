@@ -185,6 +185,7 @@ export async function listPackageItemsRepo({ packageId }, transaction = null) {
       packageItem.catalog_item_id,
       COALESCE(packageItem.catalog_item_name_snapshot, catalog.name) AS catalog_item_name,
       COALESCE(packageItem.catalog_item_code_snapshot, catalog.item_code) AS catalog_item_code,
+      UPPER(NULLIF(LTRIM(RTRIM(catalog.expense_type)), '')) AS catalog_expense_type,
       COALESCE(packageItem.unit_name_snapshot, unit.name) AS unit_name,
       COALESCE(packageItem.unit_code_snapshot, unit.unit_code) AS unit_code,
       packageItem.cfo_review_status,
@@ -259,6 +260,65 @@ export async function listPackageItemsRepo({ packageId }, transaction = null) {
   }));
 }
 
+/** Read-only Stage 2 contribution breakdown. One row per approved department item.
+ * Package reconciliation remains calculated from the unfiltered package rows. */
+export async function listPackageItemExpenseContributionsRepo({ packageId }) {
+  const pool = await poolPromise;
+  const result = await createRequest(pool)
+    .input("packageId", sql.BigInt, packageId)
+    .query(`
+      SELECT
+        packageItem.id AS package_item_id,
+        department.id AS department_id,
+        department.name AS department_name,
+        department.department_code,
+        UPPER(COALESCE(NULLIF(item.expense_type_snapshot, ''), catalog.expense_type, '')) AS expense_type,
+        item.id AS department_item_id,
+        item.requested_quantity,
+        item.category_approved_quantity AS approved_quantity,
+        COALESCE(SUM(CASE WHEN subItem.id IS NOT NULL THEN allocation.allocated_quantity ELSE 0 END), 0) AS allocated_quantity,
+        COALESCE(SUM(CASE WHEN subItem.id IS NOT NULL AND
+          COALESCE(subItem.category_manager_unit_price, subItem.unit_price) > 0
+          THEN allocation.allocated_quantity *
+          COALESCE(subItem.category_manager_unit_price, subItem.unit_price)
+          ELSE 0 END), 0) AS estimated_allocated_value,
+        COALESCE(SUM(CASE WHEN subItem.id IS NOT NULL
+          AND allocation.allocated_quantity > 0
+          AND (COALESCE(subItem.category_manager_unit_price, subItem.unit_price) IS NULL
+            OR COALESCE(subItem.category_manager_unit_price, subItem.unit_price) <= 0)
+          THEN 1 ELSE 0 END), 0) AS unpriced_allocations
+      FROM dbo.BS_category_budget_package_items AS packageItem
+      INNER JOIN dbo.BS_category_budget_packages AS pkg
+        ON pkg.id = packageItem.category_budget_package_id
+      INNER JOIN dbo.BS_department_budgets AS db
+        ON db.financial_year_id = pkg.financial_year_id
+      INNER JOIN dbo.BS_departments AS department
+        ON department.id = db.department_id
+      INNER JOIN dbo.BS_department_category_budgets AS dcb
+        ON dcb.department_budget_id = db.id
+       AND dcb.budget_category_id = pkg.budget_category_id
+       AND dcb.status = '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
+      INNER JOIN dbo.BS_department_category_budget_items AS item
+        ON item.department_category_budget_id = dcb.id
+       AND item.catalog_item_id = packageItem.catalog_item_id
+       AND item.is_active = 1
+       AND item.review_status = '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
+      INNER JOIN dbo.BS_budget_catalog_items AS catalog
+        ON catalog.id = item.catalog_item_id
+      LEFT JOIN dbo.BS_category_budget_package_sub_items AS subItem
+        ON subItem.category_budget_package_item_id = packageItem.id
+       AND subItem.is_active = 1
+      LEFT JOIN dbo.BS_category_budget_package_sub_item_allocations AS allocation
+        ON allocation.category_budget_package_sub_item_id = subItem.id
+       AND allocation.department_category_budget_item_id = item.id
+      WHERE pkg.id = @packageId AND packageItem.is_active = 1
+      GROUP BY packageItem.id, item.id, department.id,
+        department.name, department.department_code, item.expense_type_snapshot, catalog.expense_type,
+        item.requested_quantity, item.category_approved_quantity
+    `);
+  return result.recordset;
+}
+
 export async function listDepartmentPackageViewRowsRepo(
   { packageId },
   transaction = null,
@@ -277,6 +337,7 @@ export async function listDepartmentPackageViewRowsRepo(
         item.catalog_item_id,
         item.requested_quantity,
         item.category_approved_quantity,
+        COALESCE(NULLIF(item.expense_type_snapshot, ''), catalog.expense_type) AS expense_type,
         item.hod_item_note,
         item.review_note,
         item.row_version AS department_item_row_version,
@@ -370,6 +431,7 @@ export async function listPackageDistributionRowsRepo({
   packageId = null,
   financialYearId = null,
   packageItemId = null,
+  expenseType = "ALL",
 } = {}) {
   const pool = await poolPromise;
   const request = createRequest(pool);
@@ -377,6 +439,7 @@ export async function listPackageDistributionRowsRepo({
     .input("packageId", sql.BigInt, packageId)
     .input("financialYearId", sql.Int, financialYearId)
     .input("packageItemId", sql.BigInt, packageItemId)
+    .input("expenseType", sql.VarChar(10), expenseType)
     .query(`
       SELECT
         pkg.id AS package_id,
@@ -473,6 +536,7 @@ export async function listPackageDistributionRowsRepo({
         (@packageId IS NULL OR pkg.id = @packageId)
         AND (@financialYearId IS NULL OR pkg.financial_year_id = @financialYearId)
         AND (@packageItemId IS NULL OR packageItem.id = @packageItemId)
+        AND (@expenseType = 'ALL' OR UPPER(COALESCE(NULLIF(item.expense_type_snapshot, ''), catalog.expense_type)) = @expenseType)
 
       ORDER BY
         category.sort_order,
@@ -488,6 +552,7 @@ export async function listPackageDistributionRowsRepo({
     .input("packageId", sql.BigInt, packageId)
     .input("financialYearId", sql.Int, financialYearId)
     .input("packageItemId", sql.BigInt, packageItemId)
+    .input("expenseType", sql.VarChar(10), expenseType)
     .query(`
       SELECT
         approved.id,
@@ -500,6 +565,8 @@ export async function listPackageDistributionRowsRepo({
         ON item.id = approved.department_budget_item_id
        AND item.is_active = 1
        AND item.review_status = '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
+      INNER JOIN dbo.BS_budget_catalog_items AS catalog
+        ON catalog.id = item.catalog_item_id
       INNER JOIN dbo.BS_department_category_budgets AS departmentCategoryBudget
         ON departmentCategoryBudget.id = item.department_category_budget_id
        AND departmentCategoryBudget.status = '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
@@ -516,6 +583,7 @@ export async function listPackageDistributionRowsRepo({
         (@packageId IS NULL OR pkg.id = @packageId)
         AND (@financialYearId IS NULL OR pkg.financial_year_id = @financialYearId)
         AND (@packageItemId IS NULL OR packageItem.id = @packageItemId)
+        AND (@expenseType = 'ALL' OR UPPER(COALESCE(NULLIF(item.expense_type_snapshot, ''), catalog.expense_type)) = @expenseType)
       ORDER BY
         approved.department_budget_item_id,
         approved.period_type,

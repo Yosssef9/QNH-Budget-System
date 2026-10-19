@@ -11,6 +11,7 @@ import {
 
 import ConfirmModal from "../../components/ConfirmModal";
 import CategoryReviewWorkflowTabs from "../../components/category-review/CategoryReviewWorkflowTabs";
+import { CategoryBackNavigationProvider, useCategoryBackOverlay } from "../../components/category-review/CategoryBackNavigation";
 import CategoryReviewItemDrawer from "../../components/category-review/CategoryReviewItemDrawer";
 import DepartmentReviewStage from "../../components/category-review/DepartmentReviewStage";
 import CategoryPackageSubmissionStage from "../../components/category-review/CategoryPackageSubmissionStage";
@@ -123,6 +124,14 @@ function StageUnavailable({ title, description }) {
 }
 
 export default function CategoryReviewPage() {
+  return (
+    <CategoryBackNavigationProvider>
+      <CategoryReviewContent />
+    </CategoryBackNavigationProvider>
+  );
+}
+
+function CategoryReviewContent() {
   const queryClient = useQueryClient();
   const { budgetAccess } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -338,6 +347,14 @@ export default function CategoryReviewPage() {
   const selectedReviewItem = (selectedBudget?.items || []).find(
     (item) => Number(item.id) === Number(reviewItemId),
   );
+
+  useCategoryBackOverlay(Boolean(selectedReviewItem), () => setReviewItemId(null));
+  useCategoryBackOverlay(completeModalOpen, () => setCompleteModalOpen(false));
+  useCategoryBackOverlay(Boolean(windowModal), () => {
+    setWindowModal(null);
+    setCloseReason("");
+    setReopenReason("");
+  });
 
   useEffect(() => {
     if (!selectedReviewItem && reviewItemId !== null) {

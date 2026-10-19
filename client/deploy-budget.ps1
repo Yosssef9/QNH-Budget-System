@@ -1,3 +1,4 @@
+# Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; & "D:\QNH-Budget-System\client\deploy-budget.ps1"
 $ErrorActionPreference = "Stop"
 
 $source = Join-Path $PSScriptRoot "dist"

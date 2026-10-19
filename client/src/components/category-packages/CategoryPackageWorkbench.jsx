@@ -48,6 +48,7 @@ import BudgetItemRequestNoteDrawer from "../budgets/shared/drawers/BudgetItemReq
 import PackageSubItemPriceIntelligenceDrawer from "../budgets/price-intelligence/PackageSubItemPriceIntelligenceDrawer";
 import PackageDistributionDrawer from "./PackageDistributionDrawer";
 import PackageSubItemPriceHistoryDrawer from "./PackageSubItemPriceHistoryDrawer";
+import { useCategoryBackOverlay } from "../category-review/CategoryBackNavigation";
 import {
   filterStage2Departments,
   filterStage2Items,
@@ -886,6 +887,7 @@ function PackageAttachmentManager({ subItem, open, editable }) {
   const [removeCandidate, setRemoveCandidate] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(null);
   const [attachmentNote, setAttachmentNote] = useState("");
+  useCategoryBackOverlay(Boolean(removeCandidate), () => setRemoveCandidate(null));
 
   const packageSubItemId = subItem?.id;
   useEffect(() => {
@@ -3102,6 +3104,19 @@ export default function CategoryPackageWorkbench({
   const [priceHistorySubItem, setPriceHistorySubItem] = useState(null);
   const [distributionContext, setDistributionContext] = useState(null);
   const [hodNoteContext, setHodNoteContext] = useState(null);
+
+  // Register each existing overlay; the most recently opened wins on Back.
+  // All closures use the very same functions as the X/Cancel controls.
+  useCategoryBackOverlay(workspaceOpen, closeItemWorkspace);
+  useCategoryBackOverlay(Boolean(selectedDepartmentId), () => setSelectedDepartmentId(null));
+  useCategoryBackOverlay(addModelOpen, () => setAddModelOpen(false));
+  useCategoryBackOverlay(Boolean(editingSubItem), () => setEditingSubItem(null));
+  useCategoryBackOverlay(Boolean(allocationContext), () => setAllocationContext(null));
+  useCategoryBackOverlay(Boolean(distributionContext), () => setDistributionContext(null));
+  useCategoryBackOverlay(Boolean(removeCandidate), () => setRemoveCandidate(null));
+  useCategoryBackOverlay(Boolean(priceContext?.subItem), () => setPriceContext(null));
+  useCategoryBackOverlay(Boolean(priceHistorySubItem), () => setPriceHistorySubItem(null));
+  useCategoryBackOverlay(Boolean(hodNoteContext), () => setHodNoteContext(null));
 
   const packageQuery = useQuery({
     queryKey: ["category-packages", "current"],

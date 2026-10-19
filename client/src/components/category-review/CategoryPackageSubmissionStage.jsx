@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import ConfirmModal from "../ConfirmModal";
+import { useCategoryBackOverlay } from "./CategoryBackNavigation";
 import CurrencyText from "../CurrencyText";
 import { submitCategoryPackageToPurchasing } from "../../api/categoryPackages.api";
 
@@ -117,6 +118,7 @@ export default function CategoryPackageSubmissionStage({
 }) {
   const queryClient = useQueryClient();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  useCategoryBackOverlay(confirmOpen, () => setConfirmOpen(false));
 
   const blockers = packageData?.readiness?.blockers || [];
   const ready = Boolean(packageData?.readiness?.ready);
@@ -540,3 +542,4 @@ export default function CategoryPackageSubmissionStage({
     </div>
   );
 }
+

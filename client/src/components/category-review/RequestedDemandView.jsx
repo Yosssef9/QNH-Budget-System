@@ -9,6 +9,7 @@ import EnterpriseSearch from "../EnterpriseSearch";
 import SearchableMultiSelect from "../SearchableMultiSelect";
 import TablePagination from "../TablePagination";
 import RequestedDemandDetailsDrawer from "./RequestedDemandDetailsDrawer";
+import { useCategoryBackOverlay } from "./CategoryBackNavigation";
 
 const numberFormatter = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 4,
@@ -57,6 +58,7 @@ export default function RequestedDemandView({
   const [expenseType, setExpenseType] = useState("ALL");
   const [reviewStatus, setReviewStatus] = useState("ALL");
   const [selectedItem, setSelectedItem] = useState(null);
+  useCategoryBackOverlay(Boolean(selectedItem), () => setSelectedItem(null));
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 

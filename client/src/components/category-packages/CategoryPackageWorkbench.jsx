@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import Tooltip from "@mui/material/Tooltip";
@@ -163,6 +163,7 @@ function CategoryManagerPriceInput({
   onChange,
   disabled = false,
   placeholder,
+  autoFocus = false,
 }) {
   const inputId = useId();
   const inputRef = useRef(null);
@@ -238,6 +239,7 @@ function CategoryManagerPriceInput({
           onChange={handlePriceChange}
           placeholder={placeholder}
           disabled={disabled}
+          autoFocus={autoFocus}
           className="w-full rounded-2xl border border-blue-200 bg-white py-3 pl-16 pr-3 text-slate-800 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
         />
       </div>
@@ -2380,6 +2382,151 @@ function PackageDocumentsPanel({ subItems, editable, open }) {
   );
 }
 
+// Uses the same model detail and update API as EditModelDrawer. The General
+// record is identified by both its catalog code and default-General flag.
+function InlineGeneralPriceEditor({
+  item,
+  editable,
+  packageStatus,
+  saving,
+  onSave,
+  onClose,
+  onManage,
+}) {
+  const detailQuery = useQuery({
+    queryKey: ["category-packages", "items", item.id],
+    queryFn: () => getCategoryPackageItemDetail(item.id),
+  });
+  const [price, setPrice] = useState("");
+  const [initializedVersion, setInitializedVersion] = useState(null);
+  const models = detailQuery.data?.sub_items || [];
+  const generalModels = models.filter(
+    (model) =>
+      String(model.sub_item_code || "").trim().toUpperCase() === "GENERAL" &&
+      (model.is_default_general === true || Number(model.is_default_general) === 1),
+  );
+  const general = generalModels.length === 1 ? generalModels[0] : null;
+  const isReturnedCorrection = packageStatus === "RETURNED_BY_CFO";
+
+  useEffect(() => {
+    if (!general) return;
+    const version = `${general.id}:${general.row_version}`;
+    if (initializedVersion === version) return;
+    const previousManagerPrice = general.last_submitted_category_manager_unit_price;
+    const managerPrice = general.category_manager_unit_price;
+    const changedSinceSubmission =
+      previousManagerPrice != null && managerPrice != null &&
+      Number(previousManagerPrice) !== Number(managerPrice);
+    const initial = isReturnedCorrection && !changedSinceSubmission &&
+      general.last_purchasing_unit_price != null
+      ? general.last_purchasing_unit_price
+      : getManagerUnitPrice(general);
+    setPrice(initial == null ? "" : String(Number(initial)));
+    setInitializedVersion(version);
+  }, [general, initializedVersion, isReturnedCorrection]);
+
+  function submit(event) {
+    event.preventDefault();
+    if (!editable || saving || !general) return;
+    if (!general.row_version) {
+      toast.error("Model row version is missing. Refresh the package and try again.");
+      return;
+    }
+    if (!isValidUnitPrice(price)) {
+      toast.error("Enter a valid shared unit price");
+      return;
+    }
+    onSave({
+      packageSubItemId: general.id,
+      payload: {
+        row_version: general.row_version,
+        category_manager_unit_price: Number(price),
+        // PATCH replaces these fields too; preserve the model's existing details.
+        specification: general.specification?.trim() || null,
+        note: general.note?.trim() || null,
+      },
+    });
+  }
+
+  return (
+    <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-4 sm:p-5">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-black text-slate-900">
+            <CircleDollarSign className="h-4 w-4 text-blue-600" />
+            General model — Category Manager price
+          </div>
+          <p className="mt-1 text-xs font-medium text-slate-600">
+            {item.catalog_item_name} · Shared hospital-wide price (SAR)
+          </p>
+        </div>
+        <button type="button" onClick={onClose} disabled={saving}
+          aria-label={`Close price editor for ${item.catalog_item_name}`}
+          className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-50">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      {detailQuery.isLoading ? (
+        <p role="status" className="flex items-center gap-2 text-sm text-slate-500">
+          <Loader2 className="h-4 w-4 animate-spin" /> Loading General model...
+        </p>
+      ) : detailQuery.isError ? (
+        <div className="flex flex-wrap items-center gap-3 text-sm text-rose-700">
+          <AlertCircle className="h-4 w-4" /> Could not load model details.
+          <button type="button" onClick={() => detailQuery.refetch()}
+            className="font-black underline underline-offset-2">Retry</button>
+        </div>
+      ) : !general ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-amber-800">
+            {generalModels.length > 1
+              ? "Multiple default General models found. Open Manage to resolve this."
+              : "No default General model found. Set up the model in Manage first."}
+          </p>
+          <button type="button" onClick={onManage}
+            className="rounded-xl border border-blue-200 bg-white px-4 py-2 text-xs font-black text-blue-700 hover:bg-blue-50">
+            Manage models <ArrowRight className="ml-1 inline h-3.5 w-3.5" />
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="grid items-end gap-4 lg:grid-cols-[minmax(240px,440px)_1fr]">
+          <div>
+            <CategoryManagerPriceInput
+              label={isReturnedCorrection ? "Revised Category Manager price" : "Category Manager proposed price"}
+              value={price}
+              onChange={setPrice}
+              disabled={!editable || saving}
+              autoFocus
+              placeholder="Enter General unit price"
+            />
+            <p className="mt-2 text-xs text-slate-500">
+              General model · {formatNumber(general.quantity)} allocated units
+              {models.length > 1 ? ` · ${models.length - 1} other model(s) unchanged` : ""}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 lg:pb-0.5">
+            {editable ? (
+              <button type="submit" disabled={saving || !isValidUnitPrice(price) || !general.row_version}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-black text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Save Price & Next <ArrowRight className="h-4 w-4" />
+              </button>
+            ) : (
+              <p className="flex items-center gap-2 text-sm font-semibold text-slate-500">
+                <Lock className="h-4 w-4" /> Price is read-only at this package stage.
+              </p>
+            )}
+            <button type="button" onClick={onManage}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-700 hover:bg-slate-50">
+              Full model details
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
 function PackageItemUnitPrice({ item, onOpenModels }) {
   const models = item.model_unit_prices || [];
 
@@ -2942,6 +3089,7 @@ export default function CategoryPackageWorkbench({
   const [sortDirection, setSortDirection] = useState("asc");
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const [tablePage, setTablePage] = useState(1);
+  const [expandedPriceItemId, setExpandedPriceItemId] = useState(null);
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [workspaceInitialTab, setWorkspaceInitialTab] = useState("OVERVIEW");
@@ -3014,6 +3162,17 @@ export default function CategoryPackageWorkbench({
   useEffect(() => {
     setTablePage(1);
   }, [search, filter, expenseType, departmentFilter, priceStatus, modelStatus, allocationStatus, sortColumn, sortDirection]);
+
+  useEffect(() => {
+    setExpandedPriceItemId(null);
+  }, [view, search, filter, expenseType, departmentFilter, priceStatus,
+      modelStatus, allocationStatus, sortColumn, sortDirection, effectivePage]);
+
+  function toggleInlinePrice(itemId) {
+    if (saveInlinePriceMutation.isPending) return;
+    setExpandedPriceItemId((current) =>
+      Number(current) === Number(itemId) ? null : itemId);
+  }
 
   function handlePackageSort(column) {
     if (column === sortColumn) {
@@ -3123,6 +3282,21 @@ export default function CategoryPackageWorkbench({
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || "Failed to add package model");
+    },
+  });
+
+  const saveInlinePriceMutation = useMutation({
+    mutationFn: updatePackageSubItem,
+    onSuccess: async () => {
+      toast.success("General model price saved");
+      await invalidatePackageWorkspace();
+      const currentIndex = visibleItems.findIndex((item) =>
+        Number(item.id) === Number(expandedPriceItemId));
+      const nextItem = currentIndex >= 0 ? visibleItems[currentIndex + 1] : null;
+      setExpandedPriceItemId(nextItem?.id ?? null);
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to save General price");
     },
   });
 
@@ -3446,13 +3620,46 @@ export default function CategoryPackageWorkbench({
                     modelPrices.every((model) =>
                       isValidUnitPrice(model.category_manager_unit_price),
                     );
+                  const expanded = Number(expandedPriceItemId) === Number(item.id);
                   return (
-                    <tr key={item.id} className="transition-colors hover:bg-blue-50/40">
+                    <Fragment key={item.id}>
+                    <tr
+                      tabIndex={0}
+                      aria-expanded={expanded}
+                      aria-controls={`general-price-editor-${item.id}`}
+                      aria-label={`Toggle General price editor for ${item.catalog_item_name}`}
+                      onClick={(event) => {
+                        if (event.target.closest("button,a,input,select,textarea,[role='button']")) return;
+                        toggleInlinePrice(item.id);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.target !== event.currentTarget) return;
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          toggleInlinePrice(item.id);
+                        }
+                      }}
+                      className={classNames(
+                        "cursor-pointer transition-colors hover:bg-blue-50/60 focus-visible:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400",
+                        expanded && "bg-blue-50/60",
+                      )}
+                    >
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2.5">
                           <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-100 bg-slate-50 text-blue-700"><Boxes className="h-4 w-4" /></span>
                           <div className="min-w-[170px]">
-                            <p className="font-black text-slate-950">{item.catalog_item_name}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-black text-slate-950">{item.catalog_item_name}</p>
+                              <button type="button"
+                                aria-label={`${expanded ? "Collapse" : "Expand"} General price for ${item.catalog_item_name}`}
+                                aria-expanded={expanded}
+                                aria-controls={`general-price-editor-${item.id}`}
+                                onClick={() => toggleInlinePrice(item.id)}
+                                className="shrink-0 rounded-md p-1 text-slate-400 transition hover:bg-blue-100 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                              >
+                                <ChevronDown className={classNames("h-4 w-4 transition-transform", !expanded && "-rotate-90")} />
+                              </button>
+                            </div>
                             <p className="mt-0.5 text-xs font-semibold text-slate-500">
                               {item.unit_name || item.unit_code || "Unit"}
                               <span className="mx-1.5 text-slate-300">·</span>
@@ -3513,6 +3720,23 @@ export default function CategoryPackageWorkbench({
                         </button>
                       </td>
                     </tr>
+                    {expanded ? (
+                      <tr id={`general-price-editor-${item.id}`} className="bg-white">
+                        <td colSpan={9} className="px-4 pb-4 pt-1 sm:px-5">
+                          <InlineGeneralPriceEditor
+                            key={item.id}
+                            item={item}
+                            editable={editable}
+                            packageStatus={packageData.status}
+                            saving={saveInlinePriceMutation.isPending}
+                            onSave={saveInlinePriceMutation.mutate}
+                            onClose={() => setExpandedPriceItemId(null)}
+                            onManage={() => openItem(item.id, "PRICING")}
+                          />
+                        </td>
+                      </tr>
+                    ) : null}
+                    </Fragment>
                   );
                 })}
               </tbody>

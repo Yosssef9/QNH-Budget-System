@@ -152,9 +152,9 @@ export default function RequestedDemandView({
     startIndex + pageSize,
   );
 
-  function handleGoToDepartmentReview(departmentCategoryBudgetId) {
+  function handleGoToDepartmentReview(departmentCategoryBudgetId, departmentBudgetItemId) {
     setSelectedItem(null);
-    onGoToDepartmentReview(departmentCategoryBudgetId);
+    onGoToDepartmentReview(departmentCategoryBudgetId, departmentBudgetItemId);
   }
 
   if (loading) {
@@ -351,3 +351,4 @@ export default function RequestedDemandView({
     </>
   );
 }
+

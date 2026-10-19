@@ -146,6 +146,7 @@ export default function CategoryReviewPage() {
   const [decisionDrafts, setDecisionDrafts] = useState({});
   const [savingItemIds, setSavingItemIds] = useState([]);
   const [reviewItemId, setReviewItemId] = useState(null);
+  const [focusedDemandReview, setFocusedDemandReview] = useState(null);
   const [completeModalOpen, setCompleteModalOpen] = useState(false);
   const [windowModal, setWindowModal] = useState(null);
   const [closeReason, setCloseReason] = useState("");
@@ -381,6 +382,7 @@ export default function CategoryReviewPage() {
   }
 
   function selectDepartmentView(view) {
+    if (view === "demand") setFocusedDemandReview(null);
     const next = new URLSearchParams(searchParams);
     next.set("stage", "departments");
     next.set(
@@ -391,10 +393,20 @@ export default function CategoryReviewPage() {
     setSearchParams(next, { replace: true });
   }
 
-  function goToDepartmentReview(departmentCategoryBudgetId) {
+  function goToDepartmentReview(departmentCategoryBudgetId, departmentBudgetItemId = null) {
     if (departmentCategoryBudgetId) {
       setSelectedBudgetId(departmentCategoryBudgetId);
     }
+    // Requested Demand identifies both the department budget and the exact item.
+    // The existing inline editor handles all permissions, saves and read-only states.
+    setFocusedDemandReview(
+      departmentCategoryBudgetId && departmentBudgetItemId
+        ? {
+            budgetId: Number(departmentCategoryBudgetId),
+            itemId: Number(departmentBudgetItemId),
+          }
+        : null,
+    );
     setSearch("");
     setStatusFilter("ALL");
     setReviewItemId(null);
@@ -916,6 +928,7 @@ export default function CategoryReviewPage() {
             selectedBudgetId={selectedBudgetIdResolved}
             onSelectBudget={(budgetId) => {
               setSelectedBudgetId(budgetId);
+              setFocusedDemandReview(null);
               setReviewItemId(null);
             }}
             detailLoading={detailQuery.isLoading}
@@ -924,6 +937,12 @@ export default function CategoryReviewPage() {
             overview={overview}
             coverage={coverage}
             onReviewItem={setReviewItemId}
+            focusedDemandItemId={
+              focusedDemandReview &&
+              Number(focusedDemandReview.budgetId) === Number(selectedBudget?.id)
+                ? focusedDemandReview.itemId
+                : null
+            }
             canReviewItems={canReviewItems}
             onInlineSave={(item) => saveDecision(item)}
             getItemDraft={getDraft}
@@ -1080,4 +1099,5 @@ export default function CategoryReviewPage() {
     </main>
   );
 }
+
 

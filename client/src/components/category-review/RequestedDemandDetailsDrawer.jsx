@@ -162,7 +162,25 @@ export default function RequestedDemandDetailsDrawer({
                       return (
                         <tr
                           key={department.department_budget_item_id}
-                          className="hover:bg-slate-50/70"
+                          tabIndex={0}
+                          aria-label={`Open ${department.department_name} approval for ${item.catalog_item_name}`}
+                          onClick={() =>
+                            onGoToDepartmentReview(
+                              department.department_category_budget_id,
+                              department.department_budget_item_id,
+                            )
+                          }
+                          onKeyDown={(event) => {
+                            if (event.target !== event.currentTarget) return;
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              onGoToDepartmentReview(
+                                department.department_category_budget_id,
+                                department.department_budget_item_id,
+                              );
+                            }
+                          }}
+                          className="cursor-pointer transition-colors hover:bg-blue-50/70 focus-visible:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
                         >
                           <td className="px-5 py-4">
                             <p className="font-black text-slate-950">
@@ -189,22 +207,17 @@ export default function RequestedDemandDetailsDrawer({
                             <ReviewStatusBadge reviewed={reviewed} />
                           </td>
                           <td className="px-5 py-4 text-right">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                onGoToDepartmentReview(
-                                  department.department_category_budget_id,
-                                )
-                              }
+                            <span
+                              aria-hidden="true"
                               className={[
-                                "inline-flex items-center justify-center rounded-xl px-3 py-2 text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
+                                "inline-flex items-center justify-center rounded-xl px-3 py-2 text-xs font-black transition",
                                 reviewed
-                                  ? "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                                  : "bg-blue-600 text-white hover:bg-blue-700",
+                                  ? "border border-slate-200 bg-white text-slate-700"
+                                  : "bg-blue-600 text-white",
                               ].join(" ")}
                             >
-                              {reviewed ? "View Department" : "Review"}
-                            </button>
+                              {reviewed ? "View Approval" : "Review"}
+                            </span>
                           </td>
                         </tr>
                       );
@@ -244,3 +257,4 @@ export default function RequestedDemandDetailsDrawer({
     </AnimatedDrawer>
   );
 }
+

@@ -179,6 +179,7 @@ function DepartmentReviewItemsTable({
   items,
   selectedBudget,
   onReviewItem,
+  focusedDemandItemId,
   canReviewItems,
   onInlineSave,
   getItemDraft,
@@ -189,6 +190,19 @@ function DepartmentReviewItemsTable({
   const [expandedItemId, setExpandedItemId] = useState(null);
   const focusAfterSaveRef = useRef(null);
   const saveInFlightRef = useRef(false);
+  const handledDemandItemRef = useRef(null);
+
+  useEffect(() => {
+    if (!focusedDemandItemId ||
+        !items.some((item) => Number(item.id) === Number(focusedDemandItemId)) ||
+        Number(handledDemandItemRef.current) === Number(focusedDemandItemId)) {
+      return;
+    }
+
+    handledDemandItemRef.current = focusedDemandItemId;
+    focusAfterSaveRef.current = focusedDemandItemId;
+    setExpandedItemId(focusedDemandItemId);
+  }, [focusedDemandItemId, items]);
 
   useEffect(() => {
     if (expandedItemId === null) return;
@@ -474,6 +488,7 @@ export default function DepartmentReviewStage({
   overview,
   coverage,
   onReviewItem,
+  focusedDemandItemId,
   canReviewItems,
   onInlineSave,
   getItemDraft,
@@ -739,6 +754,7 @@ export default function DepartmentReviewStage({
                 items={items}
                 selectedBudget={selectedBudget}
                 onReviewItem={onReviewItem}
+                focusedDemandItemId={focusedDemandItemId}
                 canReviewItems={canReviewItems}
                 onInlineSave={onInlineSave}
                 getItemDraft={getItemDraft}
@@ -783,3 +799,4 @@ export default function DepartmentReviewStage({
     </div>
   );
 }
+

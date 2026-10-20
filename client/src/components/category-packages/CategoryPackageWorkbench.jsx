@@ -444,7 +444,7 @@ const exactPackageCurrencyFormatter = new Intl.NumberFormat("en-US", {
 function TotalPackageValueTooltip({ amount, incomplete }) {
   const exactAmount = exactPackageCurrencyFormatter.format(amount);
   const description = incomplete
-    ? `Fully priced subtotal: SAR ${exactAmount}. Some models still have no price.`
+    ? `Priced subtotal: SAR ${exactAmount}. Some models still have no price.`
     : `Exact total package value: SAR ${exactAmount}`;
 
   return (
@@ -456,7 +456,7 @@ function TotalPackageValueTooltip({ amount, incomplete }) {
       title={
         <div className="min-w-[220px] max-w-[310px] px-2 py-1.5 text-slate-800">
           <p className="text-[11px] font-bold uppercase tracking-wider text-blue-700">
-            {incomplete ? "Fully priced subtotal" : "Exact package value"}
+            {incomplete ? "Priced subtotal" : "Exact package value"}
           </p>
           <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 border-b border-slate-100 pb-3">
             <span className="text-[11px] font-extrabold text-slate-500">SAR</span>
@@ -490,7 +490,7 @@ function TotalPackageValueTooltip({ amount, incomplete }) {
         aria-label={description}
         className="inline-flex max-w-full cursor-help flex-wrap items-center gap-1.5 rounded-md outline-none transition-colors hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
       >
-        {incomplete ? "Not fully priced" : <CurrencyText compact value={amount} />}
+        <CurrencyText compact value={amount} />
         <Info size={16} className="shrink-0 text-blue-500" aria-hidden="true" />
       </span>
     </Tooltip>
@@ -3489,6 +3489,12 @@ export default function CategoryPackageWorkbench({
     (item) => scopePackageItem(item, "ALL", "ALL").view_estimated_value,
   );
   const packageValueIncomplete = packageEstimatedValues.some((value) => value === null);
+  const pricedModelCount = items.reduce(
+    (sum, item) => sum + (item.model_unit_prices || []).filter(
+      (model) => isValidUnitPrice(model.category_manager_unit_price),
+    ).length,
+    0,
+  );
   const estimatedPackageTotal = packageEstimatedValues.reduce(
     (sum, value) => sum + toNumber(value),
     0,
@@ -3539,7 +3545,7 @@ export default function CategoryPackageWorkbench({
           label="Total Package Value"
           value={<TotalPackageValueTooltip amount={estimatedPackageTotal} incomplete={packageValueIncomplete} />}
           helper={packageValueIncomplete
-            ? <>Fully priced items: <CurrencyText compact value={estimatedPackageTotal} /></>
+            ? `Partially priced · ${formatNumber(pricedModelCount)} of ${formatNumber(modelCount)} models`
             : "All category package items"}
           icon={CircleDollarSign}
           tone="blue"

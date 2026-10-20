@@ -300,6 +300,12 @@ function getStatusMeta(status) {
       text: "text-rose-700",
       dot: "bg-rose-500",
     },
+    REJECTED: {
+      border: "border-slate-200",
+      background: "bg-slate-100",
+      text: "text-slate-600",
+      dot: "bg-slate-400",
+    },
     NOT_CONFIGURED: {
       border: "border-slate-200",
       background: "bg-slate-50",
@@ -2215,7 +2221,7 @@ function PackageItemOverview({ item, detail, blockers, onViewDistribution }) {
                 Models and department demand
               </h3>
             </div>
-            <StatusBadge status={item?.reconciliation_status} />
+            <StatusBadge status={Number(item?.approved_quantity || 0) === 0 && Number(item?.requested_quantity || 0) > 0 ? "REJECTED" : item?.reconciliation_status} />
           </div>
           <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
             <div className="rounded-xl bg-slate-50 p-3">
@@ -2260,7 +2266,7 @@ function PackageItemOverview({ item, detail, blockers, onViewDistribution }) {
             >
               {itemBlockers.length
                 ? `${itemBlockers.length} issue${itemBlockers.length === 1 ? "" : "s"}`
-                : "Ready"}
+                : Number(item?.approved_quantity || 0) === 0 ? "Not required" : "Ready"}
             </span>
           </div>
           {itemBlockers.length ? (
@@ -2279,9 +2285,11 @@ function PackageItemOverview({ item, detail, blockers, onViewDistribution }) {
             <div className="mt-4 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
               <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
               <div>
-                <p className="font-black">This item is ready</p>
+                <p className="font-black">{Number(item?.approved_quantity || 0) === 0 ? "No purchasing required" : "This item is ready"}</p>
                 <p className="mt-1 text-sm leading-6">
-                  Models, quantities, prices and allocations currently satisfy the package checks.
+                  {Number(item?.approved_quantity || 0) === 0
+                    ? "No quantity was approved. The request is retained for the Category Manager, without price or Purchasing requirements."
+                    : "Models, quantities, prices and allocations currently satisfy the package checks."}
                 </p>
               </div>
             </div>
@@ -3489,9 +3497,17 @@ export default function CategoryPackageWorkbench({
     (item) => scopePackageItem(item, "ALL", "ALL").view_estimated_value,
   );
   const packageValueIncomplete = packageEstimatedValues.some((value) => value === null);
+  const priceRequiredModelCount = items.reduce(
+    (sum, item) => sum + (item.model_unit_prices || []).filter(
+      (model) => Number(item.approved_quantity || 0) > 0 && Number(model.quantity || 0) > 0,
+    ).length,
+    0,
+  );
   const pricedModelCount = items.reduce(
     (sum, item) => sum + (item.model_unit_prices || []).filter(
-      (model) => isValidUnitPrice(model.category_manager_unit_price),
+      (model) => Number(item.approved_quantity || 0) > 0 &&
+        Number(model.quantity || 0) > 0 &&
+        isValidUnitPrice(model.category_manager_unit_price),
     ).length,
     0,
   );
@@ -3545,7 +3561,7 @@ export default function CategoryPackageWorkbench({
           label="Total Package Value"
           value={<TotalPackageValueTooltip amount={estimatedPackageTotal} incomplete={packageValueIncomplete} />}
           helper={packageValueIncomplete
-            ? `Partially priced · ${formatNumber(pricedModelCount)} of ${formatNumber(modelCount)} models`
+            ? `Partially priced · ${formatNumber(pricedModelCount)} of ${formatNumber(priceRequiredModelCount)} required models`
             : "All category package items"}
           icon={CircleDollarSign}
           tone="blue"
@@ -3615,7 +3631,7 @@ export default function CategoryPackageWorkbench({
             </div>
             <Stage2Select label="Department" value={departmentFilter} onChange={setDepartmentFilter} options={departmentOptions} className="xl:col-span-2" />
             <Stage2Select label="Price Status" value={priceStatus} onChange={setPriceStatus} className="xl:col-span-2"
-              options={[{value:"ALL",label:"All Price Statuses"},{value:"MISSING",label:"Missing Price"},{value:"PARTIAL",label:"Partially Priced"},{value:"PRICED",label:"Fully Priced"}]} />
+              options={[{value:"ALL",label:"All Price Statuses"},{value:"MISSING",label:"Missing Price"},{value:"PARTIAL",label:"Partially Priced"},{value:"PRICED",label:"Fully Priced"},{value:"NOT_REQUIRED",label:"No Price Required"}]} />
             <div className="flex min-w-0 flex-wrap gap-2 md:col-span-2 xl:col-span-2 xl:justify-end">
               <button type="button" onClick={() => setMoreFiltersOpen((value) => !value)} aria-expanded={moreFiltersOpen}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs font-black text-blue-700 hover:bg-blue-100">
@@ -3714,11 +3730,11 @@ export default function CategoryPackageWorkbench({
                   const itemBlockers = itemBlockersById.get(Number(item.id)) || [];
                   const editable = isPackageItemEditable(packageData.status, item) && packageEditable;
                   const modelPrices = item.model_unit_prices || [];
-                  const allModelsPriced =
-                    modelPrices.length > 0 &&
-                    modelPrices.every((model) =>
+                  const pricedModels = modelPrices.filter((model) => Number(model.quantity || 0) > 0);
+                  const allModelsPriced = Number(item.approved_quantity || 0) === 0 ||
+                    (pricedModels.length > 0 && pricedModels.every((model) =>
                       isValidUnitPrice(model.category_manager_unit_price),
-                    );
+                    ));
                   const expanded = Number(expandedPriceItemId) === Number(item.id);
                   return (
                     <Fragment key={item.id}>
@@ -3749,6 +3765,9 @@ export default function CategoryPackageWorkbench({
                           <div className="min-w-[170px]">
                             <div className="flex items-center gap-2">
                               <p className="font-black text-slate-950">{item.catalog_item_name}</p>
+                              {Number(item.approved_quantity || 0) === 0 && Number(item.requested_quantity || 0) > 0 ? (
+                                <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">Rejected · 0 approved</span>
+                              ) : null}
                               <button type="button"
                                 aria-label={`${expanded ? "Collapse" : "Expand"} General price for ${item.catalog_item_name}`}
                                 aria-expanded={expanded}
@@ -3779,19 +3798,25 @@ export default function CategoryPackageWorkbench({
                       </td>
                       <td className="px-5 py-4 font-bold text-slate-700">{item.active_sub_item_count || 0}</td>
                       <td className="px-5 py-4 font-bold text-slate-900">
-                        <PackageItemUnitPrice
-                          item={item}
-                          onOpenModels={() => openItem(item.id, "MODELS")}
-                        />
+                        {Number(item.view_approved_quantity || 0) === 0 ? (
+                          <span className="text-xs font-semibold text-slate-500">Not required</span>
+                        ) : (
+                          <PackageItemUnitPrice
+                            item={item}
+                            onOpenModels={() => openItem(item.id, "MODELS")}
+                          />
+                        )}
                       </td>
                       <td className="px-5 py-4 font-black text-slate-950">
-                        {allModelsPriced && item.view_estimated_value !== null ? (
+                        {item.view_approved_quantity === 0 ? (
+                          <CurrencyText value={0} />
+                        ) : allModelsPriced && item.view_estimated_value !== null ? (
                           <CurrencyText value={item.view_estimated_value} />
                         ) : (
                           <span className="text-xs text-amber-700">Not available</span>
                         )}
                       </td>
-                      <td className="px-5 py-4" title="Overall package reconciliation, not limited to the selected expense type"><StatusBadge status={item.reconciliation_status} compact /></td>
+                      <td className="px-5 py-4" title="Overall package reconciliation, not limited to the selected expense type"><StatusBadge status={Number(item.approved_quantity || 0) === 0 && Number(item.requested_quantity || 0) > 0 ? "REJECTED" : item.reconciliation_status} compact /></td>
                       <td className="px-5 py-4">
                         {itemBlockers.length ? (
                           <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-black text-amber-700">
@@ -3799,7 +3824,7 @@ export default function CategoryPackageWorkbench({
                           </span>
                         ) : (
                           <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700">
-                            Ready
+                            {Number(item.approved_quantity || 0) === 0 ? "Not required" : "Ready"}
                           </span>
                         )}
                       </td>
@@ -3822,7 +3847,11 @@ export default function CategoryPackageWorkbench({
                     {expanded ? (
                       <tr id={`general-price-editor-${item.id}`} className="bg-white">
                         <td colSpan={9} className="px-4 pb-4 pt-1 sm:px-5">
-                          <InlineGeneralPriceEditor
+                          {Number(item.approved_quantity || 0) === 0 ? (
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-600">
+                              No approved quantity: this request is retained for review history. Pricing is not required and it will not be sent to Purchasing or CFO.
+                            </div>
+                          ) : <InlineGeneralPriceEditor
                             key={item.id}
                             item={item}
                             editable={editable}
@@ -3831,7 +3860,7 @@ export default function CategoryPackageWorkbench({
                             onSave={saveInlinePriceMutation.mutate}
                             onClose={() => setExpandedPriceItemId(null)}
                             onManage={() => openItem(item.id, "PRICING")}
-                          />
+                          />}
                         </td>
                       </tr>
                     ) : null}

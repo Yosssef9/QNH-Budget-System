@@ -1,5 +1,6 @@
 import { poolPromise, sql } from "../../config/db.js";
 import { createRequest } from "../../utils/createRequest.js";
+import { hasPositiveApprovedPackageDemandSql } from "./approvedPackageDemand.sql.js";
 import {
   CATEGORY_PACKAGE_ITEM_CFO_STATUS,
   CATEGORY_PACKAGE_STATUS,
@@ -81,10 +82,12 @@ export async function findCurrentPackageForCategoryRepo(
   return row;
 }
 
-export async function listPackageItemsRepo({ packageId }, transaction = null) {
+export async function listPackageItemsRepo({ packageId, approvedOnly = false }, transaction = null) {
   const pool = await poolPromise;
   const request = createRequest(pool, transaction);
-  const result = await request.input("packageId", sql.BigInt, packageId).query(`
+  const result = await request
+    .input("packageId", sql.BigInt, packageId)
+    .input("approvedOnly", sql.Bit, approvedOnly ? 1 : 0).query(`
     WITH demand AS (
       SELECT
         item.catalog_item_id,
@@ -214,6 +217,7 @@ export async function listPackageItemsRepo({ packageId }, transaction = null) {
         SELECT
           model.id,
           model.name,
+          model.quantity,
           model.category_manager_unit_price,
           model.unit_price
         FROM dbo.BS_category_budget_package_sub_items AS model
@@ -239,6 +243,7 @@ export async function listPackageItemsRepo({ packageId }, transaction = null) {
       ON departmentMismatches.package_item_id = packageItem.id
     WHERE packageItem.category_budget_package_id = @packageId
       AND packageItem.is_active = 1
+      AND (@approvedOnly = 0 OR COALESCE(demand.approved_quantity, 0) > 0)
     ORDER BY
       CASE
         WHEN COALESCE(demand.approved_quantity, 0) > 0
@@ -1845,7 +1850,10 @@ export async function markPackageSubmittedToPurchasingRepo(transaction, payload)
            AND ISNULL(previousReview.specification_snapshot, N'') = ISNULL(subItem.specification, N'')
            AND previousReview.category_manager_unit_price_snapshot = subItem.category_manager_unit_price
           THEN 1 ELSE 0 END AS is_unchanged
-      ) AS unchanged;
+      ) AS unchanged
+      WHERE packageItem.is_active = 1
+        AND COALESCE(subItem.quantity, 0) > 0
+        AND ${hasPositiveApprovedPackageDemandSql("packageItem")};
 
       SELECT id, old_status, review_round FROM @Updated;
 

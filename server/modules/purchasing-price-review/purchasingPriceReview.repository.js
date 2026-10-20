@@ -1,5 +1,20 @@
 import { poolPromise, sql } from "../../config/db.js";
 import { createRequest } from "../../utils/createRequest.js";
+import { hasPositiveApprovedPackageDemandSql } from "../category-packages/approvedPackageDemand.sql.js";
+
+function currentPurchasingReviewSql(reviewAlias = "review") {
+  return `EXISTS (
+    SELECT 1 FROM dbo.BS_category_budget_package_sub_items AS reviewSub
+    INNER JOIN dbo.BS_category_budget_package_items AS reviewPackageItem
+      ON reviewPackageItem.id = reviewSub.category_budget_package_item_id
+     AND reviewPackageItem.is_active = 1
+    WHERE reviewSub.id = ${reviewAlias}.category_budget_package_sub_item_id
+      AND reviewSub.is_active = 1
+      AND COALESCE(reviewSub.quantity, 0) > 0
+      AND ${hasPositiveApprovedPackageDemandSql("reviewPackageItem")}
+  )`;
+}
+
 import {
   CATEGORY_PACKAGE_ITEM_CFO_STATUS,
   CATEGORY_PACKAGE_STATUS,
@@ -73,6 +88,7 @@ export async function listPurchasingPackagesRepo({ financialYearId, status }) {
     LEFT JOIN dbo.BS_category_budget_package_sub_item_price_reviews AS review
       ON review.category_budget_package_id = pkg.id
      AND review.review_round = pkg.purchasing_review_round
+     AND ${currentPurchasingReviewSql("review")}
     WHERE pkg.submitted_to_purchasing_at IS NOT NULL
       AND (@financialYearId IS NULL OR pkg.financial_year_id = @financialYearId)
       AND
@@ -85,6 +101,7 @@ export async function listPurchasingPackagesRepo({ financialYearId, status }) {
           WHERE filteredReview.category_budget_package_id = pkg.id
             AND filteredReview.review_round = pkg.purchasing_review_round
             AND filteredReview.status = @status
+            AND ${currentPurchasingReviewSql("filteredReview")}
         )
       )
     GROUP BY
@@ -130,6 +147,7 @@ export async function findPurchasingPackageRepo(
     LEFT JOIN dbo.BS_category_budget_package_sub_item_price_reviews AS review
       ON review.category_budget_package_id = pkg.id
      AND review.review_round = pkg.purchasing_review_round
+     AND ${currentPurchasingReviewSql("review")}
     WHERE pkg.id = @packageId
       AND pkg.submitted_to_purchasing_at IS NOT NULL
     GROUP BY
@@ -201,12 +219,14 @@ export async function listPurchasingPackageDetailRowsRepo(
         ON catalogSubItem.id = subItem.catalog_sub_item_id
       LEFT JOIN dbo.BS_units_of_measure AS unit
         ON unit.id = subItem.unit_of_measure_id
-      LEFT JOIN dbo.BS_category_budget_package_sub_item_price_reviews AS review
+      INNER JOIN dbo.BS_category_budget_package_sub_item_price_reviews AS review
         ON review.category_budget_package_sub_item_id = subItem.id
        AND review.review_round = @reviewRound
       LEFT JOIN dbo.users AS reviewedUser ON reviewedUser.USER_ID = review.reviewed_by
       WHERE packageItem.category_budget_package_id = @packageId
         AND packageItem.is_active = 1
+        AND COALESCE(subItem.quantity, 0) > 0
+        AND ${hasPositiveApprovedPackageDemandSql("packageItem")}
       ORDER BY catalog.name, subItem.name;
     `);
   return result.recordset.map(encodeRowVersion);
@@ -247,7 +267,8 @@ export async function findCurrentPriceReviewRepo(
         ON pkg.id = review.category_budget_package_id
       WHERE review.category_budget_package_id = @packageId
         AND review.category_budget_package_sub_item_id = @packageSubItemId
-        AND review.review_round = pkg.purchasing_review_round;
+        AND review.review_round = pkg.purchasing_review_round
+     AND ${currentPurchasingReviewSql("review")};
     `);
   return encodeRowVersion(result.recordset[0] || null);
 }
@@ -345,7 +366,7 @@ export async function acceptAllPurchasingPricesRepo(transaction, payload) {
     .input("actorUserId", sql.Int, payload.actor_user_id)
     .input("actorUserRoleId", sql.Int, payload.actor_user_role_id ?? null)
     .query(`
-      UPDATE dbo.BS_category_budget_package_sub_item_price_reviews
+      UPDATE review
       SET status = 'ACCEPTED',
           decision_source = 'MANUAL',
           reviewed_by = @actorUserId,
@@ -353,10 +374,12 @@ export async function acceptAllPurchasingPricesRepo(transaction, payload) {
           reviewed_at = SYSUTCDATETIME(),
           updated_at = SYSUTCDATETIME()
       OUTPUT INSERTED.id
-      WHERE category_budget_package_id = @packageId
-        AND review_round = @reviewRound
-        AND status = 'PENDING'
-        AND purchasing_unit_price >= 1;
+      FROM dbo.BS_category_budget_package_sub_item_price_reviews AS review
+      WHERE review.category_budget_package_id = @packageId
+        AND review.review_round = @reviewRound
+        AND review.status = 'PENDING'
+        AND review.purchasing_unit_price >= 1
+        AND ${currentPurchasingReviewSql("review")};
     `);
   return result.recordset;
 }
@@ -373,9 +396,10 @@ export async function getPurchasingSubmissionReadinessRepo(
         COUNT(1) AS total_price_count,
         SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END) AS pending_price_count,
         SUM(CASE WHEN purchasing_unit_price < 1 THEN 1 ELSE 0 END) AS invalid_price_count
-      FROM dbo.BS_category_budget_package_sub_item_price_reviews WITH (UPDLOCK, HOLDLOCK)
-      WHERE category_budget_package_id = @packageId
-        AND review_round = @reviewRound;
+      FROM dbo.BS_category_budget_package_sub_item_price_reviews AS review WITH (UPDLOCK, HOLDLOCK)
+      WHERE review.category_budget_package_id = @packageId
+        AND review.review_round = @reviewRound
+        AND ${currentPurchasingReviewSql("review")};
     `);
   return result.recordset[0];
 }
@@ -399,7 +423,12 @@ export async function submitPurchasingPackageToCfoRepo(transaction, payload) {
        AND review.category_budget_package_id = @packageId
        AND review.review_round = @reviewRound
        AND review.status = 'ACCEPTED'
-      WHERE subItem.is_active = 1;
+      INNER JOIN dbo.BS_category_budget_package_items AS packageItem
+        ON packageItem.id = subItem.category_budget_package_item_id
+       AND packageItem.is_active = 1
+      WHERE subItem.is_active = 1
+        AND COALESCE(subItem.quantity, 0) > 0
+        AND ${hasPositiveApprovedPackageDemandSql("packageItem")};
 
       UPDATE dbo.BS_category_budget_packages
       SET status = '${CATEGORY_PACKAGE_STATUS.IN_CFO_REVIEW}',
@@ -424,7 +453,8 @@ export async function submitPurchasingPackageToCfoRepo(transaction, payload) {
       FROM dbo.BS_category_budget_package_items AS packageItem
       INNER JOIN @Updated AS updated
         ON updated.id = packageItem.category_budget_package_id
-      WHERE packageItem.is_active = 1;
+      WHERE packageItem.is_active = 1
+        AND ${hasPositiveApprovedPackageDemandSql("packageItem")};
 
       SELECT id FROM @Updated;
     `);

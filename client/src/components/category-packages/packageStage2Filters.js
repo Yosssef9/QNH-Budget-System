@@ -8,7 +8,11 @@ const quantity = (value) => {
 const positivePrice = (value) => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value)) && Number(value) > 0;
 
 export function packagePriceStatus(item) {
-  const models = item.model_unit_prices || [];
+  // Pricing is not required for rejected demand or unused models.
+  if (quantity(item.approved_quantity) <= 0) return "NOT_REQUIRED";
+  const models = (item.model_unit_prices || []).filter((row) =>
+    quantity(row.quantity) > 0,
+  );
   if (!models.length) return "MISSING";
   const priced = models.filter((row) => positivePrice(row.category_manager_unit_price)).length;
   if (!priced) return "MISSING";
@@ -50,13 +54,14 @@ export function scopePackageItem(item, expenseType = "ALL", departmentId = "ALL"
   const departments = scoped
     ? new Set(contributions.map((row) => String(row.department_id))).size
     : quantity(item.department_count);
-  const modelsPriced = packagePriceStatus(item) === "PRICED";
+  const modelsPriced = ["PRICED", "NOT_REQUIRED"].includes(packagePriceStatus(item));
   const allocatedValue = contributions.reduce((total, row) => total + quantity(row.estimated_allocated_value), 0);
   const missingPrices = contributions.some((row) => quantity(row.unpriced_allocations) > 0);
-  const value = scoped
-    ? (approved > 0 && (!modelsPriced || allocated <= 0 || missingPrices)
-      ? null : allocatedValue)
-    : (modelsPriced ? quantity(item.category_manager_estimated_total ?? item.estimated_total) : null);
+  const value = approved <= 0
+    ? 0
+    : scoped
+      ? (!modelsPriced || allocated <= 0 || missingPrices ? null : allocatedValue)
+      : (modelsPriced ? quantity(item.category_manager_estimated_total ?? item.estimated_total) : null);
   const contributionTypes = [...new Set(allContributions
     .map((row) => normalizedExpense(row.expense_type)).filter(Boolean))];
   return {

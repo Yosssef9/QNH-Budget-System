@@ -881,6 +881,13 @@ function buildReadiness(packageData, itemDetailsById = new Map()) {
     });
   }
 
+  if (!(packageData.items || []).some((item) => Number(item.approved_quantity || 0) > 0)) {
+    blockers.push({
+      code: "PACKAGE_NO_APPROVED_DEMAND",
+      message: "No approved demand exists for Purchasing review",
+    });
+  }
+
   for (const item of packageData.items || []) {
     const itemDetail = itemDetailsById.get(Number(item.id));
 
@@ -943,9 +950,14 @@ function buildReadiness(packageData, itemDetailsById = new Map()) {
       }
 
       for (const subItem of itemDetail.subItems) {
+        // An unused model has no amount to procure. Rejected items must
+        // remain visible to the CM but cannot block the package on pricing.
+        // Keep the quantity-mismatch validation below for stale allocations.
         if (
-          subItem.category_manager_unit_price === null ||
-          Number(subItem.category_manager_unit_price) < 1
+          Number(item.approved_quantity || 0) > 0 &&
+          Number(subItem.quantity || 0) > 0 &&
+          (subItem.category_manager_unit_price === null ||
+            Number(subItem.category_manager_unit_price) < 1)
         ) {
           blockers.push({
             code: "PACKAGE_SUB_ITEM_PRICE_REQUIRED",

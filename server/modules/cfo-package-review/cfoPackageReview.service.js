@@ -196,14 +196,20 @@ async function loadPackageDetail(packageId) {
   assertPackageExists(packageRow);
 
   const [itemRows, departmentRows] = await Promise.all([
-    listPackageItemsRepo({ packageId }),
+    listPackageItemsRepo({ packageId, approvedOnly: true }),
     listDepartmentPackageViewRowsRepo({ packageId }),
   ]);
 
   const items = itemRows.map((item) => mapPackageItem(item));
+  const approvedItemIds = new Set(itemRows.map((item) => Number(item.id)));
   return {
     package: mapPackage(packageRow, items),
-    departmentView: mapDepartmentPackageView(departmentRows),
+    departmentView: mapDepartmentPackageView(
+      departmentRows.filter((row) =>
+        approvedItemIds.has(Number(row.package_item_id)) &&
+        Number(row.category_approved_quantity || 0) > 0,
+      ),
+    ),
   };
 }
 
@@ -265,10 +271,10 @@ export async function getCfoPackageDistributionService({
     assertPackageItemExists(packageItem);
   }
 
-  const rows = await listPackageDistributionRowsRepo({
+  const rows = (await listPackageDistributionRowsRepo({
     packageId,
     packageItemId,
-  });
+  })).filter((row) => Number(row.category_approved_quantity || 0) > 0);
 
   return buildPackageDistributionAnalysis({
     rows,
@@ -299,7 +305,8 @@ export async function getCfoFinancialYearDistributionService({
     "You do not have permission to view CFO package reviews",
   );
 
-  const rows = await listPackageDistributionRowsRepo({ financialYearId });
+  const rows = (await listPackageDistributionRowsRepo({ financialYearId }))
+    .filter((row) => Number(row.category_approved_quantity || 0) > 0);
 
   return buildPackageDistributionAnalysis({
     rows,
@@ -536,11 +543,15 @@ export async function getCfoPackageItemDetailService({
     packageItemId,
   });
   assertPackageItemExists(packageItem);
+  const approvedItems = await listPackageItemsRepo({ packageId, approvedOnly: true });
+  if (!approvedItems.some((item) => Number(item.id) === Number(packageItemId))) {
+    throw new ApiError(404, "Item is not in CFO review", "CFO_PACKAGE_ITEM_NOT_FOUND");
+  }
 
   const [detailRows, allocations, packageItems] = await Promise.all([
     listPackageItemDetailRowsRepo({ packageItemId }),
     listAllocationsForPackageItemRepo({ packageItemId }),
-    listPackageItemsRepo({ packageId }),
+    listPackageItemsRepo({ packageId, approvedOnly: true }),
   ]);
   const mappedPackageItem = packageItems
     .map((item) => mapPackageItem(item))

@@ -1,5 +1,6 @@
 import { poolPromise, sql } from "../../config/db.js";
 import { createRequest } from "../../utils/createRequest.js";
+import { hasPositiveApprovedPackageDemandSql } from "../category-packages/approvedPackageDemand.sql.js";
 import {
   CATEGORY_PACKAGE_ITEM_CFO_STATUS,
   CFO_PACKAGE_REVIEW_WORKFLOW_ACTIONS,
@@ -36,6 +37,7 @@ export async function listCfoPackagesRepo({ financialYearId = null } = {}) {
         SUM(CASE WHEN packageItem.cfo_review_status = '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.NEEDS_MODIFICATION}' THEN 1 ELSE 0 END) AS needs_modification_item_count
       FROM dbo.BS_category_budget_package_items AS packageItem
       WHERE packageItem.is_active = 1
+        AND ${hasPositiveApprovedPackageDemandSql("packageItem")}
       GROUP BY packageItem.category_budget_package_id
     ),
     quantitySummary AS (
@@ -66,6 +68,7 @@ export async function listCfoPackagesRepo({ financialYearId = null } = {}) {
         ON subItem.category_budget_package_item_id = packageItem.id
        AND subItem.is_active = 1
       WHERE packageItem.is_active = 1
+        AND ${hasPositiveApprovedPackageDemandSql("packageItem")}
       GROUP BY packageItem.category_budget_package_id
     ),
     departmentCoverage AS (
@@ -360,7 +363,8 @@ export async function findPackageItemForCfoRepo(
         ON catalog.id = packageItem.catalog_item_id
       WHERE packageItem.id = @packageItemId
         AND packageItem.category_budget_package_id = @packageId
-        AND packageItem.is_active = 1;
+        AND packageItem.is_active = 1
+        AND ${hasPositiveApprovedPackageDemandSql("packageItem")};
     `);
 
   const row = result.recordset[0] || null;
@@ -408,7 +412,7 @@ export async function markAllPackageItemsNeedModificationRepo(
     .input("packageId", sql.BigInt, payload.package_id)
     .input("note", sql.NVarChar(1000), payload.note)
     .input("actorUserId", sql.Int, payload.actor_user_id).query(`
-      UPDATE dbo.BS_category_budget_package_items
+      UPDATE packageItem
       SET
         cfo_review_status = '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.NEEDS_MODIFICATION}',
         cfo_review_note = @note,
@@ -416,8 +420,10 @@ export async function markAllPackageItemsNeedModificationRepo(
         cfo_reviewed_at = SYSUTCDATETIME(),
         updated_by = @actorUserId,
         updated_at = SYSUTCDATETIME()
-      WHERE category_budget_package_id = @packageId
-        AND is_active = 1;
+      FROM dbo.BS_category_budget_package_items AS packageItem
+      WHERE packageItem.category_budget_package_id = @packageId
+        AND packageItem.is_active = 1
+        AND ${hasPositiveApprovedPackageDemandSql("packageItem")};
 
       SELECT @@ROWCOUNT AS affected_count;
     `);
@@ -437,9 +443,10 @@ export async function countPackageCfoReviewStatusesRepo(
       SUM(CASE WHEN cfo_review_status = '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.PENDING_CFO_REVIEW}' THEN 1 ELSE 0 END) AS pending_count,
       SUM(CASE WHEN cfo_review_status = '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.CFO_ACCEPTED}' THEN 1 ELSE 0 END) AS accepted_count,
       SUM(CASE WHEN cfo_review_status = '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.NEEDS_MODIFICATION}' THEN 1 ELSE 0 END) AS needs_modification_count
-    FROM dbo.BS_category_budget_package_items
-    WHERE category_budget_package_id = @packageId
-      AND is_active = 1;
+    FROM dbo.BS_category_budget_package_items AS packageItem
+    WHERE packageItem.category_budget_package_id = @packageId
+      AND packageItem.is_active = 1
+      AND ${hasPositiveApprovedPackageDemandSql("packageItem")};
   `);
 
   const row = result.recordset[0] || {};
@@ -652,6 +659,7 @@ export async function createCfoPackageItemReturnSnapshotsRepo(
         ON packageItem.category_budget_package_id = pkg.id
        AND packageItem.is_active = 1
        AND packageItem.cfo_review_status = '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.NEEDS_MODIFICATION}'
+       AND ${hasPositiveApprovedPackageDemandSql("packageItem")}
       OUTER APPLY (
         SELECT SUM(item.category_approved_quantity) AS approved_quantity
         FROM dbo.BS_department_budgets AS departmentBudget

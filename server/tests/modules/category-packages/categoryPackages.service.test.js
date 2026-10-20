@@ -37,6 +37,7 @@ vi.mock(
     listAllocationsForPackageItemRepo: vi.fn(),
     listPackageItemDetailRowsRepo: vi.fn(),
     listPackageDistributionRowsRepo: vi.fn(),
+    listPackageItemExpenseContributionsRepo: vi.fn(),
     listPackageItemsRepo: vi.fn(),
     listPackageSubItemsForDepartmentItemRepo: vi.fn(),
     listCurrentAllocationsForDepartmentItemRepo: vi.fn(),
@@ -67,6 +68,7 @@ import {
   listAllocationsForPackageItemRepo,
   listPackageItemDetailRowsRepo,
   listPackageDistributionRowsRepo,
+  listPackageItemExpenseContributionsRepo,
   listPackageItemsRepo,
   listPackageSubItemPriceHistoryRepo,
   listPackageSubItemsForDepartmentItemRepo,
@@ -579,6 +581,128 @@ describe("category package service", () => {
     ).rejects.toMatchObject({ errorCode: "CATEGORY_PACKAGE_NOT_READY" });
 
     expect(markPackageSubmittedToPurchasingRepo).not.toHaveBeenCalled();
+  });
+
+  it("does not require prices for fully rejected demand (approved 0 / allocated 0)", async () => {
+    findCurrentPackageForCategoryRepo.mockResolvedValue({
+      id: 300, financial_year_id: 9, financial_year: 2027,
+      financial_year_status: "OPEN", budget_category_id: 1,
+      category_name: "IT", status: "DRAFT",
+      submission_window_status: "CLOSED", row_version: "abc",
+    });
+    listPackageItemsRepo.mockResolvedValue([
+      {
+        id: 401, catalog_item_name: "High Speed Internet",
+        requested_quantity: 1, approved_quantity: 0,
+        allocated_quantity: 0, needs_reconciliation: false,
+        active_sub_item_count: 1,
+      },
+      {
+        id: 402, catalog_item_name: "Computers Set",
+        requested_quantity: 3, approved_quantity: 3,
+        allocated_quantity: 3, needs_reconciliation: false,
+        active_sub_item_count: 1,
+      },
+    ]);
+    listPackageItemExpenseContributionsRepo.mockResolvedValue([]);
+    listPackageItemDetailRowsRepo.mockImplementation(async ({ packageItemId }) =>
+      packageItemId === 401
+        ? { subItems: [{ id: 20, name: "General", quantity: 0, category_manager_unit_price: null }],
+            departments: [{ department_item_id: 201, department_name: "IT", category_approved_quantity: 0 }] }
+        : { subItems: [{ id: 21, name: "General", quantity: 3, category_manager_unit_price: 1200 }],
+            departments: [{ department_item_id: 202, department_name: "IT", category_approved_quantity: 3 }] },
+    );
+    listAllocationsForPackageItemRepo.mockImplementation(async ({ packageItemId }) =>
+      packageItemId === 401 ? [] : [
+        { category_budget_package_sub_item_id: 21, department_category_budget_item_id: 202, allocated_quantity: 3 },
+      ],
+    );
+    markPackageSubmittedToPurchasingRepo.mockResolvedValue({
+      id: 300, review_round: 1, carried_forward_sub_item_ids: [],
+    });
+
+    await submitCategoryPackageToPurchasingService({
+      packageId: 300, actorUserId: 7, budgetAccess: categoryAccess,
+      payload: { row_version: "abc" },
+    });
+    expect(markPackageSubmittedToPurchasingRepo).toHaveBeenCalledOnce();
+  });
+
+  it("rejects submitting a package when all department demands are approved zero", async () => {
+    findCurrentPackageForCategoryRepo.mockResolvedValue({
+      id: 300, financial_year_id: 9, financial_year: 2027,
+      financial_year_status: "OPEN", budget_category_id: 1,
+      category_name: "IT", status: "DRAFT",
+      submission_window_status: "CLOSED", row_version: "abc",
+    });
+    listPackageItemsRepo.mockResolvedValue([{
+      id: 401, catalog_item_name: "High Speed Internet",
+      requested_quantity: 1, approved_quantity: 0,
+      allocated_quantity: 0, needs_reconciliation: false,
+      active_sub_item_count: 1,
+    }]);
+    listPackageItemExpenseContributionsRepo.mockResolvedValue([]);
+    listPackageItemDetailRowsRepo.mockResolvedValue({
+      subItems: [{ id: 20, name: "General", quantity: 0, category_manager_unit_price: null }],
+      departments: [{ department_item_id: 201, category_approved_quantity: 0 }],
+    });
+    listAllocationsForPackageItemRepo.mockResolvedValue([]);
+    await expect(submitCategoryPackageToPurchasingService({
+      packageId: 300, actorUserId: 7, budgetAccess: categoryAccess,
+      payload: { row_version: "abc" },
+    })).rejects.toMatchObject({ errorCode: "CATEGORY_PACKAGE_NOT_READY" });
+    expect(markPackageSubmittedToPurchasingRepo).not.toHaveBeenCalled();
+  });
+
+  it("still blocks a positive approved and allocated model with missing price", async () => {
+    findCurrentPackageForCategoryRepo.mockResolvedValue({
+      id: 300, financial_year_id: 9, financial_year: 2027,
+      financial_year_status: "OPEN", budget_category_id: 1,
+      category_name: "IT", status: "DRAFT",
+      submission_window_status: "CLOSED", row_version: "abc",
+    });
+    listPackageItemExpenseContributionsRepo.mockResolvedValue([]);
+    listPackageItemDetailRowsRepo.mockResolvedValue({
+      subItems: [{ id: 21, name: "General", quantity: 15, category_manager_unit_price: null }],
+      departments: [{ department_item_id: 200, department_name: "Laboratory", category_approved_quantity: 15 }],
+    });
+    listAllocationsForPackageItemRepo.mockResolvedValue([
+      { category_budget_package_sub_item_id: 21, department_category_budget_item_id: 200, allocated_quantity: 15 },
+    ]);
+
+    await expect(submitCategoryPackageToPurchasingService({
+      packageId: 300, actorUserId: 7, budgetAccess: categoryAccess,
+      payload: { row_version: "abc" },
+    })).rejects.toMatchObject({ errorCode: "CATEGORY_PACKAGE_NOT_READY" });
+    expect(markPackageSubmittedToPurchasingRepo).not.toHaveBeenCalled();
+  });
+
+  it("does not require a price for a zero-quantity model when another model is allocated", async () => {
+    findCurrentPackageForCategoryRepo.mockResolvedValue({
+      id: 300, financial_year_id: 9, financial_year: 2027,
+      financial_year_status: "OPEN", budget_category_id: 1,
+      category_name: "IT", status: "DRAFT",
+      submission_window_status: "CLOSED", row_version: "abc",
+    });
+    listPackageItemExpenseContributionsRepo.mockResolvedValue([]);
+    listPackageItemDetailRowsRepo.mockResolvedValue({
+      subItems: [
+        { id: 10, name: "General", quantity: 15, category_manager_unit_price: 1000 },
+        { id: 11, name: "Unused model", quantity: 0, category_manager_unit_price: null },
+      ],
+      departments: [{ department_item_id: 200, department_name: "Laboratory", category_approved_quantity: 15 }],
+    });
+    listAllocationsForPackageItemRepo.mockResolvedValue([
+      { category_budget_package_sub_item_id: 10, department_category_budget_item_id: 200, allocated_quantity: 15 },
+    ]);
+    markPackageSubmittedToPurchasingRepo.mockResolvedValue({
+      id: 300, review_round: 1, carried_forward_sub_item_ids: [],
+    });
+    await submitCategoryPackageToPurchasingService({
+      packageId: 300, actorUserId: 7, budgetAccess: categoryAccess,
+      payload: { row_version: "abc" },
+    });
+    expect(markPackageSubmittedToPurchasingRepo).toHaveBeenCalledOnce();
   });
 
   it("uploads package sub-item attachment metadata after validating package scope", async () => {

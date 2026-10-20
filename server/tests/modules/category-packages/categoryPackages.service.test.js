@@ -36,6 +36,7 @@ vi.mock(
     listPackageSubItemPriceHistoryRepo: vi.fn(),
     listAllocationsForPackageItemRepo: vi.fn(),
     listPackageItemDetailRowsRepo: vi.fn(),
+    listPackageDistributionRowsRepo: vi.fn(),
     listPackageItemsRepo: vi.fn(),
     listPackageSubItemsForDepartmentItemRepo: vi.fn(),
     listCurrentAllocationsForDepartmentItemRepo: vi.fn(),
@@ -65,6 +66,7 @@ import {
   findPackageContextBySubItemRepo,
   listAllocationsForPackageItemRepo,
   listPackageItemDetailRowsRepo,
+  listPackageDistributionRowsRepo,
   listPackageItemsRepo,
   listPackageSubItemPriceHistoryRepo,
   listPackageSubItemsForDepartmentItemRepo,
@@ -81,6 +83,7 @@ import {
 import {
   deletePackageSubItemAttachmentService,
   buildPackageDistributionAnalysis,
+  getCategoryPackageDistributionService,
   getPackageSubItemPriceHistoryService,
   replaceDepartmentItemAllocationsService,
   submitCategoryPackageToPurchasingService,
@@ -781,6 +784,117 @@ describe("category package service", () => {
     expect(result.totals.estimated_total).toBe(1000);
   });
 
+  const distributionRow = {
+    package_id: 300,
+    financial_year_id: 9,
+    financial_year: 2027,
+    budget_category_id: 1,
+    category_name: "IT",
+    category_code: "IT",
+    package_item_id: 400,
+    catalog_item_id: 30,
+    catalog_item_name: "Laptop",
+    department_id: 10,
+    department_name: "Information Technology",
+    department_item_id: 200,
+    requested_quantity: 4,
+    category_approved_quantity: 4,
+    item_unit_code: "UNIT",
+    period_type: "MONTH",
+    period_no: 3,
+    distribution_id: 1,
+    distribution_quantity: 4,
+    allocation_id: 50,
+    allocated_quantity: 4,
+    package_sub_item_id: 10,
+    package_sub_item_name: "General",
+    // In production the manager price exists while effective unit_price is NULL.
+    unit_price: null,
+    category_manager_unit_price: 250,
+  };
+
+  it("prices Category Manager distribution from proposed price even when effective price is NULL", () => {
+    const result = buildPackageDistributionAnalysis({
+      rows: [distributionRow],
+      scope: { label: "IT package" },
+      priceBasis: "CATEGORY_MANAGER",
+    });
+
+    expect(result.totals.approved_quantity).toBe(4);
+    expect(result.totals.allocated_quantity).toBe(4);
+    expect(result.totals.periods.monthly["3"]).toBe(1000);
+    expect(result.totals.periods.quarterly["1"]).toBe(1000);
+    expect(result.totals.estimated_total).toBe(1000);
+    expect(result.rows.byModel[0].meta.unitPrice).toBe(250);
+  });
+
+  it("keeps existing effective-price reporting unchanged by default", () => {
+    const rows = [{ ...distributionRow, unit_price: 100 }];
+    const result = buildPackageDistributionAnalysis({
+      rows,
+      scope: { label: "IT package" },
+    });
+
+    expect(result.totals.estimated_total).toBe(400);
+    expect(result.rows.byModel[0].meta.unitPrice).toBe(100);
+  });
+
+  it("does not substitute effective prices for missing manager prices", () => {
+    const rows = [{ ...distributionRow, unit_price: 100, category_manager_unit_price: null }];
+    const result = buildPackageDistributionAnalysis({
+      rows,
+      scope: { label: "IT package" },
+      priceBasis: "CATEGORY_MANAGER",
+    });
+
+    expect(result.totals.estimated_total).toBe(0);
+    expect(result.rows.byModel[0].meta.unitPrice).toBe(0);
+  });
+
+  it("uses manager prices for a package containing multiple models", () => {
+    const rows = [
+      { ...distributionRow, allocated_quantity: 1, allocation_id: 50, package_sub_item_id: 10 },
+      { ...distributionRow, allocated_quantity: 3, allocation_id: 51,
+        package_sub_item_id: 11, package_sub_item_name: "Premium",
+        unit_price: 80, category_manager_unit_price: 400 },
+    ];
+    const result = buildPackageDistributionAnalysis({
+      rows,
+      scope: { label: "IT package" },
+      priceBasis: "CATEGORY_MANAGER",
+    });
+
+    expect(result.totals.approved_quantity).toBe(4); // not doubled across models
+    expect(result.totals.allocated_quantity).toBe(4);
+    expect(result.totals.estimated_total).toBe(1450);
+    expect(result.rows.byModel.map((row) => row.meta.unitPrice)).toEqual([250, 400]);
+  });
+
+  it("wires the Category Manager distribution endpoint to manager pricing before submission", async () => {
+    findCurrentPackageForCategoryRepo.mockResolvedValue({
+      id: 300,
+      financial_year_id: 9,
+      financial_year: 2027,
+      budget_category_id: 1,
+      category_name: "IT",
+      category_code: "IT",
+      status: "DRAFT",
+    });
+    listPackageDistributionRowsRepo.mockResolvedValue([distributionRow]);
+
+    const result = await getCategoryPackageDistributionService({
+      budgetAccess: categoryAccess,
+    });
+
+    expect(result.totals.estimated_total).toBe(1000);
+    expect(result.rows.byModel[0].meta.unitPrice).toBe(250);
+    expect(listPackageDistributionRowsRepo).toHaveBeenCalledWith({
+      packageId: 300,
+      packageItemId: null,
+      expenseType: "ALL",
+    });
+  });
+
   it("rebalances a saved custom distribution when CFO return changes only approved quantity", async () => {
     findDepartmentItemPackageEditContextRepo.mockResolvedValue({
       department_item_id: 200,
@@ -842,4 +956,5 @@ describe("category package service", () => {
   });
 
 });
+
 

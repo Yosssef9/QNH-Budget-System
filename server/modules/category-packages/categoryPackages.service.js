@@ -476,10 +476,21 @@ function expandRowsWithApprovedDistributionPeriods(rows = []) {
   return expanded;
 }
 
-function distributeRowAmount(row, approvedPeriodQuantity) {
+// Category Manager Stage 2 uses the manager's proposed price. Other consumers
+// (including CFO distribution reports) continue using the existing effective
+// unit_price. Never write one price field into the other.
+function getDistributionUnitPrice(row, priceBasis) {
+  const sourcePrice = priceBasis === "CATEGORY_MANAGER"
+    ? row.category_manager_unit_price
+    : row.unit_price;
+  const value = Number(sourcePrice);
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function distributeRowAmount(row, approvedPeriodQuantity, priceBasis) {
   const approvedQuantity = Number(row.category_approved_quantity || 0);
   const allocatedQuantity = Number(row.allocated_quantity || 0);
-  const unitPrice = Number(row.unit_price || 0);
+  const unitPrice = getDistributionUnitPrice(row, priceBasis);
 
   if (approvedQuantity <= 0 || allocatedQuantity <= 0 || unitPrice <= 0) {
     return 0;
@@ -488,7 +499,7 @@ function distributeRowAmount(row, approvedPeriodQuantity) {
   return (approvedPeriodQuantity / approvedQuantity) * allocatedQuantity * unitPrice;
 }
 
-export function buildPackageDistributionAnalysis({ rows, scope }) {
+export function buildPackageDistributionAnalysis({ rows, scope, priceBasis = "EFFECTIVE" }) {
   const categoryMap = new Map();
   const itemMap = new Map();
   const departmentMap = new Map();
@@ -578,7 +589,7 @@ export function buildPackageDistributionAnalysis({ rows, scope }) {
             categoryName: row.category_name,
             categoryCode: row.category_code,
             itemName: row.catalog_item_name,
-            unitPrice: Number(row.unit_price || 0),
+            unitPrice: getDistributionUnitPrice(row, priceBasis),
             unitOfMeasureName: row.unit_of_measure_name,
             unitOfMeasureCode: row.unit_of_measure_code,
           },
@@ -638,7 +649,7 @@ export function buildPackageDistributionAnalysis({ rows, scope }) {
     const approvedPeriodQuantity = row.period_type
       ? Number(approvedRows?.get(distributionRowKey(row)) || 0)
       : Number(row.category_approved_quantity || 0);
-    const amount = distributeRowAmount(row, approvedPeriodQuantity);
+    const amount = distributeRowAmount(row, approvedPeriodQuantity, priceBasis);
     if (amount <= 0) continue;
 
     const periodKeys = getPeriodKeys(row);
@@ -1107,6 +1118,7 @@ export async function getCategoryPackageDistributionService({
 
   return buildPackageDistributionAnalysis({
     rows,
+    priceBasis: "CATEGORY_MANAGER",
     scope: {
       type: packageItemId ? "PACKAGE_ITEM" : "CATEGORY_PACKAGE",
       packageId: packageRow.id,
@@ -2286,4 +2298,5 @@ export async function updateDepartmentItemApprovedQuantityService({
   // Do not load the complete package-workbench item again.
   return result;
 }
+
 

@@ -21,6 +21,7 @@ import {
   FileText,
   FilePlus2,
   History,
+  Info,
   Layers3,
   Loader2,
   Lock,
@@ -430,6 +431,69 @@ function MetricCard({ label, value, helper, icon: Icon, tone = "slate" }) {
         ) : null}
       </div>
     </div>
+  );
+}
+
+// Reuse the unfiltered Stage 2 total; never reconstruct a full price from
+// the abbreviated "M"/"K" string displayed in the KPI.
+const exactPackageCurrencyFormatter = new Intl.NumberFormat("en-US", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+function TotalPackageValueTooltip({ amount, incomplete }) {
+  const exactAmount = exactPackageCurrencyFormatter.format(amount);
+  const description = incomplete
+    ? `Fully priced subtotal: SAR ${exactAmount}. Some models still have no price.`
+    : `Exact total package value: SAR ${exactAmount}`;
+
+  return (
+    <Tooltip
+      arrow
+      describeChild
+      placement="top"
+      enterDelay={200}
+      title={
+        <div className="min-w-[220px] max-w-[310px] px-2 py-1.5 text-slate-800">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-blue-700">
+            {incomplete ? "Fully priced subtotal" : "Exact package value"}
+          </p>
+          <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 border-b border-slate-100 pb-3">
+            <span className="text-[11px] font-extrabold text-slate-500">SAR</span>
+            <span className="break-all text-xl font-black tabular-nums tracking-tight text-slate-950">
+              {exactAmount}
+            </span>
+          </div>
+          <p className="mt-2 text-xs leading-5 text-slate-600">
+            {incomplete
+              ? "Some package models still need a price. This subtotal excludes items with missing model prices."
+              : "Includes all items in this category package, regardless of table filters."}
+          </p>
+        </div>
+      }
+      slotProps={{
+        tooltip: {
+          sx: {
+            bgcolor: "#ffffff",
+            border: "1px solid #dbeafe",
+            borderRadius: "14px",
+            boxShadow: "0 16px 40px rgba(15, 23, 42, 0.17)",
+            maxWidth: "340px",
+            p: 1,
+          },
+        },
+        arrow: { sx: { color: "#ffffff", "&::before": { border: "1px solid #dbeafe" } } },
+      }}
+    >
+      <span
+        tabIndex={0}
+        aria-label={description}
+        className="inline-flex max-w-full cursor-help flex-wrap items-center gap-1.5 rounded-md outline-none transition-colors hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+      >
+        {incomplete ? "Not fully priced" : <CurrencyText compact value={amount} />}
+        <Info size={16} className="shrink-0 text-blue-500" aria-hidden="true" />
+      </span>
+    </Tooltip>
   );
 }
 
@@ -3419,9 +3483,14 @@ export default function CategoryPackageWorkbench({
   const reconciledCount = items.filter(
     (item) => item.reconciliation_status === "RECONCILED",
   ).length;
-  const estimatedPackageTotal = items.reduce(
-    (sum, item) =>
-      sum + toNumber(item.category_manager_estimated_total ?? item.estimated_total),
+  // Use the same unfiltered Stage 2 estimated-value selector as the Package Items
+  // summary. A missing model price must never silently count as a zero-price item.
+  const packageEstimatedValues = items.map(
+    (item) => scopePackageItem(item, "ALL", "ALL").view_estimated_value,
+  );
+  const packageValueIncomplete = packageEstimatedValues.some((value) => value === null);
+  const estimatedPackageTotal = packageEstimatedValues.reduce(
+    (sum, value) => sum + toNumber(value),
     0,
   );
 
@@ -3460,12 +3529,21 @@ export default function CategoryPackageWorkbench({
         </div>
       ) : null}
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         <MetricCard label="Approved Demand" value={formatNumber(approvedTotal)} helper="approved quantity" icon={CheckCircle2} tone="blue" />
         <MetricCard label="Package Models" value={modelCount} helper={`${items.length} package items`} icon={PackageCheck} />
         <MetricCard label="Allocated" value={formatNumber(allocatedTotal)} helper="across departments" icon={Layers3} tone="emerald" />
         <MetricCard label="Reconciled Items" value={`${reconciledCount}/${items.length}`} icon={CheckCircle2} tone={reconciledCount === items.length && items.length ? "emerald" : "amber"} />
-        <MetricCard label="Item Blockers" value={preparationReady ? "Prepared" : `${itemPreparationBlockers.length} blocker${itemPreparationBlockers.length === 1 ? "" : "s"}`} helper={<CurrencyText compact value={estimatedPackageTotal} />} icon={preparationReady ? CheckCircle2 : AlertCircle} tone={preparationReady ? "emerald" : "amber"} />
+        <MetricCard label="Item Blockers" value={preparationReady ? "Prepared" : `${itemPreparationBlockers.length} blocker${itemPreparationBlockers.length === 1 ? "" : "s"}`} icon={preparationReady ? CheckCircle2 : AlertCircle} tone={preparationReady ? "emerald" : "amber"} />
+        <MetricCard
+          label="Total Package Value"
+          value={<TotalPackageValueTooltip amount={estimatedPackageTotal} incomplete={packageValueIncomplete} />}
+          helper={packageValueIncomplete
+            ? <>Fully priced items: <CurrencyText compact value={estimatedPackageTotal} /></>
+            : "All category package items"}
+          icon={CircleDollarSign}
+          tone="blue"
+        />
       </section>
 
       <PackagePreparationNavigation value={view} onChange={onViewChange} />

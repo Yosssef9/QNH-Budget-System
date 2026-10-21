@@ -2675,6 +2675,7 @@ function PackageItemUnitPrice({ item, onOpenModels }) {
 function PackageItemWorkspaceDrawer({
   open,
   initialTab = "OVERVIEW",
+  scrollRequest = null,
   onClose,
   packageData,
   item,
@@ -2692,10 +2693,36 @@ function PackageItemWorkspaceDrawer({
   onViewHodNote,
 }) {
   const [tab, setTab] = useState("OVERVIEW");
+  const scrollContainerRef = useRef(null);
+  const departmentSectionRef = useRef(null);
+  const completedScrollRequestRef = useRef(null);
 
   useEffect(() => {
     if (open) setTab(initialTab);
   }, [open, item?.id, initialTab]);
+
+  // Scroll only for the department-count shortcut, after this item's details
+  // have loaded and its Models & Allocation tab has actually rendered.
+  // Remember the request so background refetches never scroll unexpectedly.
+  useEffect(() => {
+    if (
+      !open || loading || !detail || tab !== "MODELS" ||
+      scrollRequest?.section !== "DEMAND" ||
+      Number(scrollRequest.itemId) !== Number(item?.id) ||
+      Number(detail.package_item?.id) !== Number(item?.id) ||
+      completedScrollRequestRef.current === scrollRequest
+    ) return;
+
+    const container = scrollContainerRef.current;
+    const section = departmentSectionRef.current;
+    if (!container || !section) return;
+
+    const top = container.scrollTop +
+      section.getBoundingClientRect().top -
+      container.getBoundingClientRect().top - 12;
+    completedScrollRequestRef.current = scrollRequest;
+    container.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+  }, [open, loading, detail, item?.id, tab, scrollRequest]);
 
   const subItems = detail?.sub_items || [];
   const departments = detail?.departments || [];
@@ -2757,7 +2784,7 @@ function PackageItemWorkspaceDrawer({
           </div>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+        <main ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
           {loading ? (
             <div className="space-y-4">
               <div className="h-28 animate-pulse rounded-2xl bg-white" />
@@ -2788,13 +2815,15 @@ function PackageItemWorkspaceDrawer({
                 onViewPriceContext={onViewPriceContext}
                 onViewPriceHistory={onViewPriceHistory}
               />
-              <DepartmentDemandPanel
-                departments={departments}
-                subItems={subItems}
-                editable={editable}
-                onAllocate={onAllocate}
-                onViewHodNote={onViewHodNote}
-              />
+              <div ref={departmentSectionRef}>
+                <DepartmentDemandPanel
+                  departments={departments}
+                  subItems={subItems}
+                  editable={editable}
+                  onAllocate={onAllocate}
+                  onViewHodNote={onViewHodNote}
+                />
+              </div>
             </div>
           ) : tab === "PRICING" ? (
             <PackagePricingPanel
@@ -3167,6 +3196,7 @@ export default function CategoryPackageWorkbench({
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [workspaceInitialTab, setWorkspaceInitialTab] = useState("OVERVIEW");
+  const [workspaceScrollRequest, setWorkspaceScrollRequest] = useState(null);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState(null);
   const [addModelOpen, setAddModelOpen] = useState(false);
   const [editingSubItem, setEditingSubItem] = useState(null);
@@ -3215,6 +3245,7 @@ export default function CategoryPackageWorkbench({
     if (!target) return;
     setSelectedItemId(target.id);
     setWorkspaceInitialTab("OVERVIEW");
+    setWorkspaceScrollRequest(null);
     setWorkspaceOpen(true);
   }, [focusItemId, items]);
 
@@ -3423,14 +3454,18 @@ export default function CategoryPackageWorkbench({
     },
   });
 
-  function openItem(itemId, initialTab = "OVERVIEW") {
+  function openItem(itemId, initialTab = "OVERVIEW", initialSection = null) {
     setSelectedItemId(itemId);
     setWorkspaceInitialTab(initialTab);
+    setWorkspaceScrollRequest(
+      initialSection === "DEMAND" ? { itemId, section: "DEMAND" } : null,
+    );
     setWorkspaceOpen(true);
   }
 
   function closeItemWorkspace() {
     setWorkspaceOpen(false);
+    setWorkspaceScrollRequest(null);
     onClearFocusItem?.();
   }
 
@@ -3790,8 +3825,9 @@ export default function CategoryPackageWorkbench({
                       <td className="px-5 py-4">
                         <button
                           type="button"
-                          onClick={() => onViewChange("departments")}
-                          className="font-black text-blue-700 underline decoration-dotted underline-offset-4"
+                          onClick={() => openItem(item.id, "MODELS", "DEMAND")}
+                          aria-label={`View the ${item.view_department_count} requesting departments for ${item.catalog_item_name}`}
+                          className="font-black text-blue-700 underline decoration-dotted underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
                         >
                           {item.view_department_count} department{Number(item.view_department_count) === 1 ? "" : "s"}
                         </button>
@@ -3917,6 +3953,7 @@ export default function CategoryPackageWorkbench({
       <PackageItemWorkspaceDrawer
         open={workspaceOpen}
         initialTab={workspaceInitialTab}
+        scrollRequest={workspaceScrollRequest}
         onClose={closeItemWorkspace}
         packageData={packageData}
         item={selectedItem}

@@ -1,4 +1,10 @@
+import { Fragment, useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { isCountableUnit } from "../../utils/approvedDistribution";
+import { getCategoryReviewBudget } from "../../api/categoryReview.api";
 import {
+  Save,
+  ChevronRight,
   ArrowRight,
   Building2,
   CheckCircle2,
@@ -53,12 +59,64 @@ function MetricCard({ icon: Icon, label, value, tone = "blue" }) {
 
 export default function RequestedDemandDetailsDrawer({
   item,
+  cfoReview = null,
   onClose,
   onGoToDepartmentReview,
+  onSaveApprovedQuantity,
+  canReviewItems = false,
 }) {
+  const [expandedId, setExpandedId] = useState(null);
+  const [quantityDraft, setQuantityDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+  const departments = item?.departments || [];
+  const activeDepartment = departments.find((department) =>
+    Number(department.department_budget_item_id) === Number(expandedId));
+  const budgetQuery = useQuery({
+    queryKey: ["category-review", "budget", activeDepartment?.department_category_budget_id],
+    queryFn: () => getCategoryReviewBudget(activeDepartment.department_category_budget_id),
+    enabled: Boolean(item && activeDepartment),
+  });
+  const budget = budgetQuery.data;
+  const activeReviewItem = (budget?.items || []).find((row) =>
+    Number(row.id) === Number(activeDepartment?.department_budget_item_id));
+  const returnedCorrection = budget?.status === "CATEGORY_REVIEW_COMPLETED" &&
+    budget?.category_package_status === "RETURNED_BY_CFO" &&
+    activeReviewItem?.package_item_cfo_review_status === "NEEDS_MODIFICATION";
+  const editable = canReviewItems && (budget?.status === "IN_CATEGORY_REVIEW" || returnedCorrection);
+  const customDistribution = !returnedCorrection && activeReviewItem?.approved_distribution_mode === "CUSTOM";
+  const countable = isCountableUnit(activeReviewItem || {});
+  const quantity = Number(quantityDraft);
+  const validQuantity = quantityDraft !== "" && Number.isFinite(quantity) &&
+    quantity >= 0 && (!countable || Number.isInteger(quantity));
+  const unchanged = Number(activeReviewItem?.category_approved_quantity ?? activeReviewItem?.requested_quantity) === quantity;
+  const canSave = editable && !customDistribution && validQuantity && !saving &&
+    (!unchanged || activeReviewItem?.review_status !== "CATEGORY_REVIEW_COMPLETED");
+
+  useEffect(() => setExpandedId(null), [item?.catalog_item_id]);
+  useEffect(() => {
+    if (!activeReviewItem) return;
+    setQuantityDraft(String(activeReviewItem.category_approved_quantity ?? activeReviewItem.requested_quantity ?? ""));
+  }, [activeReviewItem?.id, activeReviewItem?.row_version, activeReviewItem?.category_approved_quantity]);
+
+  async function handleSave(event) {
+    event.preventDefault();
+    if (!canSave || !onSaveApprovedQuantity) return;
+    setSaving(true);
+    try {
+      const saved = await onSaveApprovedQuantity({ budget, item: activeReviewItem, quantity: quantityDraft });
+      if (saved) {
+        const index = departments.findIndex((department) =>
+          Number(department.department_budget_item_id) === Number(activeReviewItem.id));
+        const next = departments[index + 1];
+        setExpandedId(next?.department_budget_item_id ?? null);
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (!item) return null;
 
-  const departments = item.departments || [];
   const nextDepartment =
     departments.find(
       (department) =>
@@ -81,6 +139,11 @@ export default function RequestedDemandDetailsDrawer({
                 <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700">
                   {item.expense_type || "—"}
                 </span>
+                {cfoReview?.cfo_review_status === "CFO_ACCEPTED" ? (
+                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">CFO Accepted</span>
+                ) : cfoReview?.cfo_review_status === "NEEDS_MODIFICATION" ? (
+                  <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800">Needs Revision</span>
+                ) : null}
                 {item.is_project ? (
                   <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-700">
                     Project
@@ -105,6 +168,11 @@ export default function RequestedDemandDetailsDrawer({
 
         <main className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
           <div className="space-y-5">
+            {cfoReview?.cfo_review_status === "NEEDS_MODIFICATION" && cfoReview?.cfo_review_note?.trim() ? (
+              <div className="whitespace-pre-wrap break-words rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
+                {cfoReview.cfo_review_note}
+              </div>
+            ) : null}
             <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <MetricCard
                 icon={Building2}
@@ -155,71 +223,78 @@ export default function RequestedDemandDetailsDrawer({
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {departments.map((department) => {
-                      const reviewed =
-                        department.review_status ===
-                        "CATEGORY_REVIEW_COMPLETED";
-
+                      const reviewed = department.review_status === "CATEGORY_REVIEW_COMPLETED";
+                      const expanded = Number(expandedId) === Number(department.department_budget_item_id);
+                      const nextValue = department.approved_quantity;
                       return (
-                        <tr
-                          key={department.department_budget_item_id}
-                          tabIndex={0}
-                          aria-label={`Open ${department.department_name} approval for ${item.catalog_item_name}`}
-                          onClick={() =>
-                            onGoToDepartmentReview(
-                              department.department_category_budget_id,
-                              department.department_budget_item_id,
-                            )
-                          }
-                          onKeyDown={(event) => {
-                            if (event.target !== event.currentTarget) return;
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              onGoToDepartmentReview(
-                                department.department_category_budget_id,
-                                department.department_budget_item_id,
-                              );
-                            }
-                          }}
-                          className="cursor-pointer transition-colors hover:bg-blue-50/70 focus-visible:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
-                        >
-                          <td className="px-5 py-4">
-                            <p className="font-black text-slate-950">
-                              {department.department_name}
-                            </p>
-                            {department.department_code ? (
-                              <p className="mt-1 text-xs font-semibold text-slate-400">
-                                {department.department_code}
-                              </p>
-                            ) : null}
-                          </td>
-                          <td className="px-5 py-4 text-slate-600">
-                            {department.hod_name || "Not assigned"}
-                          </td>
-                          <td className="px-5 py-4 font-black text-slate-950">
-                            {formatNumber(department.requested_quantity)}
-                          </td>
-                          <td className="px-5 py-4 font-black text-slate-950">
-                            {reviewed
-                              ? formatNumber(department.approved_quantity)
-                              : "—"}
-                          </td>
-                          <td className="px-5 py-4">
-                            <ReviewStatusBadge reviewed={reviewed} />
-                          </td>
-                          <td className="px-5 py-4 text-right">
-                            <span
-                              aria-hidden="true"
-                              className={[
-                                "inline-flex items-center justify-center rounded-xl px-3 py-2 text-xs font-black transition",
-                                reviewed
-                                  ? "border border-slate-200 bg-white text-slate-700"
-                                  : "bg-blue-600 text-white",
-                              ].join(" ")}
-                            >
-                              {reviewed ? "View Approval" : "Review"}
-                            </span>
-                          </td>
-                        </tr>
+                        <Fragment key={department.department_budget_item_id}>
+                          <tr tabIndex={0} aria-expanded={expanded}
+                            aria-label={`${expanded ? "Collapse" : "Expand"} approved quantity for ${department.department_name}`}
+                            onClick={() => setExpandedId((current) => Number(current) === Number(department.department_budget_item_id) ? null : department.department_budget_item_id)}
+                            onKeyDown={(event) => {
+                              if (event.target !== event.currentTarget) return;
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                setExpandedId((current) => Number(current) === Number(department.department_budget_item_id) ? null : department.department_budget_item_id);
+                              }
+                            }}
+                            className={`cursor-pointer transition-colors hover:bg-blue-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 ${expanded ? "bg-blue-50/50" : ""}`}>
+                            <td className="px-5 py-4">
+                              <span className="flex items-center gap-2 font-black text-slate-950">
+                                <ChevronRight className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${expanded ? "rotate-90 text-blue-600" : ""}`} />
+                                {department.department_name}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4 text-slate-600">{department.hod_name || "Not assigned"}</td>
+                            <td className="px-5 py-4 font-black text-slate-950">{formatNumber(department.requested_quantity)}</td>
+                            <td className="px-5 py-4 font-black text-slate-950">{reviewed ? formatNumber(nextValue) : "—"}</td>
+                            <td className="px-5 py-4"><ReviewStatusBadge reviewed={reviewed} /></td>
+                            <td className="px-5 py-4 text-right">
+                              <button type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onGoToDepartmentReview(department.department_category_budget_id, department.department_budget_item_id);
+                                }}
+                                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-blue-500">
+                                View Approval
+                              </button>
+                            </td>
+                          </tr>
+                          {expanded ? (
+                            <tr className="bg-blue-50/40">
+                              <td colSpan={6} className="px-5 py-4">
+                                {budgetQuery.isLoading ? (
+                                  <p className="text-sm text-slate-500">Loading department approval...</p>
+                                ) : budgetQuery.isError || !activeReviewItem ? (
+                                  <p className="text-sm text-rose-700">Unable to load this department item. Use View Approval to inspect it.</p>
+                                ) : (
+                                  <form onSubmit={handleSave} className="flex flex-wrap items-end gap-3 rounded-xl border border-blue-200 bg-white p-4">
+                                    <div className="w-44">
+                                      <label htmlFor={`demand-approved-${department.department_budget_item_id}`}
+                                        className="text-xs font-black uppercase tracking-wide text-slate-700">Approved Quantity</label>
+                                      <input id={`demand-approved-${department.department_budget_item_id}`}
+                                        type="number" min="0" step={countable ? "1" : "any"}
+                                        value={quantityDraft} disabled={!editable || saving || customDistribution}
+                                        onChange={(event) => setQuantityDraft(event.target.value)}
+                                        aria-invalid={!validQuantity}
+                                        className="mt-2 w-full rounded-xl border border-blue-200 bg-slate-50 px-3 py-2.5 text-lg font-black text-slate-950 outline-none focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 disabled:opacity-60" />
+                                    </div>
+                                    <button type="submit" disabled={!canSave}
+                                      className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">
+                                      <Save className="h-4 w-4" /> {saving ? "Saving..." : "Save Quantity & Next"}
+                                    </button>
+                                    <div className="flex-1 text-xs text-slate-500">
+                                      <p>Requested: {formatNumber(department.requested_quantity)}{countable ? " · Whole numbers only" : ""}</p>
+                                      {customDistribution ? <p className="mt-1 font-semibold text-amber-700">Custom period distribution: use View Approval to edit quantity and period allocations together.</p> : null}
+                                      {!editable ? <p className="mt-1 font-semibold text-slate-600">Read-only in the current review stage.</p> : null}
+                                      {!validQuantity ? <p className="mt-1 text-rose-700">Enter a valid non-negative quantity.</p> : null}
+                                    </div>
+                                  </form>
+                                )}
+                              </td>
+                            </tr>
+                          ) : null}
+                        </Fragment>
                       );
                     })}
                   </tbody>

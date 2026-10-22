@@ -49,6 +49,7 @@ import {
   listPackageSubItemsForDepartmentItemRepo,
   listCurrentAllocationsForDepartmentItemRepo,
   listApprovedDistributionForDepartmentItemRepo,
+  listRequestedDistributionForDepartmentItemRepo,
   markPackageSubmittedToPurchasingRepo,
   recalculatePackageSubItemQuantitiesRepo,
 
@@ -67,6 +68,7 @@ import {
   mapPackageSubItemPriceHistory,
 } from "./categoryPackages.mapper.js";
 import path from "path";
+import { validateReturnedCustomDistribution } from "./returnedDistributionCorrection.js";
 
 function getUserRoleId(budgetAccess) {
   return budgetAccess?.userRoleId ?? budgetAccess?.activeUserRoleId ?? null;
@@ -2204,11 +2206,29 @@ export async function updateDepartmentItemApprovedQuantityService({
       quantity: Number(row.quantity || 0),
     }));
 
-    if (
+    if (payload.approved_distribution_mode === "CUSTOM") {
+      const requestedRows = await listRequestedDistributionForDepartmentItemRepo(
+        { departmentItemId }, transaction,
+      );
+      nextApprovedDistribution = validateReturnedCustomDistribution({
+        context, requestedRows, rows: payload.approved_distribution,
+        approvedQuantity: updated.new_approved_quantity,
+      });
+      await replaceApprovedDistributionForDepartmentItemRepo(transaction, {
+        departmentItemId, distributions: nextApprovedDistribution, actorUserId,
+      });
+    } else if (payload.approved_distribution_mode === "AUTO") {
+      // An automatic decision is represented by no persisted custom rows.
+      nextApprovedDistribution = [];
+      await replaceApprovedDistributionForDepartmentItemRepo(transaction, {
+        departmentItemId, distributions: [], actorUserId,
+      });
+    } else if (
       nextApprovedDistribution.length &&
       roundQuantity(updated.old_approved_quantity) !==
         roundQuantity(updated.new_approved_quantity)
     ) {
+      // Legacy clients that only submit approved quantity retain their custom pattern.
       nextApprovedDistribution = buildApprovedDistribution({
         distribution: nextApprovedDistribution,
         requestedQuantity: updated.old_approved_quantity,
@@ -2220,11 +2240,8 @@ export async function updateDepartmentItemApprovedQuantityService({
         period_no: Number(row.period_no),
         quantity: roundQuantity(row.quantity),
       }));
-
       await replaceApprovedDistributionForDepartmentItemRepo(transaction, {
-        departmentItemId,
-        distributions: nextApprovedDistribution,
-        actorUserId,
+        departmentItemId, distributions: nextApprovedDistribution, actorUserId,
       });
     }
 

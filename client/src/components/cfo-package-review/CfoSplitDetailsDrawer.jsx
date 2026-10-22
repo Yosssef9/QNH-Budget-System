@@ -9,6 +9,7 @@ import {
   getCfoPackageSubItemAttachments,
 } from "../../api/cfoPackageReview.api";
 import AnimatedDrawer from "../budgets/shared/drawers/AnimatedDrawer";
+import { useCategoryBackOverlay } from "../category-review/CategoryBackNavigation";
 import CurrencyText from "../CurrencyText";
 import PackageSubItemPriceIntelligenceDrawer from "../budgets/price-intelligence/PackageSubItemPriceIntelligenceDrawer";
 import {
@@ -157,6 +158,8 @@ export default function CfoSplitDetailsDrawer({
   focusDepartmentItemId = null,
 }) {
   const [priceContext, setPriceContext] = useState(null);
+  // Close nested price intelligence first, preserving the model split below it.
+  useCategoryBackOverlay(Boolean(priceContext?.subItem), () => setPriceContext(null));
   const detailQuery = useQuery({
     queryKey: [
       "cfo-package-review",

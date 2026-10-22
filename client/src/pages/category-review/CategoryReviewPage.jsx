@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
+import { isCountableUnit } from "../../utils/approvedDistribution";
 import {
   AlertCircle,
   ClipboardCheck,
@@ -11,6 +12,7 @@ import {
 
 import ConfirmModal from "../../components/ConfirmModal";
 import CategoryReviewWorkflowTabs from "../../components/category-review/CategoryReviewWorkflowTabs";
+import { CfoRevisionNotice } from "../../components/category-review/CfoRevisionFeedback.jsx";
 import { CategoryBackNavigationProvider, useCategoryBackOverlay } from "../../components/category-review/CategoryBackNavigation";
 import CategoryReviewItemDrawer from "../../components/category-review/CategoryReviewItemDrawer";
 import DepartmentReviewStage from "../../components/category-review/DepartmentReviewStage";
@@ -197,13 +199,15 @@ function CategoryReviewContent() {
   );
 
   const selectedBudgetIdResolved = useMemo(() => {
-    const selectedStillExists = budgets.some(
+    const eligible = statusFilter === "CFO_CHANGES"
+      ? budgets.filter(budget => Number(budget.cfo_revision_item_count || 0) > 0)
+      : statusFilter === "ALL" ? budgets : budgets.filter(budget => budget.status === statusFilter);
+    const selectedStillExists = eligible.some(
       (budget) => Number(budget.id) === Number(selectedBudgetId),
     );
-
     if (selectedStillExists) return selectedBudgetId;
-    return budgets[0]?.id || null;
-  }, [budgets, selectedBudgetId]);
+    return eligible[0]?.id || null;
+  }, [budgets, selectedBudgetId, statusFilter]);
 
   const detailQuery = useQuery({
     queryKey: ["category-review", "budget", selectedBudgetIdResolved],
@@ -285,6 +289,7 @@ function CategoryReviewContent() {
       CATEGORY_REVIEW_COMPLETED: budgets.filter(
         (budget) => budget.status === "CATEGORY_REVIEW_COMPLETED",
       ).length,
+      CFO_CHANGES: budgets.filter(budget => Number(budget.cfo_revision_item_count || 0) > 0).length,
     }),
     [budgets],
   );
@@ -306,7 +311,10 @@ function CategoryReviewContent() {
             .toLowerCase()
             .includes(normalizedSearch);
         const matchesStatus =
-          statusFilter === "ALL" || budget.status === statusFilter;
+          statusFilter === "ALL" ||
+          (statusFilter === "CFO_CHANGES"
+            ? Number(budget.cfo_revision_item_count || 0) > 0
+            : budget.status === statusFilter);
         return matchesSearch && matchesStatus;
       })
       .sort((left, right) => {
@@ -568,8 +576,7 @@ function CategoryReviewContent() {
         : [];
 
     if (
-      approvedDistributionMode === "CUSTOM" &&
-      !isReturnedCfoCorrectionItem(item)
+      approvedDistributionMode === "CUSTOM"
     ) {
       const invalidRow = approvedDistribution.some(
         (row) =>
@@ -604,11 +611,13 @@ function CategoryReviewContent() {
           departmentItemId: item.id,
           payload: {
             category_approved_quantity: approvedQuantity,
+            approved_distribution_mode: approvedDistributionMode,
+            approved_distribution: approvedDistribution,
             row_version: item.row_version,
           },
         });
 
-        toast.success("Approved quantity updated for CFO return");
+        toast.success("CFO return correction saved");
         removeDecisionDraft(item.id);
         await Promise.all([
           queryClient.invalidateQueries({
@@ -680,6 +689,65 @@ function CategoryReviewContent() {
       setSavingItemIds((current) =>
         current.filter((itemId) => Number(itemId) !== Number(item.id)),
       );
+    }
+  }
+
+
+  // Requested Demand approves the SAME catalog item across different department
+  // budgets. Save against each row's own budget and permission state, not the
+  // department currently selected in the left queue.
+  async function saveRequestedDemandApprovedQuantity({ budget, item, quantity }) {
+    if (!canReviewItems || !budget || !item) return false;
+    const returnedCorrection =
+      budget.status === "CATEGORY_REVIEW_COMPLETED" &&
+      budget.category_package_status === "RETURNED_BY_CFO" &&
+      item.package_item_cfo_review_status === "NEEDS_MODIFICATION";
+    if (budget.status !== "IN_CATEGORY_REVIEW" && !returnedCorrection) {
+      toast.error("This department item is read-only in the current review stage");
+      return false;
+    }
+    const approved = Number(quantity);
+    if (quantity === "" || quantity === null || !Number.isFinite(approved) ||
+        approved < 0 || (isCountableUnit(item) && !Number.isInteger(approved))) {
+      toast.error("Enter a valid approved quantity");
+      return false;
+    }
+    if (!returnedCorrection && item.approved_distribution_mode === "CUSTOM") {
+      toast.error("Use View Approval to update custom period distributions");
+      return false;
+    }
+    if (savingItemIds.includes(item.id)) return false;
+    setSavingItemIds((current) => [...new Set([...current, item.id])]);
+    try {
+      if (returnedCorrection) {
+        await returnedCorrectionMutation.mutateAsync({
+          departmentItemId: item.id,
+          payload: { category_approved_quantity: approved, row_version: item.row_version },
+        });
+      } else {
+        await decisionMutation.mutateAsync({
+          itemId: item.id,
+          payload: {
+            category_approved_quantity: approved,
+            review_note: item.review_note || "",
+            approved_distribution_mode: "AUTO",
+            approved_distribution: [],
+          },
+        });
+      }
+      removeDecisionDraft(item.id);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["category-review", "budget", budget.id] }),
+        queryClient.invalidateQueries({ queryKey: ["category-review", "queue"] }),
+        queryClient.invalidateQueries({ queryKey: ["category-packages"] }),
+      ]);
+      toast.success(returnedCorrection ? "Approved quantity updated" : "Review decision saved");
+      return true;
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to save approved quantity");
+      return false;
+    } finally {
+      setSavingItemIds((current) => current.filter((id) => Number(id) !== Number(item.id)));
     }
   }
 
@@ -898,22 +966,11 @@ function CategoryReviewContent() {
             </div>
           </div>
 
-          {packageData?.status === "RETURNED_BY_CFO" && packageData?.return_reason ? (
-            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-sm font-black">CFO returned this category package</p>
-                  <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">
-                    {packageData.return_reason}
-                  </p>
-                  {packageData.returned_at ? (
-                    <p className="mt-1 text-xs font-semibold text-amber-700">
-                      Returned {formatDateTime(packageData.returned_at)}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
+          {activeStage !== "package" && packageData?.status === "RETURNED_BY_CFO" ? (
+            <div className="mt-4">
+              <CfoRevisionNotice categoryName={packageData.category_name} items={packageData.items || []}
+                returnReason={packageData.return_reason} compact
+                onReviewAffected={() => focusPackageItem(null)} />
             </div>
           ) : null}
         </header>
@@ -931,6 +988,7 @@ function CategoryReviewContent() {
             onViewChange={selectDepartmentView}
             requestedDemand={queueQuery.data?.requestedDemand}
             onGoToDepartmentReview={goToDepartmentReview}
+            onSaveRequestedDemandApprovedQuantity={saveRequestedDemandApprovedQuantity}
             queueLoading={queueQuery.isLoading}
             queueError={queueQuery.error}
             onRetryQueue={() => queueQuery.refetch()}
@@ -941,6 +999,9 @@ function CategoryReviewContent() {
             statusFilter={statusFilter}
             onStatusFilterChange={setStatusFilter}
             filterCounts={filterCounts}
+            cfoPackageItems={packageData?.items || []}
+            cfoPackageStatus={packageData?.status}
+            onOpenPackageItem={canViewPackage ? focusPackageItem : null}
             selectedBudget={selectedBudget}
             selectedBudgetId={selectedBudgetIdResolved}
             onSelectBudget={(budgetId) => {
@@ -1116,5 +1177,3 @@ function CategoryReviewContent() {
     </main>
   );
 }
-
-

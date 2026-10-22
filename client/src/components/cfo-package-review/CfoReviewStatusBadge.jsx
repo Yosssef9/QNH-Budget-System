@@ -1,3 +1,6 @@
+import { MessageSquareWarning } from "lucide-react";
+import CfoActionTooltip from "./CfoActionTooltip";
+
 const STATUS_STYLES = {
   IN_CFO_REVIEW: "border-blue-200 bg-blue-50 text-blue-700",
   RETURNED_BY_CFO: "border-amber-200 bg-amber-50 text-amber-700",
@@ -26,15 +29,30 @@ const STATUS_LABELS = {
   NOT_CONFIGURED: "Not configured",
 };
 
-export default function CfoReviewStatusBadge({ status }) {
+export default function CfoReviewStatusBadge({ status, note }) {
   const normalized = status || "PENDING_CFO_REVIEW";
-  return (
+  const needsModification = normalized === "NEEDS_MODIFICATION";
+  const badge = (
     <span
+      tabIndex={needsModification ? 0 : undefined}
+      aria-label={needsModification ? "Needs modification. Hover or focus to read the CFO reason." : undefined}
       className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-bold uppercase tracking-wide ${
         STATUS_STYLES[normalized] || "border-slate-200 bg-slate-50 text-slate-700"
-      }`}
+      } ${needsModification ? "cursor-help focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500" : ""}`}
     >
       {STATUS_LABELS[normalized] || String(normalized).replaceAll("_", " ")}
     </span>
+  );
+  if (!needsModification) return badge;
+  return (
+    <CfoActionTooltip
+      label="CFO modification reason"
+      description={String(note || "").trim() || "No modification reason recorded."}
+      Icon={MessageSquareWarning}
+      variant="warning"
+      wide
+    >
+      {badge}
+    </CfoActionTooltip>
   );
 }

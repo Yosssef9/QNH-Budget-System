@@ -41,7 +41,9 @@ import {
   getCfoPackageItemComparisonRepo,
   listCfoFinancialYearsRepo,
   listCfoPackagesRepo,
-  markAllPackageItemsNeedModificationRepo,
+  lockCfoPackageForBulkRepo,
+  listPendingCfoItemsForBulkRepo,
+  updatePendingCfoPackageItemsRepo,
   reopenCfoPackageReviewRepo,
   returnPackageToCategoryManagerRepo,
   updatePackageItemCfoDecisionRepo,
@@ -674,11 +676,9 @@ export async function setCfoPackageItemDecisionService({
   });
 }
 
-export async function markAllCfoPackageItemsNeedModificationService({
-  packageId,
-  payload,
-  actorUserId,
-  budgetAccess,
+/** Pending-only bulk CFO review; deliberately does not change accepted/flagged items. */
+export async function bulkDecidePendingCfoItemsService({
+  packageId, payload, decision, actorUserId, budgetAccess,
 }) {
   assertPermission(
     budgetAccess,
@@ -686,44 +686,77 @@ export async function markAllCfoPackageItemsNeedModificationService({
     "CFO_PACKAGE_APPROVE_DENIED",
     "You do not have permission to review CFO packages",
   );
-
-  await withTransaction(async (transaction) => {
-    const packageRow = await findCfoPackageByIdRepo({ packageId }, transaction);
-    assertPackageExists(packageRow);
-    assertPackageInCfoReview(packageRow);
-    assertFinancialYearOpen(packageRow);
-
-    if (packageRow.row_version !== Buffer.from(payload.row_version).toString("base64")) {
-      throw new ApiError(
-        409,
-        "Package was changed by another user",
-        "CFO_PACKAGE_CONFLICT",
-      );
+  if (![CFO_PACKAGE_REVIEW_DECISIONS.ACCEPT, CFO_PACKAGE_REVIEW_DECISIONS.NEEDS_MODIFICATION].includes(decision)) {
+    throw new ApiError(400, "Invalid CFO bulk decision", "INVALID_CFO_DECISION");
+  }
+  await withTransaction(async transaction => {
+    await lockCfoPackageForBulkRepo(transaction, packageId);
+    const pkg = await findCfoPackageByIdRepo({ packageId }, transaction);
+    assertPackageExists(pkg);
+    assertPackageInCfoReview(pkg);
+    assertFinancialYearOpen(pkg);
+    if (pkg.row_version !== Buffer.from(payload.row_version).toString("base64")) {
+      throw new ApiError(409, "Package changed. Refresh before bulk review.", "CFO_PACKAGE_CONFLICT");
     }
 
-    const affectedCount = await markAllPackageItemsNeedModificationRepo(
-      transaction,
-      {
-        package_id: packageId,
-        note: payload.note,
-        actor_user_id: actorUserId,
-      },
-    );
-
+    const current = await listPendingCfoItemsForBulkRepo(transaction, packageId);
+    const snapshot = payload.expected_pending_items;
+    const expectedById = new Map(snapshot.map(item => [item.id, item.row_version]));
+    if (!current.length || current.length !== snapshot.length || current.some(item => expectedById.get(item.id) !== item.row_version)) {
+      throw new ApiError(409, "Pending item decisions changed. Refresh the category before trying again.", "CFO_BULK_ITEMS_CONFLICT");
+    }
+    const updated = await updatePendingCfoPackageItemsRepo(transaction, {
+      package_id: packageId,
+      decision,
+      note: decision === CFO_PACKAGE_REVIEW_DECISIONS.NEEDS_MODIFICATION ? payload.note : null,
+      actor_user_id: actorUserId,
+    });
+    if (updated.length !== current.length) {
+      throw new ApiError(409, "Pending items changed during bulk review. No decisions were saved.", "CFO_BULK_ITEMS_CONFLICT");
+    }
+    const action = decision === CFO_PACKAGE_REVIEW_DECISIONS.ACCEPT
+      ? CFO_PACKAGE_REVIEW_WORKFLOW_ACTIONS.ITEM_ACCEPTED
+      : CFO_PACKAGE_REVIEW_WORKFLOW_ACTIONS.ITEM_NEEDS_MODIFICATION;
+    // One item-level event per changed row keeps the timeline as complete as manual review.
+    for (const item of updated) {
+      await createWorkflowHistoryRepo(transaction, {
+        financial_year_id: pkg.financial_year_id,
+        entity_type: "CATEGORY_BUDGET_PACKAGE_ITEM",
+        entity_id: item.id,
+        action,
+        old_status: item.old_status,
+        new_status: item.new_status,
+        old_values_json: JSON.stringify({ cfo_review_note: item.old_note }),
+        new_values_json: JSON.stringify({ bulk: true, package_id: packageId }),
+        note: decision === CFO_PACKAGE_REVIEW_DECISIONS.NEEDS_MODIFICATION ? payload.note : null,
+        user_role_id: getUserRoleId(budgetAccess),
+        acting_workspace: getActingWorkspace(budgetAccess),
+        created_by: actorUserId,
+      });
+    }
     await createWorkflowHistoryRepo(transaction, {
-      financial_year_id: packageRow.financial_year_id,
+      financial_year_id: pkg.financial_year_id,
       entity_type: "CATEGORY_BUDGET_PACKAGE",
       entity_id: packageId,
-      action: CFO_PACKAGE_REVIEW_WORKFLOW_ACTIONS.ALL_ITEMS_NEED_MODIFICATION,
-      new_values_json: JSON.stringify({ affectedCount }),
-      note: payload.note,
+      action: decision === CFO_PACKAGE_REVIEW_DECISIONS.ACCEPT
+        ? CFO_PACKAGE_REVIEW_WORKFLOW_ACTIONS.PENDING_ITEMS_ACCEPTED
+        : CFO_PACKAGE_REVIEW_WORKFLOW_ACTIONS.PENDING_ITEMS_NEED_MODIFICATION,
+      new_values_json: JSON.stringify({ affectedCount: updated.length, affectedItemIds: updated.map(item => Number(item.id)) }),
+      note: decision === CFO_PACKAGE_REVIEW_DECISIONS.NEEDS_MODIFICATION ? payload.note : null,
       user_role_id: getUserRoleId(budgetAccess),
       acting_workspace: getActingWorkspace(budgetAccess),
       created_by: actorUserId,
     });
   });
-
   return loadPackageDetail(packageId);
+}
+
+export async function acceptPendingCfoItemsService(args) {
+  return bulkDecidePendingCfoItemsService({ ...args, decision: CFO_PACKAGE_REVIEW_DECISIONS.ACCEPT });
+}
+
+export async function markAllCfoPackageItemsNeedModificationService(args) {
+  return bulkDecidePendingCfoItemsService({ ...args, decision: CFO_PACKAGE_REVIEW_DECISIONS.NEEDS_MODIFICATION });
 }
 
 export async function returnCfoPackageToCategoryManagerService({

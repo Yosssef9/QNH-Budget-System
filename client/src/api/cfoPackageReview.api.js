@@ -73,6 +73,14 @@ export async function setCfoPackageItemDecision({
   return response.data?.data;
 }
 
+export async function acceptPendingCfoPackageItems({ packageId, payload }) {
+  const response = await api.patch(
+    `/cfo-package-review/packages/${packageId}/items/pending/accept`,
+    payload,
+  );
+  return response.data?.data;
+}
+
 export async function markAllCfoPackageItemsNeedModification({
   packageId,
   payload,

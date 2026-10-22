@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 
 import RequestedDemandView from "./RequestedDemandView";
+import { CfoRevisionBadge, CfoFeedbackNote } from "./CfoRevisionFeedback.jsx";
+import { buildCfoRevisionFeedback, isCfoRevisionItem } from "./cfoRevisionFeedback.utils.js";
 
 const numberFormatter = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 4,
@@ -134,6 +136,11 @@ function DepartmentQueueItem({ budget, selected, onSelect }) {
           <p className="mt-1 truncate text-xs font-semibold text-slate-600">
             HOD: {budget.hod_name || "Not assigned"}
           </p>
+          {Number(budget.cfo_revision_item_count || 0) > 0 ? (
+            <span className="mt-2 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-800">
+              <AlertCircle className="h-3 w-3" /> {budget.cfo_revision_item_count} CFO change{Number(budget.cfo_revision_item_count) === 1 ? "" : "s"}
+            </span>
+          ) : null}
         </div>
         <StatusBadge status={budget.status} compact />
       </div>
@@ -179,6 +186,8 @@ function DepartmentReviewItemsTable({
   items,
   selectedBudget,
   onReviewItem,
+  onOpenPackageItem,
+  cfoPackageItems,
   focusedDemandItemId,
   canReviewItems,
   onInlineSave,
@@ -187,6 +196,7 @@ function DepartmentReviewItemsTable({
   isItemSaving,
   isItemDraftDirty,
 }) {
+  const feedback = buildCfoRevisionFeedback(cfoPackageItems);
   const [expandedItemId, setExpandedItemId] = useState(null);
   const focusAfterSaveRef = useRef(null);
   const saveInFlightRef = useRef(false);
@@ -262,6 +272,7 @@ function DepartmentReviewItemsTable({
             <th className="px-5 py-3">Approved</th>
             <th className="px-5 py-3">Difference</th>
             <th className="px-5 py-3">Review Status</th>
+            {selectedBudget.category_package_status === "RETURNED_BY_CFO" ? <th className="min-w-48 px-5 py-3">CFO Feedback</th> : null}
             <th className="px-5 py-3 text-right">Action</th>
           </tr>
         </thead>
@@ -308,7 +319,7 @@ function DepartmentReviewItemsTable({
                     expanded ? "bg-blue-50/40" : "",
                   )}
                 >
-                  <td className="px-5 py-4">
+                  <td className={classNames("px-5 py-4", returnedCorrection ? "border-l-[3px] border-l-amber-500" : "")}>
                     <button
                       type="button"
                       onClick={() => toggleItem(item.id)}
@@ -324,6 +335,7 @@ function DepartmentReviewItemsTable({
                       />
                       <span className="min-w-0">
                         <span className="block font-black text-slate-950">{item.catalog_item_name}</span>
+                        {returnedCorrection ? <span className="mt-1 inline-block"><CfoRevisionBadge compact /></span> : null}
                         <span className="mt-1 block text-xs font-semibold text-slate-500">
                           {item.unit_name || item.unit_code || "Unit"}
                           {item.is_project ? " · Project" : ""}
@@ -355,11 +367,17 @@ function DepartmentReviewItemsTable({
                   <td className="px-5 py-4">
                     <div className="flex flex-wrap gap-1.5">
                       <StatusBadge status={item.review_status} compact />
-                      {item.package_item_cfo_review_status ? (
+                      {item.package_item_cfo_review_status && !returnedCorrection ? (
                         <StatusBadge status={item.package_item_cfo_review_status} compact />
                       ) : null}
+                      {returnedCorrection ? <CfoRevisionBadge compact /> : null}
                     </div>
                   </td>
+                  {selectedBudget.category_package_status === "RETURNED_BY_CFO" ? (
+                    <td className="px-5 py-4">{returnedCorrection ? <CfoFeedbackNote note={item.package_item_cfo_review_note}
+                      shared={feedback.getLabel(item) === "Shared instruction"}
+                      label={feedback.getLabel(item) === "Shared instruction" ? "Shared instruction" : undefined} /> : <span className="text-xs text-slate-400">No CFO changes</span>}</td>
+                  ) : null}
                   <td className="px-5 py-4 text-right">
                     <button
                       type="button"
@@ -375,10 +393,16 @@ function DepartmentReviewItemsTable({
                         ? alreadyReviewed ? "Edit Review" : "Review"
                         : "View"}
                     </button>
+                    {returnedCorrection && onOpenPackageItem && item.package_item_id ? (
+                      <button type="button" onClick={() => onOpenPackageItem(item.package_item_id)}
+                        className="ml-2 mt-1 inline-flex items-center rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] font-bold text-amber-800 hover:bg-amber-100 focus-visible:ring-2 focus-visible:ring-amber-500">
+                        Manage Package Item <ChevronRight className="ml-1 h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
                   </td>
                 </tr>
                 <tr className="!border-t-0 bg-blue-50/40">
-                  <td colSpan={7} className="p-0">
+                  <td colSpan={selectedBudget.category_package_status === "RETURNED_BY_CFO" ? 8 : 7} className="p-0">
                     <div
                       id={`category-inline-panel-${item.id}`}
                       aria-hidden={!expanded}
@@ -469,6 +493,7 @@ export default function DepartmentReviewStage({
   onViewChange,
   requestedDemand,
   onGoToDepartmentReview,
+  onSaveRequestedDemandApprovedQuantity,
   queueLoading,
   queueError,
   onRetryQueue,
@@ -479,6 +504,8 @@ export default function DepartmentReviewStage({
   statusFilter,
   onStatusFilterChange,
   filterCounts,
+  cfoPackageItems = [],
+  cfoPackageStatus,
   selectedBudget,
   selectedBudgetId,
   onSelectBudget,
@@ -488,6 +515,7 @@ export default function DepartmentReviewStage({
   overview,
   coverage,
   onReviewItem,
+  onOpenPackageItem,
   focusedDemandItemId,
   canReviewItems,
   onInlineSave,
@@ -501,7 +529,15 @@ export default function DepartmentReviewStage({
   onReopenReview,
   reopenPending,
 }) {
-  const items = selectedBudget?.items || [];
+  const [onlyCfoItems, setOnlyCfoItems] = useState(false);
+  useEffect(() => {
+    setOnlyCfoItems(statusFilter === "CFO_CHANGES");
+  }, [selectedBudget?.id, statusFilter]);
+  const allItems = selectedBudget?.items || [];
+  const affectedItems = selectedBudget?.category_package_status === "RETURNED_BY_CFO"
+    ? allItems.filter(isCfoRevisionItem) : [];
+  const items = onlyCfoItems && selectedBudget?.category_package_status === "RETURNED_BY_CFO"
+    ? affectedItems : allItems;
   const itemCount = Number(selectedBudget?.summary?.item_count || 0);
   const reviewedCount = Number(selectedBudget?.summary?.reviewed_count || 0);
   const pendingCount = Number(selectedBudget?.summary?.pending_count || 0);
@@ -542,6 +578,10 @@ export default function DepartmentReviewStage({
           onRetry={onRetryQueue}
           data={requestedDemand}
           onGoToDepartmentReview={onGoToDepartmentReview}
+          onSaveApprovedQuantity={onSaveRequestedDemandApprovedQuantity}
+          canReviewItems={canReviewItems}
+          cfoPackageItems={cfoPackageItems}
+          packageStatus={cfoPackageStatus}
         />
       ) : (
         <>
@@ -600,11 +640,12 @@ export default function DepartmentReviewStage({
               />
             </div>
 
-            <div className="mt-3 grid grid-cols-3 rounded-xl bg-slate-100 p-1">
+            <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
               {[
                 ["ALL", "All"],
                 ["IN_CATEGORY_REVIEW", "In Review"],
                 ["CATEGORY_REVIEW_COMPLETED", "Completed"],
+                ["CFO_CHANGES", "CFO Changes"],
               ].map(([value, label]) => (
                 <button
                   key={value}
@@ -612,9 +653,11 @@ export default function DepartmentReviewStage({
                   onClick={() => onStatusFilterChange(value)}
                   className={classNames(
                     "rounded-lg px-2 py-2 text-[11px] font-black transition",
-                    statusFilter === value
-                      ? "bg-white text-blue-700 shadow-sm"
-                      : "text-slate-500 hover:text-slate-800",
+                    value === "CFO_CHANGES"
+                      ? (statusFilter === value ? "border border-amber-300 bg-amber-100 text-amber-900 shadow-sm" : "border border-transparent bg-amber-50 text-amber-800 hover:bg-amber-100")
+                      : statusFilter === value
+                        ? "bg-white text-blue-700 shadow-sm"
+                        : "text-slate-500 hover:text-slate-800",
                   )}
                 >
                   {label} {filterCounts[value]}
@@ -740,18 +783,32 @@ export default function DepartmentReviewStage({
                   </div>
                 </div>
 
-                {selectedBudget.category_package_status === "RETURNED_BY_CFO" &&
-                selectedBudget.package_return_reason ? (
-                  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                    <span className="font-black">CFO return reason:</span>{" "}
-                    {selectedBudget.package_return_reason}
+                {selectedBudget.category_package_status === "RETURNED_BY_CFO" && affectedItems.length ? (
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-xs font-semibold text-amber-900">
+                    <span><AlertCircle className="mr-1 inline h-3.5 w-3.5" /> {affectedItems.length} CFO-flagged item{affectedItems.length === 1 ? "" : "s"} · Department review status remains {selectedBudget.status === "CATEGORY_REVIEW_COMPLETED" ? "Completed" : "unchanged"}.</span>
+                    {onOpenPackageItem && affectedItems[0]?.package_item_id ? (
+                      <button type="button" className="rounded-lg px-2 py-1 font-black text-amber-900 underline underline-offset-2 hover:bg-amber-100" onClick={() => onOpenPackageItem(affectedItems[0].package_item_id)}>Open first affected package item →</button>
+                    ) : null}
                   </div>
                 ) : null}
               </header>
 
+              {selectedBudget.category_package_status === "RETURNED_BY_CFO" && affectedItems.length ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-100 bg-amber-50/40 px-5 py-3">
+                  <span className="text-xs font-bold text-amber-900">{affectedItems.length} department item{affectedItems.length === 1 ? "" : "s"} linked to CFO-requested changes</span>
+                  <div className="inline-flex rounded-lg border border-amber-200 bg-white p-1">
+                    <button type="button" onClick={() => setOnlyCfoItems(true)} aria-pressed={onlyCfoItems}
+                      className={classNames("rounded-md px-3 py-1.5 text-xs font-bold",onlyCfoItems ? "bg-amber-100 text-amber-900" : "text-slate-600 hover:bg-slate-50")}>CFO Changes ({affectedItems.length})</button>
+                    <button type="button" onClick={() => setOnlyCfoItems(false)} aria-pressed={!onlyCfoItems}
+                      className={classNames("rounded-md px-3 py-1.5 text-xs font-bold",!onlyCfoItems ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50")}>All Items ({allItems.length})</button>
+                  </div>
+                </div>
+              ) : null}
               <DepartmentReviewItemsTable
                 key={selectedBudget.id}
                 items={items}
+                onOpenPackageItem={onOpenPackageItem}
+                cfoPackageItems={cfoPackageItems}
                 selectedBudget={selectedBudget}
                 onReviewItem={onReviewItem}
                 focusedDemandItemId={focusedDemandItemId}
@@ -799,4 +856,3 @@ export default function DepartmentReviewStage({
     </div>
   );
 }
-

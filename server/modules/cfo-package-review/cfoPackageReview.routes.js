@@ -5,6 +5,7 @@ import { resolveBudgetWorkspace } from "../../shared/middleware/resolveBudgetWor
 import { requireBudgetPermission } from "../../shared/middleware/requireBudgetPermission.js";
 import { CFO_PACKAGE_REVIEW_PERMISSIONS } from "./cfoPackageReview.constants.js";
 import {
+  acceptPendingCfoItems,
   completeCfoPackageReview,
   downloadCfoPackageSubItemAttachment,
   finalizeAnnualCfoPackageReview,
@@ -86,6 +87,12 @@ router.patch(
   "/packages/:packageId/items/:packageItemId/decision",
   requireBudgetPermission(CFO_PACKAGE_REVIEW_PERMISSIONS.APPROVE),
   setCfoPackageItemDecision,
+);
+
+router.patch(
+  "/packages/:packageId/items/pending/accept",
+  requireBudgetPermission(CFO_PACKAGE_REVIEW_PERMISSIONS.APPROVE),
+  acceptPendingCfoItems,
 );
 
 router.patch(

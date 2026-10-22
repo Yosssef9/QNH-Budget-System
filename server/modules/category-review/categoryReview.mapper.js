@@ -209,6 +209,7 @@ export function mapReviewQueue({
     return_reason: row.return_reason || null,
 
     item_count: Number(row.item_count || 0),
+    cfo_revision_item_count: Number(row.cfo_revision_item_count || 0),
     pending_count: Number(row.pending_count || 0),
     reviewed_count: Number(row.reviewed_count || 0),
 
@@ -499,5 +500,3 @@ export function mapCategoryReviewDetail({ budget, itemRows = [] }) {
     },
   };
 }
-
-

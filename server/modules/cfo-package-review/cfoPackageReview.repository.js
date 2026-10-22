@@ -404,31 +404,69 @@ export async function updatePackageItemCfoDecisionRepo(transaction, payload) {
   return result.recordset[0] || null;
 }
 
-export async function markAllPackageItemsNeedModificationRepo(
-  transaction,
-  payload,
-) {
+/** Lock the category package before any bulk decision; package return/complete cannot race. */
+export async function lockCfoPackageForBulkRepo(transaction, packageId) {
+  await requestFor(transaction)
+    .input("packageId", sql.BigInt, packageId)
+    .query(`SELECT id FROM dbo.BS_category_budget_packages WITH (UPDLOCK, HOLDLOCK) WHERE id = @packageId;`);
+}
+
+/** The pending item set is locked for the duration of the bulk transaction. */
+export async function listPendingCfoItemsForBulkRepo(transaction, packageId) {
   const result = await requestFor(transaction)
-    .input("packageId", sql.BigInt, payload.package_id)
-    .input("note", sql.NVarChar(1000), payload.note)
-    .input("actorUserId", sql.Int, payload.actor_user_id).query(`
+    .input("packageId", sql.BigInt, packageId)
+    .query(`
+      SELECT packageItem.id, packageItem.row_version, packageItem.cfo_review_status
+      FROM dbo.BS_category_budget_package_items AS packageItem WITH (UPDLOCK, HOLDLOCK)
+      WHERE packageItem.category_budget_package_id = @packageId
+        AND packageItem.is_active = 1
+        AND packageItem.cfo_review_status = '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.PENDING_CFO_REVIEW}'
+        AND ${hasPositiveApprovedPackageDemandSql("packageItem")}
+      ORDER BY packageItem.id;
+    `);
+  return result.recordset.map(row => ({
+    id: Number(row.id),
+    row_version: bufferRowVersion(row.row_version),
+    cfo_review_status: row.cfo_review_status,
+  }));
+}
+
+/** Writes ONLY pending items. Returns every previous state for individual audit history. */
+export async function updatePendingCfoPackageItemsRepo(transaction, {
+  package_id, decision, note, actor_user_id,
+}) {
+  const result = await requestFor(transaction)
+    .input("packageId", sql.BigInt, package_id)
+    .input("decision", sql.VarChar(40), decision)
+    .input("note", sql.NVarChar(1000), note)
+    .input("actorUserId", sql.Int, actor_user_id)
+    .query(`
+      DECLARE @Updated TABLE (
+        id BIGINT NOT NULL,
+        old_status VARCHAR(50) NULL,
+        old_note NVARCHAR(1000) NULL,
+        new_status VARCHAR(50) NOT NULL
+      );
+
       UPDATE packageItem
-      SET
-        cfo_review_status = '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.NEEDS_MODIFICATION}',
-        cfo_review_note = @note,
-        cfo_reviewed_by = @actorUserId,
-        cfo_reviewed_at = SYSUTCDATETIME(),
-        updated_by = @actorUserId,
-        updated_at = SYSUTCDATETIME()
+      SET cfo_review_status = @decision,
+          cfo_review_note = @note,
+          cfo_reviewed_by = @actorUserId,
+          cfo_reviewed_at = SYSUTCDATETIME(),
+          updated_by = @actorUserId,
+          updated_at = SYSUTCDATETIME()
+      OUTPUT INSERTED.id, DELETED.cfo_review_status,
+             DELETED.cfo_review_note, INSERTED.cfo_review_status
+      INTO @Updated (id, old_status, old_note, new_status)
       FROM dbo.BS_category_budget_package_items AS packageItem
       WHERE packageItem.category_budget_package_id = @packageId
         AND packageItem.is_active = 1
+        AND packageItem.cfo_review_status = '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.PENDING_CFO_REVIEW}'
         AND ${hasPositiveApprovedPackageDemandSql("packageItem")};
 
-      SELECT @@ROWCOUNT AS affected_count;
+      SELECT id, old_status, old_note, new_status FROM @Updated ORDER BY id;
     `);
-
-  return Number(result.recordset[0]?.affected_count || 0);
+  return result.recordset;
 }
 
 export async function countPackageCfoReviewStatusesRepo(

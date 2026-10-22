@@ -1456,6 +1456,7 @@ export async function findDepartmentItemPackageEditContextRepo(
         item.department_category_budget_id,
         item.catalog_item_id,
         item.requested_quantity,
+        item.distribution_method,
         item.category_approved_quantity,
         item.hod_item_note,
         item.review_status,
@@ -1522,6 +1523,21 @@ export async function findDepartmentItemPackageEditContextRepo(
     row.package_row_version = bufferRowVersion(row.package_row_version);
   }
   return row;
+}
+
+export async function listRequestedDistributionForDepartmentItemRepo(
+  { departmentItemId },
+  transaction = null,
+) {
+  const pool = await poolPromise;
+  const request = createRequest(pool, transaction);
+  const result = await request.input("departmentItemId", sql.BigInt, departmentItemId).query(`
+    SELECT period_type, period_no, quantity
+    FROM dbo.BS_department_category_budget_item_distributions
+    WHERE department_budget_item_id = @departmentItemId
+    ORDER BY period_type, period_no;
+  `);
+  return result.recordset || [];
 }
 
 export async function listApprovedDistributionForDepartmentItemRepo(

@@ -192,22 +192,7 @@ export default function CategoryReviewItemDrawer({
     draft?.approved_distribution || item.approved_distribution || [],
     distributionShape,
   );
-  const returnedAdjustedCustomDistribution =
-    returnedCorrection &&
-    approvedDistributionMode === "CUSTOM" &&
-    approvedIsValid
-      ? fillDistributionPeriods(
-          buildApprovedDistribution({
-            distribution: customApprovedDistribution,
-            requestedQuantity:
-              item.category_approved_quantity ?? item.requested_quantity ?? 0,
-            approvedQuantity: approvedNumber,
-            unitCode: item.unit_code,
-            unitName: item.unit_name,
-          }),
-          distributionShape,
-        )
-      : customApprovedDistribution;
+  const returnedAdjustedCustomDistribution = customApprovedDistribution;
   const customRowsValid = returnedAdjustedCustomDistribution.every((row) => {
     if (row.quantity === "" || row.quantity === null || row.quantity === undefined) {
       return false;
@@ -244,9 +229,7 @@ export default function CategoryReviewItemDrawer({
     ),
   );
   const distributionDecisionValid =
-    returnedCorrection ||
-    approvedDistributionMode !== "CUSTOM" ||
-    customDistributionValid;
+    approvedDistributionMode !== "CUSTOM" || customDistributionValid;
   const saveDisabled =
     locked ||
     saving ||
@@ -302,13 +285,8 @@ export default function CategoryReviewItemDrawer({
               <div className="flex items-start gap-3">
                 <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
                 <div>
-                  <p className="text-sm font-black">CFO requested a correction</p>
-                  <p className="mt-1 text-sm leading-6">
-                    {item.package_item_cfo_review_note ||
-                      "Only this returned item is open for correction."}
-                  </p>
-                  <p className="mt-1 text-xs font-semibold text-amber-700">
-                    Only the approved quantity can be changed in this return round.
+                  <p className="whitespace-pre-wrap break-words text-sm leading-6">
+                    {item.package_item_cfo_review_note || "CFO requested a correction."}
                   </p>
                 </div>
               </div>
@@ -470,7 +448,7 @@ export default function CategoryReviewItemDrawer({
                           <div className="grid gap-2 sm:grid-cols-2">
                             <button
                               type="button"
-                              disabled={locked || returnedCorrection || saving}
+                              disabled={locked || saving}
                               onClick={() =>
                                 onDraftChange({
                                   approved_distribution_mode: "AUTO",
@@ -489,7 +467,7 @@ export default function CategoryReviewItemDrawer({
                             </button>
                             <button
                               type="button"
-                              disabled={locked || returnedCorrection || saving}
+                              disabled={locked || saving}
                               onClick={() => {
                                 const existingCustomTotal = roundQuantity(
                                   customApprovedDistribution.reduce(
@@ -574,7 +552,7 @@ export default function CategoryReviewItemDrawer({
                                   min="0"
                                   step={countableUnit ? "1" : "any"}
                                   value={row.quantity}
-                                  disabled={locked || returnedCorrection || saving}
+                                  disabled={locked || saving}
                                   onChange={(event) => {
                                     const nextRows = customApprovedDistribution.map((currentRow) =>
                                       Number(currentRow.period_no) === Number(row.period_no) &&
@@ -599,7 +577,6 @@ export default function CategoryReviewItemDrawer({
                         </div>
 
                         {approvedDistributionMode === "CUSTOM" &&
-                        !returnedCorrection &&
                         !customDistributionValid ? (
                           <p className="px-1 text-xs font-semibold text-rose-600">
                             The custom distribution must use valid {countableUnit ? "whole-number " : ""}quantities and total exactly {formatNumber(approvedNumber)}.
@@ -657,7 +634,7 @@ export default function CategoryReviewItemDrawer({
                   <p className="text-sm font-black">Read-only review</p>
                   <p className="mt-1 text-xs leading-5 text-slate-500">
                     {returnedCorrection
-                      ? "This item can only be changed through its approved quantity field during the CFO return round."
+                      ? "This CFO return correction is read-only under the current permissions."
                       : "This department review is not currently editable."}
                   </p>
                 </div>

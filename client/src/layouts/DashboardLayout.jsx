@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -20,7 +20,10 @@ import {
   ClipboardCheck,
   ShoppingCart,
   Building2,
-  Pin,
+  MousePointer2,
+  MousePointerClick,
+  PanelLeftOpen,
+  PanelLeftClose,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useUnsavedChanges } from "../context/UnsavedChangesContext";
@@ -29,6 +32,7 @@ import { PERMISSION_CODES } from "@qnh/permissions";
 import WorkspaceSelectionDialog from "../components/WorkspaceSelectionDialog";
 import { formatWorkspaceSummary } from "../helpers/workspaceLabels";
 import toast from "react-hot-toast";
+import { isSidebarExpanded, loadSidebarOpeningMode, SIDEBAR_OPENING_MODE_STORAGE_KEY } from "./sidebarOpeningMode";
 const appBaseUrl = import.meta.env.BASE_URL;
 function getSidebarSections(budgetAccess) {
   const canViewDepartmentBudgets = can(
@@ -332,14 +336,25 @@ export default function DashboardLayout() {
     dismissWorkspaceSelection,
   } = useAuth();
   const [sidebarHovered, setSidebarHovered] = useState(false);
-  const [sidebarPinned, setSidebarPinned] = useState(false);
+  const [sidebarClickOpen, setSidebarClickOpen] = useState(false);
+  const [sidebarOpeningMode, setSidebarOpeningMode] = useState(() => {
+    try {
+      return loadSidebarOpeningMode(typeof window === "undefined" ? null : window.localStorage);
+    } catch {
+      return "hover";
+    }
+  });
   const [workspaceDialogOpen, setWorkspaceDialogOpen] = useState(false);
   const workspaceButtonRef = useRef(null);
   const queryClient = useQueryClient();
   const location = useLocation();
   const { safeNavigate } = useUnsavedChanges();
   const sidebarSections = getSidebarSections(budgetAccess);
-  const sidebarOpen = sidebarPinned || sidebarHovered;
+  const sidebarOpen = isSidebarExpanded({
+    mode: sidebarOpeningMode,
+    hovered: sidebarHovered,
+    clickOpen: sidebarClickOpen,
+  });
   const sidebarWidth = sidebarOpen ? "w-[280px]" : "w-[86px]";
   const contentPadding = sidebarOpen ? "pl-[280px]" : "pl-[86px]";
   const activeWorkspace =
@@ -348,14 +363,28 @@ export default function DashboardLayout() {
   const isWorkspaceDialogOpen =
     workspaceDialogOpen || workspaceSelectionRequired;
 
-  function handleSidebarPinToggle() {
-    if (sidebarPinned) {
-      setSidebarPinned(false);
-      setSidebarHovered(false);
-      return;
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SIDEBAR_OPENING_MODE_STORAGE_KEY, sidebarOpeningMode);
+    } catch {
+      // Browser storage can be disabled. The sidebar still works this session.
     }
+  }, [sidebarOpeningMode]);
 
-    setSidebarPinned(true);
+  function toggleSidebarOpeningMode() {
+    if (sidebarOpeningMode === "hover") {
+      // Keep the visible sidebar open when switching to manual control.
+      setSidebarClickOpen(sidebarOpen);
+      setSidebarOpeningMode("click");
+    } else {
+      // Hover mode follows the pointer location, never the manual toggle.
+      setSidebarClickOpen(false);
+      setSidebarOpeningMode("hover");
+    }
+  }
+
+  function toggleSidebarByClick() {
+    setSidebarClickOpen((wasOpen) => !wasOpen);
   }
 
   async function handleWorkspaceSelect(userRoleId) {
@@ -414,47 +443,46 @@ export default function DashboardLayout() {
 
         <div
           className={[
-            "flex shrink-0 border-b border-slate-100 py-2",
-            sidebarOpen ? "justify-end px-4" : "justify-center px-2",
+            "flex shrink-0 items-center border-b border-slate-100 py-2",
+            sidebarOpen ? "justify-end gap-2 px-3" : "justify-center gap-1 px-1",
           ].join(" ")}
         >
+          {/* One opening-mode control; manual expand/collapse appears only in Click mode. */}
           <button
             type="button"
-            aria-pressed={sidebarPinned}
-            aria-label={sidebarPinned ? "Unpin sidebar" : "Pin sidebar"}
-            title={
-              sidebarPinned
-                ? "Unpin sidebar and return to hover mode"
-                : "Pin sidebar to keep it open"
-            }
-            onClick={handleSidebarPinToggle}
-            className={[
-              "group flex items-center justify-center rounded-xl border text-xs font-semibold transition-all duration-200",
-              "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500",
-              sidebarOpen ? "h-9 gap-2 px-3" : "h-9 w-9",
-              sidebarPinned
-                ? "border-primary-600 bg-primary-600 text-white shadow-sm hover:bg-primary-700"
-                : "border-slate-200 bg-white text-slate-500 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700",
-            ].join(" ")}
+            aria-pressed={sidebarOpeningMode === "click"}
+            aria-label={sidebarOpeningMode === "hover"
+              ? "Sidebar opening mode: Hover. Switch to Click to Open."
+              : "Sidebar opening mode: Click. Switch to Hover to Open."}
+            title={sidebarOpeningMode === "hover"
+              ? "Hover to open (click to switch to Click mode)"
+              : "Click to open (click to switch to Hover mode)"}
+            onClick={toggleSidebarOpeningMode}
+            className={`group inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 ${sidebarOpen ? "px-2.5" : "w-9"} ${sidebarOpeningMode === "click" ? "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100" : "border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50"}`}
           >
-            <Pin
-              size={16}
-              className={[
-                "shrink-0 transition-transform duration-200",
-                sidebarPinned ? "rotate-45" : "group-hover:-rotate-12",
-              ].join(" ")}
-              aria-hidden="true"
-            />
-
-            {sidebarOpen && (
-              <span className="whitespace-nowrap">
-                {sidebarPinned ? "Pinned" : "Pin sidebar"}
-              </span>
-            )}
+            {sidebarOpeningMode === "hover"
+              ? <MousePointer2 size={16} aria-hidden="true" />
+              : <MousePointerClick size={16} aria-hidden="true" />}
+            {sidebarOpen && <span>{sidebarOpeningMode === "hover" ? "Hover" : "Click"}</span>}
           </button>
+
+          {sidebarOpeningMode === "click" && (
+            <button
+              type="button"
+              aria-expanded={sidebarOpen}
+              aria-controls="qnh-sidebar-navigation"
+              aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+              title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+              onClick={toggleSidebarByClick}
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-white text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
+            >
+              {sidebarOpen ? <PanelLeftClose size={16} aria-hidden="true" /> : <PanelLeftOpen size={16} aria-hidden="true" />}
+            </button>
+          )}
         </div>
 
         <nav
+          id="qnh-sidebar-navigation"
           className="
     flex-1
 overflow-y-hidden hover:overflow-y-auto
@@ -659,3 +687,4 @@ overflow-y-hidden hover:overflow-y-auto
     </div>
   );
 }
+

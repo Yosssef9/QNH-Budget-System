@@ -135,6 +135,21 @@ export async function listCategoryReviewQueueRepo({ budgetCategoryId }) {
         dcb.returned_at,
         dcb.return_reason,
         dcb.row_version,
+        (
+          SELECT COUNT(1)
+          FROM dbo.BS_department_category_budget_items AS revisedItem
+          INNER JOIN dbo.BS_category_budget_packages AS revisionPackage
+            ON revisionPackage.financial_year_id = db.financial_year_id
+           AND revisionPackage.budget_category_id = dcb.budget_category_id
+           AND revisionPackage.status = 'RETURNED_BY_CFO'
+          INNER JOIN dbo.BS_category_budget_package_items AS revisionItem
+            ON revisionItem.category_budget_package_id = revisionPackage.id
+           AND revisionItem.catalog_item_id = revisedItem.catalog_item_id
+           AND revisionItem.is_active = 1
+           AND revisionItem.cfo_review_status = 'NEEDS_MODIFICATION'
+          WHERE revisedItem.department_category_budget_id = dcb.id
+            AND revisedItem.is_active = 1
+        ) AS cfo_revision_item_count,
         COUNT(CASE WHEN item.is_active = 1 THEN item.id END) AS item_count,
         COALESCE(SUM(CASE WHEN item.is_active = 1 THEN item.requested_quantity ELSE 0 END), 0) AS total_requested_quantity,
         COALESCE(SUM(CASE WHEN item.is_active = 1 THEN item.category_approved_quantity ELSE 0 END), 0) AS total_approved_quantity,
@@ -946,5 +961,3 @@ export async function createWorkflowHistoryRepo(transaction, payload) {
       );
     `);
 }
-
-

@@ -3,6 +3,7 @@ import {
   AlertCircle,
   CheckCircle2,
   RefreshCw,
+  AlertTriangle,
 } from "lucide-react";
 
 import EnterpriseSearch from "../EnterpriseSearch";
@@ -10,6 +11,7 @@ import SearchableMultiSelect from "../SearchableMultiSelect";
 import TablePagination from "../TablePagination";
 import RequestedDemandDetailsDrawer from "./RequestedDemandDetailsDrawer";
 import { useCategoryBackOverlay } from "./CategoryBackNavigation";
+import { unitOfMeasureOptions, matchesUnitOfMeasure } from "./unitOfMeasureFilter";
 
 const numberFormatter = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 4,
@@ -53,16 +55,33 @@ export default function RequestedDemandView({
   onRetry,
   data,
   onGoToDepartmentReview,
+  canReviewItems = false,
+  onSaveApprovedQuantity,
+  cfoPackageItems = [],
+  packageStatus,
 }) {
   const [search, setSearch] = useState("");
   const [expenseType, setExpenseType] = useState("ALL");
   const [reviewStatus, setReviewStatus] = useState("ALL");
+  const [unitFilter, setUnitFilter] = useState("ALL");
+  const [cfoOnly, setCfoOnly] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
-  useCategoryBackOverlay(Boolean(selectedItem), () => setSelectedItem(null));
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  useCategoryBackOverlay(Boolean(selectedItem), () => setSelectedItem(null));
 
   const items = data?.items || [];
+  const requestedUnitOptions = useMemo(() => unitOfMeasureOptions(items), [items]);
+  const flaggedByCatalogId = useMemo(() => new Map(
+    packageStatus === "RETURNED_BY_CFO"
+      ? cfoPackageItems.filter((entry) => entry.cfo_review_status === "NEEDS_MODIFICATION")
+        .map((entry) => [Number(entry.catalog_item_id), entry])
+      : [],
+  ), [cfoPackageItems, packageStatus]);
+  const flaggedCount = useMemo(() => items.filter((item) => flaggedByCatalogId.has(Number(item.catalog_item_id))).length,
+    [items, flaggedByCatalogId]);
+  const selectedItemId = selectedItem?.catalog_item_id;
+  const currentSelectedItem = items.find((entry) => Number(entry.catalog_item_id) === Number(selectedItemId)) || null;
 
   const expenseTypes = useMemo(
     () =>
@@ -110,6 +129,9 @@ export default function RequestedDemandView({
             .toLowerCase()
             .includes(normalizedSearch);
 
+        const matchesUnit = matchesUnitOfMeasure(item, unitFilter);
+        const matchesCfo = !cfoOnly || flaggedByCatalogId.has(Number(item.catalog_item_id));
+
         const matchesExpense =
           expenseType === "ALL" || item.expense_type === expenseType;
 
@@ -123,7 +145,7 @@ export default function RequestedDemandView({
           (reviewStatus === "COMPLETED" && fullyReviewed) ||
           (reviewStatus === "PENDING" && !fullyReviewed);
 
-        return matchesSearch && matchesExpense && matchesReview;
+        return matchesSearch && matchesExpense && matchesReview && matchesUnit && matchesCfo;
       })
       .sort((left, right) => {
         const quantityDifference =
@@ -136,13 +158,13 @@ export default function RequestedDemandView({
           String(right.catalog_item_name || ""),
         );
       });
-  }, [expenseType, items, reviewStatus, search]);
+  }, [expenseType, items, reviewStatus, search, unitFilter, cfoOnly, flaggedByCatalogId]);
 
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
 
   useEffect(() => {
     setPage(1);
-  }, [search, expenseType, reviewStatus, pageSize]);
+  }, [search, expenseType, reviewStatus, unitFilter, cfoOnly, pageSize]);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -211,7 +233,7 @@ export default function RequestedDemandView({
               </p>
             </div>
 
-            <div className="grid gap-2 sm:grid-cols-3 xl:min-w-[700px]">
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4 xl:min-w-[880px]">
               <EnterpriseSearch
                 value={search}
                 onChange={setSearch}
@@ -232,6 +254,16 @@ export default function RequestedDemandView({
               <SearchableMultiSelect
                 multiple={false}
                 disableClear
+                value={unitFilter}
+                onChange={(event) => setUnitFilter(event.target.value || "ALL")}
+                options={requestedUnitOptions}
+                placeholder="All units of measure"
+                searchPlaceholder="Search units of measure..."
+              />
+
+              <SearchableMultiSelect
+                multiple={false}
+                disableClear
                 value={reviewStatus}
                 onChange={(event) => setReviewStatus(event.target.value || "ALL")}
                 options={reviewStatusOptions}
@@ -241,6 +273,19 @@ export default function RequestedDemandView({
             </div>
           </div>
         </div>
+
+        {flaggedCount > 0 ? (
+          <div className="flex flex-wrap items-center gap-2 border-b border-amber-100 bg-amber-50/40 px-5 py-2.5">
+            <button type="button" aria-pressed={!cfoOnly} onClick={() => setCfoOnly(false)}
+              className={`rounded-lg border px-3 py-2 text-xs font-bold ${!cfoOnly ? "border-blue-200 bg-white text-blue-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+              All Items · {items.length}
+            </button>
+            <button type="button" aria-pressed={cfoOnly} onClick={() => setCfoOnly(true)}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-bold ${cfoOnly ? "border-amber-400 bg-amber-100 text-amber-950" : "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"}`}>
+              <AlertTriangle className="h-3.5 w-3.5" /> CFO Needs Modification · {flaggedCount}
+            </button>
+          </div>
+        ) : null}
 
         {items.length === 0 ? (
           <div className="px-6 py-14 text-center">
@@ -276,13 +321,29 @@ export default function RequestedDemandView({
                   {visibleItems.map((item) => (
                     <tr
                       key={item.catalog_item_id}
-                      className="hover:bg-slate-50/70"
+                      tabIndex={0}
+                      role="button"
+                      aria-label={`View requested demand details for ${item.catalog_item_name}`}
+                      onClick={() => setSelectedItem(item)}
+                      onKeyDown={(event) => {
+                        if (event.target !== event.currentTarget) return;
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setSelectedItem(item);
+                        }
+                      }}
+                      className="cursor-pointer transition-colors hover:bg-blue-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
                     >
-                      <td className="px-5 py-4">
+                      <td className={`px-5 py-4 ${flaggedByCatalogId.has(Number(item.catalog_item_id)) ? "border-l-[3px] border-l-amber-500" : ""}`}>
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-black text-slate-950">
                             {item.catalog_item_name}
                           </p>
+                          {flaggedByCatalogId.has(Number(item.catalog_item_id)) ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                              <AlertTriangle className="h-3 w-3" /> Needs Revision
+                            </span>
+                          ) : null}
                           {item.is_project ? (
                             <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700">
                               Project
@@ -318,7 +379,7 @@ export default function RequestedDemandView({
                       <td className="px-5 py-4 text-right">
                         <button
                           type="button"
-                          onClick={() => setSelectedItem(item)}
+                          onClick={(event) => { event.stopPropagation(); setSelectedItem(item); }}
                           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                         >
                           View
@@ -346,7 +407,10 @@ export default function RequestedDemandView({
       </section>
 
       <RequestedDemandDetailsDrawer
-        item={selectedItem}
+        cfoReview={cfoPackageItems.find((entry) => Number(entry.catalog_item_id) === Number(currentSelectedItem?.catalog_item_id)) || null}
+        item={currentSelectedItem}
+        canReviewItems={canReviewItems}
+        onSaveApprovedQuantity={onSaveApprovedQuantity}
         onClose={() => setSelectedItem(null)}
         onGoToDepartmentReview={handleGoToDepartmentReview}
       />

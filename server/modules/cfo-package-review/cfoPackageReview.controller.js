@@ -2,6 +2,7 @@ import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiResponse } from "../../utils/apiResponse.js";
 import { auditLog } from "../../utils/audit.js";
 import {
+  acceptPendingCfoItemsService,
   completeCfoPackageReviewService,
   downloadCfoPackageSubItemAttachmentService,
   finalizeAnnualCfoPackageReviewService,
@@ -20,6 +21,7 @@ import {
   setCfoPackageItemDecisionService,
 } from "./cfoPackageReview.service.js";
 import {
+  validateBulkPendingItemsPayload,
   validateCfoDecisionPayload,
   validateCompletePackagePayload,
   validateFinalizeAnnualReviewPayload,
@@ -239,6 +241,23 @@ export const setCfoPackageItemDecision = asyncHandler(async (req, res) => {
   res.json(new ApiResponse({ message: "CFO decision saved", data }));
 });
 
+export const acceptPendingCfoItems = asyncHandler(async (req, res) => {
+  const packageId = validatePackageId(req.params.packageId);
+  const payload = validateBulkPendingItemsPayload(req.body);
+  const data = await acceptPendingCfoItemsService({
+    packageId, payload, actorUserId: req.user.userId, budgetAccess: req.budgetAccess,
+  });
+  await auditLog(req, {
+    action: "ACCEPT_PENDING_CFO_PACKAGE_ITEMS",
+    entityType: "CATEGORY_BUDGET_PACKAGE",
+    entityId: String(packageId),
+    entityName: "Category Budget Package",
+    description: `Accepted ${payload.expected_pending_items.length} pending CFO items`,
+    newValues: { affectedItemIds: payload.expected_pending_items.map(item => item.id) },
+  });
+  res.json(new ApiResponse({ message: "Pending CFO items accepted", data }));
+});
+
 export const markAllCfoPackageItemsNeedModification = asyncHandler(
   async (req, res) => {
     const packageId = validatePackageId(req.params.packageId);
@@ -252,17 +271,17 @@ export const markAllCfoPackageItemsNeedModification = asyncHandler(
     });
 
     await auditLog(req, {
-      action: "MARK_ALL_CFO_PACKAGE_ITEMS_NEED_MODIFICATION",
+      action: "MARK_PENDING_CFO_PACKAGE_ITEMS_NEED_MODIFICATION",
       entityType: "CATEGORY_BUDGET_PACKAGE",
       entityId: String(packageId),
       entityName: "Category Budget Package",
-      description: "Marked all package items as needing modification",
-      newValues: payload,
+      description: "Marked pending package items as needing modification",
+      newValues: { note: payload.note, affectedItemIds: payload.expected_pending_items.map(item => item.id) },
     });
 
     res.json(
       new ApiResponse({
-        message: "All package items marked as needing modification",
+        message: "Pending package items marked as needing modification",
         data,
       }),
     );

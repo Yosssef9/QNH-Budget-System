@@ -50,6 +50,10 @@ import PackageSubItemPriceIntelligenceDrawer from "../budgets/price-intelligence
 import PackageDistributionDrawer from "./PackageDistributionDrawer";
 import PackageSubItemPriceHistoryDrawer from "./PackageSubItemPriceHistoryDrawer";
 import { useCategoryBackOverlay } from "../category-review/CategoryBackNavigation";
+import { CfoRevisionBadge, CfoRevisionNotice, CfoFeedbackNote } from "../category-review/CfoRevisionFeedback.jsx";
+import { buildCfoRevisionFeedback, isCfoRevisionItem } from "../category-review/cfoRevisionFeedback.utils.js";
+import { getCfoRevisionItemEntry } from "./cfoRevisionItemEntry.js";
+import { unitOfMeasureOptions, matchesUnitOfMeasure } from "../category-review/unitOfMeasureFilter.js";
 import {
   filterStage2Departments,
   filterStage2Items,
@@ -2297,17 +2301,7 @@ function PackageItemOverview({ item, detail, blockers, onViewDistribution }) {
         </div>
       </section>
 
-      {item?.cfo_review_note ? (
-        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-            <div>
-              <p className="font-black">CFO modification note</p>
-              <p className="mt-1 text-sm leading-6">{item.cfo_review_note}</p>
-            </div>
-          </div>
-        </section>
-      ) : null}
+
     </div>
   );
 }
@@ -2752,6 +2746,13 @@ function PackageItemWorkspaceDrawer({
               <p className="mt-2 text-sm text-slate-500">
                 {packageData?.category_name} package · FY {packageData?.financial_year} · {item?.department_count || 0} requesting department{Number(item?.department_count || 0) === 1 ? "" : "s"}
               </p>
+              {packageData?.status === "RETURNED_BY_CFO" && isCfoRevisionItem(item) ? (
+                <div className="mt-3 flex max-w-3xl flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2">
+                  <CfoRevisionBadge compact />
+                  <CfoFeedbackNote note={item?.cfo_review_note} />
+                  <span className="text-xs font-medium text-amber-800">CFO feedback · edit this item using the tabs below</span>
+                </div>
+              ) : null}
             </div>
             <button
               type="button"
@@ -3014,7 +3015,24 @@ function DepartmentBreakdownView({ data, loading, error, onOpenDepartment }) {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {departments.map((department) => (
-                  <tr key={department.department_id} className="hover:bg-slate-50/70">
+                  <tr
+                    key={department.department_id}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`View items for ${department.department_name}`}
+                    onClick={(event) => {
+                      if (event.target.closest("button,a,input,select,textarea,[role='button']")) return;
+                      onOpenDepartment(department.department_id);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget) return;
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        onOpenDepartment(department.department_id);
+                      }
+                    }}
+                    className="cursor-pointer transition-colors hover:bg-blue-50/60 focus-visible:bg-blue-50/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                  >
                     <td className="px-5 py-4">
                       <p className="font-black text-slate-950">{department.department_name}</p>
                       <p className="mt-1 text-xs font-semibold text-slate-500">
@@ -3184,6 +3202,7 @@ export default function CategoryPackageWorkbench({
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("ALL");
   const [expenseType, setExpenseType] = useState("ALL");
+  const [unitFilter, setUnitFilter] = useState("ALL");
   const [departmentFilter, setDepartmentFilter] = useState("ALL");
   const [priceStatus, setPriceStatus] = useState("ALL");
   const [modelStatus, setModelStatus] = useState("ALL");
@@ -3197,6 +3216,8 @@ export default function CategoryPackageWorkbench({
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [workspaceInitialTab, setWorkspaceInitialTab] = useState("OVERVIEW");
   const [workspaceScrollRequest, setWorkspaceScrollRequest] = useState(null);
+  const [pendingRevisionModelItemId, setPendingRevisionModelItemId] = useState(null);
+  const handledFocusItemIdRef = useRef(null);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState(null);
   const [addModelOpen, setAddModelOpen] = useState(false);
   const [editingSubItem, setEditingSubItem] = useState(null);
@@ -3227,6 +3248,22 @@ export default function CategoryPackageWorkbench({
 
   const packageData = packageQuery.data;
   const items = useMemo(() => packageData?.items || [], [packageData?.items]);
+  const cfoFeedback = useMemo(() => buildCfoRevisionFeedback(items), [items]);
+  const packageUnitOptions = useMemo(() => unitOfMeasureOptions(items), [items]);
+  const itemsTableRef = useRef(null);
+  function showCfoChanges() {
+    setFilter("NEEDS_MODIFICATION");
+    setSearch("");
+    setExpenseType("ALL");
+    setUnitFilter("ALL");
+    setDepartmentFilter("ALL");
+    setPriceStatus("ALL");
+    setModelStatus("ALL");
+    setAllocationStatus("ALL");
+    setTablePage(1);
+    onViewChange("items");
+    requestAnimationFrame(() => itemsTableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
   const blockers = packageData?.readiness?.blockers || [];
   const itemPreparationBlockers = blockers.filter(
     (blocker) => blocker.packageItemId || blocker.packageSubItemId,
@@ -3240,12 +3277,20 @@ export default function CategoryPackageWorkbench({
   }, [packageData?.id, packageData?.status]);
 
   useEffect(() => {
-    if (!focusItemId || !items.length) return;
+    if (!focusItemId) {
+      handledFocusItemIdRef.current = null;
+      return;
+    }
+    if (!items.length || handledFocusItemIdRef.current === String(focusItemId)) return;
     const target = items.find((item) => Number(item.id) === Number(focusItemId));
     if (!target) return;
+    handledFocusItemIdRef.current = String(focusItemId);
+    // Department Review deep links skip the Overview: open the one General
+    // model directly once details load, otherwise show Models & Allocation.
     setSelectedItemId(target.id);
-    setWorkspaceInitialTab("OVERVIEW");
+    setWorkspaceInitialTab("MODELS");
     setWorkspaceScrollRequest(null);
+    setPendingRevisionModelItemId(target.id);
     setWorkspaceOpen(true);
   }, [focusItemId, items]);
 
@@ -3264,14 +3309,15 @@ export default function CategoryPackageWorkbench({
     () => filterStage2Items(items, {
       search, status: filter, expenseType, departmentId: departmentFilter,
       priceStatus, modelStatus, allocationStatus, sortBy: sortColumn, sortDirection,
-    }, itemBlockersById),
+    }, itemBlockersById).filter((item) => matchesUnitOfMeasure(item, unitFilter)),
     // Primitive dependencies prevent unstable object references from rerunning filters.
-    [items, itemBlockersById, search, filter, expenseType, departmentFilter,
+    [items, itemBlockersById, search, filter, expenseType, unitFilter, departmentFilter,
       priceStatus, modelStatus, allocationStatus, sortColumn, sortDirection],
   );
   const expenseScopedItems = useMemo(() =>
-    items.map((item) => scopePackageItem(item, expenseType, departmentFilter)).filter(Boolean),
-    [items, expenseType, departmentFilter],
+    items.filter((item) => matchesUnitOfMeasure(item, unitFilter))
+      .map((item) => scopePackageItem(item, expenseType, departmentFilter)).filter(Boolean),
+    [items, expenseType, unitFilter, departmentFilter],
   );
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / 25));
   const effectivePage = Math.min(tablePage, totalPages);
@@ -3279,11 +3325,11 @@ export default function CategoryPackageWorkbench({
 
   useEffect(() => {
     setTablePage(1);
-  }, [search, filter, expenseType, departmentFilter, priceStatus, modelStatus, allocationStatus, sortColumn, sortDirection]);
+  }, [search, filter, expenseType, unitFilter, departmentFilter, priceStatus, modelStatus, allocationStatus, sortColumn, sortDirection]);
 
   useEffect(() => {
     setExpandedPriceItemId(null);
-  }, [view, search, filter, expenseType, departmentFilter, priceStatus,
+  }, [view, search, filter, expenseType, unitFilter, departmentFilter, priceStatus,
       modelStatus, allocationStatus, sortColumn, sortDirection, effectivePage]);
 
   function toggleInlinePrice(itemId) {
@@ -3305,6 +3351,7 @@ export default function CategoryPackageWorkbench({
     setSearch("");
     setFilter(packageData?.status === "RETURNED_BY_CFO" ? "NEEDS_MODIFICATION" : "ALL");
     setExpenseType("ALL");
+    setUnitFilter("ALL");
     setDepartmentFilter("ALL");
     setPriceStatus("ALL");
     setModelStatus("ALL");
@@ -3314,7 +3361,7 @@ export default function CategoryPackageWorkbench({
     setTablePage(1);
   }
 
-  const hasActiveFilters = Boolean(search.trim()) || expenseType !== "ALL" ||
+  const hasActiveFilters = Boolean(search.trim()) || expenseType !== "ALL" || unitFilter !== "ALL" ||
     departmentFilter !== "ALL" || priceStatus !== "ALL" || modelStatus !== "ALL" ||
     allocationStatus !== "ALL" || sortColumn !== "NAME" || sortDirection !== "asc" ||
     (filter !== "ALL" && !(filter === "NEEDS_MODIFICATION" && packageData?.status === "RETURNED_BY_CFO"));
@@ -3329,6 +3376,17 @@ export default function CategoryPackageWorkbench({
     queryFn: () => getCategoryPackageItemDetail(selectedItem.id),
     enabled: workspaceOpen && Boolean(selectedItem?.id),
   });
+
+  useEffect(() => {
+    if (!workspaceOpen || !pendingRevisionModelItemId || itemDetailQuery.isLoading) return;
+    const detail = itemDetailQuery.data;
+    if (!detail || Number(detail.package_item?.id) !== Number(pendingRevisionModelItemId)) return;
+
+    const entry = getCfoRevisionItemEntry(detail.sub_items || []);
+    // One-shot request: closing the editor should NOT reopen it on a refetch.
+    setPendingRevisionModelItemId(null);
+    if (entry.type === "EDIT_GENERAL") setEditingSubItem(entry.model);
+  }, [workspaceOpen, pendingRevisionModelItemId, itemDetailQuery.data, itemDetailQuery.isLoading]);
 
   const departmentViewQuery = useQuery({
     queryKey: ["category-packages", "departments"],
@@ -3455,6 +3513,7 @@ export default function CategoryPackageWorkbench({
   });
 
   function openItem(itemId, initialTab = "OVERVIEW", initialSection = null) {
+    setPendingRevisionModelItemId(null);
     setSelectedItemId(itemId);
     setWorkspaceInitialTab(initialTab);
     setWorkspaceScrollRequest(
@@ -3463,9 +3522,25 @@ export default function CategoryPackageWorkbench({
     setWorkspaceOpen(true);
   }
 
+  function openCfoCorrectionItem(itemId) {
+    openItem(itemId, "MODELS");
+    setPendingRevisionModelItemId(itemId);
+  }
+
+  function openManageItem(itemId) {
+    const target = items.find((item) => Number(item.id) === Number(itemId));
+    if (packageData?.status === "RETURNED_BY_CFO" && isCfoRevisionItem(target)) {
+      openCfoCorrectionItem(itemId);
+    } else {
+      openItem(itemId);
+    }
+  }
+
   function closeItemWorkspace() {
     setWorkspaceOpen(false);
     setWorkspaceScrollRequest(null);
+    setPendingRevisionModelItemId(null);
+    setEditingSubItem(null);
     onClearFocusItem?.();
   }
 
@@ -3571,19 +3646,13 @@ export default function CategoryPackageWorkbench({
 
   return (
     <section className="space-y-4">
-      {packageData.status === "RETURNED_BY_CFO" && packageData.return_reason ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-            <div>
-              <p className="font-black">CFO returned this package for modification</p>
-              <p className="mt-1 text-sm leading-6">{packageData.return_reason}</p>
-              <p className="mt-1 text-xs font-semibold text-amber-700">
-                Only package items marked Needs Modification are editable.
-              </p>
-            </div>
-          </div>
-        </div>
+      {packageData.status === "RETURNED_BY_CFO" ? (
+        <CfoRevisionNotice
+          categoryName={packageData.category_name}
+          items={items}
+          returnReason={packageData.return_reason}
+          onReviewAffected={showCfoChanges}
+        />
       ) : null}
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
@@ -3644,7 +3713,7 @@ export default function CategoryPackageWorkbench({
             </p>
           ) : null}
           <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-2 xl:grid-cols-12">
-            <label className="relative flex min-w-0 flex-col gap-1.5 md:col-span-2 xl:col-span-4">
+            <label className="relative flex min-w-0 flex-col gap-1.5 md:col-span-2 xl:col-span-2">
               <span className="text-[11px] font-bold text-slate-500">Search</span>
               <Search className="pointer-events-none absolute bottom-3 left-3 h-4 w-4 text-slate-400" />
               <input value={search} onChange={(event) => setSearch(event.target.value)}
@@ -3664,16 +3733,18 @@ export default function CategoryPackageWorkbench({
                 ))}
               </div>
             </div>
+            <Stage2Select label="Unit of Measure" value={unitFilter} onChange={setUnitFilter}
+              options={packageUnitOptions} className="xl:col-span-2" />
             <Stage2Select label="Department" value={departmentFilter} onChange={setDepartmentFilter} options={departmentOptions} className="xl:col-span-2" />
             <Stage2Select label="Price Status" value={priceStatus} onChange={setPriceStatus} className="xl:col-span-2"
               options={[{value:"ALL",label:"All Price Statuses"},{value:"MISSING",label:"Missing Price"},{value:"PARTIAL",label:"Partially Priced"},{value:"PRICED",label:"Fully Priced"},{value:"NOT_REQUIRED",label:"No Price Required"}]} />
-            <div className="flex min-w-0 flex-wrap gap-2 md:col-span-2 xl:col-span-2 xl:justify-end">
+            <div className="flex min-w-0 items-end justify-end gap-2 self-end md:col-span-2 xl:col-span-2">
               <button type="button" onClick={() => setMoreFiltersOpen((value) => !value)} aria-expanded={moreFiltersOpen}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs font-black text-blue-700 hover:bg-blue-100">
+                className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs font-black text-blue-700 hover:bg-blue-100">
                 <SlidersHorizontal className="h-4 w-4" /> More Filters <ChevronDown className={classNames("h-4 w-4 transition-transform", moreFiltersOpen && "rotate-180")} />
               </button>
               <button type="button" disabled={!hasActiveFilters} onClick={clearStage2Filters}
-                className="inline-flex items-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-50 disabled:opacity-40">
+                className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-50 disabled:opacity-40">
                 <FilterX className="h-4 w-4" /> Clear
               </button>
             </div>
@@ -3691,14 +3762,17 @@ export default function CategoryPackageWorkbench({
               .map((entry) => (
                 <button type="button" key={entry.value} aria-pressed={filter === entry.value} onClick={() => setFilter(entry.value)}
                   className={classNames("rounded-xl border px-3 py-2 text-xs font-black transition",
-                    filter === entry.value ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50")}
-                >{entry.label} {filterCounts[entry.value]}</button>
+                    entry.value === "NEEDS_MODIFICATION"
+                      ? (filter === entry.value ? "border-amber-400 bg-amber-100 text-amber-950 ring-1 ring-amber-200" : "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100")
+                      : (filter === entry.value ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"))}
+                >{entry.value === "NEEDS_MODIFICATION" ? <AlertCircle className="mr-1 inline h-3.5 w-3.5" /> : null}{entry.label} {filterCounts[entry.value]}</button>
               ))}
           </div>
           {hasActiveFilters ? (
             <div className="flex flex-wrap items-center gap-1.5" aria-label="Active filters">
               {[
                 ...(expenseType !== "ALL" ? [{ label: expenseType, clear: () => setExpenseType("ALL") }] : []),
+                ...(unitFilter !== "ALL" ? [{ label: packageUnitOptions.find((entry) => entry.value === unitFilter)?.label || "Unit of Measure", clear: () => setUnitFilter("ALL") }] : []),
                 ...(departmentFilter !== "ALL" ? [{ label: departmentOptions.find((d) => d.value === departmentFilter)?.label || "Department", clear: () => setDepartmentFilter("ALL") }] : []),
                 ...(priceStatus !== "ALL" ? [{ label: `Price: ${priceStatus.toLowerCase()}`, clear: () => setPriceStatus("ALL") }] : []),
                 ...(modelStatus !== "ALL" ? [{ label: `Models: ${modelStatus.toLowerCase()}`, clear: () => setModelStatus("ALL") }] : []),
@@ -3729,13 +3803,14 @@ export default function CategoryPackageWorkbench({
 
         {filteredItems.length ? (
           <div>
-            <div className="max-h-[65vh] overflow-auto">
+            <div ref={itemsTableRef} className="max-h-[65vh] overflow-auto">
             <table className="min-w-full text-left text-sm">
               <thead className="sticky top-0 z-10 bg-slate-50 text-[11px] font-black uppercase tracking-wide text-slate-500">
                 <tr>
                   <SortableHeader label="Item" column="NAME" sortColumn={sortColumn}
                     sortDirection={sortDirection} onSort={handlePackageSort}
                     className="whitespace-nowrap border-x-0 border-t-0 border-b-slate-200 px-5 py-3" />
+                  {packageData.status === "RETURNED_BY_CFO" ? <th className="min-w-48 px-4 py-3">CFO Feedback</th> : null}
                   <SortableHeader label="Approved Demand" column="DEMAND" sortColumn={sortColumn}
                     sortDirection={sortDirection} onSort={handlePackageSort}
                     className="whitespace-nowrap border-x-0 border-t-0 border-b-slate-200 px-5 py-3" />
@@ -3794,12 +3869,16 @@ export default function CategoryPackageWorkbench({
                         expanded && "bg-blue-50/60",
                       )}
                     >
-                      <td className="px-5 py-4">
+                      <td className={classNames(
+                        "px-5 py-4",
+                        packageData.status === "RETURNED_BY_CFO" && isCfoRevisionItem(item) && "border-l-[3px] border-l-amber-500",
+                      )}>
                         <div className="flex items-center gap-2.5">
                           <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-100 bg-slate-50 text-blue-700"><Boxes className="h-4 w-4" /></span>
                           <div className="min-w-[170px]">
                             <div className="flex items-center gap-2">
                               <p className="font-black text-slate-950">{item.catalog_item_name}</p>
+                              {packageData.status === "RETURNED_BY_CFO" && isCfoRevisionItem(item) ? <CfoRevisionBadge compact /> : null}
                               {Number(item.approved_quantity || 0) === 0 && Number(item.requested_quantity || 0) > 0 ? (
                                 <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">Rejected · 0 approved</span>
                               ) : null}
@@ -3821,6 +3900,15 @@ export default function CategoryPackageWorkbench({
                           </div>
                         </div>
                       </td>
+                      {packageData.status === "RETURNED_BY_CFO" ? (
+                        <td className="px-4 py-4">
+                          {isCfoRevisionItem(item) ? <CfoFeedbackNote
+                            note={item.cfo_review_note}
+                            shared={cfoFeedback.getLabel(item) === "Shared instruction"}
+                            label={cfoFeedback.getLabel(item) === "Shared instruction" ? "Shared instruction" : undefined}
+                          /> : <span className="text-xs text-slate-400">No CFO changes</span>}
+                        </td>
+                      ) : null}
                       <td className="px-5 py-4 font-black text-slate-950">{formatNumber(item.view_approved_quantity)}</td>
                       <td className="px-5 py-4">
                         <button
@@ -3867,7 +3955,7 @@ export default function CategoryPackageWorkbench({
                       <td className="px-5 py-4 text-right">
                         <button
                           type="button"
-                          onClick={() => openItem(item.id)}
+                          onClick={() => openManageItem(item.id)}
                           className={classNames(
                             "inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black transition",
                             editable
@@ -3882,7 +3970,7 @@ export default function CategoryPackageWorkbench({
                     </tr>
                     {expanded ? (
                       <tr id={`general-price-editor-${item.id}`} className="bg-white">
-                        <td colSpan={9} className="px-4 pb-4 pt-1 sm:px-5">
+                        <td colSpan={packageData.status === "RETURNED_BY_CFO" ? 10 : 9} className="px-4 pb-4 pt-1 sm:px-5">
                           {Number(item.approved_quantity || 0) === 0 ? (
                             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-600">
                               No approved quantity: this request is retained for review history. Pricing is not required and it will not be sent to Purchasing or CFO.
@@ -3982,7 +4070,7 @@ export default function CategoryPackageWorkbench({
         open={Boolean(selectedDepartment)}
         onClose={() => setSelectedDepartmentId(null)}
         department={selectedDepartment}
-        onManageItem={(itemId) => openItem(itemId)}
+        onManageItem={openManageItem}
       />
 
       <AddModelDrawer

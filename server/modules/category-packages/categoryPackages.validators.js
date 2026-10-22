@@ -152,6 +152,30 @@ export function validateDepartmentApprovedQuantityPayload(body = {}) {
       "category_approved_quantity",
     ),
     row_version: validateRowVersion(body.row_version ?? body.rowVersion),
+    approved_distribution_mode: (() => {
+      const mode = body.approved_distribution_mode ?? body.approvedDistributionMode;
+      if (mode === undefined || mode === null) return null; // legacy quantity-only correction
+      if (mode !== "AUTO" && mode !== "CUSTOM") {
+        throw new ApiError(400, "Invalid approved distribution mode", "INVALID_APPROVED_DISTRIBUTION_MODE");
+      }
+      return mode;
+    })(),
+    approved_distribution: (() => {
+      const rows = body.approved_distribution ?? body.approvedDistribution ?? [];
+      if (!Array.isArray(rows) || rows.length > 12) {
+        throw new ApiError(400, "Invalid approved distribution", "INVALID_APPROVED_DISTRIBUTION");
+      }
+      return rows.map((row, index) => {
+        if (row?.quantity === undefined || row?.quantity === null || row?.quantity === "") {
+          throw new ApiError(400, `approved_distribution[${index}].quantity is required`, "INVALID_APPROVED_DISTRIBUTION_QUANTITY");
+        }
+        return {
+          period_type: String(row?.period_type ?? row?.periodType ?? "").toUpperCase(),
+          period_no: Number(row?.period_no ?? row?.periodNo),
+          quantity: validateNonNegativeDecimal(row.quantity, `approved_distribution[${index}].quantity`),
+        };
+      });
+    })(),
   };
 }
 

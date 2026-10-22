@@ -80,16 +80,32 @@ export function validateCfoDecisionPayload(body = {}) {
   };
 }
 
-export function validateMarkAllNeedsModificationPayload(body = {}) {
+/** Full pending-item snapshot prevents stale bulk review from replacing another user's work. */
+export function validateBulkPendingItemsPayload(body = {}, { requireNote = false } = {}) {
+  const expected = body.expected_pending_items;
+  if (!Array.isArray(expected) || expected.length === 0 || expected.length > 3000) {
+    throw new ApiError(400, "A nonempty pending-item snapshot is required. Refresh and try again.", "CFO_BULK_SNAPSHOT_REQUIRED");
+  }
+  const seen = new Set();
+  const expected_pending_items = expected.map(entry => {
+    const id = positiveId(entry?.id, "Pending item id");
+    if (seen.has(id)) throw new ApiError(400, "Duplicate item in bulk snapshot", "CFO_BULK_DUPLICATE_ITEM");
+    seen.add(id);
+    const version = rowVersion(entry?.row_version);
+    if (version.length !== 8) throw new ApiError(400, "Pending item version is invalid", "CFO_BULK_INVALID_VERSION");
+    return { id, row_version: version.toString("base64") };
+  });
   return {
-    note: requiredText(
-      body.note,
-      1000,
-      "CFO note",
-      "CFO_REVIEW_NOTE_REQUIRED",
-    ),
     row_version: rowVersion(body.row_version ?? body.rowVersion),
+    note: requireNote
+      ? requiredText(body.note, 1000, "CFO note", "CFO_REVIEW_NOTE_REQUIRED")
+      : optionalText(body.note, 1000, "CFO note"),
+    expected_pending_items,
   };
+}
+
+export function validateMarkAllNeedsModificationPayload(body = {}) {
+  return validateBulkPendingItemsPayload(body, { requireNote: true });
 }
 
 export function validateReturnPackagePayload(body = {}) {

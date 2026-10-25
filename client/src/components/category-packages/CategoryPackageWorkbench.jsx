@@ -51,8 +51,13 @@ import PackageDistributionDrawer from "./PackageDistributionDrawer";
 import PackageSubItemPriceHistoryDrawer from "./PackageSubItemPriceHistoryDrawer";
 import { useCategoryBackOverlay } from "../category-review/CategoryBackNavigation";
 import { CfoRevisionBadge, CfoRevisionNotice, CfoFeedbackNote } from "../category-review/CfoRevisionFeedback.jsx";
+import PurchasingRejectionBadge from "./PurchasingRejectionBadge.jsx";
+import PurchasingModelDecisionLabel from "./PurchasingModelDecisionLabel.jsx";
+import CfoCycleDelta from "./CfoCycleDelta.jsx";
+import { groupPurchasingRejectionsByCatalog } from "./purchasingRejectionModels.js";
 import { buildCfoRevisionFeedback, isCfoRevisionItem } from "../category-review/cfoRevisionFeedback.utils.js";
 import { getCfoRevisionItemEntry } from "./cfoRevisionItemEntry.js";
+import { getBudgetExclusions } from "../../api/budgetExclusions.api.js";
 import { unitOfMeasureOptions, matchesUnitOfMeasure } from "../category-review/unitOfMeasureFilter.js";
 import {
   filterStage2Departments,
@@ -73,6 +78,8 @@ import {
   getCategoryPackageDistribution,
   getCategoryPackageItemDetail,
   getCurrentCategoryPackage,
+  getCurrentCfoRevisionTracker,
+  setPackageItemCmReviewed,
   getPackageSubItemAttachments,
   removePackageSubItem,
   replaceDepartmentItemAllocations,
@@ -98,6 +105,8 @@ const EMPTY_REUSABLE_MODEL = {
 const PACKAGE_FILTERS = [
   { value: "ALL", label: "All" },
   { value: "NEEDS_MODIFICATION", label: "CFO Changes" },
+  { value: "PURCHASING_REJECTED", label: "Purchasing Rejected" },
+  // Still used by count/filter logic; presented under More Filters below.
   { value: "NEEDS_SETUP", label: "Needs Setup" },
   { value: "NEEDS_ATTENTION", label: "Needs Attention" },
   { value: "RECONCILED", label: "Reconciled" },
@@ -1526,6 +1535,13 @@ function AllocationDrawer({
   const approvedQuantity = toNumber(department?.approved_quantity);
   const requestedQuantity = toNumber(department?.requested_quantity);
   const remainingQuantity = approvedQuantity - totalAllocated;
+  const isRejectedSingleGeneral = subItems.length === 1 &&
+    String(subItems[0]?.name || "").trim().toUpperCase() === "GENERAL" &&
+    subItems[0]?.purchasing_decision === "REJECTED";
+  const rejectedQuantity = subItems.reduce((sum, model) =>
+    sum + (model.purchasing_decision === "REJECTED" ? toNumber(values[model.id]) : 0), 0);
+  const eligibleQuantity = subItems.reduce((sum, model) =>
+    sum + (model.purchasing_decision === "ACCEPTED" ? toNumber(values[model.id]) : 0), 0);
 
   function updateAllocation(subItemId, value) {
     if (value !== "" && !/^\d+$/.test(value)) return;
@@ -1547,6 +1563,10 @@ function AllocationDrawer({
 
   function submit() {
     if (!department) return;
+    if (isRejectedSingleGeneral) {
+      toast.error("Purchasing rejected General. Only Purchasing can reinstate this item.");
+      return;
+    }
 
     const unpricedAllocation = subItems.find(
       (subItem) =>
@@ -1661,6 +1681,7 @@ function AllocationDrawer({
                           <h3 className="font-black text-slate-950">
                             {subItem.name}
                           </h3>
+                          <PurchasingModelDecisionLabel model={subItem}/>
                           {subItem.is_default_general ? (
                             <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
                               General
@@ -1723,6 +1744,12 @@ function AllocationDrawer({
                           </div>
                         ) : null}
 
+                        {subItem.purchasing_decision === "REJECTED" ?
+                          <p className="mb-2 text-xs font-semibold text-rose-700">
+                            {isRejectedSingleGeneral
+                              ? "Purchasing rejected the only General model. Quantity and allocation are read-only until Purchasing reinstates it."
+                              : "Rejected allocation: read-only except where an authorized multi-model revision permits release."}
+                          </p> : null}
                         <Input
                           label="Department quantity"
                           type="number"
@@ -1732,7 +1759,7 @@ function AllocationDrawer({
                           onChange={(event) =>
                             updateAllocation(subItem.id, event.target.value)
                           }
-                          disabled={saving || !hasValidUnitPrice}
+                          disabled={saving || !hasValidUnitPrice || isRejectedSingleGeneral}
                         />
 
                         <div className="mt-2 grid grid-cols-2 gap-2">
@@ -1742,7 +1769,7 @@ function AllocationDrawer({
                             disabled={
                               saving ||
                               remainingQuantity <= 0 ||
-                              !hasValidUnitPrice
+                              !hasValidUnitPrice || subItem.purchasing_decision === "REJECTED"
                             }
                             className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40"
                           >
@@ -1752,7 +1779,7 @@ function AllocationDrawer({
                           <button
                             type="button"
                             onClick={() => updateAllocation(subItem.id, "")}
-                            disabled={saving || allocationValue === ""}
+                            disabled={saving || allocationValue === "" || isRejectedSingleGeneral}
                             className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                           >
                             Clear
@@ -1796,10 +1823,16 @@ function AllocationDrawer({
                         remainingQuantity,
                       )} approved units remain unallocated`}
               </p>
-              <p className="mt-0.5 text-xs text-slate-500">
-                Partial under-allocation may be saved while the package is a
-                draft. New over-allocation is blocked.
-              </p>
+              {rejectedQuantity > 0 ? (
+                <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800">
+                  Purchasing excluded: {formatNumber(rejectedQuantity)} units · Purchasing accepted: {formatNumber(eligibleQuantity)} units.
+                  {isRejectedSingleGeneral ? " General is fully rejected and read-only." : " Reconciliation does not mean Purchasing acceptance."}
+                </div>
+              ) : (
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Partial under-allocation may be saved while the package is a draft. New over-allocation is blocked.
+                </p>
+              )}
             </div>
             <div className="flex flex-col-reverse gap-2 sm:flex-row">
               <button
@@ -1817,6 +1850,7 @@ function AllocationDrawer({
                   saving ||
                   loadingDetail ||
                   subItems.length === 0 ||
+                  isRejectedSingleGeneral ||
                   remainingQuantity < 0
                 }
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
@@ -1846,6 +1880,9 @@ function SharedModelsPanel({
   onViewPriceContext,
   onViewPriceHistory,
 }) {
+  const fullyRejectedGeneral = subItems.length === 1 &&
+    String(subItems[0]?.name || "").trim().toUpperCase() === "GENERAL" &&
+    subItems[0]?.purchasing_decision === "REJECTED";
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
       <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-5 py-4">
@@ -1863,7 +1900,8 @@ function SharedModelsPanel({
 
         <button
           type="button"
-          disabled={!editable}
+          disabled={!editable || fullyRejectedGeneral}
+          title={fullyRejectedGeneral ? "Purchasing rejected General. Only Purchasing can reinstate it before another model is proposed." : undefined}
           onClick={onAdd}
           className="
       inline-flex
@@ -1911,6 +1949,7 @@ function SharedModelsPanel({
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-black text-slate-950">{subItem.name}</p>
+                    <PurchasingModelDecisionLabel model={subItem}/>
                     {subItem.is_default_general ? (
                       <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
                         General
@@ -2000,7 +2039,8 @@ function SharedModelsPanel({
                   </button>
                   <button
                     type="button"
-                    disabled={!editable}
+                    disabled={!editable || subItem.purchasing_decision === "REJECTED"}
+                    title={subItem.purchasing_decision === "REJECTED" ? "Rejected model is read-only; create a replacement in an authorized revision" : undefined}
                     onClick={() => onEdit(subItem)}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                   >
@@ -2009,7 +2049,8 @@ function SharedModelsPanel({
                   </button>
                   <button
                     type="button"
-                    disabled={!editable}
+                    disabled={!editable || subItem.purchasing_decision === "REJECTED"}
+                    title={subItem.purchasing_decision === "REJECTED" ? "Rejected model cannot be removed from its historical decision" : undefined}
                     onClick={() => onRemove(subItem)}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
                   >
@@ -2129,6 +2170,7 @@ function DepartmentDemandPanel({
                               className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-bold text-slate-700"
                             >
                               {subItem.name}: {formatNumber(quantity)}
+                              {subItem.purchasing_decision === "REJECTED" ? <span className="ml-1 text-rose-700">(Purchasing rejected)</span> : null}
                             </span>
                           ))}
                         </div>
@@ -2338,6 +2380,7 @@ function PackagePricingPanel({
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="font-black text-slate-950">{subItem.name}</h3>
+                  <PurchasingModelDecisionLabel model={subItem}/>
                   <span
                     className={classNames(
                       "rounded-full border px-2.5 py-1 text-[10px] font-black uppercase",
@@ -2403,7 +2446,8 @@ function PackagePricingPanel({
               </button>
               <button
                 type="button"
-                disabled={!editable}
+                disabled={!editable || subItem.purchasing_decision === "REJECTED"}
+                title={subItem.purchasing_decision === "REJECTED" ? "Rejected model is read-only" : undefined}
                 onClick={() => onEdit(subItem)}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-black text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
@@ -2435,6 +2479,7 @@ function PackageDocumentsPanel({ subItems, editable, open }) {
           <div className="mb-3 flex items-start justify-between gap-3">
             <div>
               <h3 className="font-black text-slate-950">{subItem.name}</h3>
+              <PurchasingModelDecisionLabel model={subItem}/>
               <p className="mt-1 text-xs font-semibold text-slate-500">
                 {subItem.sub_item_code || "Package model"}
               </p>
@@ -2443,7 +2488,7 @@ function PackageDocumentsPanel({ subItems, editable, open }) {
               {subItem.attachment_count || 0} file{Number(subItem.attachment_count) === 1 ? "" : "s"}
             </span>
           </div>
-          <PackageAttachmentManager subItem={subItem} open={open} editable={editable} />
+          <PackageAttachmentManager subItem={subItem} open={open} editable={editable && subItem.purchasing_decision !== "REJECTED"} />
         </section>
       ))}
     </div>
@@ -3021,7 +3066,7 @@ function DepartmentBreakdownView({ data, loading, error, onOpenDepartment }) {
                     tabIndex={0}
                     aria-label={`View items for ${department.department_name}`}
                     onClick={(event) => {
-                      if (event.target.closest("button,a,input,select,textarea,[role='button']")) return;
+                      if (event.target.closest("button,a,input,select,textarea")) return;
                       onOpenDepartment(department.department_id);
                     }}
                     onKeyDown={(event) => {
@@ -3035,9 +3080,6 @@ function DepartmentBreakdownView({ data, loading, error, onOpenDepartment }) {
                   >
                     <td className="px-5 py-4">
                       <p className="font-black text-slate-950">{department.department_name}</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">
-                        {department.department_code || "Department"}
-                      </p>
                     </td>
                     <td className="px-5 py-4 font-bold text-slate-700">
                       {department.item_count || 0}
@@ -3201,6 +3243,7 @@ export default function CategoryPackageWorkbench({
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("ALL");
+  const [cmReviewFilter, setCmReviewFilter] = useState("ALL");
   const [expenseType, setExpenseType] = useState("ALL");
   const [unitFilter, setUnitFilter] = useState("ALL");
   const [departmentFilter, setDepartmentFilter] = useState("ALL");
@@ -3248,11 +3291,33 @@ export default function CategoryPackageWorkbench({
 
   const packageData = packageQuery.data;
   const items = useMemo(() => packageData?.items || [], [packageData?.items]);
+  const exclusionsQuery = useQuery({
+    queryKey: ["budget-exclusions", Number(packageData?.financial_year_id)],
+    queryFn: () => getBudgetExclusions(packageData.financial_year_id),
+    enabled: Boolean(packageData?.financial_year_id), staleTime: 10000,
+  });
+  const purchasingRejectionsByCatalog = useMemo(() =>
+    groupPurchasingRejectionsByCatalog(exclusionsQuery.data, packageData?.budget_category_id),
+    [exclusionsQuery.data, packageData?.budget_category_id]);
   const cfoFeedback = useMemo(() => buildCfoRevisionFeedback(items), [items]);
+  const cmTrackerQuery = useQuery({
+    queryKey: ["category-packages", "current", "revision-tracker", packageData?.id],
+    queryFn: getCurrentCfoRevisionTracker,
+    enabled: Boolean(packageData?.id) && packageData.status === "RETURNED_BY_CFO",
+  });
+  const cmTracker = cmTrackerQuery.data;
+  const cmTrackerById = useMemo(() => new Map((cmTracker?.items || []).map(entry => [Number(entry.item_id), entry])), [cmTracker?.items]);
+  const cmReviewMutation = useMutation({
+    mutationFn: setPackageItemCmReviewed,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["category-packages", "current", "revision-tracker"] }),
+    onError: error => toast.error(error?.response?.data?.message || "Could not save CM review status"),
+  });
+
   const packageUnitOptions = useMemo(() => unitOfMeasureOptions(items), [items]);
   const itemsTableRef = useRef(null);
   function showCfoChanges() {
     setFilter("NEEDS_MODIFICATION");
+    setCmReviewFilter("ALL");
     setSearch("");
     setExpenseType("ALL");
     setUnitFilter("ALL");
@@ -3274,6 +3339,7 @@ export default function CategoryPackageWorkbench({
   useEffect(() => {
     if (!packageData?.id) return;
     setFilter(packageData.status === "RETURNED_BY_CFO" ? "NEEDS_MODIFICATION" : "ALL");
+    setCmReviewFilter("ALL");
   }, [packageData?.id, packageData?.status]);
 
   useEffect(() => {
@@ -3307,11 +3373,15 @@ export default function CategoryPackageWorkbench({
 
   const filteredItems = useMemo(
     () => filterStage2Items(items, {
-      search, status: filter, expenseType, departmentId: departmentFilter,
+      search, status: filter === "PURCHASING_REJECTED" ? "ALL" : filter, expenseType, departmentId: departmentFilter,
       priceStatus, modelStatus, allocationStatus, sortBy: sortColumn, sortDirection,
-    }, itemBlockersById).filter((item) => matchesUnitOfMeasure(item, unitFilter)),
+    }, itemBlockersById).filter((item) => matchesUnitOfMeasure(item, unitFilter) &&
+      (filter !== "PURCHASING_REJECTED" || purchasingRejectionsByCatalog.has(Number(item.catalog_item_id))) &&
+      (filter !== "NEEDS_MODIFICATION" || cmReviewFilter === "ALL" ||
+        (cmTrackerById.has(Number(item.id)) &&
+          (cmReviewFilter === "REVIEWED") === Boolean(cmTrackerById.get(Number(item.id))?.reviewed)))),
     // Primitive dependencies prevent unstable object references from rerunning filters.
-    [items, itemBlockersById, search, filter, expenseType, unitFilter, departmentFilter,
+    [items, itemBlockersById, purchasingRejectionsByCatalog, cmReviewFilter, cmTrackerById, search, filter, expenseType, unitFilter, departmentFilter,
       priceStatus, modelStatus, allocationStatus, sortColumn, sortDirection],
   );
   const expenseScopedItems = useMemo(() =>
@@ -3325,7 +3395,7 @@ export default function CategoryPackageWorkbench({
 
   useEffect(() => {
     setTablePage(1);
-  }, [search, filter, expenseType, unitFilter, departmentFilter, priceStatus, modelStatus, allocationStatus, sortColumn, sortDirection]);
+  }, [search, filter, cmReviewFilter, expenseType, unitFilter, departmentFilter, priceStatus, modelStatus, allocationStatus, sortColumn, sortDirection]);
 
   useEffect(() => {
     setExpandedPriceItemId(null);
@@ -3350,6 +3420,7 @@ export default function CategoryPackageWorkbench({
   function clearStage2Filters() {
     setSearch("");
     setFilter(packageData?.status === "RETURNED_BY_CFO" ? "NEEDS_MODIFICATION" : "ALL");
+    setCmReviewFilter("ALL");
     setExpenseType("ALL");
     setUnitFilter("ALL");
     setDepartmentFilter("ALL");
@@ -3364,7 +3435,7 @@ export default function CategoryPackageWorkbench({
   const hasActiveFilters = Boolean(search.trim()) || expenseType !== "ALL" || unitFilter !== "ALL" ||
     departmentFilter !== "ALL" || priceStatus !== "ALL" || modelStatus !== "ALL" ||
     allocationStatus !== "ALL" || sortColumn !== "NAME" || sortDirection !== "asc" ||
-    (filter !== "ALL" && !(filter === "NEEDS_MODIFICATION" && packageData?.status === "RETURNED_BY_CFO"));
+    cmReviewFilter !== "ALL" || (filter !== "ALL" && !(filter === "NEEDS_MODIFICATION" && packageData?.status === "RETURNED_BY_CFO"));
 
   const selectedItem =
     items.find((item) => Number(item.id) === Number(selectedItemId)) || null;
@@ -3630,6 +3701,7 @@ export default function CategoryPackageWorkbench({
     PACKAGE_FILTERS.map((entry) => [
       entry.value,
       expenseScopedItems.filter((item) =>
+        entry.value === "PURCHASING_REJECTED" ? purchasingRejectionsByCatalog.has(Number(item.catalog_item_id)) :
         matchesPreparationFilter(item, entry.value, itemBlockersById.get(Number(item.id)) || []),
       ).length,
     ]),
@@ -3751,6 +3823,16 @@ export default function CategoryPackageWorkbench({
           </div>
           {moreFiltersOpen ? (
             <div className="grid gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <span className="text-[11px] font-bold text-slate-500">Preparation status</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[{ value: "NEEDS_SETUP", label: "Needs Setup" }, { value: "NEEDS_ATTENTION", label: "Needs Attention" }, { value: "RECONCILED", label: "Reconciled" }].map(choice => (
+                    <button key={choice.value} type="button" onClick={() => setFilter(choice.value)}
+                      aria-pressed={filter === choice.value}
+                      className={classNames("rounded-lg border px-3 py-2 text-xs font-bold", filter === choice.value ? "border-blue-300 bg-blue-100 text-blue-800" : "border-slate-200 bg-white text-slate-600 hover:bg-blue-50")}>{choice.label} {filterCounts[choice.value]}</button>
+                  ))}
+                </div>
+              </div>
               <Stage2Select label="Models" value={modelStatus} onChange={setModelStatus}
                 options={[{value:"ALL",label:"All Models"},{value:"NONE",label:"No Models"},{value:"ONE",label:"One Model"},{value:"MULTIPLE",label:"Multiple Models"}]} />
               <Stage2Select label="Allocation Status" value={allocationStatus} onChange={setAllocationStatus}
@@ -3758,7 +3840,9 @@ export default function CategoryPackageWorkbench({
             </div>
           ) : null}
           <div className="flex flex-wrap items-center gap-2" aria-label="Preparation status filters">
-            {PACKAGE_FILTERS.filter((entry) => entry.value !== "NEEDS_MODIFICATION" || packageData.status === "RETURNED_BY_CFO")
+            {PACKAGE_FILTERS.filter((entry) => ["ALL", "NEEDS_MODIFICATION", "PURCHASING_REJECTED"].includes(entry.value) &&
+              (entry.value !== "NEEDS_MODIFICATION" || packageData.status === "RETURNED_BY_CFO") &&
+              (entry.value !== "PURCHASING_REJECTED" || purchasingRejectionsByCatalog.size > 0))
               .map((entry) => (
                 <button type="button" key={entry.value} aria-pressed={filter === entry.value} onClick={() => setFilter(entry.value)}
                   className={classNames("rounded-xl border px-3 py-2 text-xs font-black transition",
@@ -3768,6 +3852,31 @@ export default function CategoryPackageWorkbench({
                 >{entry.value === "NEEDS_MODIFICATION" ? <AlertCircle className="mr-1 inline h-3.5 w-3.5" /> : null}{entry.label} {filterCounts[entry.value]}</button>
               ))}
           </div>
+          {filter === "NEEDS_MODIFICATION" && cmTrackerQuery.isError ? (
+            <div role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">CM review progress could not be loaded. Changes and submission permissions are unaffected; refresh the page to restore the checklist.</div>
+          ) : null}
+          {filter === "NEEDS_MODIFICATION" && packageData.status === "RETURNED_BY_CFO" && cmTracker?.active && cmTracker.summary?.total > 0 ? (
+            <div className="rounded-xl border border-blue-100 bg-blue-50/40 px-4 py-3" aria-label="CFO revision progress">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-56 flex-1">
+                  <div className="text-xs font-black text-slate-800">CFO revision progress</div>
+                  <div className="mt-1 text-xs text-slate-600">{cmTracker.summary.reviewed} of {cmTracker.summary.total} reviewed · {cmTracker.summary.remaining} remaining</div>
+                  <div className="mt-2 h-1.5 w-full max-w-sm overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-label="CM review progress" aria-valuemin={0} aria-valuemax={cmTracker.summary.total} aria-valuenow={cmTracker.summary.reviewed}>
+                    <div className="h-full rounded-full bg-emerald-500" style={{ width: `${100 * cmTracker.summary.reviewed / cmTracker.summary.total}%` }}/>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter CFO items by CM review status">
+                  {[
+                    ["ALL", `All ${cmTracker.summary.total}`],
+                    ["TO_REVIEW", `To Review ${cmTracker.summary.remaining}`],
+                    ["REVIEWED", `Reviewed ${cmTracker.summary.reviewed}`],
+                  ].map(([value, label]) => <button type="button" key={value} onClick={() => setCmReviewFilter(value)}
+                    aria-pressed={cmReviewFilter === value}
+                    className={classNames("rounded-lg border px-3 py-2 text-xs font-black transition", cmReviewFilter === value ? "border-blue-200 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-blue-50")}>{label}</button>)}
+                </div>
+              </div>
+            </div>
+          ) : null}
           {hasActiveFilters ? (
             <div className="flex flex-wrap items-center gap-1.5" aria-label="Active filters">
               {[
@@ -3870,18 +3979,14 @@ export default function CategoryPackageWorkbench({
                       )}
                     >
                       <td className={classNames(
-                        "px-5 py-4",
+                        "min-w-[335px] px-5 py-4 lg:min-w-[390px]",
                         packageData.status === "RETURNED_BY_CFO" && isCfoRevisionItem(item) && "border-l-[3px] border-l-amber-500",
                       )}>
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex min-w-0 items-start gap-2.5">
                           <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-100 bg-slate-50 text-blue-700"><Boxes className="h-4 w-4" /></span>
-                          <div className="min-w-[170px]">
-                            <div className="flex items-center gap-2">
-                              <p className="font-black text-slate-950">{item.catalog_item_name}</p>
-                              {packageData.status === "RETURNED_BY_CFO" && isCfoRevisionItem(item) ? <CfoRevisionBadge compact /> : null}
-                              {Number(item.approved_quantity || 0) === 0 && Number(item.requested_quantity || 0) > 0 ? (
-                                <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">Rejected · 0 approved</span>
-                              ) : null}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <p title={item.catalog_item_name} className="min-w-0 flex-1 truncate whitespace-nowrap font-black text-slate-950">{item.catalog_item_name}</p>
                               <button type="button"
                                 aria-label={`${expanded ? "Collapse" : "Expand"} General price for ${item.catalog_item_name}`}
                                 aria-expanded={expanded}
@@ -3897,6 +4002,30 @@ export default function CategoryPackageWorkbench({
                               <span className="mx-1.5 text-slate-300">·</span>
                               <span className="text-blue-700">{item.view_expense_type}</span>
                             </p>
+                            {(packageData.status === "RETURNED_BY_CFO" && isCfoRevisionItem(item)) ||
+                              purchasingRejectionsByCatalog.has(Number(item.catalog_item_id)) ||
+                              (Number(item.approved_quantity || 0) === 0 && Number(item.requested_quantity || 0) > 0) ? (
+                              <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
+                                {packageData.status === "RETURNED_BY_CFO" && isCfoRevisionItem(item) ? (
+                                  <CfoFeedbackNote
+                                    note={item.cfo_review_note ?? item.package_item_cfo_review_note}
+                                    shared={cfoFeedback.getLabel(item) === "Shared instruction"}
+                                    trigger="revision-badge"
+                                  />
+                                ) : null}
+                                {purchasingRejectionsByCatalog.has(Number(item.catalog_item_id)) ? (
+                                  <span className="inline-flex shrink-0 whitespace-nowrap">
+                                    <PurchasingRejectionBadge
+                                      models={[...purchasingRejectionsByCatalog.get(Number(item.catalog_item_id)).values()]}
+                                        totalModels={modelPrices.filter(model => Number(model.quantity || 0) > 0).length}
+                                    />
+                                  </span>
+                                ) : null}
+                                {Number(item.approved_quantity || 0) === 0 && Number(item.requested_quantity || 0) > 0 ? (
+                                  <span className="inline-flex shrink-0 whitespace-nowrap rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">Rejected · 0 approved</span>
+                                ) : null}
+                              </div>
+                            ) : null}
                           </div>
                         </div>
                       </td>
@@ -3907,6 +4036,15 @@ export default function CategoryPackageWorkbench({
                             shared={cfoFeedback.getLabel(item) === "Shared instruction"}
                             label={cfoFeedback.getLabel(item) === "Shared instruction" ? "Shared instruction" : undefined}
                           /> : <span className="text-xs text-slate-400">No CFO changes</span>}
+                          {isCfoRevisionItem(item) && cmTrackerById.has(Number(item.id)) ? (
+                            <button type="button"
+                              disabled={cmReviewMutation.isPending}
+                              aria-pressed={Boolean(cmTrackerById.get(Number(item.id)).reviewed)}
+                              onClick={() => cmReviewMutation.mutate({ itemId: item.id, reviewed: !cmTrackerById.get(Number(item.id)).reviewed })}
+                              className={classNames("mt-2 inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] font-black transition disabled:opacity-50",
+                                cmTrackerById.get(Number(item.id)).reviewed ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" : "border-blue-200 bg-white text-blue-700 hover:bg-blue-50")}
+                            ><CheckCircle2 className="h-3.5 w-3.5" /> {cmTrackerById.get(Number(item.id)).reviewed ? "Reviewed" : "Mark Reviewed"}</button>
+                          ) : null}
                         </td>
                       ) : null}
                       <td className="px-5 py-4 font-black text-slate-950">{formatNumber(item.view_approved_quantity)}</td>
@@ -3925,13 +4063,19 @@ export default function CategoryPackageWorkbench({
                         {Number(item.view_approved_quantity || 0) === 0 ? (
                           <span className="text-xs font-semibold text-slate-500">Not required</span>
                         ) : (
-                          <PackageItemUnitPrice
-                            item={item}
-                            onOpenModels={() => openItem(item.id, "MODELS")}
-                          />
+                          <div className="space-y-1">
+                            <PackageItemUnitPrice
+                              item={item}
+                              onOpenModels={() => openItem(item.id, "MODELS")}
+                            />
+                            {packageData.status === "RETURNED_BY_CFO" && cmTrackerById.has(Number(item.id)) ? (
+                              <CfoCycleDelta comparison={cmTrackerById.get(Number(item.id))} mode="price" compact />
+                            ) : null}
+                          </div>
                         )}
                       </td>
                       <td className="px-5 py-4 font-black text-slate-950">
+                        <div className="space-y-1">
                         {item.view_approved_quantity === 0 ? (
                           <CurrencyText value={0} />
                         ) : allModelsPriced && item.view_estimated_value !== null ? (
@@ -3939,6 +4083,10 @@ export default function CategoryPackageWorkbench({
                         ) : (
                           <span className="text-xs text-amber-700">Not available</span>
                         )}
+                        {packageData.status === "RETURNED_BY_CFO" && cmTrackerById.has(Number(item.id)) ? (
+                          <CfoCycleDelta comparison={cmTrackerById.get(Number(item.id))} mode="total" compact />
+                        ) : null}
+                        </div>
                       </td>
                       <td className="px-5 py-4" title="Overall package reconciliation, not limited to the selected expense type"><StatusBadge status={Number(item.approved_quantity || 0) === 0 && Number(item.requested_quantity || 0) > 0 ? "REJECTED" : item.reconciliation_status} compact /></td>
                       <td className="px-5 py-4">

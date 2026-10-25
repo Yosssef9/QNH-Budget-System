@@ -14,7 +14,7 @@ export function CfoRevisionBadge({ compact = false }) {
 /** Readable, portaled CFO instruction popover for tables and full-screen drawers.
  * Hover = transient; click = stays open until closed or outside click.
  */
-export function CfoFeedbackNote({ note, shared = false, label }) {
+export function CfoFeedbackNote({ note, shared = false, label, trigger = "note" }) {
   const [hoverOpen, setHoverOpen] = useState(false);
   const [pinnedOpen, setPinnedOpen] = useState(false);
   const anchorRef = useRef(null);
@@ -44,7 +44,9 @@ export function CfoFeedbackNote({ note, shared = false, label }) {
     };
   }, [open, pinnedOpen]);
 
-  if (!full) return <span className="text-xs font-medium text-amber-700">No CFO note recorded</span>;
+  if (!full) return trigger === "revision-badge"
+    ? <CfoRevisionBadge compact />
+    : <span className="text-xs font-medium text-amber-700">No CFO note recorded</span>;
   const close = () => { setPinnedOpen(false); setHoverOpen(false); };
 
   return (
@@ -95,11 +97,19 @@ export function CfoFeedbackNote({ note, shared = false, label }) {
           else setPinnedOpen(true);
         }}
         aria-expanded={open}
-        aria-label={`CFO instruction: ${full}`}
-        className="inline-flex max-w-[270px] items-center gap-1.5 rounded-lg px-1.5 py-1 text-left text-xs font-semibold text-amber-800 transition hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
+        aria-label={trigger === "revision-badge" ? `Needs revision. CFO instruction: ${full}` : `CFO instruction: ${full}`}
+        className={trigger === "revision-badge"
+          ? "inline-flex shrink-0 whitespace-nowrap rounded-full transition hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500"
+          : "inline-flex max-w-[270px] items-center gap-1.5 rounded-lg px-1.5 py-1 text-left text-xs font-semibold text-amber-800 transition hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"}
       >
-        <MessageSquareText className="h-3.5 w-3.5 shrink-0 text-amber-700" />
-        <span className="truncate">{label || (shared ? "Shared instruction" : full)}</span>
+        {trigger === "revision-badge" ? (
+          <CfoRevisionBadge compact />
+        ) : (
+          <>
+            <MessageSquareText className="h-3.5 w-3.5 shrink-0 text-amber-700" />
+            <span className="truncate">{label || (shared ? "Shared instruction" : full)}</span>
+          </>
+        )}
       </button>
     </Tooltip>
   );

@@ -116,6 +116,7 @@ export function mapPackageItem(row, subItems = []) {
         name: subItem.name,
         category_manager_unit_price: subItem.category_manager_unit_price,
         unit_price: subItem.unit_price,
+        purchasing_decision: subItem.purchasing_decision ?? null,
       }))
     : JSON.parse(row.model_unit_prices_json || "[]");
 
@@ -208,6 +209,12 @@ export function mapPackageSubItem(row, allocations = []) {
     last_purchasing_reviewed_by_name:
       row.last_purchasing_reviewed_by_name ?? null,
     last_purchasing_reviewed_at: row.last_purchasing_reviewed_at ?? null,
+    purchasing_decision: ['ACCEPTED', 'REJECTED'].includes(row.purchasing_decision)
+      ? row.purchasing_decision : null,
+    purchasing_rejection_reason: row.purchasing_rejection_reason ?? null,
+    purchasing_decision_round: row.purchasing_decision_round ?? null,
+    purchasing_decided_at: row.purchasing_decided_at ?? null,
+    purchasing_decided_by_name: row.purchasing_decided_by_name ?? null,
     line_total: unitPrice === null ? null : quantity * unitPrice,
     category_manager_line_total:
       categoryManagerUnitPrice === null
@@ -542,4 +549,5 @@ export function mapDepartmentPackageView(rows = []) {
     departments,
   };
 }
+
 

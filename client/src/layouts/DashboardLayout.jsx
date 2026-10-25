@@ -33,6 +33,7 @@ import WorkspaceSelectionDialog from "../components/WorkspaceSelectionDialog";
 import { formatWorkspaceSummary } from "../helpers/workspaceLabels";
 import toast from "react-hot-toast";
 import { isSidebarExpanded, loadSidebarOpeningMode, SIDEBAR_OPENING_MODE_STORAGE_KEY } from "./sidebarOpeningMode";
+import SidebarIconTooltip from "./SidebarIconTooltip";
 const appBaseUrl = import.meta.env.BASE_URL;
 function getSidebarSections(budgetAccess) {
   const canViewDepartmentBudgets = can(
@@ -448,36 +449,46 @@ export default function DashboardLayout() {
           ].join(" ")}
         >
           {/* One opening-mode control; manual expand/collapse appears only in Click mode. */}
-          <button
-            type="button"
-            aria-pressed={sidebarOpeningMode === "click"}
-            aria-label={sidebarOpeningMode === "hover"
-              ? "Sidebar opening mode: Hover. Switch to Click to Open."
-              : "Sidebar opening mode: Click. Switch to Hover to Open."}
-            title={sidebarOpeningMode === "hover"
-              ? "Hover to open (click to switch to Click mode)"
-              : "Click to open (click to switch to Hover mode)"}
-            onClick={toggleSidebarOpeningMode}
-            className={`group inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 ${sidebarOpen ? "px-2.5" : "w-9"} ${sidebarOpeningMode === "click" ? "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100" : "border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50"}`}
+          <SidebarIconTooltip
+            label={sidebarOpeningMode === "hover"
+              ? "Sidebar mode: Hover — switch to Click mode"
+              : "Sidebar mode: Click — switch to Hover mode"}
+            disabled={sidebarOpen}
+            className="inline-flex shrink-0"
           >
-            {sidebarOpeningMode === "hover"
-              ? <MousePointer2 size={16} aria-hidden="true" />
-              : <MousePointerClick size={16} aria-hidden="true" />}
-            {sidebarOpen && <span>{sidebarOpeningMode === "hover" ? "Hover" : "Click"}</span>}
-          </button>
-
-          {sidebarOpeningMode === "click" && (
             <button
               type="button"
-              aria-expanded={sidebarOpen}
-              aria-controls="qnh-sidebar-navigation"
-              aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-              title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-              onClick={toggleSidebarByClick}
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-white text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
+              aria-pressed={sidebarOpeningMode === "click"}
+              aria-label={sidebarOpeningMode === "hover"
+                ? "Sidebar opening mode: Hover. Switch to Click to Open."
+                : "Sidebar opening mode: Click. Switch to Hover to Open."}
+              onClick={toggleSidebarOpeningMode}
+              className={`group inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 ${sidebarOpen ? "px-2.5" : "w-9"} ${sidebarOpeningMode === "click" ? "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100" : "border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50"}`}
             >
-              {sidebarOpen ? <PanelLeftClose size={16} aria-hidden="true" /> : <PanelLeftOpen size={16} aria-hidden="true" />}
+              {sidebarOpeningMode === "hover"
+                ? <MousePointer2 size={16} aria-hidden="true" />
+                : <MousePointerClick size={16} aria-hidden="true" />}
+              {sidebarOpen && <span>{sidebarOpeningMode === "hover" ? "Hover" : "Click"}</span>}
             </button>
+          </SidebarIconTooltip>
+
+          {sidebarOpeningMode === "click" && (
+            <SidebarIconTooltip
+              label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+              disabled={sidebarOpen}
+              className="inline-flex shrink-0"
+            >
+              <button
+                type="button"
+                aria-expanded={sidebarOpen}
+                aria-controls="qnh-sidebar-navigation"
+                aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+                onClick={toggleSidebarByClick}
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-white text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
+              >
+                {sidebarOpen ? <PanelLeftClose size={16} aria-hidden="true" /> : <PanelLeftOpen size={16} aria-hidden="true" />}
+              </button>
+            </SidebarIconTooltip>
           )}
         </div>
 
@@ -513,43 +524,44 @@ overflow-y-hidden hover:overflow-y-auto
                       : location.pathname.startsWith(item.path);
 
                   return (
-                    <button
-                      key={item.path}
-                      type="button"
-                      onClick={() => safeNavigate(item.path)}
-                      title={!sidebarOpen ? item.label : undefined}
-                      className={[
-                        "group relative flex w-full items-center rounded-2xl py-3 text-sm font-medium",
-                        "transition-all duration-200",
-                        sidebarOpen ? "gap-3 px-4" : "justify-center px-0",
-                        isActive
-                          ? "bg-primary-50 text-primary-700 shadow-soft"
-                          : "text-enterprise-muted hover:bg-enterprise-soft hover:text-primary-700",
-                      ].join(" ")}
-                    >
-                      <Icon
-                        size={20}
-                        className="shrink-0 transition-transform duration-200 group-hover:scale-110"
-                      />
-
-                      <span
+                    <SidebarIconTooltip key={item.path} label={item.label} disabled={sidebarOpen}>
+                      <button
+                        type="button"
+                        onClick={() => safeNavigate(item.path)}
+                        aria-label={item.label}
                         className={[
-                          "whitespace-nowrap tracking-normal transition-all duration-300",
-                          sidebarOpen
-                            ? "w-auto translate-x-0 opacity-100"
-                            : "w-0 -translate-x-2 overflow-hidden opacity-0",
+                          "group relative flex w-full items-center rounded-2xl py-3 text-sm font-medium",
+                          "transition-all duration-200",
+                          sidebarOpen ? "gap-3 px-4" : "justify-center px-0",
+                          isActive
+                            ? "bg-primary-50 text-primary-700 shadow-soft"
+                            : "text-enterprise-muted hover:bg-enterprise-soft hover:text-primary-700",
                         ].join(" ")}
                       >
-                        {item.label}
-                      </span>
-
-                      {sidebarOpen && (
-                        <ChevronRight
-                          size={15}
-                          className="ml-auto opacity-0 transition-all duration-200 group-hover:translate-x-0.5 group-hover:opacity-100"
+                        <Icon
+                          size={20}
+                          className="shrink-0 transition-transform duration-200 group-hover:scale-110"
                         />
-                      )}
-                    </button>
+
+                        <span
+                          className={[
+                            "whitespace-nowrap tracking-normal transition-all duration-300",
+                            sidebarOpen
+                              ? "w-auto translate-x-0 opacity-100"
+                              : "w-0 -translate-x-2 overflow-hidden opacity-0",
+                          ].join(" ")}
+                        >
+                          {item.label}
+                        </span>
+
+                        {sidebarOpen && (
+                          <ChevronRight
+                            size={15}
+                            className="ml-auto opacity-0 transition-all duration-200 group-hover:translate-x-0.5 group-hover:opacity-100"
+                          />
+                        )}
+                      </button>
+                    </SidebarIconTooltip>
                   );
                 })}
               </div>
@@ -558,34 +570,36 @@ overflow-y-hidden hover:overflow-y-auto
         </nav>
 
         <div className="border-t border-slate-200 bg-slate-50 p-4">
-          <button
-            type="button"
-            onClick={logout}
-            title={!sidebarOpen ? "Logout" : undefined}
-            className={[
-              "group relative flex w-full items-center rounded-2xl py-3 text-sm font-semibold",
-              "bg-red-50 text-red-700 border border-red-200",
-              "transition-all duration-200",
-              "hover:bg-red-100 hover:border-red-300 hover:text-red-800",
-              sidebarOpen ? "gap-3 px-4" : "justify-center px-0",
-            ].join(" ")}
-          >
-            <LogOut
-              size={20}
-              className="shrink-0 text-red-600 transition-transform duration-200 group-hover:scale-110"
-            />
-
-            <span
+          <SidebarIconTooltip label="Logout" disabled={sidebarOpen}>
+            <button
+              type="button"
+              onClick={logout}
+              aria-label="Logout"
               className={[
-                "whitespace-nowrap tracking-normal transition-all duration-300",
-                sidebarOpen
-                  ? "w-auto translate-x-0 opacity-100"
-                  : "w-0 -translate-x-2 overflow-hidden opacity-0",
+                "group relative flex w-full items-center rounded-2xl py-3 text-sm font-semibold",
+                "bg-red-50 text-red-700 border border-red-200",
+                "transition-all duration-200",
+                "hover:bg-red-100 hover:border-red-300 hover:text-red-800",
+                sidebarOpen ? "gap-3 px-4" : "justify-center px-0",
               ].join(" ")}
             >
-              Logout
-            </span>
-          </button>
+              <LogOut
+                size={20}
+                className="shrink-0 text-red-600 transition-transform duration-200 group-hover:scale-110"
+              />
+
+              <span
+                className={[
+                  "whitespace-nowrap tracking-normal transition-all duration-300",
+                  sidebarOpen
+                    ? "w-auto translate-x-0 opacity-100"
+                    : "w-0 -translate-x-2 overflow-hidden opacity-0",
+                ].join(" ")}
+              >
+                Logout
+              </span>
+            </button>
+          </SidebarIconTooltip>
         </div>
       </aside>
 
@@ -687,4 +701,3 @@ overflow-y-hidden hover:overflow-y-auto
     </div>
   );
 }
-

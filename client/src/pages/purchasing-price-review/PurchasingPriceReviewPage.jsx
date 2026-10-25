@@ -22,6 +22,9 @@ import PurchasingPackageQueue from "../../components/purchasing-price-review/Pur
 import PurchasingPriceHistoryDrawer from "../../components/purchasing-price-review/PurchasingPriceHistoryDrawer";
 import PurchasingPriceStatusBadge from "../../components/purchasing-price-review/PurchasingPriceStatusBadge";
 import PurchasingPriceTable from "../../components/purchasing-price-review/PurchasingPriceTable";
+import BudgetExclusionsPanel from "../../components/budgets/shared/BudgetExclusionsPanel";
+import PurchasingRejectModelsDialog from "../../components/purchasing-price-review/PurchasingRejectModelsDialog";
+import PurchasingReinstateDialog from "../../components/purchasing-price-review/PurchasingReinstateDialog";
 import {
   useAcceptAllPurchasingPrices,
   useAcceptPurchasingPrice,
@@ -29,6 +32,8 @@ import {
   usePurchasingPackage,
   usePurchasingPackages,
   useReopenPurchasingPrice,
+  useRejectPurchasingModels,
+  useReinstatePurchasingModel,
   useSavePurchasingPrice,
   useSubmitPurchasingPackage,
 } from "../../hooks/purchasing-price-review/usePurchasingPriceReview";
@@ -38,6 +43,7 @@ const PRICE_STATUS_OPTIONS = [
   { value: "ALL", label: "All price statuses" },
   { value: "PENDING", label: "Pending" },
   { value: "ACCEPTED", label: "Accepted" },
+  { value: "REJECTED", label: "Rejected" },
 ];
 const CFO_STATUS_OPTIONS = [
   { value: "ALL", label: "All CFO item statuses" },
@@ -79,6 +85,8 @@ export default function PurchasingPriceReviewPage() {
   const [attachmentItem, setAttachmentItem] = useState(null);
   const [historyItem, setHistoryItem] = useState(null);
   const [intelligenceItem, setIntelligenceItem] = useState(null);
+  const [rejectionItem, setRejectionItem] = useState(null);
+  const [reinstatementItem, setReinstatementItem] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
   const [priceSaveStates, setPriceSaveStates] = useState({});
 
@@ -88,6 +96,8 @@ export default function PurchasingPriceReviewPage() {
   const savePriceMutation = useSavePurchasingPrice();
   const acceptMutation = useAcceptPurchasingPrice();
   const reopenMutation = useReopenPurchasingPrice();
+  const rejectMutation = useRejectPurchasingModels();
+  const reinstateMutation = useReinstatePurchasingModel();
   const acceptAllMutation = useAcceptAllPurchasingPrices();
   const submitMutation = useSubmitPurchasingPackage();
   const drafts = usePurchasingPriceDrafts(packageQuery.data);
@@ -134,6 +144,8 @@ export default function PurchasingPriceReviewPage() {
   const busy =
     acceptMutation.isPending ||
     reopenMutation.isPending ||
+    rejectMutation.isPending ||
+    reinstateMutation.isPending ||
     acceptAllMutation.isPending ||
     submitMutation.isPending;
 
@@ -170,11 +182,14 @@ export default function PurchasingPriceReviewPage() {
 
   const currentTotal = drafts.rows.reduce(
     (sum, row) =>
-      sum + Number(row.quantity || 0) * Number(row.draft_purchasing_unit_price || 0),
+      sum + (row.price_review_status === "REJECTED" ? 0 : Number(row.quantity || 0) * Number(row.draft_purchasing_unit_price || 0)),
     0,
   );
   const pendingCount = drafts.rows.filter((row) => row.price_review_status === "PENDING").length;
   const acceptedCount = drafts.rows.filter((row) => row.price_review_status === "ACCEPTED").length;
+  const rejectedCount = drafts.rows.filter((row) => row.price_review_status === "REJECTED").length;
+  const excludedValue = drafts.rows.reduce((sum, row) => sum +
+    (row.price_review_status === "REJECTED" ? Number(row.quantity || 0) * Number(row.purchasing_unit_price || 0) : 0), 0);
   const submissionTotal =
     packageData?.summary?.estimated_total ?? currentTotal;
 
@@ -239,6 +254,32 @@ export default function PurchasingPriceReviewPage() {
     } catch (error) {
       showError(error, "Failed to reopen Purchasing price");
     }
+  }
+
+  async function rejectSelectedModels(models, reason) {
+    if (drafts.dirtyRows.length) {
+      toast.error("Save or discard price changes before rejecting models");
+      return;
+    }
+    try {
+      await rejectMutation.mutateAsync({ packageId: packageData.package.id, payload: {
+        row_version: packageData.package.row_version,
+        reason, models: models.map((model) => ({ package_sub_item_id: model.id, row_version: model.row_version })),
+      }});
+      setRejectionItem(null);
+      toast.success(models.length === 1 ? "Model rejected" : `${models.length} models rejected`);
+    } catch (error) { showError(error, "Failed to reject selected models"); }
+  }
+
+  async function reinstateModel(row, reason) {
+    try {
+      await reinstateMutation.mutateAsync({
+        packageId: packageData.package.id, packageSubItemId: row.id,
+        payload: { row_version: row.row_version, reason },
+      });
+      setReinstatementItem(null);
+      toast.success(`${row.name} returned to Purchasing review`);
+    } catch (error) { showError(error, "Failed to reinstate model"); }
   }
 
   function selectPackage(packageId) {
@@ -359,6 +400,10 @@ export default function PurchasingPriceReviewPage() {
                   <Metric label="Accepted prices" value={acceptedCount} icon={CheckCheck} tone="emerald" />
                   <Metric label="Pending prices" value={pendingCount} icon={AlertCircle} tone="amber" />
                 </div>
+                {rejectedCount > 0 ? <div className="flex flex-wrap items-center gap-4 border-t border-slate-100 px-5 py-2.5 text-xs font-semibold text-slate-600">
+                  <span className="text-rose-700">{rejectedCount} model{rejectedCount !== 1 ? "s" : ""} rejected by Purchasing</span>
+                  <span>Excluded value: <CurrencyText value={excludedValue} /></span>
+                </div> : null}
               </section>
 
               <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -387,16 +432,30 @@ export default function PurchasingPriceReviewPage() {
                 priceSaveStates={priceSaveStates}
                 onAccept={acceptPrice}
                 onReopen={reopenPrice}
+                onReject={setRejectionItem}
+                onReinstate={setReinstatementItem}
+                correctableAfterCfo={packageData?.package?.status === "IN_CFO_REVIEW" && canReview && canSubmit
+                  ? drafts.rows.filter((model) => String(model.name || "").trim().toUpperCase() === "GENERAL" &&
+                    drafts.rows.filter((other) => Number(other.generic_item_id) === Number(model.generic_item_id)).length === 1).map((model) => model.id)
+                  : []}
                 onOpenAttachments={setAttachmentItem}
                 onOpenHistory={setHistoryItem}
                 onOpenPriceIntelligence={setIntelligenceItem}
               />
+              <BudgetExclusionsPanel financialYearId={packageData?.package?.financial_year_id} categoryName={packageData?.package?.category_name}
+                type="CM_ZERO" title="CM-approved-zero requests (read only)" />
             </div>
           )}
         </main>
 
       </div>
 
+      <PurchasingRejectModelsDialog open={Boolean(rejectionItem)} item={rejectionItem} rows={drafts.rows}
+        busy={rejectMutation.isPending} onClose={() => setRejectionItem(null)} onConfirm={rejectSelectedModels} />
+      <PurchasingReinstateDialog item={reinstatementItem} busy={reinstateMutation.isPending}
+        afterCfo={packageData?.package?.status === "IN_CFO_REVIEW"}
+        onClose={() => setReinstatementItem(null)}
+        onConfirm={(reason) => reinstateModel(reinstatementItem, reason)} />
       <PurchasingAttachmentsDrawer open={Boolean(attachmentItem)} onClose={() => setAttachmentItem(null)} packageId={packageData?.package?.id} subItem={attachmentItem} editable={editable && canManageAttachments && attachmentItem?.cfo_review_status !== "CFO_ACCEPTED"} />
       <PurchasingPriceHistoryDrawer open={Boolean(historyItem)} onClose={() => setHistoryItem(null)} packageId={packageData?.package?.id} subItem={historyItem} />
       <PackageSubItemPriceIntelligenceDrawer open={Boolean(intelligenceItem)} subItem={intelligenceItem} subItems={selectedGenericRows} onSelectSubItem={setIntelligenceItem} onClose={() => setIntelligenceItem(null)} />
@@ -461,3 +520,4 @@ export default function PurchasingPriceReviewPage() {
     </div>
   );
 }
+

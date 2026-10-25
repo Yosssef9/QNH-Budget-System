@@ -219,7 +219,14 @@ export async function listPackageItemsRepo({ packageId, approvedOnly = false }, 
           model.name,
           model.quantity,
           model.category_manager_unit_price,
-          model.unit_price
+          model.unit_price,
+          (SELECT TOP (1) review.status
+           FROM dbo.BS_category_budget_package_sub_item_price_reviews AS review
+           INNER JOIN dbo.BS_category_budget_packages AS currentPkg
+             ON currentPkg.id = review.category_budget_package_id
+            AND currentPkg.purchasing_review_round = review.review_round
+           WHERE review.category_budget_package_sub_item_id = model.id
+           ORDER BY review.id DESC) AS purchasing_decision
         FROM dbo.BS_category_budget_package_sub_items AS model
         WHERE model.category_budget_package_item_id = packageItem.id
           AND model.is_active = 1
@@ -645,6 +652,11 @@ export async function listPackageItemDetailRowsRepo(
         latestAcceptedReview.reviewed_by AS last_purchasing_reviewed_by,
         latestAcceptedReview.reviewed_by_name AS last_purchasing_reviewed_by_name,
         latestAcceptedReview.reviewed_at AS last_purchasing_reviewed_at,
+        currentDecision.status AS purchasing_decision,
+        currentDecision.rejection_reason AS purchasing_rejection_reason,
+        currentDecision.review_round AS purchasing_decision_round,
+        currentDecision.reviewed_at AS purchasing_decided_at,
+        currentDecision.reviewed_by_name AS purchasing_decided_by_name,
         subItem.note,
         subItem.is_active,
         subItem.row_version,
@@ -683,6 +695,17 @@ export async function listPackageItemDetailRowsRepo(
         ORDER BY review.review_round DESC, review.id DESC
       ) AS latestAcceptedReview
 
+      OUTER APPLY (
+        SELECT TOP (1) review.status, review.rejection_reason, review.review_round,
+          review.reviewed_at, decisionUser.USER_NAME AS reviewed_by_name
+        FROM dbo.BS_category_budget_package_sub_item_price_reviews AS review
+        INNER JOIN dbo.BS_category_budget_packages AS pkg
+          ON pkg.id = review.category_budget_package_id
+         AND pkg.purchasing_review_round = review.review_round
+        LEFT JOIN dbo.users AS decisionUser ON decisionUser.USER_ID = review.reviewed_by
+        WHERE review.category_budget_package_sub_item_id = subItem.id
+        ORDER BY review.id DESC
+      ) AS currentDecision
       WHERE subItem.category_budget_package_item_id = @packageItemId
         AND subItem.is_active = 1
 
@@ -706,6 +729,9 @@ export async function listPackageItemDetailRowsRepo(
         latestAcceptedReview.reviewed_by,
         latestAcceptedReview.reviewed_by_name,
         latestAcceptedReview.reviewed_at,
+        currentDecision.status, currentDecision.rejection_reason,
+        currentDecision.review_round, currentDecision.reviewed_at,
+        currentDecision.reviewed_by_name,
         subItem.note,
         subItem.is_active,
         subItem.row_version,
@@ -903,6 +929,7 @@ export async function findPackageContextBySubItemRepo(
         subItem.unit_price,
         subItem.category_manager_unit_price,
         subItem.note,
+        currentDecision.status AS purchasing_decision,
         subItem.row_version AS package_sub_item_row_version,
         packageItem.catalog_item_id,
         packageItem.cfo_review_status,
@@ -923,6 +950,14 @@ export async function findPackageContextBySubItemRepo(
       LEFT JOIN dbo.BS_category_submission_windows AS window
         ON window.financial_year_id = pkg.financial_year_id
        AND window.budget_category_id = pkg.budget_category_id
+      OUTER APPLY (
+        SELECT TOP (1) review.status
+        FROM dbo.BS_category_budget_package_sub_item_price_reviews AS review WITH (UPDLOCK, HOLDLOCK)
+        WHERE review.category_budget_package_id = pkg.id
+          AND review.category_budget_package_sub_item_id = subItem.id
+          AND review.review_round = pkg.purchasing_review_round
+        ORDER BY review.id DESC
+      ) AS currentDecision
       WHERE subItem.id = @packageSubItemId
         AND subItem.is_active = 1
         AND packageItem.is_active = 1;
@@ -1307,7 +1342,18 @@ export async function deleteAllocationsForDepartmentItemRepo(
       INNER JOIN dbo.BS_category_budget_package_sub_items AS subItem
         ON subItem.id = allocation.category_budget_package_sub_item_id
       WHERE allocation.department_category_budget_item_id = @departmentItemId
-        AND subItem.category_budget_package_item_id = @packageItemId;
+        AND subItem.category_budget_package_item_id = @packageItemId
+        AND NOT EXISTS (
+          SELECT 1 FROM dbo.BS_category_budget_package_sub_item_price_reviews AS review
+          INNER JOIN dbo.BS_category_budget_package_items AS ownerItem
+            ON ownerItem.id = subItem.category_budget_package_item_id
+          INNER JOIN dbo.BS_category_budget_packages AS pkg
+            ON pkg.id = ownerItem.category_budget_package_id
+           AND pkg.purchasing_review_round = review.review_round
+          WHERE review.category_budget_package_sub_item_id = subItem.id
+            AND review.category_budget_package_id = pkg.id
+            AND review.status = 'REJECTED'
+        );
     `);
 }
 
@@ -1813,6 +1859,7 @@ export async function markPackageSubmittedToPurchasingRepo(transaction, payload)
         previous_purchasing_unit_price,
         purchasing_unit_price,
         status,
+        rejection_reason,
         decision_source,
         reviewed_by,
         reviewed_user_role_id,
@@ -1827,25 +1874,30 @@ export async function markPackageSubmittedToPurchasingRepo(transaction, payload)
         subItem.specification,
         subItem.unit_of_measure_id,
         subItem.category_manager_unit_price,
-        previousReview.purchasing_unit_price,
-        CASE WHEN unchanged.is_unchanged = 1
-          THEN previousReview.purchasing_unit_price
-          ELSE subItem.category_manager_unit_price
-        END,
-        CASE WHEN unchanged.is_unchanged = 1 THEN 'ACCEPTED' ELSE 'PENDING' END,
-        CASE WHEN unchanged.is_unchanged = 1 THEN 'CARRIED_FORWARD' ELSE 'MANUAL' END,
-        CASE WHEN unchanged.is_unchanged = 1 THEN previousReview.reviewed_by ELSE NULL END,
-        CASE WHEN unchanged.is_unchanged = 1 THEN previousReview.reviewed_user_role_id ELSE NULL END,
-        CASE WHEN unchanged.is_unchanged = 1 THEN SYSUTCDATETIME() ELSE NULL END
+        latestDecision.purchasing_unit_price,
+        CASE WHEN latestDecision.status = 'REJECTED'
+          THEN latestDecision.purchasing_unit_price
+          WHEN unchanged.is_unchanged = 1 THEN latestDecision.purchasing_unit_price
+          ELSE subItem.category_manager_unit_price END,
+        CASE WHEN latestDecision.status = 'REJECTED'
+          THEN 'REJECTED'
+          WHEN unchanged.is_unchanged = 1 THEN 'ACCEPTED'
+          ELSE 'PENDING' END,
+        CASE WHEN latestDecision.status = 'REJECTED'
+          THEN latestDecision.rejection_reason ELSE NULL END,
+        CASE WHEN latestDecision.status = 'REJECTED'
+            OR unchanged.is_unchanged = 1 THEN 'CARRIED_FORWARD' ELSE 'MANUAL' END,
+        CASE WHEN latestDecision.status = 'REJECTED'
+            OR unchanged.is_unchanged = 1 THEN latestDecision.reviewed_by ELSE NULL END,
+        CASE WHEN latestDecision.status = 'REJECTED'
+            OR unchanged.is_unchanged = 1 THEN latestDecision.reviewed_user_role_id ELSE NULL END,
+        CASE WHEN latestDecision.status = 'REJECTED'
+            OR unchanged.is_unchanged = 1 THEN SYSUTCDATETIME() ELSE NULL END
       FROM @Updated AS updated
       INNER JOIN dbo.BS_category_budget_package_items AS packageItem
         ON packageItem.category_budget_package_id = updated.id
        AND packageItem.is_active = 1
-       AND
-       (
-         updated.old_status = '${CATEGORY_PACKAGE_STATUS.DRAFT}'
-         OR packageItem.cfo_review_status = '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.NEEDS_MODIFICATION}'
-       )
+
       INNER JOIN dbo.BS_category_budget_package_sub_items AS subItem
         ON subItem.category_budget_package_item_id = packageItem.id
        AND subItem.is_active = 1
@@ -1854,17 +1906,32 @@ export async function markPackageSubmittedToPurchasingRepo(transaction, payload)
         SELECT TOP 1 review.*
         FROM dbo.BS_category_budget_package_sub_item_price_reviews AS review
         WHERE review.category_budget_package_sub_item_id = subItem.id
-          AND review.status = 'ACCEPTED'
+          AND review.category_budget_package_id = updated.id
+          AND review.review_round < updated.review_round
         ORDER BY review.review_round DESC, review.id DESC
-      ) AS previousReview
+      ) AS latestDecision
+      CROSS APPLY
+      (
+        SELECT CASE WHEN UPPER(LTRIM(RTRIM(subItem.name))) = 'GENERAL'
+          AND (SELECT COUNT(*) FROM dbo.BS_category_budget_package_sub_items AS sibling
+               WHERE sibling.category_budget_package_item_id = packageItem.id
+                 AND sibling.is_active = 1) = 1
+          THEN 1 ELSE 0 END AS is_single_general
+      ) AS singleGeneral
       CROSS APPLY
       (
         SELECT CASE
-          WHEN previousReview.id IS NOT NULL
-           AND previousReview.catalog_sub_item_id_snapshot = subItem.catalog_sub_item_id
-           AND previousReview.unit_of_measure_id_snapshot = subItem.unit_of_measure_id
-           AND ISNULL(previousReview.specification_snapshot, N'') = ISNULL(subItem.specification, N'')
-           AND previousReview.category_manager_unit_price_snapshot = subItem.category_manager_unit_price
+          WHEN latestDecision.status = 'ACCEPTED'
+           AND latestDecision.catalog_sub_item_id_snapshot = subItem.catalog_sub_item_id
+           AND latestDecision.unit_of_measure_id_snapshot = subItem.unit_of_measure_id
+           AND ISNULL(latestDecision.specification_snapshot, N'') = ISNULL(subItem.specification, N'')
+           AND latestDecision.category_manager_unit_price_snapshot = subItem.category_manager_unit_price
+           AND latestDecision.quantity_snapshot = COALESCE(subItem.quantity, 0)
+           -- A CFO-modified General model needs a fresh Purchasing review even
+           -- if the final total stayed the same (department allocations may differ).
+           AND NOT (singleGeneral.is_single_general = 1
+             AND updated.old_status = '${CATEGORY_PACKAGE_STATUS.RETURNED_BY_CFO}'
+             AND packageItem.cfo_review_status = '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.NEEDS_MODIFICATION}')
           THEN 1 ELSE 0 END AS is_unchanged
       ) AS unchanged
       WHERE packageItem.is_active = 1
@@ -1873,7 +1940,8 @@ export async function markPackageSubmittedToPurchasingRepo(transaction, payload)
 
       SELECT id, old_status, review_round FROM @Updated;
 
-      SELECT review.category_budget_package_sub_item_id
+      SELECT review.category_budget_package_sub_item_id, review.status,
+             review.rejection_reason, review.review_round
       FROM dbo.BS_category_budget_package_sub_item_price_reviews AS review
       INNER JOIN @Updated AS updated
         ON updated.id = review.category_budget_package_id
@@ -1885,9 +1953,12 @@ export async function markPackageSubmittedToPurchasingRepo(transaction, payload)
   if (!packageRow) return null;
   return {
     ...packageRow,
-    carried_forward_sub_item_ids: (result.recordsets?.[1] || []).map(
-      (row) => row.category_budget_package_sub_item_id,
-    ),
+    carried_forward_decisions: (result.recordsets?.[1] || []).map((row) => ({
+      packageSubItemId: row.category_budget_package_sub_item_id,
+      decision: row.status,
+      reason: row.rejection_reason,
+      reviewRound: row.review_round,
+    })),
   };
 }
 
@@ -2008,3 +2079,110 @@ export async function createWorkflowHistoryRepo(transaction, payload) {
 }
 
 
+
+
+/** Protect rejected General from being bypassed by adding another model to its parent. */
+export async function findRejectedSingleGeneralForPackageItemRepo(transaction, packageItemId) {
+  const result = await requestFor(transaction)
+    .input("packageItemId", sql.BigInt, packageItemId).query(`
+      SELECT TOP (1) generalModel.id
+      FROM dbo.BS_category_budget_package_items AS packageItem WITH (UPDLOCK, HOLDLOCK)
+      INNER JOIN dbo.BS_category_budget_packages AS pkg
+        ON pkg.id = packageItem.category_budget_package_id
+      INNER JOIN dbo.BS_category_budget_package_sub_items AS generalModel WITH (UPDLOCK, HOLDLOCK)
+        ON generalModel.category_budget_package_item_id = packageItem.id
+       AND generalModel.is_active = 1
+      INNER JOIN dbo.BS_category_budget_package_sub_item_price_reviews AS review WITH (UPDLOCK, HOLDLOCK)
+        ON review.category_budget_package_id = pkg.id
+       AND review.category_budget_package_sub_item_id = generalModel.id
+       AND review.review_round = pkg.purchasing_review_round
+       AND review.status = 'REJECTED'
+      WHERE packageItem.id = @packageItemId
+        AND UPPER(LTRIM(RTRIM(generalModel.name))) = 'GENERAL'
+        AND (SELECT COUNT(*) FROM dbo.BS_category_budget_package_sub_items AS sibling
+             WHERE sibling.category_budget_package_item_id = packageItem.id AND sibling.is_active = 1) = 1;
+    `);
+  return result.recordset?.[0] || null;
+}
+
+/** A fully rejected one-General item cannot be edited through a CFO return.
+ * Keep this decision check in the same transaction as a department quantity edit. */
+export async function findRejectedSingleGeneralForDepartmentItemRepo(transaction, departmentItemId, packageId) {
+  const result = await requestFor(transaction)
+    .input("departmentItemId", sql.BigInt, departmentItemId)
+    .input("packageId", sql.BigInt, packageId).query(`
+      SELECT TOP (1) model.id, review.review_round, review.rejection_reason
+      FROM dbo.BS_department_category_budget_items AS departmentItem WITH (UPDLOCK, HOLDLOCK)
+      INNER JOIN dbo.BS_category_budget_package_items AS packageItem
+        ON packageItem.catalog_item_id = departmentItem.catalog_item_id AND packageItem.is_active = 1
+      INNER JOIN dbo.BS_category_budget_packages AS pkg
+        ON pkg.id = packageItem.category_budget_package_id
+      INNER JOIN dbo.BS_department_category_budgets AS departmentBudget
+        ON departmentBudget.id = departmentItem.department_category_budget_id
+       AND departmentBudget.budget_category_id = pkg.budget_category_id
+      INNER JOIN dbo.BS_department_budgets AS budget
+        ON budget.id = departmentBudget.department_budget_id
+       AND budget.financial_year_id = pkg.financial_year_id
+      INNER JOIN dbo.BS_category_budget_package_sub_items AS model
+        ON model.category_budget_package_item_id = packageItem.id AND model.is_active = 1
+      INNER JOIN dbo.BS_category_budget_package_sub_item_price_reviews AS review WITH (UPDLOCK, HOLDLOCK)
+        ON review.category_budget_package_id = pkg.id
+       AND review.category_budget_package_sub_item_id = model.id
+       AND review.review_round = pkg.purchasing_review_round
+       AND review.status = 'REJECTED'
+      WHERE departmentItem.id = @departmentItemId
+        AND pkg.id = @packageId
+        AND UPPER(LTRIM(RTRIM(model.name))) = 'GENERAL'
+        AND (SELECT COUNT(*) FROM dbo.BS_category_budget_package_sub_items AS sibling
+             WHERE sibling.category_budget_package_item_id = packageItem.id AND sibling.is_active = 1) = 1;
+    `);
+  return result.recordset?.[0] || null;
+}
+
+/** Check inside the same transaction that writes a model allocation. */
+export async function findRejectedPackageModelRepo(transaction, packageSubItemId) {
+  const result = await requestFor(transaction)
+    .input("packageSubItemId", sql.BigInt, packageSubItemId).query(`
+      SELECT TOP (1) review.id
+      FROM dbo.BS_category_budget_package_sub_items AS model WITH (UPDLOCK, HOLDLOCK)
+      INNER JOIN dbo.BS_category_budget_package_items AS packageItem
+        ON packageItem.id = model.category_budget_package_item_id
+      INNER JOIN dbo.BS_category_budget_packages AS pkg
+        ON pkg.id = packageItem.category_budget_package_id
+      INNER JOIN dbo.BS_category_budget_package_sub_item_price_reviews AS review WITH (UPDLOCK, HOLDLOCK)
+        ON review.category_budget_package_id = pkg.id
+       AND review.category_budget_package_sub_item_id = model.id
+       AND review.review_round = pkg.purchasing_review_round
+       AND review.status = 'REJECTED'
+      WHERE model.id = @packageSubItemId;
+    `);
+  return result.recordset[0] || null;
+}
+
+/** Release only existing rejected quantity during a CFO-authorized correction.
+ * The complete old/new allocation state is stored in workflow history. */
+export async function reduceRejectedAllocationRepo(transaction, payload) {
+  const request = requestFor(transaction)
+    .input("departmentItemId", sql.BigInt, payload.departmentItemId)
+    .input("packageSubItemId", sql.BigInt, payload.packageSubItemId)
+    .input("quantity", sql.Decimal(18,4), payload.allocatedQuantity)
+    .input("actorUserId", sql.Int, payload.actorUserId);
+  await request.query(`
+    IF NOT EXISTS (
+      SELECT 1 FROM dbo.BS_category_budget_package_sub_item_allocations WITH (UPDLOCK, HOLDLOCK)
+      WHERE department_category_budget_item_id = @departmentItemId
+        AND category_budget_package_sub_item_id = @packageSubItemId
+        AND allocated_quantity >= @quantity
+    ) THROW 51001, 'Rejected allocation changed during update', 1;
+    IF @quantity = 0
+      DELETE FROM dbo.BS_category_budget_package_sub_item_allocations
+      WHERE department_category_budget_item_id = @departmentItemId
+        AND category_budget_package_sub_item_id = @packageSubItemId;
+    ELSE
+      UPDATE dbo.BS_category_budget_package_sub_item_allocations
+      SET allocated_quantity = @quantity, updated_by = @actorUserId,
+        updated_at = SYSUTCDATETIME()
+      WHERE department_category_budget_item_id = @departmentItemId
+        AND category_budget_package_sub_item_id = @packageSubItemId;
+  `);
+}

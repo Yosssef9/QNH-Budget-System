@@ -10,6 +10,8 @@ import {
   getPurchasingPackages,
   getPurchasingPriceHistory,
   reopenPurchasingPrice,
+  rejectPurchasingModels,
+  reinstatePurchasingModel,
   savePurchasingPrice,
   submitPurchasingPackageToCfo,
   uploadPurchasingAttachment,
@@ -76,6 +78,7 @@ function usePackageMutation(mutationFn) {
       queryClient.invalidateQueries({
         queryKey: purchasingPriceReviewKeys.all,
       });
+      queryClient.invalidateQueries({ queryKey: ["budget-exclusions"] });
     },
   });
 }
@@ -90,6 +93,14 @@ export function useAcceptPurchasingPrice() {
 
 export function useReopenPurchasingPrice() {
   return usePackageMutation(reopenPurchasingPrice);
+}
+
+export function useRejectPurchasingModels() {
+  return usePackageMutation(rejectPurchasingModels);
+}
+
+export function useReinstatePurchasingModel() {
+  return usePackageMutation(reinstatePurchasingModel);
 }
 
 export function useAcceptAllPurchasingPrices() {
@@ -155,3 +166,4 @@ export function useDeletePurchasingAttachment() {
 export function useDownloadPurchasingAttachment() {
   return useMutation({ mutationFn: downloadPurchasingAttachment });
 }
+

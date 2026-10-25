@@ -47,7 +47,8 @@ END;
     WHERE db.financial_year_id = @activeFinancialYearId;
 
     SELECT
-      ISNULL(SUM(allocation.allocated_quantity * ISNULL(subItem.unit_price, 0)), 0) AS approved_total_amount
+      ISNULL(SUM(allocation.allocated_quantity * ISNULL(subItem.unit_price, 0)), 0) AS approved_total_amount,
+      ISNULL(SUM(CASE WHEN currentReview.status = 'ACCEPTED' THEN allocation.allocated_quantity * ISNULL(subItem.unit_price, 0) ELSE 0 END), 0) AS purchasing_accepted_total_amount
     FROM dbo.BS_category_budget_package_sub_item_allocations AS allocation
     INNER JOIN dbo.BS_category_budget_package_sub_items AS subItem
       ON subItem.id = allocation.category_budget_package_sub_item_id
@@ -57,6 +58,14 @@ END;
      AND packageItem.is_active = 1
     INNER JOIN dbo.BS_category_budget_packages AS pkg
       ON pkg.id = packageItem.category_budget_package_id
+    OUTER APPLY (
+      SELECT TOP (1) review.status
+      FROM dbo.BS_category_budget_package_sub_item_price_reviews AS review
+      WHERE review.category_budget_package_id = pkg.id
+        AND review.category_budget_package_sub_item_id = subItem.id
+        AND review.review_round = pkg.purchasing_review_round
+      ORDER BY review.id DESC
+    ) AS currentReview
     WHERE pkg.financial_year_id = @activeFinancialYearId;
 
    SELECT
@@ -230,3 +239,4 @@ WHERE pkg.financial_year_id = @activeFinancialYearId;
     },
   };
 }
+

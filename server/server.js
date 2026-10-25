@@ -23,6 +23,7 @@ import categoryReviewRoutes from "./modules/category-review/categoryReview.route
 import categoryPackagesRoutes from "./modules/category-packages/categoryPackages.routes.js";
 import cfoPackageReviewRoutes from "./modules/cfo-package-review/cfoPackageReview.routes.js";
 import purchasingPriceReviewRoutes from "./modules/purchasing-price-review/purchasingPriceReview.routes.js";
+import budgetExclusionsRoutes from "./modules/budget-exclusions/budgetExclusions.routes.js";
 import adjustmentRequestRoutes from "./modules/adjustment-requests/adjustmentRequests.routes.js";
 import budgetApprovalRoutes from "./routes/budgetApproval.routes.js";
 import itemRequestRoutes from "./modules/item-requests/itemRequests.routes.js";
@@ -107,6 +108,7 @@ app.use("/api/category-review", categoryReviewRoutes);
 app.use("/api/category-packages", categoryPackagesRoutes);
 app.use("/api/cfo-package-review", cfoPackageReviewRoutes);
 app.use("/api/purchasing-price-review", purchasingPriceReviewRoutes);
+app.use("/api/budget-exclusions", budgetExclusionsRoutes);
 app.use("/api/adjustment-requests", adjustmentRequestRoutes);
 app.use("/api/budget-approval", budgetApprovalRoutes);
 app.use("/api/item-requests", itemRequestRoutes);
@@ -133,3 +135,4 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   logger.info(`Server running on port ${PORT}`);
 });
+

@@ -49,6 +49,16 @@ export async function reopenPurchasingPrice({ packageId, packageSubItemId, paylo
   return response.data?.data;
 }
 
+export async function rejectPurchasingModels({ packageId, payload }) {
+  const response = await api.patch(`/purchasing-price-review/packages/${packageId}/reject-models`, payload);
+  return response.data?.data;
+}
+
+export async function reinstatePurchasingModel({ packageId, packageSubItemId, payload }) {
+  const response = await api.patch(`/purchasing-price-review/packages/${packageId}/sub-items/${packageSubItemId}/reinstate`, payload);
+  return response.data?.data;
+}
+
 export async function acceptAllPurchasingPrices({ packageId, payload }) {
   const response = await api.patch(
     `/purchasing-price-review/packages/${packageId}/accept-all`,
@@ -123,3 +133,4 @@ export async function deletePurchasingAttachment({
   );
   return response.data?.data;
 }
+

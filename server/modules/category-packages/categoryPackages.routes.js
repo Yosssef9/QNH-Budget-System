@@ -28,10 +28,24 @@ import {
   updatePackageSubItem,
 } from "./categoryPackages.controller.js";
 
+import { getCmRevisionTracker, setCmRevisionReviewed } from "../cfo-package-review/cfoRevisionTracking.controller.js";
+
 const router = express.Router();
 
 router.use(verifyPortalJwt);
 router.use(resolveBudgetWorkspace);
+
+router.get(
+  "/current/revision-tracker",
+  requireBudgetPermission(CATEGORY_PACKAGE_PERMISSIONS.VIEW),
+  getCmRevisionTracker,
+);
+
+router.patch(
+  "/items/:packageItemId/cm-reviewed",
+  requireBudgetPermission(CATEGORY_PACKAGE_PERMISSIONS.MANAGE_PACKAGE),
+  setCmRevisionReviewed,
+);
 
 router.get(
   "/current",
@@ -132,3 +146,4 @@ router.patch(
 );
 
 export default router;
+

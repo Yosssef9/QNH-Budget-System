@@ -1,6 +1,7 @@
 import { poolPromise, sql } from "../../config/db.js";
 import { createRequest } from "../../utils/createRequest.js";
 import { hasPositiveApprovedPackageDemandSql } from "../category-packages/approvedPackageDemand.sql.js";
+import { hasPurchasingEligibleModelSql, isPurchasingModelIncludedSql } from "../category-packages/purchasingExclusion.sql.js";
 import {
   CATEGORY_PACKAGE_ITEM_CFO_STATUS,
   CFO_PACKAGE_REVIEW_WORKFLOW_ACTIONS,
@@ -38,7 +39,16 @@ export async function listCfoPackagesRepo({ financialYearId = null } = {}) {
       FROM dbo.BS_category_budget_package_items AS packageItem
       WHERE packageItem.is_active = 1
         AND ${hasPositiveApprovedPackageDemandSql("packageItem")}
+        AND ${hasPurchasingEligibleModelSql("packageItem")}
       GROUP BY packageItem.category_budget_package_id
+    ),
+    purchasingRejections AS (
+      SELECT pkg.id AS package_id, COUNT(1) AS purchasing_rejected_count
+      FROM dbo.BS_category_budget_packages AS pkg
+      INNER JOIN dbo.BS_category_budget_package_sub_item_price_reviews AS r
+        ON r.category_budget_package_id = pkg.id
+       AND r.review_round = pkg.purchasing_review_round AND r.status = 'REJECTED'
+      GROUP BY pkg.id
     ),
     quantitySummary AS (
       SELECT
@@ -67,8 +77,10 @@ export async function listCfoPackagesRepo({ financialYearId = null } = {}) {
       INNER JOIN dbo.BS_category_budget_package_sub_items AS subItem
         ON subItem.category_budget_package_item_id = packageItem.id
        AND subItem.is_active = 1
+        AND ${isPurchasingModelIncludedSql("subItem")}
       WHERE packageItem.is_active = 1
         AND ${hasPositiveApprovedPackageDemandSql("packageItem")}
+        AND ${hasPurchasingEligibleModelSql("packageItem")}
       GROUP BY packageItem.category_budget_package_id
     ),
     departmentCoverage AS (
@@ -114,6 +126,7 @@ export async function listCfoPackagesRepo({ financialYearId = null } = {}) {
       pkg.cfo_review_completed_at,
       pkg.row_version,
       COALESCE(packageItemSummary.package_item_count, 0) AS package_item_count,
+      COALESCE(purchasingRejections.purchasing_rejected_count, 0) AS purchasing_rejected_count,
       COALESCE(packageItemSummary.pending_item_count, 0) AS pending_item_count,
       COALESCE(packageItemSummary.accepted_item_count, 0) AS accepted_item_count,
       COALESCE(packageItemSummary.needs_modification_item_count, 0) AS needs_modification_item_count,
@@ -150,6 +163,8 @@ export async function listCfoPackagesRepo({ financialYearId = null } = {}) {
       ON completedUser.USER_ID = pkg.cfo_review_completed_by
     LEFT JOIN packageItemSummary
       ON packageItemSummary.category_budget_package_id = pkg.id
+    LEFT JOIN purchasingRejections
+      ON purchasingRejections.package_id = pkg.id
     LEFT JOIN quantitySummary
       ON quantitySummary.package_id = pkg.id
     LEFT JOIN packageSubItemSummary
@@ -364,7 +379,8 @@ export async function findPackageItemForCfoRepo(
       WHERE packageItem.id = @packageItemId
         AND packageItem.category_budget_package_id = @packageId
         AND packageItem.is_active = 1
-        AND ${hasPositiveApprovedPackageDemandSql("packageItem")};
+        AND ${hasPositiveApprovedPackageDemandSql("packageItem")}
+        AND ${hasPurchasingEligibleModelSql("packageItem")};
     `);
 
   const row = result.recordset[0] || null;
@@ -422,6 +438,7 @@ export async function listPendingCfoItemsForBulkRepo(transaction, packageId) {
         AND packageItem.is_active = 1
         AND packageItem.cfo_review_status = '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.PENDING_CFO_REVIEW}'
         AND ${hasPositiveApprovedPackageDemandSql("packageItem")}
+        AND ${hasPurchasingEligibleModelSql("packageItem")}
       ORDER BY packageItem.id;
     `);
   return result.recordset.map(row => ({
@@ -462,7 +479,8 @@ export async function updatePendingCfoPackageItemsRepo(transaction, {
       WHERE packageItem.category_budget_package_id = @packageId
         AND packageItem.is_active = 1
         AND packageItem.cfo_review_status = '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.PENDING_CFO_REVIEW}'
-        AND ${hasPositiveApprovedPackageDemandSql("packageItem")};
+        AND ${hasPositiveApprovedPackageDemandSql("packageItem")}
+        AND ${hasPurchasingEligibleModelSql("packageItem")};
 
       SELECT id, old_status, old_note, new_status FROM @Updated ORDER BY id;
     `);
@@ -484,7 +502,8 @@ export async function countPackageCfoReviewStatusesRepo(
     FROM dbo.BS_category_budget_package_items AS packageItem
     WHERE packageItem.category_budget_package_id = @packageId
       AND packageItem.is_active = 1
-      AND ${hasPositiveApprovedPackageDemandSql("packageItem")};
+      AND ${hasPositiveApprovedPackageDemandSql("packageItem")}
+        AND ${hasPurchasingEligibleModelSql("packageItem")};
   `);
 
   const row = result.recordset[0] || {};
@@ -698,6 +717,7 @@ export async function createCfoPackageItemReturnSnapshotsRepo(
        AND packageItem.is_active = 1
        AND packageItem.cfo_review_status = '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.NEEDS_MODIFICATION}'
        AND ${hasPositiveApprovedPackageDemandSql("packageItem")}
+        AND ${hasPurchasingEligibleModelSql("packageItem")}
       OUTER APPLY (
         SELECT SUM(item.category_approved_quantity) AS approved_quantity
         FROM dbo.BS_department_budgets AS departmentBudget
@@ -716,6 +736,7 @@ export async function createCfoPackageItemReturnSnapshotsRepo(
         FROM dbo.BS_category_budget_package_sub_items AS subItem
         WHERE subItem.category_budget_package_item_id = packageItem.id
           AND subItem.is_active = 1
+        AND ${isPurchasingModelIncludedSql("subItem")}
       ) AS packageTotals
       OUTER APPLY (
         SELECT (
@@ -729,6 +750,7 @@ export async function createCfoPackageItemReturnSnapshotsRepo(
           FROM dbo.BS_category_budget_package_sub_items AS subItem
           WHERE subItem.category_budget_package_item_id = packageItem.id
             AND subItem.is_active = 1
+        AND ${isPurchasingModelIncludedSql("subItem")}
           ORDER BY subItem.name, subItem.id
           FOR JSON PATH
         ) AS sub_items_json
@@ -882,6 +904,7 @@ export async function getCfoPackageItemComparisonRepo({
           FROM dbo.BS_category_budget_package_sub_items AS subItem
           WHERE subItem.category_budget_package_item_id = packageItem.id
             AND subItem.is_active = 1
+        AND ${isPurchasingModelIncludedSql("subItem")}
         ) AS packageTotals
         WHERE packageItem.id = @packageItemId
           AND packageItem.category_budget_package_id = @packageId
@@ -939,6 +962,7 @@ export async function getCfoPackageItemComparisonRepo({
       FROM dbo.BS_category_budget_package_sub_items AS subItem
       WHERE subItem.category_budget_package_item_id = @packageItemId
         AND subItem.is_active = 1
+        AND ${isPurchasingModelIncludedSql("subItem")}
       ORDER BY subItem.name, subItem.id;
     `);
 
@@ -948,3 +972,43 @@ export async function getCfoPackageItemComparisonRepo({
     currentSubItems: result.recordsets[2] || [],
   };
 }
+
+/** Purchasing accepted models are the only models in the CFO decision scope. */
+export async function listAcceptedCfoModelsRepo({ packageId = null, financialYearId = null }, transaction = null) {
+  const pool = await poolPromise;
+  const result = await createRequest(pool, transaction).input("packageId", sql.BigInt, packageId)
+    .input("financialYearId", sql.Int, financialYearId).query(`
+    SELECT model.id, model.category_budget_package_item_id, model.quantity,
+           model.unit_price, model.category_manager_unit_price
+    FROM dbo.BS_category_budget_package_sub_items AS model
+    INNER JOIN dbo.BS_category_budget_package_items AS packageItem
+      ON packageItem.id = model.category_budget_package_item_id AND packageItem.is_active = 1
+    INNER JOIN dbo.BS_category_budget_packages AS pkg
+      ON pkg.id = packageItem.category_budget_package_id
+    INNER JOIN dbo.BS_category_budget_package_sub_item_price_reviews AS review
+      ON review.category_budget_package_sub_item_id = model.id
+     AND review.category_budget_package_id = pkg.id
+     AND review.review_round = pkg.purchasing_review_round
+     AND review.status = 'ACCEPTED'
+    WHERE (@packageId IS NULL OR pkg.id = @packageId)
+      AND (@financialYearId IS NULL OR pkg.financial_year_id = @financialYearId)
+      AND model.is_active = 1 AND model.quantity > 0;
+  `);
+  return result.recordset;
+}
+
+/** A category can complete CFO review with no actionable models when Purchasing rejected every one. */
+export async function countRejectedPurchasingModelsRepo({ packageId }, transaction = null) {
+  const pool = await poolPromise;
+  const result = await createRequest(pool, transaction).input("packageId", sql.BigInt, packageId).query(`
+    SELECT COUNT(1) AS rejected_count
+    FROM dbo.BS_category_budget_package_sub_item_price_reviews AS review
+    INNER JOIN dbo.BS_category_budget_packages AS pkg
+      ON pkg.id = review.category_budget_package_id AND pkg.purchasing_review_round = review.review_round
+    INNER JOIN dbo.BS_category_budget_package_sub_items AS model
+      ON model.id = review.category_budget_package_sub_item_id AND model.is_active = 1 AND model.quantity > 0
+    WHERE pkg.id = @packageId AND review.status = 'REJECTED';
+  `);
+  return Number(result.recordset[0]?.rejected_count || 0);
+}
+

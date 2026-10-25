@@ -16,6 +16,10 @@ import { CfoRevisionNotice } from "../../components/category-review/CfoRevisionF
 import { CategoryBackNavigationProvider, useCategoryBackOverlay } from "../../components/category-review/CategoryBackNavigation";
 import CategoryReviewItemDrawer from "../../components/category-review/CategoryReviewItemDrawer";
 import DepartmentReviewStage from "../../components/category-review/DepartmentReviewStage";
+import CategoryExclusionTabs from "../../components/category-review/CategoryExclusionTabs";
+import BudgetExcludedItemsView from "../../components/budgets/shared/exclusions/BudgetExcludedItemsView";
+import { groupBudgetExclusions } from "../../components/budgets/shared/exclusions/budgetExclusionGroups";
+import { getBudgetExclusions } from "../../api/budgetExclusions.api";
 import CategoryPackageSubmissionStage from "../../components/category-review/CategoryPackageSubmissionStage";
 import CategoryPackageWorkbench from "../../components/category-packages/CategoryPackageWorkbench";
 import {
@@ -152,6 +156,8 @@ function CategoryReviewContent() {
     : "items";
 
   const [selectedBudgetId, setSelectedBudgetId] = useState(null);
+  // Keep each stage's content tab separate from its existing subview routing.
+  const [stageContentTabs, setStageContentTabs] = useState({ departments: "main", package: "main" });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [decisionDrafts, setDecisionDrafts] = useState({});
@@ -233,6 +239,19 @@ function CategoryReviewContent() {
     packageData?.financial_year ||
     submissionWindow?.financial_year ||
     "—";
+
+  // The API applies the Category Manager's server-side category scope.
+  // Reuse the same query key as the existing Package Preparation workbench.
+  const exclusionYearId = activeStage === "package"
+    ? packageData?.financial_year_id || selectedBudget?.financial_year_id || budgets[0]?.financial_year_id
+    : selectedBudget?.financial_year_id || budgets[0]?.financial_year_id || packageData?.financial_year_id;
+  const exclusionsQuery = useQuery({
+    queryKey: ["budget-exclusions", Number(exclusionYearId)],
+    queryFn: () => getBudgetExclusions(exclusionYearId),
+    enabled: Boolean(exclusionYearId) && (activeStage === "departments" || activeStage === "package"),
+    staleTime: 10000,
+  });
+  const exclusionGroups = useMemo(() => groupBudgetExclusions(exclusionsQuery.data || []), [exclusionsQuery.data]);
 
   const overview = useMemo(() => {
     const result = budgets.reduce(
@@ -435,6 +454,7 @@ function CategoryReviewContent() {
     setSearch("");
     setStatusFilter("ALL");
     setReviewItemId(null);
+    setStageContentTabs(current => ({ ...current, departments: "main" }));
     selectDepartmentView("reviews");
   }
 
@@ -447,6 +467,7 @@ function CategoryReviewContent() {
   }
 
   function focusPackageItem(itemId) {
+    setStageContentTabs(current => ({ ...current, package: "main" }));
     const next = new URLSearchParams(searchParams);
     next.set("stage", "package");
     next.set("view", "items");
@@ -982,7 +1003,29 @@ function CategoryReviewContent() {
           disabledStages={disabledStages}
         />
 
+        {(activeStage === "departments" || (activeStage === "package" && canViewPackage)) ? (
+          <CategoryExclusionTabs
+            stage={activeStage}
+            value={stageContentTabs[activeStage]}
+            onChange={tab => setStageContentTabs(current => ({ ...current, [activeStage]: tab }))}
+            count={exclusionGroups.length}
+            loading={exclusionsQuery.isLoading}
+          />
+        ) : null}
+
         {activeStage === "departments" ? (
+          <section
+            id="category-workflow-panel-departments"
+            role="tabpanel"
+            aria-labelledby="category-workflow-tab-departments"
+            className="min-w-0"
+          >
+          <div
+            id="category-exclusion-panel-departments-main"
+            role="tabpanel"
+            aria-labelledby="category-exclusion-tab-departments-main"
+            className={stageContentTabs.departments === "main" ? "" : "hidden"}
+          >
           <DepartmentReviewStage
             activeView={activeDepartmentView}
             onViewChange={selectDepartmentView}
@@ -1033,24 +1076,48 @@ function CategoryReviewContent() {
             onReopenReview={reopenSelectedDepartmentReview}
             reopenPending={reopenReviewMutation.isPending}
           />
+          </div>
+          <div
+            id="category-exclusion-panel-departments-excluded"
+            role="tabpanel"
+            aria-labelledby="category-exclusion-tab-departments-excluded"
+            className={stageContentTabs.departments === "excluded" ? "overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" : "hidden"}
+          >
+            {stageContentTabs.departments === "excluded" ? <BudgetExcludedItemsView financialYearId={exclusionYearId} audience="Category Manager" query={exclusionsQuery}/> : null}
+          </div>
+          </section>
         ) : null}
 
         {activeStage === "package" ? (
           canViewPackage ? (
-            <div
+            <section
               id="category-workflow-panel-package"
               role="tabpanel"
               aria-labelledby="category-workflow-tab-package"
-              tabIndex={0}
-              className="focus:outline-none"
+              className="min-w-0"
             >
+              <div
+                id="category-exclusion-panel-package-main"
+                role="tabpanel"
+                aria-labelledby="category-exclusion-tab-package-main"
+                className={stageContentTabs.package === "main" ? "" : "hidden"}
+              >
               <CategoryPackageWorkbench
                 focusItemId={focusedPackageItemId}
                 onClearFocusItem={clearFocusedPackageItem}
                 view={activePackageView}
                 onViewChange={selectPackageView}
               />
-            </div>
+              </div>
+              <div
+                id="category-exclusion-panel-package-excluded"
+                role="tabpanel"
+                aria-labelledby="category-exclusion-tab-package-excluded"
+                className={stageContentTabs.package === "excluded" ? "overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" : "hidden"}
+              >
+                {stageContentTabs.package === "excluded" ? <BudgetExcludedItemsView financialYearId={exclusionYearId} audience="Category Manager" query={exclusionsQuery}/> : null}
+              </div>
+            </section>
           ) : (
             <StageUnavailable
               title="Package Preparation is not available"

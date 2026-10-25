@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { ArrowRight, CalendarDays, Check, CheckCheck, ChevronDown, Eye, History, ListChecks, MessageSquareWarning, RotateCcw } from 'lucide-react';
 import CurrencyText from '../CurrencyText';
 import SortableHeader from '../SortableHeader';
@@ -9,6 +9,7 @@ import CfoReviewStatusBadge from './CfoReviewStatusBadge';
 import CfoDepartmentDetailsDrawer from './CfoDepartmentDetailsDrawer';
 import CfoActionTooltip from './CfoActionTooltip';
 import CfoSearchField from './CfoSearchField';
+import CfoCycleDelta from '../category-packages/CfoCycleDelta.jsx';
 import { useCategoryBackOverlay } from '../category-review/CategoryBackNavigation';
 import { cfoChange, cfoNumber, cfoItemUnitExpense, filterCfoDepartments } from './cfoTableSelectors';
 
@@ -23,13 +24,14 @@ function CfoActionButton({Icon, label, disabled=false, disabledReason='', onClic
   </CfoActionTooltip>;
 }
 
-export function CfoItemsTable({ rows, canDecideItem, isAcceptingItem = () => false, onDetails, onHistory, onAccept, onModification }) {
+export function CfoItemsTable({ ref, rows, comparisonsByPackage = {}, canDecideItem, isAcceptingItem = () => false, onDetails, onHistory, onAccept, onModification }) {
   const enriched = useMemo(() => rows.map(row => ({...row,
     cm_value_sort: cfoNumber(row.category_manager_estimated_total),
     purchasing_value_sort: cfoNumber(row.estimated_total),
     price_change_sort: cfoChange(row),
   })), [rows]);
   const {sortedRows,sortColumn,sortDirection,handleSort} = useTableSort(enriched,'catalog_item_name','asc');
+  useImperativeHandle(ref, () => ({ getExportRows: () => sortedRows }), [sortedRows]);
   const pagination = usePagination(sortedRows.length, 25);
   const visible = sortedRows.slice((pagination.page-1)*pagination.pageSize,pagination.page*pagination.pageSize);
   return <section className="overflow-hidden rounded-xl border border-slate-200 bg-white" aria-label="CFO items table">
@@ -45,6 +47,7 @@ export function CfoItemsTable({ rows, canDecideItem, isAcceptingItem = () => fal
             <SortableHeader label="CM value" column="cm_value_sort" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} className="text-right"/>
             <SortableHeader label="Purchasing value" column="purchasing_value_sort" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} className="text-right"/>
             <SortableHeader label="Difference" column="price_change_sort" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} className="text-right"/>
+            <th className="border border-slate-200 px-3 py-3">Since last CFO review</th>
             <SortableHeader label="CFO status" column="cfo_review_status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}/>
             <th className="sticky right-0 z-20 min-w-[220px] border border-slate-200 bg-slate-50 px-3 py-3 text-center shadow-[-9px_0_12px_-12px_rgba(15,23,42,.5)]">Actions</th>
           </tr>
@@ -66,6 +69,11 @@ export function CfoItemsTable({ rows, canDecideItem, isAcceptingItem = () => fal
               <td className="px-3 py-3 text-right tabular-nums">{item.category_manager_estimated_total == null ? '—' : <CurrencyText compact value={item.category_manager_estimated_total}/>}</td>
               <td className="px-3 py-3 text-right font-bold tabular-nums"><CurrencyText compact value={item.estimated_total || 0}/></td>
               <td className={`px-3 py-3 text-right font-semibold tabular-nums ${diff>0?'text-rose-700':diff<0?'text-emerald-700':'text-slate-500'}`}>{item.category_manager_estimated_total == null ? '—' : <>{diff>0?'+':diff<0?'−':''}<CurrencyText compact value={Math.abs(diff)}/></>}</td>
+              <td className="px-3 py-3">
+                {comparisonsByPackage[item.package_id]?.itemsById?.[item.id] ?
+                  <CfoCycleDelta compact comparison={comparisonsByPackage[item.package_id].itemsById[item.id]} mode="total" /> :
+                  <span className="text-xs text-slate-400">—</span>}
+              </td>
               <td className="px-3 py-3"><CfoReviewStatusBadge status={item.cfo_review_status || 'PENDING_CFO_REVIEW'} note={item.cfo_review_note}/></td>
               <td className="sticky right-0 z-10 border-l border-slate-100 bg-white px-3 py-3 shadow-[-9px_0_12px_-12px_rgba(15,23,42,.45)] group-hover:bg-blue-50">
                 <div className="flex items-center justify-end gap-1.5" onClick={event=>event.stopPropagation()}>
@@ -77,7 +85,7 @@ export function CfoItemsTable({ rows, canDecideItem, isAcceptingItem = () => fal
               </td>
             </tr>;
           })}
-          {!visible.length && <tr><td colSpan={10} className="px-5 py-12 text-center text-sm text-slate-500">No items match the selected filters.</td></tr>}
+          {!visible.length && <tr><td colSpan={11} className="px-5 py-12 text-center text-sm text-slate-500">No items match the selected filters.</td></tr>}
         </tbody>
       </table>
     </div>
@@ -87,11 +95,12 @@ export function CfoItemsTable({ rows, canDecideItem, isAcceptingItem = () => fal
 
 /** Department table: sort/search/filter totals and open a *full-screen* drawer.
  * The main table contains no inline expanded detail rows. */
-export function CfoDepartmentsTable({departments, category='ALL', expense='ALL', search='', onSearchChange, categoryOptions=[], onSelectItem, focusDepartmentId=null, onCloseFocusedDepartment}) {
+export function CfoDepartmentsTable({ ref,departments, category='ALL', expense='ALL', search='', onSearchChange, categoryOptions=[], onSelectItem, focusDepartmentId=null, onCloseFocusedDepartment}) {
   const [selectedDepartmentId,setSelectedDepartmentId] = useState(null);
   useCategoryBackOverlay(selectedDepartmentId !== null, () => closeDrawer());
   const filtered = useMemo(()=>filterCfoDepartments(departments, {category,expense,search}),[departments,category,expense,search]);
   const {sortedRows,sortColumn,sortDirection,handleSort} = useTableSort(filtered,'name','asc');
+  useImperativeHandle(ref, () => ({ getExportRows: () => sortedRows }), [sortedRows]);
   const pagination=usePagination(sortedRows.length,20);
   const paged=sortedRows.slice((pagination.page-1)*pagination.pageSize,pagination.page*pagination.pageSize);
   const selectedDepartment=departments.find(dep=>String(dep.id)===String(selectedDepartmentId)) || null;
@@ -140,7 +149,7 @@ export function CfoDepartmentsTable({departments, category='ALL', expense='ALL',
 }
 
 /** A compact category workflow center: one useful primary action per category. */
-export function CfoCategoryTable({packages, eligibilityFor, onAction, onDistribution, onTimeline, onFilterCategory, onReviewPending}) {
+export function CfoCategoryTable({packages, comparisonsByPackage = {}, eligibilityFor, onAction, onDistribution, onTimeline, onFilterCategory, onReviewPending}) {
   const [expandedPackageId, setExpandedPackageId] = useState(null);
   const toolClass = 'inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-blue-600';
 
@@ -171,7 +180,15 @@ export function CfoCategoryTable({packages, eligibilityFor, onAction, onDistribu
                 <td className="px-4 py-3.5 text-right font-bold tabular-nums text-emerald-700">{e.counts.accepted}</td>
                 <td className="px-4 py-3.5 text-right tabular-nums">{e.counts.pending}</td>
                 <td className="px-4 py-3.5 text-right tabular-nums text-amber-700">{e.counts.needs}</td>
-                <td className="px-4 py-3.5 text-right font-bold tabular-nums"><CurrencyText compact value={(pkg.items||[]).reduce((sum,item)=>sum+cfoNumber(item.estimated_total),0)}/></td>
+                <td className="px-4 py-3.5 text-right font-bold tabular-nums">
+                  <CurrencyText compact value={(pkg.items||[]).reduce((sum,item)=>sum+cfoNumber(item.estimated_total),0)}/>
+                  {comparisonsByPackage[pkg.id]?.category ? (
+                    <div className="mt-1 flex flex-col items-end gap-1 text-[11px]">
+                      <span className="font-normal text-slate-500">Previous: <CurrencyText compact value={comparisonsByPackage[pkg.id].category.previous_total}/></span>
+                      <CfoCycleDelta compact comparison={{...comparisonsByPackage[pkg.id].category, models: []}} mode="total" />
+                    </div>
+                  ) : null}
+                </td>
                 <td className="px-4 py-3.5"><CfoReviewStatusBadge status={pkg.status}/></td>
                 <td className="px-4 py-3.5">
                   <div className="flex items-center justify-end gap-2">
@@ -196,7 +213,10 @@ export function CfoCategoryTable({packages, eligibilityFor, onAction, onDistribu
                     <div className="max-w-lg">
                       <h4 className="text-sm font-bold text-slate-900">{pkg.category_name} package tools</h4>
                       <p className="mt-1 text-xs text-slate-500">Bulk decisions affect pending items only. Accepted items and existing modification notes remain untouched.</p>
-                      {pkg.return_reason && <p className="mt-2 whitespace-pre-wrap text-xs text-amber-800"><strong>Previous return:</strong> {pkg.return_reason}</p>}
+                      {comparisonsByPackage[pkg.id]?.summary?.total > 0 && (
+                    <p className="mt-2 text-xs font-semibold text-blue-800">Since the previous CFO return: {comparisonsByPackage[pkg.id].summary.changed} financially changed · {comparisonsByPackage[pkg.id].summary.unchanged} financially unchanged</p>
+                  )}
+                  {pkg.return_reason && <p className="mt-2 whitespace-pre-wrap text-xs text-amber-800"><strong>Previous return:</strong> {pkg.return_reason}</p>}
                     </div>
                     <div className="flex flex-wrap justify-end gap-2">
                       <button type="button" className={toolClass} onClick={()=>onDistribution(pkg)}><CalendarDays size={16}/>Distribution</button>
@@ -216,3 +236,4 @@ export function CfoCategoryTable({packages, eligibilityFor, onAction, onDistribu
     </div>
   </section>;
 }
+

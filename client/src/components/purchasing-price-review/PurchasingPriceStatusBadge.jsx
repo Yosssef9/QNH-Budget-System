@@ -1,6 +1,7 @@
 const STATUS_STYLES = {
   PENDING: "border-amber-200 bg-amber-50 text-amber-800",
   ACCEPTED: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  REJECTED: "border-rose-200 bg-rose-50 text-rose-700",
   CARRIED_FORWARD: "border-blue-200 bg-blue-50 text-blue-700",
   IN_PURCHASING_REVIEW: "border-violet-200 bg-violet-50 text-violet-700",
   IN_CFO_REVIEW: "border-indigo-200 bg-indigo-50 text-indigo-700",
@@ -23,3 +24,4 @@ export default function PurchasingPriceStatusBadge({ status, label }) {
     </span>
   );
 }
+

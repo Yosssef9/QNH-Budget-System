@@ -18,6 +18,8 @@ import {
   listPurchasingFinancialYears,
   listPurchasingPackages,
   reopenPurchasingPrice,
+  rejectPurchasingModels,
+  reinstatePurchasingModel,
   savePurchasingPrices,
   savePurchasingPrice,
   submitPurchasingPackageToCfo,
@@ -58,6 +60,16 @@ router.patch(
   "/packages/:packageId/sub-items/:packageSubItemId/reopen",
   requireBudgetPermission(PURCHASING_PRICE_REVIEW_PERMISSIONS.REVIEW),
   reopenPurchasingPrice,
+);
+router.patch(
+  "/packages/:packageId/reject-models",
+  requireBudgetPermission(PURCHASING_PRICE_REVIEW_PERMISSIONS.REVIEW),
+  rejectPurchasingModels,
+);
+router.patch(
+  "/packages/:packageId/sub-items/:packageSubItemId/reinstate",
+  requireBudgetPermission(PURCHASING_PRICE_REVIEW_PERMISSIONS.REVIEW),
+  reinstatePurchasingModel,
 );
 router.get(
   "/packages/:packageId/sub-items/:packageSubItemId/history",
@@ -103,3 +115,4 @@ router.patch(
 );
 
 export default router;
+

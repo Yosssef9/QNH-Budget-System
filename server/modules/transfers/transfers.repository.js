@@ -289,6 +289,13 @@ export async function listTransferSubItemsRepo({
         )
         AND pkg.status = 'CFO_REVIEW_COMPLETED'
         AND subItem.is_active = 1
+        AND EXISTS (
+          SELECT 1 FROM dbo.BS_category_budget_package_sub_item_price_reviews AS decision
+          WHERE decision.category_budget_package_id = pkg.id
+            AND decision.category_budget_package_sub_item_id = subItem.id
+            AND decision.review_round = pkg.purchasing_review_round
+            AND decision.status = 'ACCEPTED'
+        )
       ORDER BY catalog.name, subItem.name;
     `);
   return result.recordset;
@@ -379,7 +386,8 @@ export async function findSubItemContextRepo({ packageSubItemId }, transaction =
         pkg.financial_year_id,
         pkg.budget_category_id,
         pkg.status AS package_status,
-        fy.status AS financial_year_status
+        fy.status AS financial_year_status,
+        currentReview.status AS purchasing_model_decision
       FROM dbo.BS_category_budget_package_sub_items AS subItem WITH (UPDLOCK, HOLDLOCK)
       INNER JOIN dbo.BS_category_budget_package_items AS packageItem WITH (UPDLOCK, HOLDLOCK)
         ON packageItem.id = subItem.category_budget_package_item_id
@@ -408,6 +416,14 @@ export async function findSubItemContextRepo({ packageSubItemId }, transaction =
         GROUP BY to_package_sub_item_id
       ) AS approvedIn
         ON approvedIn.to_package_sub_item_id = subItem.id
+      OUTER APPLY (
+        SELECT TOP (1) review.status
+        FROM dbo.BS_category_budget_package_sub_item_price_reviews AS review WITH (UPDLOCK, HOLDLOCK)
+        WHERE review.category_budget_package_id = pkg.id
+          AND review.category_budget_package_sub_item_id = subItem.id
+          AND review.review_round = pkg.purchasing_review_round
+        ORDER BY review.id DESC
+      ) AS currentReview
       WHERE subItem.id = @packageSubItemId
         AND subItem.is_active = 1
         AND packageItem.is_active = 1;
@@ -659,3 +675,4 @@ export async function rejectTransferRepo(transaction, payload) {
     `);
   return Number(result.recordset[0]?.affected_count || 0);
 }
+

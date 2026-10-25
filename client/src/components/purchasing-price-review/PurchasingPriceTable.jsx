@@ -5,6 +5,8 @@ import {
   Lock,
   Paperclip,
   Pencil,
+  XCircle,
+  RotateCcw,
 } from "lucide-react";
 
 import CurrencyText from "../CurrencyText";
@@ -44,6 +46,7 @@ function ActionButton({
 
     indigo:
       "border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50",
+    rose: "border-rose-200 bg-white text-rose-700 hover:bg-rose-50",
   };
 
   const numericBadgeCount = Number(badgeCount || 0);
@@ -83,6 +86,9 @@ export default function PurchasingPriceTable({
   priceSaveStates,
   onAccept,
   onReopen,
+  onReject,
+  onReinstate,
+  correctableAfterCfo = [],
   onOpenAttachments,
   onOpenHistory,
   onOpenPriceIntelligence,
@@ -144,7 +150,7 @@ export default function PurchasingPriceTable({
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1320px] border-collapse text-sm">
+        <table className="w-full min-w-[1440px] border-collapse text-sm">
           <thead className="bg-slate-50 text-left text-xs font-black uppercase text-slate-600">
             <tr>
               <SortableHeader
@@ -218,7 +224,7 @@ export default function PurchasingPriceTable({
                 onSort={handleSort}
               />
 
-              <th className="sticky right-0 z-20 w-[196px] min-w-[196px] border border-slate-200 bg-slate-50 px-4 py-3 text-center shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.45)]">
+              <th className="sticky right-0 z-20 w-[230px] min-w-[230px] border border-slate-200 bg-slate-50 px-4 py-3 text-center shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.45)]">
                 Actions
               </th>
             </tr>
@@ -237,8 +243,8 @@ export default function PurchasingPriceTable({
               const difference =
                 purchasingPrice - managerPrice;
 
-              const accepted =
-                row.price_review_status === "ACCEPTED";
+              const accepted = row.price_review_status === "ACCEPTED";
+              const rejected = row.price_review_status === "REJECTED";
 
               const hasCurrentReview = Boolean(
                 row.price_review_id &&
@@ -254,7 +260,7 @@ export default function PurchasingPriceTable({
               const canAccept =
                 editable &&
                 hasCurrentReview &&
-                !accepted &&
+                !accepted && !rejected &&
                 !row.is_dirty &&
                 !rowSaving &&
                 purchasingPrice >= 1;
@@ -346,7 +352,7 @@ export default function PurchasingPriceTable({
                   <td className="border-r border-slate-100 px-4 py-3">
                     {editable &&
                     hasCurrentReview &&
-                    !accepted ? (
+                    !accepted && !rejected ? (
                       <Input
                         type="number"
                         min="1"
@@ -423,21 +429,20 @@ export default function PurchasingPriceTable({
                   </td>
 
                   <td className="border-r border-slate-100 px-4 py-4 text-right font-black text-slate-900">
-                    <CurrencyText
-                      value={
-                        purchasingPrice *
-                        Number(row.quantity || 0)
-                      }
-                    />
+                    {rejected ? <span title="Excluded from CFO submitted value" className="text-xs font-semibold text-rose-700">Excluded</span> : <CurrencyText
+                      value={purchasingPrice * Number(row.quantity || 0)}
+                    />}
                   </td>
 
                   <td className="border-r border-slate-100 px-4 py-4">
-                    <PurchasingPriceStatusBadge
-                      status={
-                        row.price_review_status
-                      }
-                    />
+                    {row.price_review_status === 'ACCEPTED' || row.price_review_status === 'REJECTED'
+                      ? <PurchasingPriceStatusBadge status={row.price_review_status}/> : null}
 
+                    {rejected && row.rejection_reason ? (
+                      <p className="mt-2 max-w-48 truncate text-xs text-rose-700" title={row.rejection_reason}>
+                        {row.rejection_reason}
+                      </p>
+                    ) : null}
                     {row.decision_source ===
                     "CARRIED_FORWARD" ? (
                       <div className="mt-2">
@@ -447,7 +452,7 @@ export default function PurchasingPriceTable({
                   </td>
 
                   <td
-                    className={`sticky right-0 z-10 w-[196px] min-w-[196px] border-l border-slate-100 px-4 py-3 shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.35)] ${
+                    className={`sticky right-0 z-10 w-[230px] min-w-[230px] border-l border-slate-100 px-4 py-3 shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.35)] ${
                       row.is_dirty
                         ? "bg-amber-50"
                         : "bg-white"
@@ -484,6 +489,17 @@ export default function PurchasingPriceTable({
                           }
                           tone="emerald"
                         />
+                      )}
+
+                      {rejected ? (
+                        <ActionButton icon={RotateCcw} label="Reinstate rejected model"
+                          onClick={() => onReinstate(row)} disabled={(!editable && !correctableAfterCfo.includes(row.id)) || busy || rowSaving}
+                          tone="violet" />
+                      ) : (
+                        <ActionButton icon={XCircle} label="Reject model"
+                          onClick={() => onReject(row)}
+                          disabled={!editable || !hasCurrentReview || busy || rowSaving || row.is_dirty || row.cfo_review_status === "CFO_ACCEPTED"}
+                          tone="rose" />
                       )}
 
                       {/*

@@ -294,6 +294,11 @@ export async function createPOLinkService(payload, user, budgetAccess) {
     assertRequesterScope(context, categoryId);
     assertPreClosing(context);
     assertPackageReady(context);
+    if (context.purchasing_model_decision !== "ACCEPTED") {
+      throw new ApiError(409,
+        "Only models accepted in the current Purchasing round can be linked to a PO",
+        "PO_LINK_PURCHASING_MODEL_NOT_ACCEPTED");
+    }
 
     const existingPending = await findPendingPOLinkRepo({
       purchaseInvoiceLineId: payload.purchase_invoice_line_id,
@@ -424,6 +429,11 @@ export async function approvePOLinkService(poLinkId, user, budgetAccess) {
     if (!context) throw new ApiError(404, "Package sub-item not found");
     assertPreClosing(context);
     assertPackageReady(context);
+    if (context.purchasing_model_decision !== "ACCEPTED") {
+      throw new ApiError(409,
+        "Only models accepted in the current Purchasing round can be linked to a PO",
+        "PO_LINK_PURCHASING_MODEL_NOT_ACCEPTED");
+    }
 
     const requestedQty = Number(link.requested_qty || 0);
     const poSummary = await getPOAllocationSummaryRepo(
@@ -908,3 +918,4 @@ export async function searchBudgetTypesForMappingService(filters = {}) {
 export async function searchPOItemsForMappingService(filters = {}) {
   return searchPOItemsForMappingRepo(filters);
 }
+

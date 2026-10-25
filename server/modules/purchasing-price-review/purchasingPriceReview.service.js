@@ -41,12 +41,17 @@ import {
   acceptAllPurchasingPricesRepo,
   acceptPurchasingPriceRepo,
   findCurrentPriceReviewRepo,
+  getPurchasingModelAllocationSnapshotRepo,
   findPurchasingPackageRepo,
   getPurchasingSubmissionReadinessRepo,
   listPurchasingFinancialYearsRepo,
   listPurchasingPackageDetailRowsRepo,
   listPurchasingPackagesRepo,
   reopenPurchasingPriceRepo,
+  rejectPurchasingModelRepo,
+  resetCfoStatusForRejectedSingleGeneralRepo,
+  reinstatePurchasingModelRepo,
+  reopenSubmittedGeneralForPurchasingCorrectionRepo,
   submitPurchasingPackageToCfoRepo,
   touchPurchasingPackageRepo,
   updatePurchasingPriceRepo,
@@ -732,6 +737,128 @@ export async function acceptPurchasingPriceService({
   return loadPackageDetail(packageId);
 }
 
+export async function rejectPurchasingModelsService({
+  packageId, payload, actorUserId, budgetAccess,
+}) {
+  assertPermission(budgetAccess, PURCHASING_PRICE_REVIEW_PERMISSIONS.REVIEW,
+    "PURCHASING_PRICE_REVIEW_DENIED", "You cannot reject Purchasing models");
+  await withTransaction(async (transaction) => {
+    const packageRow = await findPurchasingPackageRepo({ packageId }, transaction);
+    assertEditablePackage(packageRow);
+    assertMatchingRowVersion(packageRow, payload.row_version);
+    for (const model of payload.models) {
+      const review = await findCurrentPriceReviewRepo(
+        { packageId, packageSubItemId: model.package_sub_item_id }, transaction,
+      );
+      assertReviewExistsAndPackageEditable(review);
+      if (review.cfo_review_status === CATEGORY_PACKAGE_ITEM_CFO_STATUS.CFO_ACCEPTED) {
+        throw new ApiError(409, "CFO-accepted items are locked", "CFO_ACCEPTED_PACKAGE_ITEM_LOCKED");
+      }
+      if (review.status === PURCHASING_PRICE_REVIEW_STATUS.REJECTED) {
+        throw new ApiError(409, "Model is already rejected", "PURCHASING_MODEL_ALREADY_REJECTED");
+      }
+      const originalAllocations = await getPurchasingModelAllocationSnapshotRepo(transaction, model.package_sub_item_id);
+      const updated = await rejectPurchasingModelRepo(transaction, {
+        review_id: review.id, row_version: model.row_version,
+        reason: payload.reason, actor_user_id: actorUserId,
+        actor_user_role_id: getUserRoleId(budgetAccess),
+      });
+      if (!updated) throw new ApiError(409, "Model was changed by another user", "PURCHASING_PRICE_CONFLICT");
+      await resetCfoStatusForRejectedSingleGeneralRepo(transaction, {
+        package_id: packageId,
+        package_sub_item_id: model.package_sub_item_id,
+        actor_user_id: actorUserId,
+      });
+      await createWorkflowHistoryRepo(transaction, {
+        financial_year_id: review.financial_year_id,
+        entity_type: "CATEGORY_PACKAGE_SUB_ITEM",
+        entity_id: model.package_sub_item_id,
+        action: PURCHASING_PRICE_WORKFLOW_ACTIONS.MODELS_REJECTED,
+        old_status: review.status, new_status: "REJECTED", note: payload.reason,
+        old_values_json: JSON.stringify({ modelId: model.package_sub_item_id, modelName: review.model_name,
+          packageItemId: review.package_item_id, quantity: review.quantity_snapshot,
+          purchasingUnitPrice: review.purchasing_unit_price, reviewRound: review.review_round,
+          decision: review.status }),
+        new_values_json: JSON.stringify({ modelId: model.package_sub_item_id, modelName: review.model_name,
+          packageItemId: review.package_item_id, quantity: review.quantity_snapshot,
+          rejectedBy: actorUserId, purchasingUnitPrice: review.purchasing_unit_price,
+          reviewRound: review.review_round, decision: 'REJECTED', rejectionReason: payload.reason, allocations: originalAllocations }),
+        user_role_id: getUserRoleId(budgetAccess),
+        acting_workspace: getActingWorkspace(budgetAccess), created_by: actorUserId,
+      });
+    }
+    await touchPurchasingPackageRepo(transaction, { package_id: packageId, actor_user_id: actorUserId });
+  });
+  return loadPackageDetail(packageId);
+}
+
+export async function reinstatePurchasingModelService({
+  packageId, packageSubItemId, payload, actorUserId, budgetAccess,
+}) {
+  assertPermission(budgetAccess, PURCHASING_PRICE_REVIEW_PERMISSIONS.REVIEW,
+    "PURCHASING_PRICE_REVIEW_DENIED", "You cannot reinstate Purchasing models");
+  await withTransaction(async (transaction) => {
+    const packageRow = await findPurchasingPackageRepo({ packageId }, transaction);
+    assertPackage(packageRow);
+    if (packageRow.financial_year_status !== "OPEN") {
+      throw new ApiError(409, "Purchasing correction requires an open financial year", "FINANCIAL_YEAR_NOT_OPEN");
+    }
+    const isPostCfoCorrection = packageRow.status === CATEGORY_PACKAGE_STATUS.IN_CFO_REVIEW;
+    if (!isPostCfoCorrection) assertEditablePackage(packageRow);
+    if (isPostCfoCorrection) {
+      // Corrections after CFO handoff are package transitions. Require Purchasing
+      // submit permission as well as review permission; never bypass CFO decisions.
+      assertPermission(budgetAccess, PURCHASING_PRICE_REVIEW_PERMISSIONS.SUBMIT,
+        "PURCHASING_PRICE_SUBMIT_DENIED", "Purchasing submission permission is required to reopen a submitted package");
+    }
+    const review = await findCurrentPriceReviewRepo({ packageId, packageSubItemId }, transaction);
+    if (!review) throw new ApiError(404, "Current Purchasing model decision not found", "PURCHASING_PRICE_REVIEW_NOT_FOUND");
+    if (review.package_status !== packageRow.status) {
+      throw new ApiError(409, "Package state changed; reload it", "PURCHASING_PACKAGE_CONFLICT");
+    }
+    if (review.status !== PURCHASING_PRICE_REVIEW_STATUS.REJECTED) {
+      throw new ApiError(409, "Only rejected models can be reinstated", "PURCHASING_MODEL_NOT_REJECTED");
+    }
+    if (isPostCfoCorrection) {
+      const reopened = await reopenSubmittedGeneralForPurchasingCorrectionRepo(transaction, {
+        package_id: packageId, package_sub_item_id: packageSubItemId,
+        package_row_version: packageRow.row_version, actor_user_id: actorUserId,
+      });
+      if (!reopened) throw new ApiError(409,
+        "Cannot reopen this rejection: CFO has already acted, another model is involved, or the package changed. Contact the budget administrator for an audited correction.",
+        "PURCHASING_POST_CFO_CORRECTION_BLOCKED");
+      await createWorkflowHistoryRepo(transaction, {
+        financial_year_id: review.financial_year_id,
+        entity_type: "CATEGORY_BUDGET_PACKAGE", entity_id: packageId,
+        action: "PURCHASING_CORRECTION_REOPENED",
+        old_status: CATEGORY_PACKAGE_STATUS.IN_CFO_REVIEW,
+        new_status: CATEGORY_PACKAGE_STATUS.IN_PURCHASING_REVIEW,
+        note: payload.reason,
+        old_values_json: JSON.stringify({ reviewRound: review.review_round, rejectedModelId: packageSubItemId }),
+        new_values_json: JSON.stringify({ reviewRound: review.review_round, correctedBy: actorUserId }),
+        user_role_id: getUserRoleId(budgetAccess), acting_workspace: getActingWorkspace(budgetAccess), created_by: actorUserId,
+      });
+    }
+    const updated = await reinstatePurchasingModelRepo(transaction, {
+      review_id: review.id, row_version: payload.row_version,
+    });
+    if (!updated) throw new ApiError(409, "Model was changed by another user", "PURCHASING_PRICE_CONFLICT");
+    await touchPurchasingPackageRepo(transaction, { package_id: packageId, actor_user_id: actorUserId });
+    await createWorkflowHistoryRepo(transaction, {
+      financial_year_id: review.financial_year_id,
+      entity_type: "CATEGORY_PACKAGE_SUB_ITEM", entity_id: packageSubItemId,
+      action: PURCHASING_PRICE_WORKFLOW_ACTIONS.MODEL_REINSTATED,
+      old_status: "REJECTED", new_status: "PENDING", note: payload.reason,
+      old_values_json: JSON.stringify({ modelId: packageSubItemId, modelName: review.model_name,
+        decision: 'REJECTED', rejectionReason: review.rejection_reason, reviewRound: review.review_round }),
+      new_values_json: JSON.stringify({ modelId: packageSubItemId, modelName: review.model_name,
+        decision: 'PENDING', reviewRound: review.review_round, reinstatedBy: actorUserId, reinstatementReason: payload.reason }),
+      user_role_id: getUserRoleId(budgetAccess), acting_workspace: getActingWorkspace(budgetAccess), created_by: actorUserId,
+    });
+  });
+  return loadPackageDetail(packageId);
+}
+
 export async function acceptAllPurchasingPricesService({
   packageId,
   payload,
@@ -813,6 +940,7 @@ export async function submitPurchasingPackageToCfoService({
     const total = Number(readiness.total_price_count || 0);
     const pending = Number(readiness.pending_price_count || 0);
     const invalid = Number(readiness.invalid_price_count || 0);
+    const rejected = Number(readiness.rejected_price_count || 0);
     if (total === 0 || pending > 0 || invalid > 0) {
       throw new ApiError(
         400,
@@ -850,7 +978,8 @@ export async function submitPurchasingPackageToCfoService({
       note: payload.note,
       new_values_json: JSON.stringify({
         reviewRound: packageRow.purchasing_review_round,
-        acceptedPriceCount: total,
+        acceptedPriceCount: total - rejected,
+        rejectedModelCount: rejected,
       }),
       user_role_id: getUserRoleId(budgetAccess),
       acting_workspace: getActingWorkspace(budgetAccess),
@@ -860,3 +989,4 @@ export async function submitPurchasingPackageToCfoService({
 
   return loadPackageDetail(packageId);
 }
+

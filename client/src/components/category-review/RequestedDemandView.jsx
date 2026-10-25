@@ -12,6 +12,8 @@ import TablePagination from "../TablePagination";
 import RequestedDemandDetailsDrawer from "./RequestedDemandDetailsDrawer";
 import { useCategoryBackOverlay } from "./CategoryBackNavigation";
 import { unitOfMeasureOptions, matchesUnitOfMeasure } from "./unitOfMeasureFilter";
+import { CfoFeedbackNote } from "./CfoRevisionFeedback.jsx";
+import { buildCfoRevisionFeedback, getCurrentCfoRevisionsByCatalogId } from "./cfoRevisionFeedback.utils.js";
 
 const numberFormatter = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 4,
@@ -72,14 +74,20 @@ export default function RequestedDemandView({
 
   const items = data?.items || [];
   const requestedUnitOptions = useMemo(() => unitOfMeasureOptions(items), [items]);
-  const flaggedByCatalogId = useMemo(() => new Map(
-    packageStatus === "RETURNED_BY_CFO"
-      ? cfoPackageItems.filter((entry) => entry.cfo_review_status === "NEEDS_MODIFICATION")
-        .map((entry) => [Number(entry.catalog_item_id), entry])
-      : [],
+  // Use the same current-cycle feedback as Package Preparation, not historical CFO notes.
+  const flaggedByCatalogId = useMemo(
+    () => getCurrentCfoRevisionsByCatalogId(cfoPackageItems, packageStatus),
+    [cfoPackageItems, packageStatus],
+  );
+  const cfoFeedback = useMemo(() => buildCfoRevisionFeedback(
+    packageStatus === "RETURNED_BY_CFO" ? cfoPackageItems : [],
   ), [cfoPackageItems, packageStatus]);
-  const flaggedCount = useMemo(() => items.filter((item) => flaggedByCatalogId.has(Number(item.catalog_item_id))).length,
-    [items, flaggedByCatalogId]);
+  const flaggedCount = useMemo(
+    () => items.filter((item) => flaggedByCatalogId.has(Number(item.catalog_item_id))).length,
+    [items, flaggedByCatalogId],
+  );
+  const hasCurrentCfoChanges = packageStatus === "RETURNED_BY_CFO" && flaggedCount > 0;
+  const activeCfoOnly = hasCurrentCfoChanges && cfoOnly;
   const selectedItemId = selectedItem?.catalog_item_id;
   const currentSelectedItem = items.find((entry) => Number(entry.catalog_item_id) === Number(selectedItemId)) || null;
 
@@ -130,7 +138,7 @@ export default function RequestedDemandView({
             .includes(normalizedSearch);
 
         const matchesUnit = matchesUnitOfMeasure(item, unitFilter);
-        const matchesCfo = !cfoOnly || flaggedByCatalogId.has(Number(item.catalog_item_id));
+        const matchesCfo = !activeCfoOnly || flaggedByCatalogId.has(Number(item.catalog_item_id));
 
         const matchesExpense =
           expenseType === "ALL" || item.expense_type === expenseType;
@@ -158,13 +166,18 @@ export default function RequestedDemandView({
           String(right.catalog_item_name || ""),
         );
       });
-  }, [expenseType, items, reviewStatus, search, unitFilter, cfoOnly, flaggedByCatalogId]);
+  }, [expenseType, items, reviewStatus, search, unitFilter, activeCfoOnly, flaggedByCatalogId]);
+
+  // If CFO completes a later cycle, the old filter must not stay latched on.
+  useEffect(() => {
+    if (!hasCurrentCfoChanges) setCfoOnly(false);
+  }, [hasCurrentCfoChanges]);
 
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
 
   useEffect(() => {
     setPage(1);
-  }, [search, expenseType, reviewStatus, unitFilter, cfoOnly, pageSize]);
+  }, [search, expenseType, reviewStatus, unitFilter, activeCfoOnly, pageSize]);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -274,15 +287,15 @@ export default function RequestedDemandView({
           </div>
         </div>
 
-        {flaggedCount > 0 ? (
-          <div className="flex flex-wrap items-center gap-2 border-b border-amber-100 bg-amber-50/40 px-5 py-2.5">
-            <button type="button" aria-pressed={!cfoOnly} onClick={() => setCfoOnly(false)}
-              className={`rounded-lg border px-3 py-2 text-xs font-bold ${!cfoOnly ? "border-blue-200 bg-white text-blue-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
-              All Items · {items.length}
+        {hasCurrentCfoChanges ? (
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-5 py-2.5" aria-label="Requested demand CFO status filters">
+            <button type="button" aria-pressed={!activeCfoOnly} onClick={() => setCfoOnly(false)}
+              className={`rounded-xl border px-3 py-2 text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${!activeCfoOnly ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+              All {items.length}
             </button>
-            <button type="button" aria-pressed={cfoOnly} onClick={() => setCfoOnly(true)}
-              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-bold ${cfoOnly ? "border-amber-400 bg-amber-100 text-amber-950" : "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"}`}>
-              <AlertTriangle className="h-3.5 w-3.5" /> CFO Needs Modification · {flaggedCount}
+            <button type="button" aria-pressed={activeCfoOnly} onClick={() => setCfoOnly(true)}
+              className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 ${activeCfoOnly ? "border-amber-400 bg-amber-100 text-amber-950 ring-1 ring-amber-200" : "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"}`}>
+              <AlertTriangle className="h-3.5 w-3.5" /> CFO Changes {flaggedCount}
             </button>
           </div>
         ) : null}
@@ -340,9 +353,11 @@ export default function RequestedDemandView({
                             {item.catalog_item_name}
                           </p>
                           {flaggedByCatalogId.has(Number(item.catalog_item_id)) ? (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                              <AlertTriangle className="h-3 w-3" /> Needs Revision
-                            </span>
+                            <CfoFeedbackNote
+                              note={flaggedByCatalogId.get(Number(item.catalog_item_id))?.cfo_review_note ?? flaggedByCatalogId.get(Number(item.catalog_item_id))?.package_item_cfo_review_note}
+                              shared={cfoFeedback.getLabel(flaggedByCatalogId.get(Number(item.catalog_item_id))) === "Shared instruction"}
+                              trigger="revision-badge"
+                            />
                           ) : null}
                           {item.is_project ? (
                             <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700">
@@ -407,7 +422,9 @@ export default function RequestedDemandView({
       </section>
 
       <RequestedDemandDetailsDrawer
-        cfoReview={cfoPackageItems.find((entry) => Number(entry.catalog_item_id) === Number(currentSelectedItem?.catalog_item_id)) || null}
+        cfoReview={packageStatus === "RETURNED_BY_CFO"
+          ? cfoPackageItems.find((entry) => Number(entry.catalog_item_id) === Number(currentSelectedItem?.catalog_item_id)) || null
+          : null}
         item={currentSelectedItem}
         canReviewItems={canReviewItems}
         onSaveApprovedQuantity={onSaveApprovedQuantity}
@@ -417,4 +434,5 @@ export default function RequestedDemandView({
     </>
   );
 }
+
 

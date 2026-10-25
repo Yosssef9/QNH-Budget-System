@@ -28,6 +28,7 @@ export function mapPurchasingPackageQueueRow(row) {
     submitted_to_purchasing_by_name: row.submitted_to_purchasing_by_name,
     pending_price_count: Number(row.pending_price_count || 0),
     accepted_price_count: Number(row.accepted_price_count || 0),
+    rejected_price_count: Number(row.rejected_price_count || 0),
     total_price_count: Number(row.total_price_count || 0),
     row_version: row.row_version,
   };
@@ -81,7 +82,9 @@ export function mapPurchasingPackageDetail(packageRow, rows = []) {
             : toNumber(row.previous_purchasing_unit_price),
         purchasing_unit_price: purchasingPrice,
         estimated_total:
-          purchasingPrice === null ? null : quantity * purchasingPrice,
+          row.price_review_status === "REJECTED" ? 0 : purchasingPrice === null ? null : quantity * purchasingPrice,
+        excluded_total:
+          row.price_review_status === "REJECTED" ? quantity * Number(purchasingPrice || 0) : 0,
         price_review_id: row.price_review_id,
         price_review_status:
           row.price_review_status ||
@@ -90,6 +93,7 @@ export function mapPurchasingPackageDetail(packageRow, rows = []) {
         reviewed_by: row.reviewed_by,
         reviewed_by_name: row.reviewed_by_name,
         reviewed_at: row.reviewed_at,
+        rejection_reason: row.rejection_reason,
         category_manager_attachment_count: Number(
           row.category_manager_attachment_count || 0,
         ),
@@ -115,6 +119,10 @@ export function mapPurchasingPackageDetail(packageRow, rows = []) {
       accepted_price_count: prices.filter(
         (price) => price.price_review_status === "ACCEPTED",
       ).length,
+      rejected_price_count: prices.filter(
+        (price) => price.price_review_status === "REJECTED",
+      ).length,
+      excluded_total: prices.reduce((sum, price) => sum + Number(price.excluded_total || 0), 0),
       estimated_total: prices.reduce(
         (sum, price) => sum + Number(price.estimated_total || 0),
         0,
@@ -123,3 +131,4 @@ export function mapPurchasingPackageDetail(packageRow, rows = []) {
     items,
   };
 }
+

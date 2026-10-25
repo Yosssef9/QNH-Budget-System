@@ -40,6 +40,9 @@ const STYLE = Object.freeze({
   STATUS_NEUTRAL: 16,
   QUARTER: 17,
   MONTH: 18,
+  PERCENT: 19,
+  CHANGE_INCREASE: 20,
+  CHANGE_DECREASE: 21,
 });
 
 function toNumber(value) {
@@ -66,6 +69,9 @@ function sanitizeFilePart(value, fallback = "Budget") {
 
 function xmlEscape(value) {
   return String(value ?? "")
+    // XML 1.0 rejects most ASCII control characters. User-entered notes and
+    // imported department names must not corrupt an entire Excel worksheet.
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
@@ -1056,17 +1062,19 @@ function buildCategoryDepartmentDetailsSheet({
 function stylesXml() {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <numFmts count="2">
+  <numFmts count="3">
     <numFmt numFmtId="164" formatCode="#,##0.####"/>
     <numFmt numFmtId="165" formatCode="#,##0.00 &quot;SAR&quot;"/>
+    <numFmt numFmtId="166" formatCode="0.00%"/>
   </numFmts>
-  <fonts count="6">
+  <fonts count="7">
     <font><sz val="11"/><name val="Aptos"/><family val="2"/></font>
     <font><b/><color rgb="FFFFFFFF"/><sz val="20"/><name val="Aptos Display"/></font>
     <font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Aptos"/></font>
     <font><b/><color rgb="FF0F172A"/><sz val="10"/><name val="Aptos"/></font>
     <font><b/><color rgb="FF166534"/><sz val="10"/><name val="Aptos"/></font>
     <font><b/><color rgb="FF92400E"/><sz val="10"/><name val="Aptos"/></font>
+    <font><b/><color rgb="FFB91C1C"/><sz val="10"/><name val="Aptos"/></font>
   </fonts>
   <fills count="8">
     <fill><patternFill patternType="none"/></fill>
@@ -1089,7 +1097,7 @@ function stylesXml() {
     </border>
   </borders>
   <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-  <cellXfs count="19">
+  <cellXfs count="22">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
     <xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment vertical="center"/></xf>
     <xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment vertical="center" wrapText="1"/></xf>
@@ -1109,6 +1117,9 @@ function stylesXml() {
     <xf numFmtId="0" fontId="3" fillId="5" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
     <xf numFmtId="0" fontId="2" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>
     <xf numFmtId="0" fontId="3" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="166" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf>
+    <xf numFmtId="166" fontId="6" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf>
+    <xf numFmtId="166" fontId="4" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf>
   </cellXfs>
   <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
   <dxfs count="0"/>
@@ -1132,9 +1143,19 @@ function worksheetXml(sheet, drawingRelId = null) {
         .join("")}</mergeCells>`
     : "";
   const drawingXml = drawingRelId ? `<drawing r:id="${drawingRelId}"/>` : "";
-  const { xSplit, ySplit, topLeftCell } = sheet.freeze;
-  const firstScrollableColumn = columnName(xSplit + 1);
-  const firstDataRow = ySplit + 1;
+  // Freeze panes only on reports that explicitly request them. CFO Current
+  // View deliberately scrolls normally in both directions.
+  const freezeViewXml = sheet.freeze
+    ? (() => {
+        const { xSplit, ySplit, topLeftCell } = sheet.freeze;
+        const firstScrollableColumn = columnName(xSplit + 1);
+        const firstDataRow = ySplit + 1;
+        return `<pane xSplit="${xSplit}" ySplit="${ySplit}" topLeftCell="${topLeftCell}" activePane="bottomRight" state="frozen"/>
+      <selection pane="topRight" activeCell="${firstScrollableColumn}1" sqref="${firstScrollableColumn}1"/>
+      <selection pane="bottomLeft" activeCell="A${firstDataRow}" sqref="A${firstDataRow}"/>
+      <selection pane="bottomRight" activeCell="${firstScrollableColumn}${firstDataRow}" sqref="${firstScrollableColumn}${firstDataRow}"/>`;
+      })()
+    : "";
 
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
@@ -1142,15 +1163,13 @@ function worksheetXml(sheet, drawingRelId = null) {
   <dimension ref="A1:${columnName(sheet.columns.length)}${sheet.lastDataRow}"/>
   <sheetViews>
     <sheetView workbookViewId="0" showGridLines="0">
-      <pane xSplit="${xSplit}" ySplit="${ySplit}" topLeftCell="${topLeftCell}" activePane="bottomRight" state="frozen"/>
-      <selection pane="topRight" activeCell="${firstScrollableColumn}1" sqref="${firstScrollableColumn}1"/>
-      <selection pane="bottomLeft" activeCell="A${firstDataRow}" sqref="A${firstDataRow}"/>
-      <selection pane="bottomRight" activeCell="${firstScrollableColumn}${firstDataRow}" sqref="${firstScrollableColumn}${firstDataRow}"/>
+      ${freezeViewXml}
     </sheetView>
   </sheetViews>
   <sheetFormatPr defaultRowHeight="15"/>
   <cols>${columnsXml}</cols>
   <sheetData>${rowContent}</sheetData>
+  ${sheet.autoFilter ? `<autoFilter ref="${sheet.autoFilter}"/>` : ""}
   ${mergeXml}
   <pageMargins left="0.25" right="0.25" top="0.5" bottom="0.5" header="0.2" footer="0.2"/>
   <pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0" paperSize="9"/>
@@ -1306,8 +1325,8 @@ async function loadQnhLogo() {
   return null;
 }
 
-async function buildWorkbookBlob(sheets) {
-  const logo = await loadQnhLogo();
+async function buildWorkbookBlob(sheets, { includeLogo = true } = {}) {
+  const logo = includeLogo ? await loadQnhLogo() : null;
   const withLogo = Boolean(logo);
   const files = {
     "[Content_Types].xml": strToU8(contentTypesXml(sheets.length, withLogo)),
@@ -1390,4 +1409,62 @@ export async function exportCategoryBudgetToExcel({
   )}_FY${sanitizeFilePart(financialYear?.year, "Year")}.xlsx`;
 
   saveAs(workbook, fileName);
+}
+
+
+/** Export the currently filtered and sorted CFO table without changing the
+ * existing department/category budget workbook formats. Column values remain
+ * numeric in Excel; status/reasons are real text. No API/SQL is called here. */
+export async function exportBudgetTableViewToExcel({
+  title, subtitle, filters = [], columns, rows, totals = {}, fileName,
+}) {
+  if (!Array.isArray(columns) || columns.length < 2 || !Array.isArray(rows)) {
+    throw new Error("Valid CFO export columns and rows are required");
+  }
+  const count = columns.length;
+  const end = columnName(count);
+  const fullLine = (value, style) => {
+    const cells = blankCells(count, style);
+    cells[0] = makeCell(value, style);
+    return cells;
+  };
+  const exportCells = (row) => columns.map(column => {
+    const value = row[column.key];
+    if (column.type === "currency") return makeNumberCell(value, STYLE.CURRENCY);
+    if (column.type === "quantity") return makeNumberCell(value, STYLE.QUANTITY);
+    if (column.type === "percent") {
+      return makeNumberCell(value, Number(value) > 0 ? STYLE.CHANGE_INCREASE : Number(value) < 0 ? STYLE.CHANGE_DECREASE : STYLE.PERCENT);
+    }
+    return makeCell(value == null ? null : String(value), STYLE.BODY_TEXT);
+  });
+  const body = rows.map((row, index) => ({ number: index + 6, cells: exportCells(row), height: 25 }));
+  const totalCells = columns.map((column, index) => {
+    if (index === 0) return makeCell("TOTAL", STYLE.TOTAL_LABEL);
+    const value = totals[column.key];
+    if (value == null) return makeCell(null, STYLE.TOTAL_LABEL);
+    if (column.type === "currency") return makeNumberCell(value, STYLE.TOTAL_CURRENCY);
+    if (column.type === "quantity") return makeNumberCell(value, STYLE.TOTAL_QUANTITY);
+    return makeCell(value, STYLE.TOTAL_LABEL);
+  });
+  const last = body.length + 6;
+  const sheet = {
+    name: "CFO Current View",
+    columns: columns.map(column => ({ ...column, width: column.width || 20 })),
+    rows: [
+      { number: 1, cells: fullLine(title, STYLE.TITLE), height: 32 },
+      { number: 2, cells: fullLine(subtitle, STYLE.SUBTITLE), height: 24 },
+      { number: 3, cells: fullLine(`Filters: ${filters.filter(Boolean).join(" | ") || "None"}`, STYLE.SUBTITLE), height: 28 },
+      { number: 4, cells: fullLine(`${rows.length} matching rows | All filtered rows (not only current page) | Amounts in SAR`, STYLE.META_VALUE), height: 25 },
+      { number: 5, cells: columns.map(column => makeCell(column.label, STYLE.HEADER)), height: 34 },
+      ...body,
+      { number: last, cells: totalCells, height: 27 },
+    ],
+    merges: [`A1:${end}1`, `A2:${end}2`, `A3:${end}3`, `A4:${end}4`],
+    // No frozen columns or rows: CFO requested ordinary Excel scrolling.
+    lastDataRow: last,
+    autoFilter: `A5:${end}${Math.max(5, last - 1)}`,
+  };
+  // CFO workbooks do not embed the hospital logo; other exports keep theirs.
+  const blob = await buildWorkbookBlob([sheet], { includeLogo: false });
+  saveAs(blob, (sanitizeFilePart(fileName, "CFO_Current_View") || "CFO_Current_View").replace(/\.xlsx$/i, "") + ".xlsx");
 }

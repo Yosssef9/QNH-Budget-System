@@ -29,18 +29,28 @@ const STATUS_LABELS = {
   NOT_CONFIGURED: "Not configured",
 };
 
-export default function CfoReviewStatusBadge({ status, note }) {
+const COMPACT_STATUS_LABELS = {
+  IN_CFO_REVIEW: "In review",
+  RETURNED_BY_CFO: "Returned",
+  CFO_REVIEW_COMPLETED: "Completed",
+};
+
+export default function CfoReviewStatusBadge({ status, note, compact = false }) {
   const normalized = status || "PENDING_CFO_REVIEW";
   const needsModification = normalized === "NEEDS_MODIFICATION";
   const badge = (
     <span
       tabIndex={needsModification ? 0 : undefined}
       aria-label={needsModification ? "Needs modification. Hover or focus to read the CFO reason." : undefined}
-      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-bold uppercase tracking-wide ${
-        STATUS_STYLES[normalized] || "border-slate-200 bg-slate-50 text-slate-700"
-      } ${needsModification ? "cursor-help focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500" : ""}`}
+      className={`inline-flex items-center rounded-full border font-bold ${
+        compact
+          ? "whitespace-nowrap px-2 py-0.5 text-[10px] normal-case tracking-normal"
+          : "px-2.5 py-1 text-xs uppercase tracking-wide"
+      } ${STATUS_STYLES[normalized] || "border-slate-200 bg-slate-50 text-slate-700"} ${
+        needsModification ? "cursor-help focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500" : ""
+      }`}
     >
-      {STATUS_LABELS[normalized] || String(normalized).replaceAll("_", " ")}
+      {(compact && COMPACT_STATUS_LABELS[normalized]) || STATUS_LABELS[normalized] || String(normalized).replaceAll("_", " ")}
     </span>
   );
   if (!needsModification) return badge;

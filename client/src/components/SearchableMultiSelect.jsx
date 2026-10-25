@@ -22,6 +22,7 @@ export default function SearchableMultiSelect({
   noResultsText = "No results found",
   getOptionLabel,
   getOptionValue,
+  renderOptionSuffix,
   disabled = false,
   maxVisibleBadges = 2,
   disableClear = false,
@@ -284,6 +285,7 @@ export default function SearchableMultiSelect({
 
                 const isDisabled =
                   Boolean(item.disabled) || Boolean(item.has_pending_request);
+                const optionSuffix = renderOptionSuffix?.(item);
 
                 return (
                   <button
@@ -329,6 +331,9 @@ export default function SearchableMultiSelect({
                       </div>
                     </div>
 
+                    {optionSuffix ? (
+                      <span className="ml-2 shrink-0">{optionSuffix}</span>
+                    ) : null}
                     {item.has_pending_request && (
                       <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-700">
                         ⏳ Pending
@@ -439,4 +444,3 @@ export default function SearchableMultiSelect({
     </div>
   );
 }
-

@@ -162,3 +162,14 @@ export async function submitCategoryPackageToPurchasing({ packageId, payload }) 
   );
   return response.data?.data;
 }
+
+
+// Per-CFO-return manual CM review checklist. Never modifies item approval.
+export async function getCurrentCfoRevisionTracker() {
+  const response = await api.get('/category-packages/current/revision-tracker');
+  return response.data?.data;
+}
+export async function setPackageItemCmReviewed({ itemId, reviewed }) {
+  const response = await api.patch(`/category-packages/items/${itemId}/cm-reviewed`, { reviewed });
+  return response.data?.data;
+}

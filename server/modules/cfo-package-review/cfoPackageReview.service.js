@@ -1,3 +1,4 @@
+import { captureCfoPackageReturnTotalRepo } from "./cfoRevisionTracking.repository.js";
 import { withTransaction } from "../../database/transaction.js";
 import { NOTIFICATION_TYPES } from "../../constants/notificationTypes.js";
 import { queueNotification } from "../../services/notification.service.js";
@@ -41,6 +42,8 @@ import {
   getCfoPackageItemComparisonRepo,
   listCfoFinancialYearsRepo,
   listCfoPackagesRepo,
+  listAcceptedCfoModelsRepo,
+  countRejectedPurchasingModelsRepo,
   lockCfoPackageForBulkRepo,
   listPendingCfoItemsForBulkRepo,
   updatePendingCfoPackageItemsRepo,
@@ -193,21 +196,69 @@ function getSubItemChangeStatus(beforeItem, afterItem) {
     : "UNCHANGED";
 }
 
+/** Map only accepted Purchasing models into CFO's actionable budget. The original
+ * CM demand and every Purchasing exclusion remain untouched in the database and
+ * available in the read-only exclusions panel. */
+function mapCfoItemRows(itemRows, acceptedModels) {
+  const modelsByItem = new Map();
+  for (const model of acceptedModels) {
+    const key = Number(model.category_budget_package_item_id);
+    if (!modelsByItem.has(key)) modelsByItem.set(key, []);
+    modelsByItem.get(key).push(model);
+  }
+  return itemRows.flatMap((item) => {
+    const models = modelsByItem.get(Number(item.id)) || [];
+    if (!models.length) return [];
+    const quantity = models.reduce((sum, model) => sum + Number(model.quantity || 0), 0);
+    return [{ ...item,
+      // CFO figures describe the portion proceeding after Purchasing review.
+      approved_quantity: quantity,
+      allocated_quantity: quantity,
+      remaining_quantity: 0,
+      estimated_total: models.reduce((sum, model) => sum + Number(model.quantity || 0) * Number(model.unit_price || 0), 0),
+      category_manager_estimated_total: models.reduce((sum, model) => sum + Number(model.quantity || 0) * Number(model.category_manager_unit_price || 0), 0),
+      active_sub_item_count: models.length,
+      needs_reconciliation: 0,
+      model_unit_prices_json: JSON.stringify(
+        (JSON.parse(item.model_unit_prices_json || '[]')).filter((model) => models.some((allowed) => Number(allowed.id) === Number(model.id)))
+      ),
+    }];
+  });
+}
+
+function filterCfoDepartmentRows(rows, acceptedModels) {
+  const allowed = new Set(acceptedModels.map((model) => Number(model.id)));
+  const filtered = rows.filter((row) => row.package_sub_item_id && allowed.has(Number(row.package_sub_item_id)));
+  const quantities = new Map();
+  for (const row of filtered) {
+    const key = Number(row.department_item_id);
+    quantities.set(key, (quantities.get(key) || 0) + Number(row.allocated_quantity || 0));
+  }
+  return filtered.map((row) => ({ ...row,
+    category_approved_quantity: quantities.get(Number(row.department_item_id)) || 0,
+    needs_reconciliation: 0,
+  }));
+}
+
 async function loadPackageDetail(packageId) {
   const packageRow = await findCfoPackageByIdRepo({ packageId });
   assertPackageExists(packageRow);
 
-  const [itemRows, departmentRows] = await Promise.all([
+  const [itemRows, departmentRows, acceptedModels] = await Promise.all([
     listPackageItemsRepo({ packageId, approvedOnly: true }),
     listDepartmentPackageViewRowsRepo({ packageId }),
+    listAcceptedCfoModelsRepo({ packageId }),
   ]);
-
-  const items = itemRows.map((item) => mapPackageItem(item));
-  const approvedItemIds = new Set(itemRows.map((item) => Number(item.id)));
+  const scopedRows = mapCfoItemRows(itemRows, acceptedModels);
+  const items = scopedRows.map((item) => mapPackageItem(item));
+  const approvedItemIds = new Set(scopedRows.map((item) => Number(item.id)));
   return {
-    package: mapPackage(packageRow, items),
+    package: {
+      ...mapPackage(packageRow, items),
+      purchasing_rejected_count: await countRejectedPurchasingModelsRepo({ packageId }),
+    },
     departmentView: mapDepartmentPackageView(
-      departmentRows.filter((row) =>
+      filterCfoDepartmentRows(departmentRows, acceptedModels).filter((row) =>
         approvedItemIds.has(Number(row.package_item_id)) &&
         Number(row.category_approved_quantity || 0) > 0,
       ),
@@ -273,10 +324,13 @@ export async function getCfoPackageDistributionService({
     assertPackageItemExists(packageItem);
   }
 
+  const eligibleModels = await listAcceptedCfoModelsRepo({ packageId });
+  const acceptedIds = new Set(eligibleModels.map((model) => Number(model.id)));
   const rows = (await listPackageDistributionRowsRepo({
     packageId,
     packageItemId,
-  })).filter((row) => Number(row.category_approved_quantity || 0) > 0);
+  })).filter((row) => Number(row.category_approved_quantity || 0) > 0 &&
+    acceptedIds.has(Number(row.package_sub_item_id)));
 
   return buildPackageDistributionAnalysis({
     rows,
@@ -307,8 +361,11 @@ export async function getCfoFinancialYearDistributionService({
     "You do not have permission to view CFO package reviews",
   );
 
+  const eligibleModels = await listAcceptedCfoModelsRepo({ financialYearId });
+  const acceptedIds = new Set(eligibleModels.map((model) => Number(model.id)));
   const rows = (await listPackageDistributionRowsRepo({ financialYearId }))
-    .filter((row) => Number(row.category_approved_quantity || 0) > 0);
+    .filter((row) => Number(row.category_approved_quantity || 0) > 0 &&
+      acceptedIds.has(Number(row.package_sub_item_id)));
 
   return buildPackageDistributionAnalysis({
     rows,
@@ -545,7 +602,11 @@ export async function getCfoPackageItemDetailService({
     packageItemId,
   });
   assertPackageItemExists(packageItem);
-  const approvedItems = await listPackageItemsRepo({ packageId, approvedOnly: true });
+  const [allApprovedItems, acceptedModels] = await Promise.all([
+    listPackageItemsRepo({ packageId, approvedOnly: true }),
+    listAcceptedCfoModelsRepo({ packageId }),
+  ]);
+  const approvedItems = mapCfoItemRows(allApprovedItems, acceptedModels);
   if (!approvedItems.some((item) => Number(item.id) === Number(packageItemId))) {
     throw new ApiError(404, "Item is not in CFO review", "CFO_PACKAGE_ITEM_NOT_FOUND");
   }
@@ -553,17 +614,26 @@ export async function getCfoPackageItemDetailService({
   const [detailRows, allocations, packageItems] = await Promise.all([
     listPackageItemDetailRowsRepo({ packageItemId }),
     listAllocationsForPackageItemRepo({ packageItemId }),
-    listPackageItemsRepo({ packageId, approvedOnly: true }),
+    Promise.resolve(approvedItems),
   ]);
+  const allowedIds = new Set(acceptedModels.map((model) => Number(model.id)));
+  const activeAllocations = allocations.filter((row) => allowedIds.has(Number(row.category_budget_package_sub_item_id)));
+  const allocatedPerDepartment = new Map();
+  for (const row of activeAllocations) {
+    const id = Number(row.department_category_budget_item_id);
+    allocatedPerDepartment.set(id, (allocatedPerDepartment.get(id) || 0) + Number(row.allocated_quantity || 0));
+  }
   const mappedPackageItem = packageItems
     .map((item) => mapPackageItem(item))
     .find((item) => Number(item.id) === Number(packageItemId));
 
   return mapPackageItemDetail({
     packageItem: mappedPackageItem,
-    subItems: detailRows.subItems,
-    departments: detailRows.departments,
-    allocations,
+    subItems: detailRows.subItems.filter((row) => allowedIds.has(Number(row.id))),
+    departments: detailRows.departments.map((row) => ({...row,
+      category_approved_quantity: allocatedPerDepartment.get(Number(row.department_item_id)) || 0,
+    })),
+    allocations: activeAllocations,
   });
 }
 
@@ -809,6 +879,12 @@ export async function returnCfoPackageToCategoryManagerService({
       );
     }
 
+    // Capture the baseline for the entire category before CM or Purchasing
+    // can change any of its values in the following review cycle.
+    await captureCfoPackageReturnTotalRepo(transaction, {
+      packageId, actorUserId,
+    });
+
     const snapshotCount = await createCfoPackageItemReturnSnapshotsRepo(
       transaction,
       {
@@ -900,7 +976,9 @@ export async function completeCfoPackageReviewService({
       transaction,
     );
 
-    if (counts.total_count === 0 || counts.accepted_count !== counts.total_count) {
+    const allRejected = counts.total_count === 0 &&
+      (await countRejectedPurchasingModelsRepo({ packageId }, transaction)) > 0;
+    if ((!allRejected && counts.total_count === 0) || counts.accepted_count !== counts.total_count) {
       throw new ApiError(
         400,
         "Every active package item must be accepted before CFO review can be completed",
@@ -1129,3 +1207,4 @@ export async function finalizeAnnualCfoPackageReviewService({
   const rows = await listCfoPackagesRepo({ financialYearId });
   return rows.map(mapCfoPackageQueueRow);
 }
+

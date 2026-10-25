@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
   AlertCircle,
@@ -18,7 +18,7 @@ import {
 import ConfirmModal from "../ConfirmModal";
 import { useCategoryBackOverlay } from "./CategoryBackNavigation";
 import CurrencyText from "../CurrencyText";
-import { submitCategoryPackageToPurchasing } from "../../api/categoryPackages.api";
+import { submitCategoryPackageToPurchasing, getCurrentCfoRevisionTracker } from "../../api/categoryPackages.api";
 
 function classNames(...values) {
   return values.filter(Boolean).join(" ");
@@ -125,6 +125,13 @@ export default function CategoryPackageSubmissionStage({
   const items = packageData?.items || [];
   const packageEditable = ["DRAFT", "RETURNED_BY_CFO"].includes(packageData?.status);
   const canSubmitNow = canSubmit && ready && packageEditable;
+  const cmRevisionQuery = useQuery({
+    queryKey: ["category-packages", "current", "revision-tracker", packageData?.id],
+    queryFn: getCurrentCfoRevisionTracker,
+    enabled: Boolean(packageData?.id) && packageData.status === "RETURNED_BY_CFO",
+  });
+  const outstandingCmReviews = cmRevisionQuery.data?.summary?.remaining || 0;
+
 
   const coverage = packageData?.summary?.departmentCoverage || {};
   const submittedDepartments = Number(coverage.submittedDepartments || 0);
@@ -360,7 +367,15 @@ export default function CategoryPackageSubmissionStage({
           <button
             type="button"
             disabled={!canSubmitNow || submitMutation.isPending}
-            onClick={() => setConfirmOpen(true)}
+            onClick={() => {
+              if (cmRevisionQuery.isError) {
+                toast('Could not load the optional CM review checklist. Submission may continue.', { icon: '⚠️' });
+              }
+              if (outstandingCmReviews > 0) {
+                toast(`${outstandingCmReviews} CFO-requested item${outstandingCmReviews === 1 ? " is" : "s are"} still To Review. You can submit anyway.`, { icon: "⚠️" });
+              }
+              setConfirmOpen(true);
+            }}
             className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-black text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             <Send className="h-4 w-4" />
@@ -524,6 +539,12 @@ export default function CategoryPackageSubmissionStage({
           })
         }
       >
+        {outstandingCmReviews > 0 && (
+          <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <strong>{outstandingCmReviews} CFO-requested item{outstandingCmReviews === 1 ? " is" : "s are"} still To Review.</strong>
+            <div className="mt-1 text-xs">This is a reminder only. The checklist does not block submission or change existing package readiness checks.</div>
+          </div>
+        )}
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
             <p className="text-xs font-black uppercase text-blue-700">Package</p>
@@ -542,4 +563,5 @@ export default function CategoryPackageSubmissionStage({
     </div>
   );
 }
+
 

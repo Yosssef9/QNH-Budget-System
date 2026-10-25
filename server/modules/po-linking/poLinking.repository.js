@@ -299,6 +299,13 @@ export async function listPackageSubItemsForPoLinkingRepo({
         AND fy.status = 'PRE_CLOSING'
         AND pkg.status = 'CFO_REVIEW_COMPLETED'
         AND subItem.is_active = 1
+        AND EXISTS (
+          SELECT 1 FROM dbo.BS_category_budget_package_sub_item_price_reviews AS decision
+          WHERE decision.category_budget_package_id = pkg.id
+            AND decision.category_budget_package_sub_item_id = subItem.id
+            AND decision.review_round = pkg.purchasing_review_round
+            AND decision.status = 'ACCEPTED'
+        )
       ORDER BY catalog.name ASC, subItem.name ASC
     `);
 
@@ -328,7 +335,8 @@ export async function getPackageSubItemContextRepo(
         fy.status AS financial_year_status,
         pkg.status AS package_status,
         pkg.budget_category_id,
-        category.name AS category_name
+        category.name AS category_name,
+        currentReview.status AS purchasing_model_decision
       FROM dbo.BS_category_budget_package_sub_items AS subItem WITH (UPDLOCK, HOLDLOCK)
       INNER JOIN dbo.BS_category_budget_package_items AS packageItem WITH (UPDLOCK, HOLDLOCK)
         ON packageItem.id = subItem.category_budget_package_item_id
@@ -340,6 +348,14 @@ export async function getPackageSubItemContextRepo(
         ON category.id = pkg.budget_category_id
       INNER JOIN dbo.BS_budget_catalog_items AS catalog
         ON catalog.id = packageItem.catalog_item_id
+      OUTER APPLY (
+        SELECT TOP (1) decision.status
+        FROM dbo.BS_category_budget_package_sub_item_price_reviews AS decision WITH (UPDLOCK, HOLDLOCK)
+        WHERE decision.category_budget_package_id = pkg.id
+          AND decision.category_budget_package_sub_item_id = subItem.id
+          AND decision.review_round = pkg.purchasing_review_round
+        ORDER BY decision.id DESC
+      ) AS currentReview
       WHERE subItem.id = @packageSubItemId
         AND subItem.is_active = 1
     `);
@@ -1373,3 +1389,4 @@ export async function searchPOItemsForMappingRepo({ search } = {}) {
 
   return result.recordset;
 }
+

@@ -155,3 +155,9 @@ export async function downloadCfoPackageSubItemAttachment({
     fileName: match?.[1] || "attachment",
   };
 }
+
+
+export async function getCfoRevisionComparison(packageId) {
+  const response = await api.get(`/cfo-package-review/packages/${packageId}/revision-comparison`);
+  return response.data?.data;
+}

@@ -543,13 +543,7 @@ export default function DepartmentReviewStage({
   const pendingCount = Number(selectedBudget?.summary?.pending_count || 0);
 
   return (
-    <div
-      id="category-workflow-panel-departments"
-      role="tabpanel"
-      aria-labelledby="category-workflow-tab-departments"
-      tabIndex={0}
-      className="space-y-4 focus:outline-none"
-    >
+    <div className="space-y-4 focus:outline-none">
       <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
         {[
           ["reviews", "Review by Department"],

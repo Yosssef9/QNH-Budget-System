@@ -12,6 +12,8 @@ import {
   listPurchasingFinancialYearsService,
   listPurchasingPackagesService,
   reopenPurchasingPriceService,
+  rejectPurchasingModelsService,
+  reinstatePurchasingModelService,
   savePurchasingPricesService,
   savePurchasingPriceService,
   submitPurchasingPackageToCfoService,
@@ -26,6 +28,8 @@ import {
   validatePackageId,
   validatePackageSubItemId,
   validatePriceReviewPayload,
+  validateRejectModelsPayload,
+  validateReinstateModelPayload,
 } from "./purchasingPriceReview.validators.js";
 import {
   validateAttachmentId,
@@ -128,6 +132,34 @@ export const reopenPurchasingPrice = asyncHandler(async (req, res) => {
     description: "Reopened an accepted Purchasing price",
   });
   res.json(new ApiResponse({ message: "Purchasing price reopened successfully", data }));
+});
+
+export const rejectPurchasingModels = asyncHandler(async (req, res) => {
+  const packageId = validatePackageId(req.params.packageId);
+  const payload = validateRejectModelsPayload(req.body);
+  const data = await rejectPurchasingModelsService({
+    packageId, payload, actorUserId: req.user.userId, budgetAccess: req.budgetAccess,
+  });
+  await auditLog(req, {
+    action: "REJECT_PURCHASING_PACKAGE_MODELS", entityType: "CATEGORY_BUDGET_PACKAGE",
+    entityId: String(packageId), description: "Rejected Purchasing models",
+    newValues: { models: payload.models.map((model) => model.package_sub_item_id), reason: payload.reason },
+  });
+  res.json(new ApiResponse({ message: "Models rejected", data }));
+});
+
+export const reinstatePurchasingModel = asyncHandler(async (req, res) => {
+  const packageId = validatePackageId(req.params.packageId);
+  const packageSubItemId = validatePackageSubItemId(req.params.packageSubItemId);
+  const payload = validateReinstateModelPayload(req.body);
+  const data = await reinstatePurchasingModelService({
+    packageId, packageSubItemId, payload, actorUserId: req.user.userId, budgetAccess: req.budgetAccess,
+  });
+  await auditLog(req, {
+    action: "REINSTATE_PURCHASING_MODEL", entityType: "CATEGORY_PACKAGE_SUB_ITEM",
+    entityId: String(packageSubItemId), description: "Reinstated rejected Purchasing model", newValues: { reason: payload.reason },
+  });
+  res.json(new ApiResponse({ message: "Model reinstated for price review", data }));
 });
 
 export const getPurchasingPriceHistory = asyncHandler(async (req, res) => {
@@ -267,3 +299,4 @@ export const submitPurchasingPackageToCfo = asyncHandler(async (req, res) => {
   });
   res.json(new ApiResponse({ message: "Priced package submitted to CFO successfully", data }));
 });
+

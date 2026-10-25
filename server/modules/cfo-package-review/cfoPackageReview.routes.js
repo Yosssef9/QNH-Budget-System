@@ -24,6 +24,8 @@ import {
   setCfoPackageItemDecision,
 } from "./cfoPackageReview.controller.js";
 
+import { getCfoRevisionComparison } from "./cfoRevisionTracking.controller.js";
+
 const router = express.Router();
 
 router.use(verifyPortalJwt);
@@ -39,6 +41,12 @@ router.get(
   "/packages",
   requireBudgetPermission(CFO_PACKAGE_REVIEW_PERMISSIONS.VIEW),
   listCfoPackages,
+);
+
+router.get(
+  "/packages/:packageId/revision-comparison",
+  requireBudgetPermission(CFO_PACKAGE_REVIEW_PERMISSIONS.VIEW),
+  getCfoRevisionComparison,
 );
 
 router.get(
@@ -132,3 +140,4 @@ router.get(
 );
 
 export default router;
+

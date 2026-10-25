@@ -74,6 +74,14 @@ function assertTransferScope(source, target, categoryId) {
   }
 }
 
+function assertPurchasingAccepted(model) {
+  if (model?.purchasing_model_decision !== 'ACCEPTED') {
+    throw new ApiError(409,
+      'Transfers require models accepted in the current Purchasing round; submit replacements through the review workflow.',
+      'TRANSFER_MODEL_NOT_ACCEPTED_BY_PURCHASING');
+  }
+}
+
 function calculateTransferAmounts({ payload, source, target }) {
   const sourceUnitPrice = Number(source.unit_price || 0);
   const destinationUnitPrice =
@@ -202,6 +210,8 @@ export async function createTransferService({ payload, actorUserId, budgetAccess
     }
 
     assertTransferScope(source, target, categoryId);
+    assertPurchasingAccepted(source);
+    assertPurchasingAccepted(target);
 
     const amounts = calculateTransferAmounts({ payload, source, target });
     const availableQuantity = Number(source.available_quantity ?? source.quantity ?? 0);
@@ -310,6 +320,10 @@ export async function approveTransferService({ transferId, actorUserId, budgetAc
     if (transfer.status !== TRANSFER_STATUS.PENDING_APPROVAL) {
       throw new ApiError(400, "Only pending transfers can be approved", "TRANSFER_STATUS_INVALID");
     }
+    const source = await findSubItemContextRepo({ packageSubItemId: transfer.from_package_sub_item_id }, transaction);
+    const target = await findSubItemContextRepo({ packageSubItemId: transfer.to_package_sub_item_id }, transaction);
+    assertPurchasingAccepted(source);
+    assertPurchasingAccepted(target);
     const affected = await approveTransferRepo(transaction, {
       transfer_id: transferId,
       actor_user_id: actorUserId,
@@ -416,3 +430,4 @@ export async function getTransferDashboardService({ actorUserId, budgetAccess })
 
   return { mode: "NONE", requests: [] };
 }
+

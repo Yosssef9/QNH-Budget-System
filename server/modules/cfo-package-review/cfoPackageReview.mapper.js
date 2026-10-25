@@ -19,6 +19,7 @@ export function mapCfoPackageQueueRow(row) {
     category_code: row.category_code,
     category_name: row.category_name,
     status: row.status,
+    purchasing_rejected_count: Number(row.purchasing_rejected_count || 0),
     row_version: row.row_version,
     submitted_to_cfo_by: row.submitted_to_cfo_by,
     submitted_to_cfo_by_name: row.submitted_to_cfo_by_name,
@@ -64,3 +65,4 @@ export function mapCfoFinancialYearOption(row) {
     is_current: row.status === "OPEN" || row.status === "PRE_CLOSING",
   };
 }
+

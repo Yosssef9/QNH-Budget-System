@@ -113,14 +113,14 @@ export function getAdminCards(budgetAccess, dashboardData) {
     },
 
     {
-      title: "Approved Budget Value",
+      title: "Gross Package Allocation Value",
       value: (
         <CurrencyText
           value={dashboardStats?.approvedAmount?.approved_total_amount || 0}
         />
       ),
 
-      description: "Total approved budget amount in current year",
+      description: <span>Includes allocated rejected models. Purchasing accepted value: <CurrencyText value={dashboardStats?.approvedAmount?.purchasing_accepted_total_amount || 0} /></span>,
 
       icon: CheckCircle2,
 
@@ -202,3 +202,4 @@ export function getAdminCards(budgetAccess, dashboardData) {
     },
   ].filter((item) => item.show);
 }
+

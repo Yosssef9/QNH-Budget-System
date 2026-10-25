@@ -7,6 +7,7 @@ import LoadingSpinner from "../../components/LoadingSpinner";
 import BudgetCompactSummaryPanel from "../../components/budgets/shared/BudgetCompactSummaryPanel";
 import BudgetHeaderCard from "../../components/budgets/shared/BudgetHeaderCard";
 import BudgetItemsTable from "../../components/budgets/shared/BudgetItemsTable";
+import BudgetExclusionsPanel from "../../components/budgets/shared/BudgetExclusionsPanel";
 import BudgetDistributionDetailsDrawer from "../../components/budgets/shared/drawers/BudgetDistributionDetailsDrawer";
 import AdjustmentRequestDrawer from "../../components/adjustment-requests/AdjustmentRequestDrawer";
 
@@ -276,6 +277,8 @@ export default function BudgetViewPage() {
         headerClassName="bg-white"
         bodyClassName="bg-white"
       >
+        <div className="mt-5"><BudgetExclusionsPanel financialYearId={budget?.financial_year_id} title="Items excluded from this department budget" /></div>
+
         {showHodAdjustmentActions ? (
           <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-blue-100 bg-blue-50 p-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -459,5 +462,6 @@ export default function BudgetViewPage() {
     </div>
   );
 }
+
 
 

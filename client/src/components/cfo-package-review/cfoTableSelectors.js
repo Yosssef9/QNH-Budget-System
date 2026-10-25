@@ -43,7 +43,7 @@ export function getCfoPackageEligibility(pkg, {canDecide = false, readOnly = fal
     canMarkPending: editable && counts.pending > 0,
     canMarkAll: editable && counts.pending > 0, // legacy name, now pending-only
     canReturn: editable && items.length > 0 && counts.pending === 0 && counts.needs > 0,
-    canComplete: editable && items.length > 0 && counts.accepted === items.length,
+    canComplete: editable && counts.accepted === items.length && (items.length > 0 || Number(pkg?.purchasing_rejected_count || 0) > 0),
     canReopen: canDecide && !readOnly && !finalized && pkg?.financial_year_status === 'OPEN' && pkg?.status === 'CFO_REVIEW_COMPLETED',
   };
 }

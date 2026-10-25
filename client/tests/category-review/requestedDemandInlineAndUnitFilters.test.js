@@ -32,8 +32,9 @@ test('selected Unit of Measure matches normalized actual catalog values, not ite
 test('Requested Demand filters both CFO changes and catalog unit before paging', () => {
   const text=read('components/category-review/RequestedDemandView.jsx');
   assert.match(text,/const matchesUnit = matchesUnitOfMeasure\(item, unitFilter\)/);
-  assert.match(text,/const matchesCfo = !cfoOnly \|\| flaggedByCatalogId\.has/);
-  assert.match(text,/CFO Needs Modification/);
+  assert.match(text,/const matchesCfo = !activeCfoOnly \|\| flaggedByCatalogId\.has/);
+  assert.match(text,/CFO Changes \{flaggedCount\}/);
+  assert.match(text, /<CfoFeedbackNote[\s\S]*?trigger="revision-badge"/);
   assert.match(text,/border-l-\[3px\] border-l-amber-500/);
   assert.match(text,/options=\{requestedUnitOptions\}/);
 });
@@ -60,3 +61,4 @@ test('CM Package Items Unit filter resets and recalculates all matching item tot
   assert.match(text,/expenseScopedItems = useMemo\(\(\) =>\s*items\.filter\(\(item\) => matchesUnitOfMeasure\(item, unitFilter\)\)/);
   assert.match(text,/setUnitFilter\("ALL"\)/);
 });
+

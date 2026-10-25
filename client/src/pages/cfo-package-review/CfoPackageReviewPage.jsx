@@ -1,9 +1,10 @@
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { CalendarDays, ClipboardCheck, Flag, RefreshCw, Layers3, Building2, PackageCheck, X, Wallet, CheckCircle2, Clock3, ListChecks } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { CalendarDays, ClipboardCheck, Flag, RefreshCw, Layers3, Building2, PackageCheck, X, Wallet, CheckCircle2, Clock3, ListChecks, FileSpreadsheet } from "lucide-react";
 import { PERMISSION_CODES, hasPermission } from "@qnh/permissions";
-import { acceptPendingCfoPackageItems, completeCfoPackageReview, finalizeAnnualCfoPackageReview, getCfoFinancialYears, getCfoFinancialYearDistribution, getCfoPackage, getCfoPackageDistribution, getCfoPackageItemDetail, getCfoPackageTimeline, getCfoPackages, markAllCfoPackageItemsNeedModification, reopenCfoPackageReview, returnCfoPackageToCategoryManager, setCfoPackageItemDecision } from "../../api/cfoPackageReview.api";
+import { acceptPendingCfoPackageItems, completeCfoPackageReview, finalizeAnnualCfoPackageReview, getCfoFinancialYears, getCfoFinancialYearDistribution, getCfoPackage, getCfoRevisionComparison, getCfoPackageDistribution, getCfoPackageItemDetail, getCfoPackageTimeline, getCfoPackages, markAllCfoPackageItemsNeedModification, reopenCfoPackageReview, returnCfoPackageToCategoryManager, setCfoPackageItemDecision } from "../../api/cfoPackageReview.api";
 import ConfirmModal from "../../components/ConfirmModal";
 import Input from "../../components/Input";
 import CurrencyText from "../../components/CurrencyText";
@@ -11,6 +12,11 @@ import SearchableMultiSelect from "../../components/SearchableMultiSelect";
 import BudgetTimeline from "../../components/BudgetTimeline";
 import AnimatedDrawer from "../../components/budgets/shared/drawers/AnimatedDrawer";
 import CfoSearchField from "../../components/cfo-package-review/CfoSearchField";
+import CfoExcludedItemsView from "../../components/cfo-package-review/CfoExcludedItemsView";
+import { getBudgetExclusions } from "../../api/budgetExclusions.api";
+import { exportBudgetTableViewToExcel } from "../../utils/budgetExcelExport";
+import { buildCfoItemsExcel, buildCfoDepartmentsExcel, buildCfoCategoriesExcel, buildCfoExclusionsExcel } from "../../components/cfo-package-review/cfoReviewExport";
+import CfoReviewStatusBadge from "../../components/cfo-package-review/CfoReviewStatusBadge";
 import CfoItemReviewDrawer from "../../components/cfo-package-review/CfoItemReviewDrawer";
 import CfoDepartmentDetailsDrawer from "../../components/cfo-package-review/CfoDepartmentDetailsDrawer";
 import CfoPackageItemComparisonDrawer from "../../components/cfo-package-review/CfoPackageItemComparisonDrawer";
@@ -268,11 +274,17 @@ function DecisionModal({ modal, loading, onCancel, onConfirm }) {
 
 function CfoPackageReviewContent() {
   const queryClient = useQueryClient();
+  const prefersReducedMotion = useReducedMotion();
   const { budgetAccess } = useAuth();
   const permissionCodes = budgetAccess?.permissionCodes ?? budgetAccess?.selectedWorkspace?.permissionCodes ?? [];
   const canDecide = hasPermission(permissionCodes, PERMISSION_CODES.APPROVE_CATEGORY_BUDGET_PACKAGES);
   const [selectedFinancialYearId, setSelectedFinancialYearId] = useState(null);
+  const [showExcludedItems, setShowExcludedItems] = useState(false);
   const [view, setView] = useState('ITEMS');
+  const itemsExportRef = useRef(null);
+  const departmentsExportRef = useRef(null);
+  const excludedExportRef = useRef(null);
+  const [exporting, setExporting] = useState(false);
   const [search, setSearch] = useState('');
   const [departmentSearch, setDepartmentSearch] = useState('');
   const [category, setCategory] = useState('ALL');
@@ -314,9 +326,91 @@ function CfoPackageReviewContent() {
     queryFn:()=>getCfoPackage(pkg.id),enabled:Boolean(effectiveYearId),
   }))});
   const packageResponses = packageQueries.filter(q=>q.isSuccess && q.data?.package).map(q=>q.data);
+  const exclusionsQuery = useQuery({
+    queryKey: ['budget-exclusions', Number(effectiveYearId)],
+    queryFn: () => getBudgetExclusions(effectiveYearId),
+    enabled: Boolean(effectiveYearId) && view === 'ITEMS' && showExcludedItems,
+    staleTime: 10000,
+  });
   const loadedPackages = packageResponses.map(result=>result.package);
+  const comparisonQueries = useQueries({queries:loadedPackages.map(pkg=>({
+    queryKey:['cfo-package-review','revision-comparison',pkg.id],
+    queryFn:()=>getCfoRevisionComparison(pkg.id),
+    enabled:pkg.status === 'IN_CFO_REVIEW' || pkg.status === 'CFO_REVIEW_COMPLETED',
+    staleTime:30000,
+  }))});
+  const comparisonsByPackage = Object.fromEntries(comparisonQueries
+    .filter(q=>q.isSuccess && q.data?.package_id)
+    .map(q=>[q.data.package_id, {
+      ...q.data,
+      itemsById:Object.fromEntries((q.data.items||[]).map(item=>[item.item_id,item])),
+    }]));
+
+  const selectedCategoryPackage = category !== 'ALL'
+    ? loadedPackages.find(pkg => pkg.category_code === category)
+    : null;
+  const selectedCategoryComparison = selectedCategoryPackage
+    ? comparisonsByPackage[selectedCategoryPackage.id]
+    : null;
+
   const loading = financialYearsQuery.isLoading || packagesQuery.isLoading || packageQueries.some(q=>q.isPending);
   const loadingFailed = financialYearsQuery.isError || packagesQuery.isError || packageQueries.some(q=>q.isError);
+  const isExcludedExport = view === 'ITEMS' && showExcludedItems;
+  // Cycle comparisons are optional export columns. Some queries are deliberately
+  // disabled for packages outside CFO review; none should block the whole export.
+  const optionalComparisonsUnavailable = comparisonQueries.some((query, index) => {
+    const packageStatus = loadedPackages[index]?.status;
+    const applicable = packageStatus === 'IN_CFO_REVIEW' || packageStatus === 'CFO_REVIEW_COMPLETED';
+    return applicable && !query.isSuccess;
+  });
+  const exportDisabled = exporting || !effectiveYearId || (isExcludedExport
+    ? exclusionsQuery.isPending || exclusionsQuery.isError
+    : loading || loadingFailed);
+
+  async function exportCurrentCfoView() {
+    if (exportDisabled) return;
+    const currentView = isExcludedExport ? 'Excluded_Items' : view === 'ITEMS' ? 'By_Item' : view === 'DEPARTMENTS' ? 'By_Department' : 'By_Category';
+    let report;
+    let filters;
+    if (isExcludedExport) {
+      const rowsForExport = excludedExportRef.current?.getExportRows();
+      if (!rowsForExport) { toast.error('Exclusion view is not ready to export.'); return; }
+      report = buildCfoExclusionsExcel(rowsForExport);
+      const local = excludedExportRef.current.getExportFilters();
+      filters = [`Type: ${local.type === 'ALL' ? 'All exclusions' : local.type.replaceAll('_', ' ')}`, local.search ? `Search: ${local.search}` : null];
+    } else if (view === 'ITEMS') {
+      const rowsForExport = itemsExportRef.current?.getExportRows();
+      if (!rowsForExport) { toast.error('Item table is not ready to export.'); return; }
+      report = buildCfoItemsExcel(rowsForExport, comparisonsByPackage);
+      filters = [`Category: ${category === 'ALL' ? 'All' : category}`, `Expense: ${expense}`, `CFO status: ${status}`, search ? `Search: ${search}` : null, 'Sort: as shown in item table'];
+    } else if (view === 'DEPARTMENTS') {
+      const rowsForExport = departmentsExportRef.current?.getExportRows();
+      if (!rowsForExport) { toast.error('Department table is not ready to export.'); return; }
+      report = buildCfoDepartmentsExcel(rowsForExport);
+      filters = [`Category: ${category === 'ALL' ? 'All' : category}`, `Expense: ${expense}`, departmentSearch ? `Search: ${departmentSearch}` : null, 'Sort: as shown in department table'];
+    } else {
+      report = buildCfoCategoriesExcel(loadedPackages, comparisonsByPackage);
+      filters = ['All submitted categories', 'Order: as shown in category table'];
+    }
+    if (!report.rows.length) { toast('No rows match the current filters.'); return; }
+    const today = new Date().toISOString().slice(0, 10);
+    const safeCategory = view === 'CATEGORIES' || isExcludedExport || category === 'ALL' ? 'All' : category;
+    const fileName = `CFO_${currentView}_FY${year?.year || 'Year'}_${safeCategory}_${today}.xlsx`;
+    setExporting(true);
+    try {
+      await exportBudgetTableViewToExcel({
+        ...report,
+        subtitle: `QNH Budget System | FY ${year?.year || '-'} | ${currentView.replaceAll('_', ' ')}`,
+        filters: filters.filter(Boolean),
+        fileName,
+      });
+      if (!isExcludedExport && view !== 'DEPARTMENTS' && optionalComparisonsUnavailable) {
+        toast('Excel exported. Some optional CFO cycle comparisons were unavailable; their cells are blank.');
+      }
+    } catch (error) {
+      toast.error(error?.message || 'Could not export the current CFO view.');
+    } finally { setExporting(false); }
+  }
   const rows = useMemo(()=>buildCfoRows(packageResponses),[packageResponses.map(q=>q.package?.id+'-'+q.package?.row_version+'-'+(q.package?.items||[]).map(i=>i.row_version).join(',')).join('|')]);
   const departments = useMemo(()=>buildCfoDepartments(packageResponses),[rows]);
   const filteredRows = useMemo(()=>filterCfoRows(rows,{search,category,status,expense}),[rows,search,category,status,expense]);
@@ -478,7 +572,14 @@ function CfoPackageReviewContent() {
     setView('ITEMS');
     document.getElementById('cfo-review-workspace')?.scrollIntoView({behavior:'smooth',block:'start'});
   }
-  const categoryOptions = useMemo(() => [{value:'ALL',label:'All Categories'},...packages.map(pkg=>({value:String(pkg.category_code).toUpperCase(),label:pkg.category_name}))],[packages]);
+  const categoryOptions = useMemo(() => [
+    { value: 'ALL', label: 'All Categories' },
+    ...packages.map(pkg => ({
+      value: String(pkg.category_code).toUpperCase(),
+      label: pkg.category_name,
+      status: pkg.status,
+    })),
+  ], [packages]);
   const statusOptions = [{value:'ALL',label:'All Statuses'},{value:'PENDING',label:'Pending Review'},{value:'CFO_ACCEPTED',label:'Accepted'},{value:'NEEDS_MODIFICATION',label:'Needs Modification'}];
   const expenseOptions = [{value:'ALL',label:'All Expense Types'},{value:'CAPEX',label:'CAPEX'},{value:'OPEX',label:'OPEX'}];
 
@@ -503,7 +604,15 @@ function CfoPackageReviewContent() {
       {readOnly && year && <p className="mt-3 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-700">FY {year.year} is {year.status}. All review actions are read-only.</p>}
     </header>
 
-    <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label={`${view === 'ITEMS' ? 'Item' : view === 'DEPARTMENTS' ? 'Department' : 'Category'} CFO review KPIs`}>
+    <AnimatePresence initial={false}>
+    {!(view === 'ITEMS' && showExcludedItems) && <motion.section
+      key="cfo-review-kpis"
+      initial={prefersReducedMotion ? false : { height: 0, opacity: 0 }}
+      animate={{ height: 'auto', opacity: 1 }}
+      exit={prefersReducedMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+      transition={{ duration: prefersReducedMotion ? 0 : 0.2, ease: 'easeInOut' }}
+      className="grid grid-cols-2 gap-3 overflow-hidden lg:grid-cols-4"
+      aria-label={`${view === 'ITEMS' ? 'Item' : view === 'DEPARTMENTS' ? 'Department' : 'Category'} CFO review KPIs`}>
       {kpis.map(card=>{
         const Icon=card.icon;
         const tones={blue:'bg-blue-50 text-blue-700',slate:'bg-slate-100 text-slate-700',emerald:'bg-emerald-50 text-emerald-700',amber:'bg-amber-50 text-amber-700'};
@@ -513,7 +622,8 @@ function CfoPackageReviewContent() {
           <p className="mt-1 min-h-8 break-words text-xs leading-4 text-slate-500">{card.hint}</p>
         </div>;
       })}
-    </section>
+    </motion.section>}
+    </AnimatePresence>
     {packages.length>0 && <DepartmentCoveragePanel financialYear={year?.year} coverage={coverage} packageBreakdown={coverage.packages}/>}
 
     <section id="cfo-review-workspace" className="scroll-mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -521,23 +631,63 @@ function CfoPackageReviewContent() {
         <div className="flex flex-wrap items-center gap-1 rounded-lg bg-slate-100 p-1" role="tablist" aria-label="CFO review perspective">
           {[['ITEMS','By Item',Layers3],['DEPARTMENTS','By Department',Building2],['CATEGORIES','By Category',PackageCheck]].map(([id,label,Icon])=><button key={id} type="button" role="tab" aria-selected={view===id} onClick={()=>setView(id)} className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-bold transition ${view===id?'bg-blue-600 text-white shadow-sm':'text-slate-600 hover:bg-white'}`}><Icon size={15}/>{label}</button>)}
         </div>
-        <span className="text-xs font-semibold text-slate-500">{view==='ITEMS'?`${filteredRows.length} of ${rows.length} items`:view==='DEPARTMENTS'?`${filteredDepartments.length} departments`:`${packages.length} category packages`}</span>
+        {view==='ITEMS' && <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5" role="group" aria-label="CFO item review mode">
+          {[{ excluded: false, label: 'Active review' }, { excluded: true, label: 'Excluded items' }].map(mode => {
+            const selected = showExcludedItems === mode.excluded;
+            return <button key={mode.label} type="button" aria-pressed={selected} onClick={() => setShowExcludedItems(mode.excluded)} className={`relative isolate overflow-hidden rounded-md px-3 py-1.5 text-xs font-bold transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 ${selected ? 'text-blue-700' : 'text-slate-600 hover:text-slate-900'}`}>
+              {selected && <motion.span layoutId="cfo-item-review-mode-indicator" className="pointer-events-none absolute inset-0 z-0 rounded-md bg-white shadow-sm" transition={prefersReducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 530, damping: 44 }}/>} 
+              <span className="relative z-10">{mode.label}</span>
+            </button>;
+          })}
+        </div>}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold text-slate-500">{view==='ITEMS'?(showExcludedItems?'Read-only exclusions':`${filteredRows.length} of ${rows.length} items`):view==='DEPARTMENTS'?`${filteredDepartments.length} departments`:`${packages.length} category packages`}</span>
+          <button type="button" onClick={exportCurrentCfoView} disabled={exportDisabled}
+            aria-label="Export current CFO view to Excel" title="Export all matching rows in the current view, using the table sort order"
+            className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 transition hover:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600 disabled:cursor-not-allowed disabled:opacity-40">
+            <FileSpreadsheet size={16}/>{exporting ? 'Exporting…' : 'Export Excel'}
+          </button>
+        </div>
       </div>
-      {view!=='CATEGORIES' && <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-white p-4">
+      {view!=='CATEGORIES' && (view!=='ITEMS' || !showExcludedItems) && <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-white p-4">
         {view==='ITEMS' && <CfoSearchField className="min-w-[200px] flex-[2_1_290px]" label="Search CFO items" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search item, model, category or note"/>}
-        <div className="min-w-[180px] flex-[1_1_190px]" aria-label="Category filter"><SearchableMultiSelect name="cfoCategory" multiple={false} disableClear value={category} options={categoryOptions} onChange={e=>setCategory(e.target.value)} searchPlaceholder="Search categories"/></div>
+        <div className="min-w-[180px] flex-[1_1_190px]" aria-label="Category filter"><SearchableMultiSelect name="cfoCategory" multiple={false} disableClear value={category} options={categoryOptions} onChange={e=>setCategory(e.target.value)} searchPlaceholder="Search categories" renderOptionSuffix={option => option.status ? <CfoReviewStatusBadge status={option.status} compact /> : null}/></div>
         {view==='ITEMS' && <>
           <div className="min-w-[175px] flex-[1_1_180px]" aria-label="CFO status filter"><SearchableMultiSelect name="cfoStatus" multiple={false} disableClear value={status} options={statusOptions} onChange={e=>setStatus(e.target.value)} searchPlaceholder="Search statuses"/></div>
         </>}
         {(view==='ITEMS'||view==='DEPARTMENTS') && <div className="min-w-[155px] flex-[1_1_165px]" aria-label="Expense type filter"><SearchableMultiSelect name="cfoExpenseType" multiple={false} disableClear value={expense} options={expenseOptions} onChange={e=>setExpense(e.target.value)} searchPlaceholder="Search expense types"/></div>}
         {(category!=='ALL'||expense!=='ALL'||(view==='ITEMS' && (status!=='ALL'||search))||(view==='DEPARTMENTS' && departmentSearch)) && <button type="button" onClick={()=>{setCategory('ALL');setStatus('ALL');setSearch('');setDepartmentSearch('');setExpense('ALL')}} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"><X size={13}/>Clear Filters</button>}
       </div>}
-      {loading ? <div className="p-10 text-center text-sm text-slate-500" role="status">Loading CFO packages and items…</div>
+      {view === 'ITEMS' && !showExcludedItems && selectedCategoryComparison?.category && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-blue-100 bg-blue-50/50 px-4 py-3" aria-label="CFO category cycle financial comparison">
+          <div>
+            <div className="text-xs font-black text-blue-900">{selectedCategoryPackage.category_name} · Since previous CFO review</div>
+            <div className="mt-1 text-xs text-slate-600">Entire category (all expenses) · Previous <CurrencyText compact value={selectedCategoryComparison.category.previous_total}/> · Current <CurrencyText compact value={selectedCategoryComparison.category.current_total}/></div>
+            <div className="mt-1 text-xs text-slate-600">{selectedCategoryComparison.summary.changed} financially changed · {selectedCategoryComparison.summary.unchanged} financially unchanged returned items</div>
+          </div>
+          <span className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-black text-blue-800">
+            {selectedCategoryComparison.category.change_amount > 0 ? '+' : ''}<CurrencyText compact value={selectedCategoryComparison.category.change_amount} /> · {selectedCategoryComparison.category.change_percent == null ? 'N/A' : `${selectedCategoryComparison.category.change_percent > 0 ? '+' : ''}${selectedCategoryComparison.category.change_percent}%`}
+          </span>
+        </div>
+      )}
+      <AnimatePresence initial={false} mode="wait">
+      <motion.div
+        key={view === 'ITEMS' ? (showExcludedItems ? 'excluded' : 'active') : view}
+        initial={prefersReducedMotion ? false : { opacity: 0, y: 7 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -5 }}
+        transition={{ duration: prefersReducedMotion ? 0 : 0.17, ease: 'easeOut' }}
+      >
+      {view==='ITEMS' && showExcludedItems ?
+        <CfoExcludedItemsView ref={excludedExportRef} key={effectiveYearId || "none"} financialYearId={effectiveYearId} query={exclusionsQuery} /> :
+      loading ? <div className="p-10 text-center text-sm text-slate-500" role="status">Loading CFO packages and items…</div>
       : loadingFailed ? <div className="p-8 text-center text-sm text-rose-700" role="alert">Could not load all CFO packages. Refresh to retry; partial data is hidden to avoid incomplete decisions.</div>
       : !packages.length ? <div className="p-10 text-center text-sm text-slate-500">No submitted category packages for this year.</div>
-      : view==='ITEMS' ? <CfoItemsTable rows={filteredRows} canDecideItem={canDecideItem} onDetails={openItem} onHistory={setComparisonRow} onAccept={acceptItemImmediately} isAcceptingItem={isAcceptingItem} onModification={item=>setModal({type:'NEEDS_MODIFICATION',item,packageId:item.package_id})}/>
-      : view==='DEPARTMENTS' ? <CfoDepartmentsTable focusDepartmentId={focusedDepartmentId} departments={departments} category={category} expense={expense} search={departmentSearch} onSearchChange={setDepartmentSearch} categoryOptions={categoryOptions} onSelectItem={openItemByIds} onCloseFocusedDepartment={()=>setFocusedDepartmentId(null)}/>
-      : <CfoCategoryTable packages={loadedPackages} eligibilityFor={eligibilityFor} onAction={(type,pkg)=>setModal({type,package:pkg})} onDistribution={packageDistribution} onTimeline={p=>setTimelinePackageId(p.id)} onFilterCategory={filterCategoryAndOpenItems} onReviewPending={reviewPendingCategory}/>}
+      : view==='ITEMS' ? <CfoItemsTable ref={itemsExportRef} rows={filteredRows} comparisonsByPackage={comparisonsByPackage} canDecideItem={canDecideItem} onDetails={openItem} onHistory={setComparisonRow} onAccept={acceptItemImmediately} isAcceptingItem={isAcceptingItem} onModification={item=>setModal({type:'NEEDS_MODIFICATION',item,packageId:item.package_id})}/>
+      : view==='DEPARTMENTS' ? <CfoDepartmentsTable ref={departmentsExportRef} focusDepartmentId={focusedDepartmentId} departments={departments} category={category} expense={expense} search={departmentSearch} onSearchChange={setDepartmentSearch} categoryOptions={categoryOptions} onSelectItem={openItemByIds} onCloseFocusedDepartment={()=>setFocusedDepartmentId(null)}/>
+      : <CfoCategoryTable packages={loadedPackages} comparisonsByPackage={comparisonsByPackage} eligibilityFor={eligibilityFor} onAction={(type,pkg)=>setModal({type,package:pkg})} onDistribution={packageDistribution} onTimeline={p=>setTimelinePackageId(p.id)} onFilterCategory={filterCategoryAndOpenItems} onReviewPending={reviewPendingCategory}/> }
+      </motion.div>
+      </AnimatePresence>
     </section>
 
     <CfoItemReviewDrawer selectedRow={selectedRow || null} visibleRows={visibleDrawerRows} itemDetail={itemDetailQuery.data} loadingDetail={itemDetailQuery.isLoading} detailError={itemDetailQuery.isError} canDecide={Boolean(selectedRow && canDecideItem(selectedRow))} onSelectItem={openItem} onCloseItem={()=>{setItemDepartmentContext(null);setSelectedRowKey(null);}} onAccept={acceptItemImmediately} accepting={Boolean(selectedRow && isAcceptingItem(selectedRow))} onNeedsModification={item=>setModal({type:'NEEDS_MODIFICATION',item,packageId:item.package_id})} onViewDistribution={itemDistribution} packageReturnNote={loadedPackages.find(p=>Number(p.id)===Number(selectedRow?.package_id))?.return_reason} onOpenDepartment={(departmentId,categoryCode)=>setItemDepartmentContext({departmentId,categoryCode})}/>
@@ -563,3 +713,4 @@ export default function CfoPackageReviewPage() {
     </CategoryBackNavigationProvider>
   );
 }
+

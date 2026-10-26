@@ -53,7 +53,6 @@ import { useCategoryBackOverlay } from "../category-review/CategoryBackNavigatio
 import { CfoRevisionBadge, CfoRevisionNotice, CfoFeedbackNote } from "../category-review/CfoRevisionFeedback.jsx";
 import PurchasingRejectionBadge from "./PurchasingRejectionBadge.jsx";
 import PurchasingModelDecisionLabel from "./PurchasingModelDecisionLabel.jsx";
-import CfoCycleDelta from "./CfoCycleDelta.jsx";
 import { groupPurchasingRejectionsByCatalog } from "./purchasingRejectionModels.js";
 import { buildCfoRevisionFeedback, isCfoRevisionItem } from "../category-review/cfoRevisionFeedback.utils.js";
 import { getCfoRevisionItemEntry } from "./cfoRevisionItemEntry.js";
@@ -78,8 +77,6 @@ import {
   getCategoryPackageDistribution,
   getCategoryPackageItemDetail,
   getCurrentCategoryPackage,
-  getCurrentCfoRevisionTracker,
-  setPackageItemCmReviewed,
   getPackageSubItemAttachments,
   removePackageSubItem,
   replaceDepartmentItemAllocations,
@@ -106,7 +103,6 @@ const PACKAGE_FILTERS = [
   { value: "ALL", label: "All" },
   { value: "NEEDS_MODIFICATION", label: "CFO Changes" },
   { value: "PURCHASING_REJECTED", label: "Purchasing Rejected" },
-  // Still used by count/filter logic; presented under More Filters below.
   { value: "NEEDS_SETUP", label: "Needs Setup" },
   { value: "NEEDS_ATTENTION", label: "Needs Attention" },
   { value: "RECONCILED", label: "Reconciled" },
@@ -2082,15 +2078,15 @@ function DepartmentDemandPanel({
         </h3>
         <p className="mt-1 text-sm leading-6 text-slate-500">
           See where the hospital demand came from and split each department's
-          approved quantity across the shared package models.
+          approved quantity across the shared package models. Pending requests are read-only until Stage 1 review is completed.
         </p>
       </div>
 
       {departments.length === 0 ? (
         <EmptyQueue
           icon={Building2}
-          title="No reviewed department demand"
-          message="This package item currently has no completed department review rows."
+          title="No submitted department demand"
+          message="This package item currently has no submitted department requests."
         />
       ) : (
         <div className="overflow-x-auto">
@@ -2189,12 +2185,15 @@ function DepartmentDemandPanel({
                       )}
                     </td>
                     <td className="px-5 py-4">
-                      <StatusBadge status={department.reconciliation_status} />
+                      {department.reconciliation_status === "PENDING_CM_REVIEW"
+                        ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-bold text-amber-800">Pending CM Review</span>
+                        : <StatusBadge status={department.reconciliation_status} />}
                     </td>
                     <td className="px-5 py-4 text-right">
                       <button
                         type="button"
-                        disabled={!editable || subItems.length === 0}
+                        disabled={!editable || subItems.length === 0 || department.reconciliation_status === "PENDING_CM_REVIEW"}
+                        title={department.reconciliation_status === "PENDING_CM_REVIEW" ? "Complete Stage 1 review before allocating approved quantities" : undefined}
                         onClick={() => onAllocate(department)}
                         className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400"
                       >
@@ -2267,7 +2266,9 @@ function PackageItemOverview({ item, detail, blockers, onViewDistribution }) {
                 Models and department demand
               </h3>
             </div>
-            <StatusBadge status={Number(item?.approved_quantity || 0) === 0 && Number(item?.requested_quantity || 0) > 0 ? "REJECTED" : item?.reconciliation_status} />
+            {Number(item?.pending_review_count || 0) > 0
+              ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800">Pending CM Review</span>
+              : <StatusBadge status={Number(item?.approved_quantity || 0) === 0 && Number(item?.requested_quantity || 0) > 0 ? "REJECTED" : item?.reconciliation_status} />}
           </div>
           <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
             <div className="rounded-xl bg-slate-50 p-3">
@@ -3106,7 +3107,9 @@ function DepartmentBreakdownView({ data, loading, error, onOpenDepartment }) {
                       </span>
                     </td>
                     <td className="px-5 py-4">
-                      <StatusBadge status={department.reconciliation_status} compact />
+                      {department.reconciliation_status === "PENDING_CM_REVIEW"
+                  ? <span className="text-xs font-bold text-amber-700">Pending CM Review</span>
+                  : <StatusBadge status={department.reconciliation_status} compact />}
                     </td>
                     <td className="px-5 py-4 text-right">
                       <button
@@ -3160,12 +3163,14 @@ function DepartmentItemsDrawer({ open, onClose, department, onManageItem }) {
             <div className="border-b border-slate-200 px-5 py-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h3 className="font-black text-slate-950">Approved Package Items</h3>
+                  <h3 className="font-black text-slate-950">Submitted Package Items</h3>
                   <p className="mt-1 text-sm text-slate-500">
                     {department.department_code || "Department"} · {department.item_count || 0} item{Number(department.item_count || 0) === 1 ? "" : "s"}
                   </p>
                 </div>
-                <StatusBadge status={department.reconciliation_status} compact />
+                {department.reconciliation_status === "PENDING_CM_REVIEW"
+                  ? <span className="text-xs font-bold text-amber-700">Pending CM Review</span>
+                  : <StatusBadge status={department.reconciliation_status} compact />}
               </div>
             </div>
 
@@ -3200,7 +3205,9 @@ function DepartmentItemsDrawer({ open, onClose, department, onManageItem }) {
                         {formatNumber(Math.abs(toNumber(item.remaining_quantity)))}
                       </td>
                       <td className="px-5 py-4">
-                        <StatusBadge status={item.reconciliation_status} compact />
+                        {item.reconciliation_status === "PENDING_CM_REVIEW"
+                          ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-bold text-amber-800">Pending CM Review</span>
+                          : <StatusBadge status={item.reconciliation_status} compact />}
                       </td>
                       <td className="px-5 py-4 text-right">
                         <button
@@ -3243,10 +3250,10 @@ export default function CategoryPackageWorkbench({
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("ALL");
-  const [cmReviewFilter, setCmReviewFilter] = useState("ALL");
   const [expenseType, setExpenseType] = useState("ALL");
   const [unitFilter, setUnitFilter] = useState("ALL");
   const [departmentFilter, setDepartmentFilter] = useState("ALL");
+  const [cmReviewFilter, setCmReviewFilter] = useState("ALL");
   const [priceStatus, setPriceStatus] = useState("ALL");
   const [modelStatus, setModelStatus] = useState("ALL");
   const [allocationStatus, setAllocationStatus] = useState("ALL");
@@ -3300,28 +3307,15 @@ export default function CategoryPackageWorkbench({
     groupPurchasingRejectionsByCatalog(exclusionsQuery.data, packageData?.budget_category_id),
     [exclusionsQuery.data, packageData?.budget_category_id]);
   const cfoFeedback = useMemo(() => buildCfoRevisionFeedback(items), [items]);
-  const cmTrackerQuery = useQuery({
-    queryKey: ["category-packages", "current", "revision-tracker", packageData?.id],
-    queryFn: getCurrentCfoRevisionTracker,
-    enabled: Boolean(packageData?.id) && packageData.status === "RETURNED_BY_CFO",
-  });
-  const cmTracker = cmTrackerQuery.data;
-  const cmTrackerById = useMemo(() => new Map((cmTracker?.items || []).map(entry => [Number(entry.item_id), entry])), [cmTracker?.items]);
-  const cmReviewMutation = useMutation({
-    mutationFn: setPackageItemCmReviewed,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["category-packages", "current", "revision-tracker"] }),
-    onError: error => toast.error(error?.response?.data?.message || "Could not save CM review status"),
-  });
-
   const packageUnitOptions = useMemo(() => unitOfMeasureOptions(items), [items]);
   const itemsTableRef = useRef(null);
   function showCfoChanges() {
     setFilter("NEEDS_MODIFICATION");
-    setCmReviewFilter("ALL");
     setSearch("");
     setExpenseType("ALL");
     setUnitFilter("ALL");
     setDepartmentFilter("ALL");
+    setCmReviewFilter("ALL");
     setPriceStatus("ALL");
     setModelStatus("ALL");
     setAllocationStatus("ALL");
@@ -3339,7 +3333,6 @@ export default function CategoryPackageWorkbench({
   useEffect(() => {
     if (!packageData?.id) return;
     setFilter(packageData.status === "RETURNED_BY_CFO" ? "NEEDS_MODIFICATION" : "ALL");
-    setCmReviewFilter("ALL");
   }, [packageData?.id, packageData?.status]);
 
   useEffect(() => {
@@ -3374,15 +3367,12 @@ export default function CategoryPackageWorkbench({
   const filteredItems = useMemo(
     () => filterStage2Items(items, {
       search, status: filter === "PURCHASING_REJECTED" ? "ALL" : filter, expenseType, departmentId: departmentFilter,
-      priceStatus, modelStatus, allocationStatus, sortBy: sortColumn, sortDirection,
+      reviewStatus: cmReviewFilter, priceStatus, modelStatus, allocationStatus, sortBy: sortColumn, sortDirection,
     }, itemBlockersById).filter((item) => matchesUnitOfMeasure(item, unitFilter) &&
-      (filter !== "PURCHASING_REJECTED" || purchasingRejectionsByCatalog.has(Number(item.catalog_item_id))) &&
-      (filter !== "NEEDS_MODIFICATION" || cmReviewFilter === "ALL" ||
-        (cmTrackerById.has(Number(item.id)) &&
-          (cmReviewFilter === "REVIEWED") === Boolean(cmTrackerById.get(Number(item.id))?.reviewed)))),
+      (filter !== "PURCHASING_REJECTED" || purchasingRejectionsByCatalog.has(Number(item.catalog_item_id)))),
     // Primitive dependencies prevent unstable object references from rerunning filters.
-    [items, itemBlockersById, purchasingRejectionsByCatalog, cmReviewFilter, cmTrackerById, search, filter, expenseType, unitFilter, departmentFilter,
-      priceStatus, modelStatus, allocationStatus, sortColumn, sortDirection],
+    [items, itemBlockersById, purchasingRejectionsByCatalog, search, filter, expenseType, unitFilter, departmentFilter,
+      cmReviewFilter, priceStatus, modelStatus, allocationStatus, sortColumn, sortDirection],
   );
   const expenseScopedItems = useMemo(() =>
     items.filter((item) => matchesUnitOfMeasure(item, unitFilter))
@@ -3395,11 +3385,11 @@ export default function CategoryPackageWorkbench({
 
   useEffect(() => {
     setTablePage(1);
-  }, [search, filter, cmReviewFilter, expenseType, unitFilter, departmentFilter, priceStatus, modelStatus, allocationStatus, sortColumn, sortDirection]);
+  }, [search, filter, expenseType, unitFilter, departmentFilter, cmReviewFilter, priceStatus, modelStatus, allocationStatus, sortColumn, sortDirection]);
 
   useEffect(() => {
     setExpandedPriceItemId(null);
-  }, [view, search, filter, expenseType, unitFilter, departmentFilter, priceStatus,
+  }, [view, search, filter, expenseType, unitFilter, departmentFilter, cmReviewFilter, priceStatus,
       modelStatus, allocationStatus, sortColumn, sortDirection, effectivePage]);
 
   function toggleInlinePrice(itemId) {
@@ -3420,10 +3410,10 @@ export default function CategoryPackageWorkbench({
   function clearStage2Filters() {
     setSearch("");
     setFilter(packageData?.status === "RETURNED_BY_CFO" ? "NEEDS_MODIFICATION" : "ALL");
-    setCmReviewFilter("ALL");
     setExpenseType("ALL");
     setUnitFilter("ALL");
     setDepartmentFilter("ALL");
+    setCmReviewFilter("ALL");
     setPriceStatus("ALL");
     setModelStatus("ALL");
     setAllocationStatus("ALL");
@@ -3433,9 +3423,9 @@ export default function CategoryPackageWorkbench({
   }
 
   const hasActiveFilters = Boolean(search.trim()) || expenseType !== "ALL" || unitFilter !== "ALL" ||
-    departmentFilter !== "ALL" || priceStatus !== "ALL" || modelStatus !== "ALL" ||
+    departmentFilter !== "ALL" || cmReviewFilter !== "ALL" || priceStatus !== "ALL" || modelStatus !== "ALL" ||
     allocationStatus !== "ALL" || sortColumn !== "NAME" || sortDirection !== "asc" ||
-    cmReviewFilter !== "ALL" || (filter !== "ALL" && !(filter === "NEEDS_MODIFICATION" && packageData?.status === "RETURNED_BY_CFO"));
+    (filter !== "ALL" && !(filter === "NEEDS_MODIFICATION" && packageData?.status === "RETURNED_BY_CFO"));
 
   const selectedItem =
     items.find((item) => Number(item.id) === Number(selectedItemId)) || null;
@@ -3781,10 +3771,10 @@ export default function CategoryPackageWorkbench({
         <div className="space-y-3 border-b border-slate-100 px-4 py-4 sm:px-5">
           {approvedTotal === 0 ? (
             <p className="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-xs font-medium text-sky-900">
-              No completed department demand yet. CAPEX/OPEX uses the catalog item type until department reviews are approved; approved quantities remain zero.
+              Submitted requests are available for early pricing. Pending department reviews do not count as approved demand, and Purchasing submission remains blocked until reviews are completed.
             </p>
           ) : null}
-          <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-2 xl:grid-cols-12">
+          <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-2 xl:grid-cols-[repeat(14,minmax(0,1fr))]">
             <label className="relative flex min-w-0 flex-col gap-1.5 md:col-span-2 xl:col-span-2">
               <span className="text-[11px] font-bold text-slate-500">Search</span>
               <Search className="pointer-events-none absolute bottom-3 left-3 h-4 w-4 text-slate-400" />
@@ -3808,6 +3798,9 @@ export default function CategoryPackageWorkbench({
             <Stage2Select label="Unit of Measure" value={unitFilter} onChange={setUnitFilter}
               options={packageUnitOptions} className="xl:col-span-2" />
             <Stage2Select label="Department" value={departmentFilter} onChange={setDepartmentFilter} options={departmentOptions} className="xl:col-span-2" />
+            <Stage2Select label="CM Review" value={cmReviewFilter} onChange={setCmReviewFilter}
+              className="xl:col-span-2"
+              options={[{value:"ALL",label:"All CM Reviews"},{value:"PENDING",label:"Pending Review"},{value:"REVIEWED",label:"Completed Review"}]} />
             <Stage2Select label="Price Status" value={priceStatus} onChange={setPriceStatus} className="xl:col-span-2"
               options={[{value:"ALL",label:"All Price Statuses"},{value:"MISSING",label:"Missing Price"},{value:"PARTIAL",label:"Partially Priced"},{value:"PRICED",label:"Fully Priced"},{value:"NOT_REQUIRED",label:"No Price Required"}]} />
             <div className="flex min-w-0 items-end justify-end gap-2 self-end md:col-span-2 xl:col-span-2">
@@ -3823,16 +3816,6 @@ export default function CategoryPackageWorkbench({
           </div>
           {moreFiltersOpen ? (
             <div className="grid gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3 sm:grid-cols-2">
-              <div className="space-y-1">
-                <span className="text-[11px] font-bold text-slate-500">Preparation status</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {[{ value: "NEEDS_SETUP", label: "Needs Setup" }, { value: "NEEDS_ATTENTION", label: "Needs Attention" }, { value: "RECONCILED", label: "Reconciled" }].map(choice => (
-                    <button key={choice.value} type="button" onClick={() => setFilter(choice.value)}
-                      aria-pressed={filter === choice.value}
-                      className={classNames("rounded-lg border px-3 py-2 text-xs font-bold", filter === choice.value ? "border-blue-300 bg-blue-100 text-blue-800" : "border-slate-200 bg-white text-slate-600 hover:bg-blue-50")}>{choice.label} {filterCounts[choice.value]}</button>
-                  ))}
-                </div>
-              </div>
               <Stage2Select label="Models" value={modelStatus} onChange={setModelStatus}
                 options={[{value:"ALL",label:"All Models"},{value:"NONE",label:"No Models"},{value:"ONE",label:"One Model"},{value:"MULTIPLE",label:"Multiple Models"}]} />
               <Stage2Select label="Allocation Status" value={allocationStatus} onChange={setAllocationStatus}
@@ -3840,8 +3823,7 @@ export default function CategoryPackageWorkbench({
             </div>
           ) : null}
           <div className="flex flex-wrap items-center gap-2" aria-label="Preparation status filters">
-            {PACKAGE_FILTERS.filter((entry) => ["ALL", "NEEDS_MODIFICATION", "PURCHASING_REJECTED"].includes(entry.value) &&
-              (entry.value !== "NEEDS_MODIFICATION" || packageData.status === "RETURNED_BY_CFO") &&
+            {PACKAGE_FILTERS.filter((entry) => (entry.value !== "NEEDS_MODIFICATION" || packageData.status === "RETURNED_BY_CFO") &&
               (entry.value !== "PURCHASING_REJECTED" || purchasingRejectionsByCatalog.size > 0))
               .map((entry) => (
                 <button type="button" key={entry.value} aria-pressed={filter === entry.value} onClick={() => setFilter(entry.value)}
@@ -3852,37 +3834,13 @@ export default function CategoryPackageWorkbench({
                 >{entry.value === "NEEDS_MODIFICATION" ? <AlertCircle className="mr-1 inline h-3.5 w-3.5" /> : null}{entry.label} {filterCounts[entry.value]}</button>
               ))}
           </div>
-          {filter === "NEEDS_MODIFICATION" && cmTrackerQuery.isError ? (
-            <div role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">CM review progress could not be loaded. Changes and submission permissions are unaffected; refresh the page to restore the checklist.</div>
-          ) : null}
-          {filter === "NEEDS_MODIFICATION" && packageData.status === "RETURNED_BY_CFO" && cmTracker?.active && cmTracker.summary?.total > 0 ? (
-            <div className="rounded-xl border border-blue-100 bg-blue-50/40 px-4 py-3" aria-label="CFO revision progress">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-56 flex-1">
-                  <div className="text-xs font-black text-slate-800">CFO revision progress</div>
-                  <div className="mt-1 text-xs text-slate-600">{cmTracker.summary.reviewed} of {cmTracker.summary.total} reviewed · {cmTracker.summary.remaining} remaining</div>
-                  <div className="mt-2 h-1.5 w-full max-w-sm overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-label="CM review progress" aria-valuemin={0} aria-valuemax={cmTracker.summary.total} aria-valuenow={cmTracker.summary.reviewed}>
-                    <div className="h-full rounded-full bg-emerald-500" style={{ width: `${100 * cmTracker.summary.reviewed / cmTracker.summary.total}%` }}/>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter CFO items by CM review status">
-                  {[
-                    ["ALL", `All ${cmTracker.summary.total}`],
-                    ["TO_REVIEW", `To Review ${cmTracker.summary.remaining}`],
-                    ["REVIEWED", `Reviewed ${cmTracker.summary.reviewed}`],
-                  ].map(([value, label]) => <button type="button" key={value} onClick={() => setCmReviewFilter(value)}
-                    aria-pressed={cmReviewFilter === value}
-                    className={classNames("rounded-lg border px-3 py-2 text-xs font-black transition", cmReviewFilter === value ? "border-blue-200 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-blue-50")}>{label}</button>)}
-                </div>
-              </div>
-            </div>
-          ) : null}
           {hasActiveFilters ? (
             <div className="flex flex-wrap items-center gap-1.5" aria-label="Active filters">
               {[
                 ...(expenseType !== "ALL" ? [{ label: expenseType, clear: () => setExpenseType("ALL") }] : []),
                 ...(unitFilter !== "ALL" ? [{ label: packageUnitOptions.find((entry) => entry.value === unitFilter)?.label || "Unit of Measure", clear: () => setUnitFilter("ALL") }] : []),
                 ...(departmentFilter !== "ALL" ? [{ label: departmentOptions.find((d) => d.value === departmentFilter)?.label || "Department", clear: () => setDepartmentFilter("ALL") }] : []),
+                ...(cmReviewFilter !== "ALL" ? [{ label: `CM Review: ${cmReviewFilter.toLowerCase()}`, clear: () => setCmReviewFilter("ALL") }] : []),
                 ...(priceStatus !== "ALL" ? [{ label: `Price: ${priceStatus.toLowerCase()}`, clear: () => setPriceStatus("ALL") }] : []),
                 ...(modelStatus !== "ALL" ? [{ label: `Models: ${modelStatus.toLowerCase()}`, clear: () => setModelStatus("ALL") }] : []),
                 ...(allocationStatus !== "ALL" ? [{ label: `Allocation: ${allocationStatus.toLowerCase()}`, clear: () => setAllocationStatus("ALL") }] : []),
@@ -3955,6 +3913,8 @@ export default function CategoryPackageWorkbench({
                       isValidUnitPrice(model.category_manager_unit_price),
                     ));
                   const expanded = Number(expandedPriceItemId) === Number(item.id);
+                  const awaitingCmReview = Number(item.view_pending_review_count || 0) > 0;
+                  const zeroApprovedFinal = !awaitingCmReview && Number(item.approved_quantity || 0) === 0 && Number(item.requested_quantity || 0) > 0;
                   return (
                     <Fragment key={item.id}>
                     <tr
@@ -4004,7 +3964,7 @@ export default function CategoryPackageWorkbench({
                             </p>
                             {(packageData.status === "RETURNED_BY_CFO" && isCfoRevisionItem(item)) ||
                               purchasingRejectionsByCatalog.has(Number(item.catalog_item_id)) ||
-                              (Number(item.approved_quantity || 0) === 0 && Number(item.requested_quantity || 0) > 0) ? (
+                              awaitingCmReview || zeroApprovedFinal ? (
                               <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
                                 {packageData.status === "RETURNED_BY_CFO" && isCfoRevisionItem(item) ? (
                                   <CfoFeedbackNote
@@ -4021,8 +3981,12 @@ export default function CategoryPackageWorkbench({
                                     />
                                   </span>
                                 ) : null}
-                                {Number(item.approved_quantity || 0) === 0 && Number(item.requested_quantity || 0) > 0 ? (
-                                  <span className="inline-flex shrink-0 whitespace-nowrap rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">Rejected · 0 approved</span>
+                                {awaitingCmReview ? (
+                                  <span className="inline-flex shrink-0 whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                                    Pending CM Review · {item.view_pending_review_count} request{item.view_pending_review_count === 1 ? "" : "s"}
+                                  </span>
+                                ) : zeroApprovedFinal ? (
+                                  <span className="inline-flex shrink-0 whitespace-nowrap rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">CM Approved 0</span>
                                 ) : null}
                               </div>
                             ) : null}
@@ -4036,18 +4000,12 @@ export default function CategoryPackageWorkbench({
                             shared={cfoFeedback.getLabel(item) === "Shared instruction"}
                             label={cfoFeedback.getLabel(item) === "Shared instruction" ? "Shared instruction" : undefined}
                           /> : <span className="text-xs text-slate-400">No CFO changes</span>}
-                          {isCfoRevisionItem(item) && cmTrackerById.has(Number(item.id)) ? (
-                            <button type="button"
-                              disabled={cmReviewMutation.isPending}
-                              aria-pressed={Boolean(cmTrackerById.get(Number(item.id)).reviewed)}
-                              onClick={() => cmReviewMutation.mutate({ itemId: item.id, reviewed: !cmTrackerById.get(Number(item.id)).reviewed })}
-                              className={classNames("mt-2 inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] font-black transition disabled:opacity-50",
-                                cmTrackerById.get(Number(item.id)).reviewed ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" : "border-blue-200 bg-white text-blue-700 hover:bg-blue-50")}
-                            ><CheckCircle2 className="h-3.5 w-3.5" /> {cmTrackerById.get(Number(item.id)).reviewed ? "Reviewed" : "Mark Reviewed"}</button>
-                          ) : null}
                         </td>
                       ) : null}
-                      <td className="px-5 py-4 font-black text-slate-950">{formatNumber(item.view_approved_quantity)}</td>
+                      <td className="px-5 py-4 font-black text-slate-950">
+                        {formatNumber(item.view_approved_quantity)}
+                        {awaitingCmReview ? <p className="mt-1 text-[11px] font-semibold text-amber-700">Requested {formatNumber(item.view_requested_quantity)} · CM review pending</p> : null}
+                      </td>
                       <td className="px-5 py-4">
                         <button
                           type="button"
@@ -4060,35 +4018,27 @@ export default function CategoryPackageWorkbench({
                       </td>
                       <td className="px-5 py-4 font-bold text-slate-700">{item.active_sub_item_count || 0}</td>
                       <td className="px-5 py-4 font-bold text-slate-900">
-                        {Number(item.view_approved_quantity || 0) === 0 ? (
+                        {Number(item.view_approved_quantity || 0) === 0 && !awaitingCmReview ? (
                           <span className="text-xs font-semibold text-slate-500">Not required</span>
                         ) : (
-                          <div className="space-y-1">
-                            <PackageItemUnitPrice
-                              item={item}
-                              onOpenModels={() => openItem(item.id, "MODELS")}
-                            />
-                            {packageData.status === "RETURNED_BY_CFO" && cmTrackerById.has(Number(item.id)) ? (
-                              <CfoCycleDelta comparison={cmTrackerById.get(Number(item.id))} mode="price" compact />
-                            ) : null}
-                          </div>
+                          <PackageItemUnitPrice
+                            item={item}
+                            onOpenModels={() => openItem(item.id, "MODELS")}
+                          />
                         )}
                       </td>
                       <td className="px-5 py-4 font-black text-slate-950">
-                        <div className="space-y-1">
-                        {item.view_approved_quantity === 0 ? (
+                        {item.view_approved_quantity === 0 && awaitingCmReview ? (
+                          <span className="text-xs font-semibold text-amber-700">Awaiting approval</span>
+                        ) : item.view_approved_quantity === 0 ? (
                           <CurrencyText value={0} />
                         ) : allModelsPriced && item.view_estimated_value !== null ? (
                           <CurrencyText value={item.view_estimated_value} />
                         ) : (
                           <span className="text-xs text-amber-700">Not available</span>
                         )}
-                        {packageData.status === "RETURNED_BY_CFO" && cmTrackerById.has(Number(item.id)) ? (
-                          <CfoCycleDelta comparison={cmTrackerById.get(Number(item.id))} mode="total" compact />
-                        ) : null}
-                        </div>
                       </td>
-                      <td className="px-5 py-4" title="Overall package reconciliation, not limited to the selected expense type"><StatusBadge status={Number(item.approved_quantity || 0) === 0 && Number(item.requested_quantity || 0) > 0 ? "REJECTED" : item.reconciliation_status} compact /></td>
+                      <td className="px-5 py-4" title="Overall package reconciliation, not limited to the selected expense type">{awaitingCmReview ? <span className="text-xs font-bold text-amber-700">CM review pending</span> : <StatusBadge status={zeroApprovedFinal ? "REJECTED" : item.reconciliation_status} compact />}</td>
                       <td className="px-5 py-4">
                         {itemBlockers.length ? (
                           <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-black text-amber-700">
@@ -4096,7 +4046,7 @@ export default function CategoryPackageWorkbench({
                           </span>
                         ) : (
                           <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700">
-                            {Number(item.approved_quantity || 0) === 0 ? "Not required" : "Ready"}
+                            {awaitingCmReview ? "Awaiting CM review" : Number(item.approved_quantity || 0) === 0 ? "Not required" : "Ready"}
                           </span>
                         )}
                       </td>
@@ -4119,7 +4069,7 @@ export default function CategoryPackageWorkbench({
                     {expanded ? (
                       <tr id={`general-price-editor-${item.id}`} className="bg-white">
                         <td colSpan={packageData.status === "RETURNED_BY_CFO" ? 10 : 9} className="px-4 pb-4 pt-1 sm:px-5">
-                          {Number(item.approved_quantity || 0) === 0 ? (
+                          {Number(item.approved_quantity || 0) === 0 && !awaitingCmReview ? (
                             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-600">
                               No approved quantity: this request is retained for review history. Pricing is not required and it will not be sent to Purchasing or CFO.
                             </div>

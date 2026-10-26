@@ -9,9 +9,15 @@ const positivePrice = (value) => value !== null && value !== undefined && value 
 
 export function packagePriceStatus(item) {
   // Pricing is not required for rejected demand or unused models.
-  if (quantity(item.approved_quantity) <= 0) return "NOT_REQUIRED";
+  const hasPendingReview = quantity(item.pending_review_count) > 0;
+  // Only a confirmed zero approval makes pricing unnecessary; an incomplete
+  // response must not be mistaken for a reviewed-and-rejected request.
+  if (item.approved_quantity != null && quantity(item.approved_quantity) <= 0 && !hasPendingReview) return "NOT_REQUIRED";
+  // A draft price can be entered before Stage 1 completes; there is no
+  // allocated model quantity yet, so inspect the proposed model prices.
   const models = (item.model_unit_prices || []).filter((row) =>
-    quantity(row.quantity) > 0,
+    row.quantity == null || quantity(row.quantity) > 0 ||
+    (hasPendingReview && quantity(item.approved_quantity) <= 0),
   );
   if (!models.length) return "MISSING";
   const priced = models.filter((row) => positivePrice(row.category_manager_unit_price)).length;
@@ -48,6 +54,16 @@ export function scopePackageItem(item, expenseType = "ALL", departmentId = "ALL"
   const approved = scoped
     ? contributions.reduce((total, row) => total + quantity(row.approved_quantity), 0)
     : quantity(item.approved_quantity);
+  const requested = scoped
+    ? contributions.reduce((total, row) => total + quantity(row.requested_quantity), 0)
+    : quantity(item.requested_quantity);
+  const pendingReviews = scoped
+    ? contributions.filter((row) => row.item_review_status !== "CATEGORY_REVIEW_COMPLETED" ||
+        row.department_review_status !== "CATEGORY_REVIEW_COMPLETED").length
+    : quantity(item.pending_review_count);
+  const reviewedRequests = scoped
+    ? contributions.length - pendingReviews
+    : quantity(item.reviewed_request_count);
   const allocated = scoped
     ? contributions.reduce((total, row) => total + quantity(row.allocated_quantity), 0)
     : quantity(item.allocated_quantity);
@@ -67,6 +83,10 @@ export function scopePackageItem(item, expenseType = "ALL", departmentId = "ALL"
   return {
     ...item,
     view_approved_quantity: approved,
+    view_requested_quantity: requested,
+    view_pending_review_count: pendingReviews,
+    view_reviewed_request_count: reviewedRequests,
+    view_review_status: pendingReviews > 0 ? "PENDING" : "REVIEWED",
     view_allocated_quantity: allocated,
     view_department_count: departments,
     view_estimated_value: value,
@@ -129,6 +149,9 @@ export function filterStage2Items(items, options, blockersById = new Map()) {
     .filter((item) => {
       if (query && ![item.catalog_item_name, item.catalog_item_code, item.unit_name]
         .some((value) => String(value || "").toLowerCase().includes(query))) return false;
+      if (options.reviewStatus === "PENDING" && item.view_pending_review_count === 0) return false;
+      if (options.reviewStatus === "REVIEWED" &&
+          (item.view_pending_review_count > 0 || item.view_reviewed_request_count === 0)) return false;
       if (options.priceStatus !== "ALL" && packagePriceStatus(item) !== options.priceStatus) return false;
       if (options.modelStatus === "NONE" && Number(item.active_sub_item_count) !== 0) return false;
       if (options.modelStatus === "ONE" && Number(item.active_sub_item_count) !== 1) return false;
@@ -173,3 +196,4 @@ export function filterStage2Departments(data, expenseType = "ALL") {
   }), { department_count: 0, item_count: 0, requested_quantity: 0, approved_quantity: 0, allocated_quantity: 0, issue_count: 0 });
   return { ...data, departments, summary };
 }
+

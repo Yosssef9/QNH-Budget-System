@@ -57,8 +57,6 @@ import {
   replaceApprovedDistributionForDepartmentItemRepo,
   updatePackageItemReconciliationRepo,
   findRejectedPackageModelRepo,
-  findRejectedSingleGeneralForDepartmentItemRepo,
-  findRejectedSingleGeneralForPackageItemRepo,
   reduceRejectedAllocationRepo,
   updatePackageSubItemRepo,
   upsertAllocationRepo,
@@ -895,6 +893,13 @@ function buildReadiness(packageData, itemDetailsById = new Map()) {
   }
 
   for (const item of packageData.items || []) {
+    if (Number(item.pending_review_count || 0) > 0) {
+      blockers.push({
+        code: "PACKAGE_DEPARTMENT_REVIEWS_PENDING",
+        packageItemId: item.id,
+        message: `${item.catalog_item_name} has ${item.pending_review_count} request(s) awaiting completed CM review`,
+      });
+    }
     const itemDetail = itemDetailsById.get(Number(item.id));
 
     if (
@@ -1043,6 +1048,8 @@ async function loadPackageForCategory(budgetCategoryId) {
       department_name: row.department_name,
       department_code: row.department_code,
       expense_type: row.expense_type,
+      item_review_status: row.item_review_status,
+      department_review_status: row.department_review_status,
       requested_quantity: Number(row.requested_quantity || 0),
       approved_quantity: Number(row.approved_quantity || 0),
       allocated_quantity: Number(row.allocated_quantity || 0),
@@ -1206,12 +1213,7 @@ export async function createPackageSubItemService({
       transaction,
     );
     assertCategoryScope(context, budgetCategoryId);
-    assertPackageItemEditable(context);
-    if (await findRejectedSingleGeneralForPackageItemRepo(transaction, packageItemId)) {
-      throw new ApiError(409,
-        "Purchasing rejected the only General model. CM cannot add a replacement model until Purchasing reinstates the rejection.",
-        "PURCHASING_REJECTED_GENERAL_LOCKED");
-    }
+  assertPackageItemEditable(context);
 
     const catalogSubItem = await findCatalogSubItemForPackageRepo(
       {
@@ -1858,16 +1860,11 @@ export async function replaceDepartmentItemAllocationsService({
       for (const modelId of protectedModelIds) {
         const current = roundQuantity(allocationBySubItem.get(modelId) || 0);
         const previous = roundQuantity(previousRejected.get(modelId) || 0);
-        const isSingleGeneral = subItems.length === 1 &&
-          String(subItems[0].package_sub_item_name || "").trim().toUpperCase() === "GENERAL";
-        const isAuthorizedRelease = !isSingleGeneral &&
-          packageContext.package_status === CATEGORY_PACKAGE_STATUS.RETURNED_BY_CFO &&
+        const isAuthorizedRelease = packageContext.package_status === CATEGORY_PACKAGE_STATUS.RETURNED_BY_CFO &&
           packageContext.cfo_review_status === CATEGORY_PACKAGE_ITEM_CFO_STATUS.NEEDS_MODIFICATION;
         if (current > previous || (current < previous && !isAuthorizedRelease)) {
           throw new ApiError(409,
-            isSingleGeneral
-              ? "The only General model was rejected by Purchasing; its allocation cannot change until Purchasing reinstates it."
-              : "Cannot increase a Purchasing-rejected model allocation. Reducing it requires an authorized revision.",
+            "Cannot increase a Purchasing-rejected model allocation. Reducing it requires a CFO-returned revision.",
             "PURCHASING_REJECTED_MODEL_ALLOCATION_LOCKED", { packageSubItemId: modelId });
         }
       }
@@ -2141,21 +2138,15 @@ export async function submitCategoryPackageToPurchasingService({
       created_by: actorUserId,
     });
 
-    for (const carried of updated.carried_forward_decisions || []) {
+    for (const packageSubItemId of updated.carried_forward_sub_item_ids || []) {
       await createWorkflowHistoryRepo(transaction, {
         financial_year_id: packageRow.financial_year_id,
         entity_type: "CATEGORY_PACKAGE_SUB_ITEM",
-        entity_id: carried.packageSubItemId,
-        action: carried.decision === "REJECTED"
-          ? "PURCHASING_REJECTION_CARRIED_FORWARD"
-          : CATEGORY_PACKAGE_WORKFLOW_ACTIONS.PURCHASING_PRICE_CARRIED_FORWARD,
-        old_status: carried.decision,
-        new_status: carried.decision,
-        note: carried.decision === "REJECTED" ? carried.reason : null,
+        entity_id: packageSubItemId,
+        action:
+          CATEGORY_PACKAGE_WORKFLOW_ACTIONS.PURCHASING_PRICE_CARRIED_FORWARD,
         new_values_json: JSON.stringify({
           reviewRound: updated.review_round,
-          decision: carried.decision,
-          rejectionReason: carried.reason || null,
         }),
         user_role_id: getUserRoleId(budgetAccess),
         acting_workspace: getActingWorkspace(budgetAccess),
@@ -2229,13 +2220,6 @@ export async function updateDepartmentItemApprovedQuantityService({
 
     // Keep this security check before updating.
     assertCategoryScope(context, budgetCategoryId);
-
-    // CFO return never overrides Purchasing's rejection of the only General model.
-    if (await findRejectedSingleGeneralForDepartmentItemRepo(transaction, departmentItemId, context.package_id)) {
-      throw new ApiError(409,
-        "Purchasing rejected the only General model. Approved quantities and distributions are read-only until Purchasing reinstates it.",
-        "PURCHASING_REJECTED_GENERAL_LOCKED");
-    }
 
     // Keep the returned-CFO package and item checks.
     assertReturnedPackageItemDecisionEditable(context);
@@ -2413,6 +2397,7 @@ export async function updateDepartmentItemApprovedQuantityService({
   // Do not load the complete package-workbench item again.
   return result;
 }
+
 
 
 

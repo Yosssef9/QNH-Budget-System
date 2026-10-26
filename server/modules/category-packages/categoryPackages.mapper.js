@@ -134,6 +134,8 @@ export function mapPackageItem(row, subItems = []) {
     needs_reconciliation: Boolean(row.needs_reconciliation),
     row_version: row.row_version,
     department_count: Number(row.department_count || 0),
+    pending_review_count: Number(row.pending_review_count || 0),
+    reviewed_request_count: Number(row.reviewed_request_count || 0),
     active_sub_item_count: activeSubItemCount,
     model_unit_prices: modelUnitPrices,
     requested_quantity: requestedQuantity,
@@ -289,6 +291,8 @@ export function mapDepartmentDemand(row, allocations = []) {
     department_name: row.department_name,
     department_code: row.department_code,
     catalog_item_id: row.catalog_item_id,
+    item_review_status: row.item_review_status || null,
+    department_review_status: row.department_review_status || null,
     requested_quantity: toNumber(row.requested_quantity),
     approved_quantity: approvedQuantity,
     allocated_quantity: allocatedQuantity,
@@ -298,11 +302,14 @@ export function mapDepartmentDemand(row, allocations = []) {
     review_note: row.review_note,
     row_version: row.row_version,
     reconciliation_status:
-      remainingQuantity > 0
-        ? RECONCILIATION_STATUS.SHORT
-        : remainingQuantity < 0
-          ? RECONCILIATION_STATUS.EXCESS
-          : RECONCILIATION_STATUS.RECONCILED,
+      row.item_review_status !== "CATEGORY_REVIEW_COMPLETED" ||
+      row.department_review_status !== "CATEGORY_REVIEW_COMPLETED"
+        ? "PENDING_CM_REVIEW"
+        : remainingQuantity > 0
+          ? RECONCILIATION_STATUS.SHORT
+          : remainingQuantity < 0
+            ? RECONCILIATION_STATUS.EXCESS
+            : RECONCILIATION_STATUS.RECONCILED,
     allocations,
   };
 }
@@ -412,6 +419,8 @@ export function mapDepartmentPackageView(rows = []) {
         catalog_item_code: row.catalog_item_code,
         requested_quantity: toNumber(row.requested_quantity),
         approved_quantity: toNumber(row.category_approved_quantity),
+        review_status: row.item_review_status || null,
+        department_review_status: row.department_review_status || null,
         expense_type: String(row.expense_type || "").toUpperCase(),
         hod_item_note: row.hod_item_note || null,
         hodItemNote: row.hod_item_note || null,
@@ -461,11 +470,14 @@ export function mapDepartmentPackageView(rows = []) {
         allocated_quantity: allocatedQuantity,
         remaining_quantity: remainingQuantity,
         reconciliation_status:
-          remainingQuantity > 0
-            ? RECONCILIATION_STATUS.SHORT
-            : remainingQuantity < 0
-              ? RECONCILIATION_STATUS.EXCESS
-              : RECONCILIATION_STATUS.RECONCILED,
+          item.review_status !== "CATEGORY_REVIEW_COMPLETED" ||
+          item.department_review_status !== "CATEGORY_REVIEW_COMPLETED"
+            ? "PENDING_CM_REVIEW"
+            : remainingQuantity > 0
+              ? RECONCILIATION_STATUS.SHORT
+              : remainingQuantity < 0
+                ? RECONCILIATION_STATUS.EXCESS
+                : RECONCILIATION_STATUS.RECONCILED,
       };
     });
 
@@ -505,8 +517,10 @@ export function mapDepartmentPackageView(rows = []) {
       remaining_quantity: remainingQuantity,
       issue_count: totals.issue_count,
       reconciliation_status:
-        totals.issue_count === 0
-          ? RECONCILIATION_STATUS.RECONCILED
+        items.some((item) => item.reconciliation_status === "PENDING_CM_REVIEW")
+          ? "PENDING_CM_REVIEW"
+          : totals.issue_count === 0
+            ? RECONCILIATION_STATUS.RECONCILED
           : items.some(
                 (item) =>
                   item.reconciliation_status ===
@@ -549,5 +563,6 @@ export function mapDepartmentPackageView(rows = []) {
     departments,
   };
 }
+
 
 

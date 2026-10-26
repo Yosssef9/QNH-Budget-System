@@ -93,7 +93,15 @@ export async function listPackageItemsRepo({ packageId, approvedOnly = false }, 
         item.catalog_item_id,
         COUNT(DISTINCT dcb.id) AS department_count,
         COALESCE(SUM(item.requested_quantity), 0) AS requested_quantity,
-        COALESCE(SUM(item.category_approved_quantity), 0) AS approved_quantity
+        COALESCE(SUM(CASE WHEN dcb.status = '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
+                            AND item.review_status = '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
+                          THEN item.category_approved_quantity ELSE 0 END), 0) AS approved_quantity,
+        SUM(CASE WHEN dcb.status = '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
+                   AND item.review_status = '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
+                 THEN 1 ELSE 0 END) AS reviewed_request_count,
+        SUM(CASE WHEN dcb.status <> '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
+                    OR item.review_status <> '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
+                 THEN 1 ELSE 0 END) AS pending_review_count
       FROM dbo.BS_department_category_budget_items AS item
       INNER JOIN dbo.BS_department_category_budgets AS dcb
         ON dcb.id = item.department_category_budget_id
@@ -104,8 +112,7 @@ export async function listPackageItemsRepo({ packageId, approvedOnly = false }, 
        AND pkg.budget_category_id = dcb.budget_category_id
       WHERE pkg.id = @packageId
         AND item.is_active = 1
-        AND item.review_status = '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
-        AND dcb.status = '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
+        AND dcb.status IN ('IN_CATEGORY_REVIEW', '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}')
       GROUP BY item.catalog_item_id
     ),
     allocated AS (
@@ -207,6 +214,8 @@ export async function listPackageItemsRepo({ packageId, approvedOnly = false }, 
       packageItem.row_version,
       COALESCE(demand.department_count, 0) AS department_count,
       COALESCE(demand.requested_quantity, 0) AS requested_quantity,
+      COALESCE(demand.reviewed_request_count, 0) AS reviewed_request_count,
+      COALESCE(demand.pending_review_count, 0) AS pending_review_count,
       COALESCE(demand.approved_quantity, 0) AS approved_quantity,
       COALESCE(allocated.allocated_quantity, 0) AS allocated_quantity,
       COALESCE(valueTotals.estimated_total, 0) AS estimated_total,
@@ -287,7 +296,11 @@ export async function listPackageItemExpenseContributionsRepo({ packageId }) {
         UPPER(COALESCE(NULLIF(item.expense_type_snapshot, ''), catalog.expense_type, '')) AS expense_type,
         item.id AS department_item_id,
         item.requested_quantity,
-        item.category_approved_quantity AS approved_quantity,
+        CASE WHEN dcb.status = '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
+                  AND item.review_status = '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
+             THEN item.category_approved_quantity ELSE 0 END AS approved_quantity,
+        item.review_status AS item_review_status,
+        dcb.status AS department_review_status,
         COALESCE(SUM(CASE WHEN subItem.id IS NOT NULL THEN allocation.allocated_quantity ELSE 0 END), 0) AS allocated_quantity,
         COALESCE(SUM(CASE WHEN subItem.id IS NOT NULL AND
           COALESCE(subItem.category_manager_unit_price, subItem.unit_price) > 0
@@ -309,12 +322,11 @@ export async function listPackageItemExpenseContributionsRepo({ packageId }) {
       INNER JOIN dbo.BS_department_category_budgets AS dcb
         ON dcb.department_budget_id = db.id
        AND dcb.budget_category_id = pkg.budget_category_id
-       AND dcb.status = '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
+       AND dcb.status IN ('IN_CATEGORY_REVIEW', '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}')
       INNER JOIN dbo.BS_department_category_budget_items AS item
         ON item.department_category_budget_id = dcb.id
        AND item.catalog_item_id = packageItem.catalog_item_id
        AND item.is_active = 1
-       AND item.review_status = '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
       INNER JOIN dbo.BS_budget_catalog_items AS catalog
         ON catalog.id = item.catalog_item_id
       LEFT JOIN dbo.BS_category_budget_package_sub_items AS subItem
@@ -326,7 +338,8 @@ export async function listPackageItemExpenseContributionsRepo({ packageId }) {
       WHERE pkg.id = @packageId AND packageItem.is_active = 1
       GROUP BY packageItem.id, item.id, department.id,
         department.name, department.department_code, item.expense_type_snapshot, catalog.expense_type,
-        item.requested_quantity, item.category_approved_quantity
+        item.requested_quantity, item.category_approved_quantity,
+        item.review_status, dcb.status
     `);
   return result.recordset;
 }
@@ -348,7 +361,11 @@ export async function listDepartmentPackageViewRowsRepo(
         item.department_category_budget_id,
         item.catalog_item_id,
         item.requested_quantity,
-        item.category_approved_quantity,
+        CASE WHEN departmentCategoryBudget.status = '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
+                  AND item.review_status = '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
+             THEN item.category_approved_quantity ELSE 0 END AS category_approved_quantity,
+        item.review_status AS item_review_status,
+        departmentCategoryBudget.status AS department_review_status,
         COALESCE(NULLIF(item.expense_type_snapshot, ''), catalog.expense_type) AS expense_type,
         item.hod_item_note,
         item.review_note,
@@ -387,14 +404,12 @@ export async function listDepartmentPackageViewRowsRepo(
       INNER JOIN dbo.BS_department_category_budgets AS departmentCategoryBudget
         ON departmentCategoryBudget.department_budget_id = departmentBudget.id
        AND departmentCategoryBudget.budget_category_id = pkg.budget_category_id
-       AND departmentCategoryBudget.status =
-         '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
+       AND departmentCategoryBudget.status IN
+         ('IN_CATEGORY_REVIEW', '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}')
 
       INNER JOIN dbo.BS_department_category_budget_items AS item
         ON item.department_category_budget_id = departmentCategoryBudget.id
        AND item.is_active = 1
-       AND item.review_status =
-         '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
 
       INNER JOIN dbo.BS_departments AS dept
         ON dept.id = departmentBudget.department_id
@@ -754,7 +769,11 @@ export async function listPackageItemDetailRowsRepo(
         item.department_category_budget_id,
         item.catalog_item_id,
         item.requested_quantity,
-        item.category_approved_quantity,
+        CASE WHEN dcb.status = '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
+                  AND item.review_status = '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
+             THEN item.category_approved_quantity ELSE 0 END AS category_approved_quantity,
+        item.review_status AS item_review_status,
+        dcb.status AS department_review_status,
         item.hod_item_note,
         item.review_note,
         item.row_version,
@@ -784,8 +803,6 @@ export async function listPackageItemDetailRowsRepo(
         ON item.department_category_budget_id = dcb.id
        AND item.catalog_item_id = packageItem.catalog_item_id
        AND item.is_active = 1
-       AND item.review_status =
-         '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
 
       INNER JOIN dbo.BS_departments AS dept
         ON dept.id = db.department_id
@@ -800,8 +817,8 @@ export async function listPackageItemDetailRowsRepo(
 
       WHERE packageItem.id = @packageItemId
         AND packageItem.is_active = 1
-        AND dcb.status =
-          '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}'
+        AND dcb.status IN
+          ('IN_CATEGORY_REVIEW', '${DEPARTMENT_REVIEW_STATUS.CATEGORY_REVIEW_COMPLETED}')
 
       GROUP BY
         item.id,
@@ -812,6 +829,7 @@ export async function listPackageItemDetailRowsRepo(
         item.hod_item_note,
         item.review_note,
         item.row_version,
+        item.review_status, dcb.status,
 
         dept.id,
         dept.name,
@@ -1859,7 +1877,6 @@ export async function markPackageSubmittedToPurchasingRepo(transaction, payload)
         previous_purchasing_unit_price,
         purchasing_unit_price,
         status,
-        rejection_reason,
         decision_source,
         reviewed_by,
         reviewed_user_role_id,
@@ -1874,30 +1891,25 @@ export async function markPackageSubmittedToPurchasingRepo(transaction, payload)
         subItem.specification,
         subItem.unit_of_measure_id,
         subItem.category_manager_unit_price,
-        latestDecision.purchasing_unit_price,
-        CASE WHEN latestDecision.status = 'REJECTED'
-          THEN latestDecision.purchasing_unit_price
-          WHEN unchanged.is_unchanged = 1 THEN latestDecision.purchasing_unit_price
-          ELSE subItem.category_manager_unit_price END,
-        CASE WHEN latestDecision.status = 'REJECTED'
-          THEN 'REJECTED'
-          WHEN unchanged.is_unchanged = 1 THEN 'ACCEPTED'
-          ELSE 'PENDING' END,
-        CASE WHEN latestDecision.status = 'REJECTED'
-          THEN latestDecision.rejection_reason ELSE NULL END,
-        CASE WHEN latestDecision.status = 'REJECTED'
-            OR unchanged.is_unchanged = 1 THEN 'CARRIED_FORWARD' ELSE 'MANUAL' END,
-        CASE WHEN latestDecision.status = 'REJECTED'
-            OR unchanged.is_unchanged = 1 THEN latestDecision.reviewed_by ELSE NULL END,
-        CASE WHEN latestDecision.status = 'REJECTED'
-            OR unchanged.is_unchanged = 1 THEN latestDecision.reviewed_user_role_id ELSE NULL END,
-        CASE WHEN latestDecision.status = 'REJECTED'
-            OR unchanged.is_unchanged = 1 THEN SYSUTCDATETIME() ELSE NULL END
+        previousReview.purchasing_unit_price,
+        CASE WHEN unchanged.is_unchanged = 1
+          THEN previousReview.purchasing_unit_price
+          ELSE subItem.category_manager_unit_price
+        END,
+        CASE WHEN unchanged.is_unchanged = 1 THEN 'ACCEPTED' ELSE 'PENDING' END,
+        CASE WHEN unchanged.is_unchanged = 1 THEN 'CARRIED_FORWARD' ELSE 'MANUAL' END,
+        CASE WHEN unchanged.is_unchanged = 1 THEN previousReview.reviewed_by ELSE NULL END,
+        CASE WHEN unchanged.is_unchanged = 1 THEN previousReview.reviewed_user_role_id ELSE NULL END,
+        CASE WHEN unchanged.is_unchanged = 1 THEN SYSUTCDATETIME() ELSE NULL END
       FROM @Updated AS updated
       INNER JOIN dbo.BS_category_budget_package_items AS packageItem
         ON packageItem.category_budget_package_id = updated.id
        AND packageItem.is_active = 1
-
+       AND
+       (
+         updated.old_status = '${CATEGORY_PACKAGE_STATUS.DRAFT}'
+         OR packageItem.cfo_review_status = '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.NEEDS_MODIFICATION}'
+       )
       INNER JOIN dbo.BS_category_budget_package_sub_items AS subItem
         ON subItem.category_budget_package_item_id = packageItem.id
        AND subItem.is_active = 1
@@ -1906,32 +1918,17 @@ export async function markPackageSubmittedToPurchasingRepo(transaction, payload)
         SELECT TOP 1 review.*
         FROM dbo.BS_category_budget_package_sub_item_price_reviews AS review
         WHERE review.category_budget_package_sub_item_id = subItem.id
-          AND review.category_budget_package_id = updated.id
-          AND review.review_round < updated.review_round
+          AND review.status = 'ACCEPTED'
         ORDER BY review.review_round DESC, review.id DESC
-      ) AS latestDecision
-      CROSS APPLY
-      (
-        SELECT CASE WHEN UPPER(LTRIM(RTRIM(subItem.name))) = 'GENERAL'
-          AND (SELECT COUNT(*) FROM dbo.BS_category_budget_package_sub_items AS sibling
-               WHERE sibling.category_budget_package_item_id = packageItem.id
-                 AND sibling.is_active = 1) = 1
-          THEN 1 ELSE 0 END AS is_single_general
-      ) AS singleGeneral
+      ) AS previousReview
       CROSS APPLY
       (
         SELECT CASE
-          WHEN latestDecision.status = 'ACCEPTED'
-           AND latestDecision.catalog_sub_item_id_snapshot = subItem.catalog_sub_item_id
-           AND latestDecision.unit_of_measure_id_snapshot = subItem.unit_of_measure_id
-           AND ISNULL(latestDecision.specification_snapshot, N'') = ISNULL(subItem.specification, N'')
-           AND latestDecision.category_manager_unit_price_snapshot = subItem.category_manager_unit_price
-           AND latestDecision.quantity_snapshot = COALESCE(subItem.quantity, 0)
-           -- A CFO-modified General model needs a fresh Purchasing review even
-           -- if the final total stayed the same (department allocations may differ).
-           AND NOT (singleGeneral.is_single_general = 1
-             AND updated.old_status = '${CATEGORY_PACKAGE_STATUS.RETURNED_BY_CFO}'
-             AND packageItem.cfo_review_status = '${CATEGORY_PACKAGE_ITEM_CFO_STATUS.NEEDS_MODIFICATION}')
+          WHEN previousReview.id IS NOT NULL
+           AND previousReview.catalog_sub_item_id_snapshot = subItem.catalog_sub_item_id
+           AND previousReview.unit_of_measure_id_snapshot = subItem.unit_of_measure_id
+           AND ISNULL(previousReview.specification_snapshot, N'') = ISNULL(subItem.specification, N'')
+           AND previousReview.category_manager_unit_price_snapshot = subItem.category_manager_unit_price
           THEN 1 ELSE 0 END AS is_unchanged
       ) AS unchanged
       WHERE packageItem.is_active = 1
@@ -1940,8 +1937,7 @@ export async function markPackageSubmittedToPurchasingRepo(transaction, payload)
 
       SELECT id, old_status, review_round FROM @Updated;
 
-      SELECT review.category_budget_package_sub_item_id, review.status,
-             review.rejection_reason, review.review_round
+      SELECT review.category_budget_package_sub_item_id
       FROM dbo.BS_category_budget_package_sub_item_price_reviews AS review
       INNER JOIN @Updated AS updated
         ON updated.id = review.category_budget_package_id
@@ -1953,12 +1949,9 @@ export async function markPackageSubmittedToPurchasingRepo(transaction, payload)
   if (!packageRow) return null;
   return {
     ...packageRow,
-    carried_forward_decisions: (result.recordsets?.[1] || []).map((row) => ({
-      packageSubItemId: row.category_budget_package_sub_item_id,
-      decision: row.status,
-      reason: row.rejection_reason,
-      reviewRound: row.review_round,
-    })),
+    carried_forward_sub_item_ids: (result.recordsets?.[1] || []).map(
+      (row) => row.category_budget_package_sub_item_id,
+    ),
   };
 }
 
@@ -2081,64 +2074,6 @@ export async function createWorkflowHistoryRepo(transaction, payload) {
 
 
 
-/** Protect rejected General from being bypassed by adding another model to its parent. */
-export async function findRejectedSingleGeneralForPackageItemRepo(transaction, packageItemId) {
-  const result = await requestFor(transaction)
-    .input("packageItemId", sql.BigInt, packageItemId).query(`
-      SELECT TOP (1) generalModel.id
-      FROM dbo.BS_category_budget_package_items AS packageItem WITH (UPDLOCK, HOLDLOCK)
-      INNER JOIN dbo.BS_category_budget_packages AS pkg
-        ON pkg.id = packageItem.category_budget_package_id
-      INNER JOIN dbo.BS_category_budget_package_sub_items AS generalModel WITH (UPDLOCK, HOLDLOCK)
-        ON generalModel.category_budget_package_item_id = packageItem.id
-       AND generalModel.is_active = 1
-      INNER JOIN dbo.BS_category_budget_package_sub_item_price_reviews AS review WITH (UPDLOCK, HOLDLOCK)
-        ON review.category_budget_package_id = pkg.id
-       AND review.category_budget_package_sub_item_id = generalModel.id
-       AND review.review_round = pkg.purchasing_review_round
-       AND review.status = 'REJECTED'
-      WHERE packageItem.id = @packageItemId
-        AND UPPER(LTRIM(RTRIM(generalModel.name))) = 'GENERAL'
-        AND (SELECT COUNT(*) FROM dbo.BS_category_budget_package_sub_items AS sibling
-             WHERE sibling.category_budget_package_item_id = packageItem.id AND sibling.is_active = 1) = 1;
-    `);
-  return result.recordset?.[0] || null;
-}
-
-/** A fully rejected one-General item cannot be edited through a CFO return.
- * Keep this decision check in the same transaction as a department quantity edit. */
-export async function findRejectedSingleGeneralForDepartmentItemRepo(transaction, departmentItemId, packageId) {
-  const result = await requestFor(transaction)
-    .input("departmentItemId", sql.BigInt, departmentItemId)
-    .input("packageId", sql.BigInt, packageId).query(`
-      SELECT TOP (1) model.id, review.review_round, review.rejection_reason
-      FROM dbo.BS_department_category_budget_items AS departmentItem WITH (UPDLOCK, HOLDLOCK)
-      INNER JOIN dbo.BS_category_budget_package_items AS packageItem
-        ON packageItem.catalog_item_id = departmentItem.catalog_item_id AND packageItem.is_active = 1
-      INNER JOIN dbo.BS_category_budget_packages AS pkg
-        ON pkg.id = packageItem.category_budget_package_id
-      INNER JOIN dbo.BS_department_category_budgets AS departmentBudget
-        ON departmentBudget.id = departmentItem.department_category_budget_id
-       AND departmentBudget.budget_category_id = pkg.budget_category_id
-      INNER JOIN dbo.BS_department_budgets AS budget
-        ON budget.id = departmentBudget.department_budget_id
-       AND budget.financial_year_id = pkg.financial_year_id
-      INNER JOIN dbo.BS_category_budget_package_sub_items AS model
-        ON model.category_budget_package_item_id = packageItem.id AND model.is_active = 1
-      INNER JOIN dbo.BS_category_budget_package_sub_item_price_reviews AS review WITH (UPDLOCK, HOLDLOCK)
-        ON review.category_budget_package_id = pkg.id
-       AND review.category_budget_package_sub_item_id = model.id
-       AND review.review_round = pkg.purchasing_review_round
-       AND review.status = 'REJECTED'
-      WHERE departmentItem.id = @departmentItemId
-        AND pkg.id = @packageId
-        AND UPPER(LTRIM(RTRIM(model.name))) = 'GENERAL'
-        AND (SELECT COUNT(*) FROM dbo.BS_category_budget_package_sub_items AS sibling
-             WHERE sibling.category_budget_package_item_id = packageItem.id AND sibling.is_active = 1) = 1;
-    `);
-  return result.recordset?.[0] || null;
-}
-
 /** Check inside the same transaction that writes a model allocation. */
 export async function findRejectedPackageModelRepo(transaction, packageSubItemId) {
   const result = await requestFor(transaction)
@@ -2186,3 +2121,4 @@ export async function reduceRejectedAllocationRepo(transaction, payload) {
         AND category_budget_package_sub_item_id = @packageSubItemId;
   `);
 }
+
